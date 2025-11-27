@@ -1,11 +1,12 @@
 """Notebook operations for Lab Notebook."""
 
 import hashlib
-import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
+
+from labnotebook.core.utils import slugify
 
 if TYPE_CHECKING:
     from labnotebook.core.page import Page
@@ -66,7 +67,7 @@ class Notebook:
         workspace.git_manager.create_notebook(notebook_id, notebook.to_dict())
 
         # Create user-facing directory
-        notebook_dir = workspace.notebooks_path / cls._slugify(title)
+        notebook_dir = workspace.notebooks_path / slugify(title)
         notebook_dir.mkdir(exist_ok=True)
 
         # Create README
@@ -163,14 +164,6 @@ class Notebook:
 
         return result
 
-    @staticmethod
-    def _slugify(text: str) -> str:
-        """Convert title to filesystem-safe slug."""
-        text = text.lower()
-        text = re.sub(r"[^\w\s-]", "", text)
-        text = re.sub(r"[-\s]+", "-", text)
-        return text.strip("-")
-
     def get_directory(self) -> Path:
         """Get the user-facing directory for this notebook."""
-        return self.workspace.notebooks_path / self._slugify(self.title)
+        return self.workspace.notebooks_path / slugify(self.title)

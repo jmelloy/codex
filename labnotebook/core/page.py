@@ -5,6 +5,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Optional
 
+from labnotebook.core.utils import slugify
+
 if TYPE_CHECKING:
     from labnotebook.core.entry import Entry
     from labnotebook.core.notebook import Notebook
@@ -70,7 +72,7 @@ class Page:
 
         # Create user-facing directory
         date_str = page.date.strftime("%Y-%m-%d") if page.date else "undated"
-        page_slug = notebook._slugify(title)
+        page_slug = slugify(title)
         page_dir = notebook.get_directory() / f"{date_str}-{page_slug}"
         page_dir.mkdir(parents=True, exist_ok=True)
         (page_dir / "entries").mkdir(exist_ok=True)

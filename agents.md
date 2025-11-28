@@ -1,10 +1,10 @@
-# AI Agents for Lab Notebook
+# AI Agents for Codex
 
-This document describes the AI agents and assistants that can be used to enhance the Lab Notebook system.
+This document describes the AI agents and assistants that can be used to enhance the Codex system.
 
 ## Overview
 
-Lab Notebook is designed to work with AI agents that can assist with experiment tracking, analysis, and documentation. These agents can be integrated via the API or used with the CLI.
+Codex is designed to work with AI agents that can assist with experiment tracking, analysis, and documentation. These agents can be integrated via the API or used with the CLI.
 
 ## Planned Agent Integrations
 
@@ -66,17 +66,17 @@ Lab Notebook is designed to work with AI agents that can assist with experiment 
 
 ## Integration Architecture
 
-Agents can integrate with Lab Notebook through:
+Agents can integrate with Codex through:
 
 1. **REST API**: Use the FastAPI endpoints to read/write data
-2. **Python SDK**: Import `labnotebook` directly for programmatic access
+2. **Python SDK**: Import `codex` directly for programmatic access
 3. **CLI Hooks**: Execute agents via CLI commands
 4. **WebSocket**: Real-time interaction during entry execution (planned)
 
 ### Example: Using an Agent with the Python SDK
 
 ```python
-from labnotebook.core.workspace import Workspace
+from codex.core.workspace import Workspace
 from my_agent import AnalysisAgent
 
 # Load workspace
@@ -99,7 +99,7 @@ pages[0].update_narrative("observations", insights.summary)
 
 ## GitHub Copilot Integration
 
-Lab Notebook is designed to work with GitHub Copilot for:
+Codex is designed to work with GitHub Copilot for:
 
 1. **Code Completion**: Smart suggestions for entry inputs and configurations
 2. **Documentation**: Auto-generate docstrings and comments
@@ -108,7 +108,7 @@ Lab Notebook is designed to work with GitHub Copilot for:
 
 ### Copilot Extensions (Planned)
 
-- `@lab-notebook`: Query and manage experiments via chat
+- `@codex`: Query and manage experiments via chat
 - Custom skills for entry creation and execution
 - Context-aware suggestions based on notebook content
 
@@ -116,7 +116,7 @@ Lab Notebook is designed to work with GitHub Copilot for:
 
 ## Custom Agent Development
 
-To create a custom agent for Lab Notebook:
+To create a custom agent for Codex:
 
 ### 1. Implement the Agent Interface
 
@@ -124,8 +124,8 @@ To create a custom agent for Lab Notebook:
 from abc import ABC, abstractmethod
 from typing import Any
 
-class LabNotebookAgent(ABC):
-    """Base class for Lab Notebook agents."""
+class CodexAgent(ABC):
+    """Base class for Codex agents."""
     
     def __init__(self, workspace):
         self.workspace = workspace
@@ -147,10 +147,10 @@ class LabNotebookAgent(ABC):
 # Note: AgentRegistry is planned but not yet implemented
 # This shows the intended future API
 
-from labnotebook.agents import AgentRegistry  # Future module
+from codex.agents import AgentRegistry  # Future module
 
 @AgentRegistry.register("my_agent")
-class MyCustomAgent(LabNotebookAgent):
+class MyCustomAgent(CodexAgent):
     async def process(self, context: dict) -> dict:
         # Implementation
         return {"status": "success", "data": {...}}
@@ -163,7 +163,7 @@ class MyCustomAgent(LabNotebookAgent):
 
 ```bash
 # CLI usage (planned)
-lab agent run my_agent --notebook nb-abc123
+codex agent run my_agent --notebook nb-abc123
 
 # API usage (planned)
 POST /api/agents/my_agent/run
@@ -203,6 +203,6 @@ When integrating AI agents:
 To contribute agent implementations:
 
 1. Fork the repository
-2. Create an agent in `labnotebook/agents/`
+2. Create an agent in `codex/agents/`
 3. Add tests in `tests/test_agents/`
 4. Submit a pull request with documentation

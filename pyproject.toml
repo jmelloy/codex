@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "labnotebook"
+name = "codex"
 version = "0.1.0"
 description = "A hierarchical digital laboratory journal system"
 readme = "README.md"
@@ -12,7 +12,7 @@ requires-python = ">=3.10"
 authors = [
     {name = "Engineering Team"}
 ]
-keywords = ["laboratory", "notebook", "experiment", "tracking"]
+keywords = ["codex", "laboratory", "notebook", "experiment", "tracking"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -45,14 +45,14 @@ dev = [
 ]
 
 [project.scripts]
-lab = "labnotebook.cli.main:cli"
+codex = "codex.cli.main:cli"
 
 [project.urls]
 Homepage = "https://github.com/jmelloy/labview"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["labnotebook*"]
+include = ["codex*"]
 
 [tool.ruff]
 line-length = 100

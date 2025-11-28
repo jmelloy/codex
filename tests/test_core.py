@@ -4,8 +4,8 @@ from datetime import datetime
 
 import pytest
 
-from labnotebook.core.storage import StorageManager
-from labnotebook.core.workspace import Workspace
+from codex.core.storage import StorageManager
+from codex.core.workspace import Workspace
 
 
 class TestWorkspace:

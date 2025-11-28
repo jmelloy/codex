@@ -1,4 +1,4 @@
-# RFC: Lab Notebook System - Digital Laboratory Journal Architecture
+# Codex - Digital Laboratory Journal Architecture
 
 **Status**: Draft  
 **Author**: Engineering Team  
@@ -47,7 +47,7 @@
 
 ## Abstract
 
-Lab Notebook is a hierarchical digital laboratory journal system organizing work into Notebooks → Pages → Entries. It tracks computational experiments, creative iterations, and technical investigations with full provenance, reproducibility, and AI-assisted insights. Think: Jupyter meets Obsidian meets Git, designed for engineers and creators who need to document explorations that generate artifacts.
+Codex is a hierarchical digital laboratory journal system organizing work into Notebooks → Pages → Entries. It tracks computational experiments, creative iterations, and technical investigations with full provenance, reproducibility, and AI-assisted insights. Think: Jupyter meets Obsidian meets Git, designed for engineers and creators who need to document explorations that generate artifacts.
 
 ## 1. Motivation
 
@@ -454,7 +454,7 @@ CREATE TABLE entry_tags (
 ### 4.2 Project Structure
 
 ```
-labnotebook/
+codex/
   __init__.py
   
   api/
@@ -1882,7 +1882,7 @@ lab serve --port 8765
 ## 8. Python SDK Usage
 
 ```python
-from labnotebook import Workspace
+from codex import Workspace
 
 # Initialize workspace
 ws = Workspace.initialize(Path("~/my-lab"), "My Laboratory")

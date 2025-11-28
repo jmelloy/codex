@@ -6,6 +6,7 @@ import pytest
 
 from codex.core.workspace import Workspace
 from codex.integrations import IntegrationRegistry
+from codex.integrations.api_call import APICallIntegration
 from codex.integrations.database_query import DatabaseQueryIntegration
 from codex.integrations.graphql import GraphQLIntegration
 
@@ -24,6 +25,12 @@ class TestIntegrationRegistry:
         assert IntegrationRegistry.has_integration("graphql")
         cls = IntegrationRegistry.get("graphql")
         assert cls == GraphQLIntegration
+
+    def test_api_call_registered(self):
+        """Test api_call integration is registered."""
+        assert IntegrationRegistry.has_integration("api_call")
+        cls = IntegrationRegistry.get("api_call")
+        assert cls == APICallIntegration
 
     def test_list_integrations(self):
         """Test listing all integrations."""
@@ -279,3 +286,85 @@ class TestGraphQLIntegration:
         assert entry.entry_type == "graphql"
         assert entry.inputs["url"] == "https://api.example.com/graphql"
         assert entry.inputs["variables"] == {"limit": 10}
+
+
+class TestAPICallIntegration:
+    """Tests for APICallIntegration."""
+
+    @pytest.fixture
+    def workspace(self, tmp_path):
+        """Create a test workspace."""
+        return Workspace.initialize(tmp_path, "Test Workspace")
+
+    @pytest.fixture
+    def integration(self, workspace):
+        """Create integration instance."""
+        return APICallIntegration(workspace)
+
+    def test_validate_inputs_valid(self, integration):
+        """Test input validation with valid inputs."""
+        inputs = {
+            "url": "https://api.example.com/endpoint",
+            "method": "GET",
+        }
+        assert integration.validate_inputs(inputs) is True
+
+    def test_validate_inputs_valid_with_body(self, integration):
+        """Test input validation with valid inputs including body."""
+        inputs = {
+            "url": "https://api.example.com/endpoint",
+            "method": "POST",
+            "headers": {"Content-Type": "application/json"},
+            "body": {"key": "value"},
+        }
+        assert integration.validate_inputs(inputs) is True
+
+    def test_validate_inputs_missing_url(self, integration):
+        """Test input validation with missing URL."""
+        inputs = {
+            "method": "GET",
+        }
+        assert integration.validate_inputs(inputs) is False
+
+    def test_validate_inputs_minimal(self, integration):
+        """Test input validation with only URL."""
+        inputs = {
+            "url": "https://api.example.com/endpoint",
+        }
+        assert integration.validate_inputs(inputs) is True
+
+    @pytest.mark.asyncio
+    async def test_execute_connection_error(self, integration):
+        """Test error handling for connection errors."""
+        inputs = {
+            "url": "http://localhost:99999/api",
+            "method": "GET",
+        }
+
+        result = await integration.execute(inputs)
+
+        outputs = result["outputs"]
+        assert "error" in outputs
+        assert "duration_seconds" in outputs
+
+    @pytest.mark.asyncio
+    async def test_entry_with_api_call(self, workspace):
+        """Test creating an entry with api_call type."""
+        nb = workspace.create_notebook("Test Notebook")
+        page = nb.create_page("Test Page")
+
+        entry = page.create_entry(
+            entry_type="api_call",
+            title="Test API Call",
+            inputs={
+                "url": "https://api.example.com/endpoint",
+                "method": "POST",
+                "headers": {"Authorization": "Bearer token"},
+                "body": {"key": "value"},
+            },
+        )
+
+        assert entry.entry_type == "api_call"
+        assert entry.inputs["url"] == "https://api.example.com/endpoint"
+        assert entry.inputs["method"] == "POST"
+        assert entry.inputs["headers"] == {"Authorization": "Bearer token"}

@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useNotebooksStore } from '@/stores/notebooks'
 import { pagesApi, entriesApi } from '@/api'
 import type { Page, Entry } from '@/types'
 
 const route = useRoute()
+const router = useRouter()
 const notebooksStore = useNotebooksStore()
 
 const page = ref<Page | null>(null)
@@ -35,6 +36,20 @@ const getStatusClass = (status: string) => {
     completed: 'status-completed',
     failed: 'status-failed'
   }[status] || ''
+}
+
+const getEntryTypeIcon = (entryType: string) => {
+  const icons: Record<string, string> = {
+    'custom': '📝',
+    'api_call': '🌐',
+    'database_query': '🗃️',
+    'graphql': '◈',
+  }
+  return icons[entryType] || '📄'
+}
+
+const createNewEntry = () => {
+  router.push(`/notebooks/${notebookId.value}/pages/${pageId.value}/entries/new`)
 }
 </script>
 
@@ -88,18 +103,23 @@ const getStatusClass = (status: string) => {
     <section class="entries-section">
       <div class="section-header">
         <h2>Entries ({{ entries.length }})</h2>
-        <button class="btn btn-primary">+ New Entry</button>
+        <button class="btn btn-primary" @click="createNewEntry">+ New Entry</button>
       </div>
 
       <div v-if="entries.length === 0" class="empty">
         <p>No entries in this page yet.</p>
+        <p>Create your first entry to start documenting your work.</p>
+        <button class="btn btn-primary" @click="createNewEntry">Create Entry</button>
       </div>
 
       <div v-else class="entries-list">
         <div v-for="entry in entries" :key="entry.id" class="entry-card card">
           <div class="entry-header">
             <div class="entry-info">
-              <span class="entry-type">{{ entry.entry_type }}</span>
+              <span class="entry-type">
+                <span class="entry-type-icon">{{ getEntryTypeIcon(entry.entry_type) }}</span>
+                {{ entry.entry_type }}
+              </span>
               <h3>{{ entry.title }}</h3>
             </div>
             <span class="entry-status" :class="getStatusClass(entry.status)">
@@ -216,6 +236,9 @@ const getStatusClass = (status: string) => {
 }
 
 .entry-type {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
   font-size: 0.75rem;
   text-transform: uppercase;
   color: var(--color-text-secondary);

@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from codex.core.workspace import Workspace
+from codex.integrations import IntegrationRegistry
 
 router = APIRouter()
 
@@ -56,3 +57,13 @@ async def get_workspace(workspace_path: str):
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/integrations")
+async def list_integrations():
+    """List all available integration types."""
+    integrations = IntegrationRegistry.list_integrations()
+    return {
+        "integrations": integrations,
+        "count": len(integrations),
+    }

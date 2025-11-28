@@ -2,6 +2,7 @@
 
 # Import integrations to register them
 from codex.integrations import (
+    api_call,  # noqa: F401
     database_query,  # noqa: F401
     graphql,  # noqa: F401
 )

@@ -3,7 +3,7 @@
 **Status**: Draft  
 **Author**: Engineering Team  
 **Created**: 2024-11-27  
-**Last Updated**: 2024-11-27
+**Last Updated**: 2025-11-28
 
 ## Implementation Status
 
@@ -32,11 +32,16 @@
 | **Full-Text Search (FTS)** | 🚧 Planned | Basic search works, FTS5 not yet implemented |
 | **Smart Archival** | 🚧 Planned | Settings exist, policies not enforced |
 
+### 🚧 In Development
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| **Frontend (Vue.js)** | 🚧 In Progress | Web UI with views for notebooks, pages, and search |
+
 ### ❌ Not Yet Implemented
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| **Frontend (Vue.js)** | ❌ Not Started | Web UI not yet developed |
 | **ComfyUI Integration** | ❌ Not Started | Workflow execution pending |
 | **Database Query Integration** | ❌ Not Started | SQL/query execution pending |
 | **Jupyter Integration** | ❌ Not Started | Notebook cell execution pending |

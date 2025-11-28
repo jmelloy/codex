@@ -49,3 +49,17 @@ class CustomIntegration(IntegrationBase):
             "outputs": inputs.get("outputs", {}),
             "artifacts": [],
         }
+
+
+@IntegrationRegistry.register("text")
+class TextIntegration(IntegrationBase):
+    """Text content entry integration for Notion-like text blocks."""
+
+    async def execute(self, inputs: dict) -> dict:
+        """Text entries don't execute - they just store content."""
+        return {
+            "outputs": {
+                "content": inputs.get("content", ""),
+            },
+            "artifacts": [],
+        }

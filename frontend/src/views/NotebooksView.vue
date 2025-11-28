@@ -120,7 +120,7 @@ function closeModal() {
               id="tags"
               v-model="newNotebook.tags"
               type="text"
-              placeholder="experiment, ml, research"
+              placeholder="project, research, ideas"
             />
           </div>
           <div class="modal-actions">

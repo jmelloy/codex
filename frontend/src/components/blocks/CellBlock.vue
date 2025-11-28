@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
+import { marked } from "marked";
 import type { Entry } from "@/types";
 
 const props = defineProps<{
@@ -21,12 +22,22 @@ const editInputsJson = ref(JSON.stringify(props.entry.inputs, null, 2));
 
 const entryTypeIcon = computed(() => {
   const icons: Record<string, string> = {
-    custom: "📝",
+    text: "📝",
+    custom: "🔧",
     api_call: "🌐",
     database_query: "🗃️",
     graphql: "◈",
   };
   return icons[props.entry.entry_type] || "📄";
+});
+
+const isTextEntry = computed(() => props.entry.entry_type === "text");
+
+const textContent = computed(() => {
+  if (isTextEntry.value && props.entry.inputs?.content) {
+    return props.entry.inputs.content as string;
+  }
+  return "";
 });
 
 const statusClass = computed(() => {
@@ -86,57 +97,65 @@ function formatOutput(outputs: Record<string, unknown>): string {
     </div>
 
     <div v-if="isExpanded" class="cell-body">
-      <div class="cell-section inputs-section">
-        <div class="section-header">
-          <h4>Inputs</h4>
-          <button
-            v-if="!isEditing && entry.status === 'created'"
-            class="btn-icon"
-            @click.stop="startEditing"
-            title="Edit inputs"
-          >
-            ✏️
-          </button>
-        </div>
+      <!-- Text entry: show content as rendered markdown -->
+      <div v-if="isTextEntry" class="cell-section text-content-section">
+        <div class="text-content-rendered" v-html="marked(textContent || '')"></div>
+      </div>
 
-        <div v-if="isEditing" class="edit-form">
-          <textarea
-            v-model="editInputsJson"
-            class="json-editor"
-            rows="8"
-            placeholder='{"key": "value"}'
-          ></textarea>
-          <div class="edit-actions">
-            <button class="btn btn-secondary" @click="cancelEditing">Cancel</button>
-            <button class="btn btn-primary" @click="saveEditing">Save</button>
+      <!-- Non-text entries: show inputs/outputs as before -->
+      <template v-else>
+        <div class="cell-section inputs-section">
+          <div class="section-header">
+            <h4>Inputs</h4>
+            <button
+              v-if="!isEditing && entry.status === 'created'"
+              class="btn-icon"
+              @click.stop="startEditing"
+              title="Edit inputs"
+            >
+              ✏️
+            </button>
           </div>
+
+          <div v-if="isEditing" class="edit-form">
+            <textarea
+              v-model="editInputsJson"
+              class="json-editor"
+              rows="8"
+              placeholder='{"key": "value"}'
+            ></textarea>
+            <div class="edit-actions">
+              <button class="btn btn-secondary" @click="cancelEditing">Cancel</button>
+              <button class="btn btn-primary" @click="saveEditing">Save</button>
+            </div>
+          </div>
+
+          <pre v-else class="code-block">{{ JSON.stringify(entry.inputs, null, 2) }}</pre>
         </div>
 
-        <pre v-else class="code-block">{{ JSON.stringify(entry.inputs, null, 2) }}</pre>
-      </div>
+        <div v-if="entry.outputs && Object.keys(entry.outputs).length" class="cell-section outputs-section">
+          <h4>Outputs</h4>
+          <pre class="code-block output-block">{{ formatOutput(entry.outputs) }}</pre>
+        </div>
 
-      <div v-if="entry.outputs && Object.keys(entry.outputs).length" class="cell-section outputs-section">
-        <h4>Outputs</h4>
-        <pre class="code-block output-block">{{ formatOutput(entry.outputs) }}</pre>
-      </div>
+        <div v-if="entry.execution?.error" class="cell-section error-section">
+          <h4>Error</h4>
+          <pre class="code-block error-block">{{ entry.execution.error }}</pre>
+        </div>
 
-      <div v-if="entry.execution?.error" class="cell-section error-section">
-        <h4>Error</h4>
-        <pre class="code-block error-block">{{ entry.execution.error }}</pre>
-      </div>
-
-      <div v-if="entry.execution?.duration_seconds" class="cell-section meta-section">
-        <span class="meta-item">
-          ⏱️ {{ entry.execution.duration_seconds.toFixed(2) }}s
-        </span>
-        <span v-if="entry.execution?.started_at" class="meta-item">
-          🕐 {{ new Date(entry.execution.started_at).toLocaleString() }}
-        </span>
-      </div>
+        <div v-if="entry.execution?.duration_seconds" class="cell-section meta-section">
+          <span class="meta-item">
+            ⏱️ {{ entry.execution.duration_seconds.toFixed(2) }}s
+          </span>
+          <span v-if="entry.execution?.started_at" class="meta-item">
+            🕐 {{ new Date(entry.execution.started_at).toLocaleString() }}
+          </span>
+        </div>
+      </template>
 
       <div class="cell-actions">
         <button
-          v-if="canExecute"
+          v-if="canExecute && !isTextEntry"
           class="btn btn-primary"
           :disabled="executing"
           @click.stop="emit('execute')"
@@ -398,5 +417,74 @@ function formatOutput(outputs: Record<string, unknown>): string {
 
 .btn-danger:hover {
   background: #f5d5d5;
+}
+
+/* Text content section styles */
+.text-content-section {
+  padding: 0;
+}
+
+.text-content-rendered {
+  line-height: 1.7;
+  font-family: var(--font-body);
+}
+
+.text-content-rendered :deep(h1),
+.text-content-rendered :deep(h2),
+.text-content-rendered :deep(h3) {
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+  font-family: var(--font-handwritten);
+  color: var(--color-primary);
+}
+
+.text-content-rendered :deep(h1:first-child),
+.text-content-rendered :deep(h2:first-child),
+.text-content-rendered :deep(h3:first-child) {
+  margin-top: 0;
+}
+
+.text-content-rendered :deep(p) {
+  margin-bottom: 0.75rem;
+}
+
+.text-content-rendered :deep(p:last-child) {
+  margin-bottom: 0;
+}
+
+.text-content-rendered :deep(ul),
+.text-content-rendered :deep(ol) {
+  margin-left: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.text-content-rendered :deep(code) {
+  background: var(--color-background);
+  padding: 0.125rem 0.375rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.875em;
+  font-family: var(--font-mono);
+}
+
+.text-content-rendered :deep(pre) {
+  background: var(--color-background);
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+  margin-bottom: 0.75rem;
+  border-left: 3px solid var(--color-primary);
+}
+
+.text-content-rendered :deep(pre code) {
+  background: none;
+  padding: 0;
+}
+
+.text-content-rendered :deep(blockquote) {
+  border-left: 3px solid var(--color-primary);
+  padding-left: 1rem;
+  margin: 0.75rem 0;
+  color: var(--color-text-secondary);
+  font-style: italic;
 }
 </style>

@@ -134,7 +134,7 @@ function closeModal() {
               id="title"
               v-model="newPage.title"
               type="text"
-              placeholder="Experiment #1"
+              placeholder="Session #1"
               required
             />
           </div>

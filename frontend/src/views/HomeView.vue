@@ -17,13 +17,13 @@
         <h3>📓 Notebooks</h3>
         <p>
           Organize your work into notebooks, pages, and entries for structured
-          experimentation.
+          documentation.
         </p>
       </div>
       <div class="feature card">
         <h3>🔗 Lineage Tracking</h3>
         <p>
-          Track the evolution of your experiments with parent-child
+          Track the evolution of your work with parent-child
           relationships and variations.
         </p>
       </div>
@@ -37,7 +37,7 @@
       <div class="feature card">
         <h3>🔍 Search</h3>
         <p>
-          Find any entry, artifact, or experiment with powerful search
+          Find any entry, artifact, or content with powerful search
           capabilities.
         </p>
       </div>

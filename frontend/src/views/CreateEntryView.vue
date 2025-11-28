@@ -8,6 +8,7 @@ import DatabaseQueryForm from "@/components/entry/DatabaseQueryForm.vue";
 import GraphQLForm from "@/components/entry/GraphQLForm.vue";
 import ApiCallForm from "@/components/entry/ApiCallForm.vue";
 import CustomForm from "@/components/entry/CustomForm.vue";
+import TextForm from "@/components/entry/TextForm.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -22,18 +23,24 @@ const notebookId = computed(() => route.params.notebookId as string);
 const pageId = computed(() => route.params.pageId as string);
 const notebook = computed(() => notebooksStore.notebooks.get(notebookId.value));
 
-// Entry form data
-const entryType = ref("custom");
+// Entry form data - default to text for Notion-like experience
+const entryType = ref(route.query.type as string || "text");
 const title = ref("");
 const inputs = ref<Record<string, unknown>>({});
 const tags = ref("");
 
 const entryTypes = [
   {
-    value: "custom",
-    label: "Custom Entry",
-    description: "Manual entry for notes and observations",
+    value: "text",
+    label: "Text",
+    description: "Plain text or markdown content",
     icon: "📝",
+  },
+  {
+    value: "custom",
+    label: "Custom",
+    description: "Custom entry with JSON data",
+    icon: "🔧",
   },
   {
     value: "api_call",
@@ -61,6 +68,8 @@ const currentEntryType = computed(() =>
 
 const formComponent = computed(() => {
   switch (entryType.value) {
+    case "text":
+      return TextForm;
     case "database_query":
       return DatabaseQueryForm;
     case "graphql":
@@ -112,6 +121,7 @@ const isValid = computed(() => {
       return !!(inputs.value.url && inputs.value.query);
     case "api_call":
       return !!inputs.value.url;
+    case "text":
     case "custom":
     default:
       return true;

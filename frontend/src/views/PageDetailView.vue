@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, watch, nextTick } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useNotebooksStore } from "@/stores/notebooks";
 import { pagesApi, entriesApi } from "@/api";
@@ -16,9 +16,13 @@ const entries = ref<Entry[]>([]);
 const loading = ref(true);
 const executingEntries = ref<Set<string>>(new Set());
 
-// New cell creation state
+// New cell creation state (Notion-like inline creation)
 const showNewCellMenu = ref(false);
 const newCellPosition = ref<number | null>(null);
+const isCreatingTextCell = ref(false);
+const newTextCellContent = ref("");
+const newTextCellTitle = ref("");
+const newTextCellInputRef = ref<HTMLInputElement | null>(null);
 
 // Variation modal state
 const showVariationModal = ref(false);
@@ -135,6 +139,53 @@ function closeVariationModal() {
   variationTitle.value = "";
 }
 
+// Notion-like inline cell creation
+function startInlineTextCell(position: number) {
+  newCellPosition.value = position;
+  isCreatingTextCell.value = true;
+  newTextCellTitle.value = "";
+  newTextCellContent.value = "";
+  nextTick(() => {
+    newTextCellInputRef.value?.focus();
+  });
+}
+
+function cancelInlineTextCell() {
+  isCreatingTextCell.value = false;
+  newCellPosition.value = null;
+  newTextCellTitle.value = "";
+  newTextCellContent.value = "";
+}
+
+async function saveInlineTextCell() {
+  if (!newTextCellTitle.value.trim() && !newTextCellContent.value.trim()) {
+    cancelInlineTextCell();
+    return;
+  }
+
+  const title = newTextCellTitle.value.trim() || "Untitled";
+  
+  try {
+    const newEntry = await entriesApi.create(
+      notebooksStore.workspacePath,
+      pageId.value,
+      {
+        entry_type: "text",
+        title: title,
+        inputs: {
+          content: newTextCellContent.value,
+        },
+        tags: [],
+      }
+    );
+    entries.value.push(newEntry);
+    cancelInlineTextCell();
+  } catch (e) {
+    console.error("Failed to create cell:", e);
+    alert("Failed to create cell");
+  }
+}
+
 function showAddCell(position: number) {
   newCellPosition.value = position;
   showNewCellMenu.value = true;
@@ -147,17 +198,23 @@ function hideAddCell() {
 
 function addNewCell(entryType: string) {
   hideAddCell();
-  router.push({
-    path: `/notebooks/${notebookId.value}/pages/${pageId.value}/entries/new`,
-    query: { type: entryType }
-  });
+  // For text cells, create inline; for others, navigate to form
+  if (entryType === "text") {
+    startInlineTextCell(newCellPosition.value ?? entries.value.length);
+  } else {
+    router.push({
+      path: `/notebooks/${notebookId.value}/pages/${pageId.value}/entries/new`,
+      query: { type: entryType }
+    });
+  }
 }
 
 const entryTypes = [
-  { type: "custom", label: "Custom", icon: "📝" },
-  { type: "database_query", label: "Database Query", icon: "🗃️" },
-  { type: "api_call", label: "API Call", icon: "🌐" },
-  { type: "graphql", label: "GraphQL", icon: "◈" },
+  { type: "text", label: "Text", icon: "📝", description: "Plain text or markdown content" },
+  { type: "custom", label: "Custom", icon: "🔧", description: "Custom entry with JSON data" },
+  { type: "database_query", label: "Database Query", icon: "🗃️", description: "Execute SQL queries" },
+  { type: "api_call", label: "API Call", icon: "🌐", description: "HTTP API requests" },
+  { type: "graphql", label: "GraphQL", icon: "◈", description: "GraphQL queries and mutations" },
 ];
 </script>
 
@@ -200,16 +257,43 @@ const entryTypes = [
         />
       </section>
 
-      <!-- Add Cell Button (before entries) -->
-      <div class="add-cell-row">
-        <button class="add-cell-btn" @click="showAddCell(0)">
-          <span class="add-icon">+</span>
-          <span>Add Cell</span>
-        </button>
-      </div>
-
-      <!-- Entries (Cells) -->
+      <!-- Entries (Cells) - Notion-like layout -->
       <div class="cells-container">
+        <!-- Inline text cell creation at top -->
+        <div v-if="isCreatingTextCell && newCellPosition === 0" class="inline-cell-creator">
+          <input
+            ref="newTextCellInputRef"
+            v-model="newTextCellTitle"
+            type="text"
+            class="inline-title-input"
+            placeholder="Title (optional)"
+            @keydown.enter.prevent="saveInlineTextCell"
+            @keydown.escape="cancelInlineTextCell"
+          />
+          <textarea
+            v-model="newTextCellContent"
+            class="inline-content-input"
+            placeholder="Start typing your content..."
+            rows="3"
+            @keydown.escape="cancelInlineTextCell"
+          ></textarea>
+          <div class="inline-cell-actions">
+            <button class="btn btn-sm" @click="cancelInlineTextCell">Cancel</button>
+            <button class="btn btn-sm btn-primary" @click="saveInlineTextCell">Save</button>
+          </div>
+        </div>
+
+        <!-- Add Cell Button (before entries) -->
+        <div v-if="!isCreatingTextCell || newCellPosition !== 0" class="add-cell-row">
+          <button class="add-cell-btn" @click="startInlineTextCell(0)" title="Add text cell">
+            <span class="add-icon">+</span>
+            <span>Add</span>
+          </button>
+          <button class="add-cell-menu-btn" @click="showAddCell(0)" title="More cell types">
+            <span>▾</span>
+          </button>
+        </div>
+
         <template v-for="(entry, index) in entries" :key="entry.id">
           <CellBlock
             :entry="entry"
@@ -219,16 +303,43 @@ const entryTypes = [
             @create-variation="openVariationModal(entry)"
           />
 
+          <!-- Inline text cell creation after entry -->
+          <div v-if="isCreatingTextCell && newCellPosition === index + 1" class="inline-cell-creator">
+            <input
+              ref="newTextCellInputRef"
+              v-model="newTextCellTitle"
+              type="text"
+              class="inline-title-input"
+              placeholder="Title (optional)"
+              @keydown.enter.prevent="saveInlineTextCell"
+              @keydown.escape="cancelInlineTextCell"
+            />
+            <textarea
+              v-model="newTextCellContent"
+              class="inline-content-input"
+              placeholder="Start typing your content..."
+              rows="3"
+              @keydown.escape="cancelInlineTextCell"
+            ></textarea>
+            <div class="inline-cell-actions">
+              <button class="btn btn-sm" @click="cancelInlineTextCell">Cancel</button>
+              <button class="btn btn-sm btn-primary" @click="saveInlineTextCell">Save</button>
+            </div>
+          </div>
+
           <!-- Add Cell Button after each entry -->
-          <div class="add-cell-row">
-            <button class="add-cell-btn" @click="showAddCell(index + 1)">
+          <div v-if="!isCreatingTextCell || newCellPosition !== index + 1" class="add-cell-row">
+            <button class="add-cell-btn" @click="startInlineTextCell(index + 1)" title="Add text cell">
               <span class="add-icon">+</span>
+            </button>
+            <button class="add-cell-menu-btn" @click="showAddCell(index + 1)" title="More cell types">
+              <span>▾</span>
             </button>
           </div>
         </template>
 
-        <div v-if="entries.length === 0" class="empty-cells">
-          <p>No cells yet. Add your first cell to start experimenting.</p>
+        <div v-if="entries.length === 0 && !isCreatingTextCell" class="empty-cells">
+          <p>No cells yet. Click + to add your first cell.</p>
         </div>
       </div>
 
@@ -269,7 +380,7 @@ const entryTypes = [
     <!-- New Cell Menu (Dropdown) -->
     <div v-if="showNewCellMenu" class="cell-menu-overlay" @click="hideAddCell">
       <div class="cell-menu" @click.stop>
-        <h3>Add Cell</h3>
+        <h3>Choose Cell Type</h3>
         <div class="cell-menu-options">
           <button
             v-for="cellType in entryTypes"
@@ -278,7 +389,10 @@ const entryTypes = [
             @click="addNewCell(cellType.type)"
           >
             <span class="cell-menu-icon">{{ cellType.icon }}</span>
-            <span>{{ cellType.label }}</span>
+            <div class="cell-menu-text">
+              <span class="cell-menu-label">{{ cellType.label }}</span>
+              <span class="cell-menu-description">{{ cellType.description }}</span>
+            </div>
           </button>
         </div>
       </div>
@@ -426,37 +540,9 @@ const entryTypes = [
   padding: 1rem 0;
 }
 
-.add-cell-row {
-  display: flex;
-  justify-content: center;
-  padding: 0.25rem 0;
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-
 .notebook-content:hover .add-cell-row,
 .add-cell-row:hover {
   opacity: 1;
-}
-
-.add-cell-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.375rem 0.75rem;
-  background: var(--color-background);
-  border: 1px dashed var(--color-border);
-  border-radius: var(--radius-md);
-  color: var(--color-text-secondary);
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.add-cell-btn:hover {
-  background: var(--color-surface);
-  border-color: var(--color-primary);
-  color: var(--color-primary);
 }
 
 .add-icon {
@@ -618,5 +704,133 @@ const entryTypes = [
   justify-content: flex-end;
   gap: 1rem;
   margin-top: 1.5rem;
+}
+
+/* Inline cell creator styles (Notion-like) */
+.inline-cell-creator {
+  background: var(--color-surface);
+  border: 2px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  margin: 0.5rem 0;
+  box-shadow: var(--shadow-md);
+}
+
+.inline-title-input {
+  width: 100%;
+  padding: 0.5rem;
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 1rem;
+  font-weight: 500;
+  font-family: var(--font-body);
+  background: transparent;
+  margin-bottom: 0.5rem;
+}
+
+.inline-title-input:focus {
+  outline: none;
+  border-bottom-color: var(--color-primary);
+}
+
+.inline-content-input {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.9375rem;
+  font-family: var(--font-body);
+  resize: vertical;
+  min-height: 80px;
+  background: var(--color-background);
+}
+
+.inline-content-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.inline-cell-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.btn-sm {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.8125rem;
+}
+
+/* Updated add cell button styles for split button */
+.add-cell-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0;
+  padding: 0.25rem 0;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.add-cell-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.625rem;
+  background: var(--color-background);
+  border: 1px dashed var(--color-border);
+  border-right: none;
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.add-cell-btn:hover {
+  background: var(--color-surface);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.add-cell-menu-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.375rem 0.5rem;
+  background: var(--color-background);
+  border: 1px dashed var(--color-border);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.add-cell-menu-btn:hover {
+  background: var(--color-surface);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+/* Updated cell menu styles with descriptions */
+.cell-menu-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.cell-menu-label {
+  font-weight: 500;
+}
+
+.cell-menu-description {
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+
+.cell-menu-option:hover .cell-menu-description {
+  opacity: 0.9;
 }
 </style>

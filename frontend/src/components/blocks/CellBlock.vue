@@ -161,6 +161,7 @@ function formatOutput(outputs: Record<string, unknown>): string {
       </template>
 
       <div class="cell-actions">
+        <!-- Text entries are content-only and don't need execution like API calls or queries -->
         <button
           v-if="canExecute && !isTextEntry"
           class="btn btn-primary"

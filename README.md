@@ -23,6 +23,8 @@
 | **Integration Registry** | ✅ Complete | Plugin system for entry types |
 | **Custom Integration** | ✅ Complete | Manual entry type |
 | **API Call Integration** | ✅ Complete | HTTP request tracking |
+| **Database Query Integration** | ✅ Complete | SQL query execution with SQLAlchemy |
+| **GraphQL Integration** | ✅ Complete | GraphQL API queries and mutations |
 
 ### 🚧 Partial / Planned Features
 
@@ -43,7 +45,6 @@
 | Feature | Status | Notes |
 |---------|--------|-------|
 | **ComfyUI Integration** | ❌ Not Started | Workflow execution pending |
-| **Database Query Integration** | ❌ Not Started | SQL/query execution pending |
 | **Jupyter Integration** | ❌ Not Started | Notebook cell execution pending |
 | **AI-Powered Insights** | ❌ Not Started | Summarization, pattern detection pending |
 | **Export/Import** | ❌ Not Started | Notebook export functionality pending |

@@ -247,6 +247,11 @@ async def list_page_entries(page_id: str, workspace_path: Optional[str] = Query(
                 "created_at": entry.created_at.isoformat(),
                 "status": entry.status,
                 "parent_id": entry.parent_id,
+                "inputs": entry.inputs,
+                "outputs": entry.outputs,
+                "execution": entry.execution,
+                "metrics": entry.metrics,
+                "metadata": entry.metadata,
                 "tags": entry.tags,
             }
             for entry in entries

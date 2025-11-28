@@ -1,9 +1,10 @@
 """Entry operations for Lab Notebook."""
 
-import hashlib
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Optional
+
+from ulid import ULID
 
 if TYPE_CHECKING:
     from codex.core.page import Page
@@ -46,7 +47,7 @@ class Entry:
         tags: Optional[list[str]] = None,
     ) -> "Entry":
         """Create a new entry."""
-        entry_id = f"entry-{hashlib.sha256(f'{_now().isoformat()}-{title}'.encode()).hexdigest()[:12]}"
+        entry_id = str(ULID())
 
         entry = cls(
             id=entry_id,

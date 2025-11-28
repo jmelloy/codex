@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useNotebooksStore } from "@/stores/notebooks";
 import { pagesApi, entriesApi } from "@/api";
 import type { Page, Entry } from "@/types";
+import TextBlock from "@/components/blocks/TextBlock.vue";
+import CellBlock from "@/components/blocks/CellBlock.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -14,23 +16,29 @@ const entries = ref<Entry[]>([]);
 const loading = ref(true);
 const executingEntries = ref<Set<string>>(new Set());
 
+// New cell creation state
+const showNewCellMenu = ref(false);
+const newCellPosition = ref<number | null>(null);
+
 // Variation modal state
 const showVariationModal = ref(false);
 const variationEntry = ref<Entry | null>(null);
 const variationTitle = ref("");
 const creatingVariation = ref(false);
 
-// Lineage modal state
-const showLineageModal = ref(false);
-const lineageEntry = ref<Entry | null>(null);
-const lineageData = ref<{ ancestors: Entry[]; descendants: Entry[]; entry: Entry } | null>(null);
-const loadingLineage = ref(false);
-
 const notebookId = computed(() => route.params.notebookId as string);
 const pageId = computed(() => route.params.pageId as string);
-const notebook = computed(() => notebooksStore.notebooks.get(notebookId.value));
 
 onMounted(async () => {
+  await loadPage();
+});
+
+watch([notebookId, pageId], async () => {
+  await loadPage();
+});
+
+async function loadPage() {
+  loading.value = true;
   await notebooksStore.loadNotebook(notebookId.value);
   try {
     page.value = await pagesApi.get(notebooksStore.workspacePath, pageId.value);
@@ -43,34 +51,20 @@ onMounted(async () => {
   } finally {
     loading.value = false;
   }
-});
+}
 
-const getStatusClass = (status: string) => {
-  return (
-    {
-      created: "status-created",
-      running: "status-running",
-      completed: "status-completed",
-      failed: "status-failed",
-    }[status] || ""
-  );
-};
-
-const getEntryTypeIcon = (entryType: string) => {
-  const icons: Record<string, string> = {
-    custom: "📝",
-    api_call: "🌐",
-    database_query: "🗃️",
-    graphql: "◈",
-  };
-  return icons[entryType] || "📄";
-};
-
-const createNewEntry = () => {
-  router.push(
-    `/notebooks/${notebookId.value}/pages/${pageId.value}/entries/new`,
-  );
-};
+async function updateNarrative(field: string, content: string) {
+  if (!page.value) return;
+  try {
+    const updatedNarrative = { ...page.value.narrative, [field]: content };
+    await pagesApi.update(notebooksStore.workspacePath, pageId.value, {
+      narrative: updatedNarrative,
+    });
+    page.value.narrative = updatedNarrative;
+  } catch (e) {
+    console.error("Failed to update narrative:", e);
+  }
+}
 
 async function executeEntry(entry: Entry) {
   executingEntries.value.add(entry.id);
@@ -85,6 +79,16 @@ async function executeEntry(entry: Entry) {
     alert("Failed to execute entry: " + (e instanceof Error ? e.message : "Unknown error"));
   } finally {
     executingEntries.value.delete(entry.id);
+  }
+}
+
+async function deleteEntry(entry: Entry) {
+  if (!confirm(`Delete "${entry.title}"?`)) return;
+  try {
+    await entriesApi.delete(notebooksStore.workspacePath, entry.id);
+    entries.value = entries.value.filter(e => e.id !== entry.id);
+  } catch (e) {
+    console.error("Failed to delete entry:", e);
   }
 }
 
@@ -125,153 +129,160 @@ async function createVariation() {
   }
 }
 
-async function openLineageModal(entry: Entry) {
-  lineageEntry.value = entry;
-  showLineageModal.value = true;
-  loadingLineage.value = true;
-
-  try {
-    lineageData.value = await entriesApi.getLineage(notebooksStore.workspacePath, entry.id);
-  } catch (e) {
-    console.error("Failed to load lineage:", e);
-    lineageData.value = null;
-  } finally {
-    loadingLineage.value = false;
-  }
-}
-
-function closeLineageModal() {
-  showLineageModal.value = false;
-  lineageEntry.value = null;
-  lineageData.value = null;
-}
-
 function closeVariationModal() {
   showVariationModal.value = false;
   variationEntry.value = null;
   variationTitle.value = "";
 }
+
+function showAddCell(position: number) {
+  newCellPosition.value = position;
+  showNewCellMenu.value = true;
+}
+
+function hideAddCell() {
+  showNewCellMenu.value = false;
+  newCellPosition.value = null;
+}
+
+function addNewCell(entryType: string) {
+  hideAddCell();
+  router.push({
+    path: `/notebooks/${notebookId.value}/pages/${pageId.value}/entries/new`,
+    query: { type: entryType }
+  });
+}
+
+const entryTypes = [
+  { type: "custom", label: "Custom", icon: "📝" },
+  { type: "database_query", label: "Database Query", icon: "🗃️" },
+  { type: "api_call", label: "API Call", icon: "🌐" },
+  { type: "graphql", label: "GraphQL", icon: "◈" },
+];
 </script>
 
 <template>
-  <div class="page-detail" v-if="page">
+  <div class="notebook-page" v-if="page">
+    <!-- Page Header -->
     <header class="page-header">
-      <div class="breadcrumb">
-        <RouterLink to="/notebooks">Notebooks</RouterLink>
-        <span>/</span>
-        <RouterLink :to="`/notebooks/${notebookId}`">{{
-          notebook?.title
-        }}</RouterLink>
-        <span>/</span>
-        <span>{{ page.title }}</span>
+      <div class="page-meta">
+        <span class="page-date">
+          {{ page.date ? new Date(page.date).toLocaleDateString() : "Undated" }}
+        </span>
+        <div v-if="page.tags?.length" class="tags">
+          <span v-for="tag in page.tags" :key="tag" class="tag">{{ tag }}</span>
+        </div>
       </div>
-
-      <div class="title-row">
-        <h1>{{ page.title }}</h1>
-        <span class="date">{{
-          page.date ? new Date(page.date).toLocaleDateString() : "Undated"
-        }}</span>
-      </div>
-
-      <div v-if="page.tags.length > 0" class="tags">
-        <span v-for="tag in page.tags" :key="tag" class="tag">{{ tag }}</span>
-      </div>
+      <h1 class="page-title">{{ page.title }}</h1>
     </header>
 
-    <section
-      class="narrative-section card"
-      v-if="Object.values(page.narrative || {}).some(Boolean)"
-    >
-      <h2>Narrative</h2>
-      <div class="narrative-fields">
-        <div v-if="page.narrative?.goals" class="narrative-field">
-          <h4>Goals</h4>
-          <p>{{ page.narrative.goals }}</p>
-        </div>
-        <div v-if="page.narrative?.hypothesis" class="narrative-field">
-          <h4>Hypothesis</h4>
-          <p>{{ page.narrative.hypothesis }}</p>
-        </div>
-        <div v-if="page.narrative?.observations" class="narrative-field">
-          <h4>Observations</h4>
-          <p>{{ page.narrative.observations }}</p>
-        </div>
-        <div v-if="page.narrative?.conclusions" class="narrative-field">
-          <h4>Conclusions</h4>
-          <p>{{ page.narrative.conclusions }}</p>
-        </div>
-        <div v-if="page.narrative?.next_steps" class="narrative-field">
-          <h4>Next Steps</h4>
-          <p>{{ page.narrative.next_steps }}</p>
-        </div>
-      </div>
-    </section>
+    <!-- Notebook Content -->
+    <div class="notebook-content">
+      <!-- Goals Section -->
+      <section class="notebook-section">
+        <h2 class="section-label">Goals</h2>
+        <TextBlock
+          :content="page.narrative?.goals || ''"
+          placeholder="What are you trying to achieve?"
+          :editable="true"
+          @update="content => updateNarrative('goals', content)"
+        />
+      </section>
 
-    <section class="entries-section">
-      <div class="section-header">
-        <h2>Entries ({{ entries.length }})</h2>
-        <button class="btn btn-primary" @click="createNewEntry">
-          + New Entry
+      <!-- Hypothesis Section -->
+      <section class="notebook-section">
+        <h2 class="section-label">Hypothesis</h2>
+        <TextBlock
+          :content="page.narrative?.hypothesis || ''"
+          placeholder="What do you expect to happen?"
+          :editable="true"
+          @update="content => updateNarrative('hypothesis', content)"
+        />
+      </section>
+
+      <!-- Add Cell Button (before entries) -->
+      <div class="add-cell-row">
+        <button class="add-cell-btn" @click="showAddCell(0)">
+          <span class="add-icon">+</span>
+          <span>Add Cell</span>
         </button>
       </div>
 
-      <div v-if="entries.length === 0" class="empty">
-        <p>No entries in this page yet.</p>
-        <p>Create your first entry to start documenting your work.</p>
-        <button class="btn btn-primary" @click="createNewEntry">
-          Create Entry
-        </button>
-      </div>
+      <!-- Entries (Cells) -->
+      <div class="cells-container">
+        <template v-for="(entry, index) in entries" :key="entry.id">
+          <CellBlock
+            :entry="entry"
+            :executing="executingEntries.has(entry.id)"
+            @execute="executeEntry(entry)"
+            @delete="deleteEntry(entry)"
+            @create-variation="openVariationModal(entry)"
+          />
 
-      <div v-else class="entries-list">
-        <div v-for="entry in entries" :key="entry.id" class="entry-card card">
-          <div class="entry-header">
-            <div class="entry-info">
-              <span class="entry-type">
-                <span class="entry-type-icon">{{
-                  getEntryTypeIcon(entry.entry_type)
-                }}</span>
-                {{ entry.entry_type }}
-              </span>
-              <h3>{{ entry.title }}</h3>
-            </div>
-            <span class="entry-status" :class="getStatusClass(entry.status)">
-              {{ entry.status }}
-            </span>
-          </div>
-
-          <div class="entry-meta">
-            <span
-              >Created: {{ new Date(entry.created_at).toLocaleString() }}</span
-            >
-            <span v-if="entry.parent_id">Parent: {{ entry.parent_id }}</span>
-          </div>
-
-          <div v-if="entry.metadata?.tags?.length" class="tags">
-            <span v-for="tag in entry.metadata.tags" :key="tag" class="tag">{{
-              tag
-            }}</span>
-          </div>
-
-          <div class="entry-actions">
-            <button 
-              class="btn btn-secondary" 
-              v-if="entry.status === 'created'"
-              @click="executeEntry(entry)"
-              :disabled="executingEntries.has(entry.id)"
-            >
-              {{ executingEntries.has(entry.id) ? "Executing..." : "Execute" }}
-            </button>
-            <button class="btn btn-secondary" @click="openVariationModal(entry)">
-              Create Variation
-            </button>
-            <button class="btn btn-secondary" @click="openLineageModal(entry)">
-              View Lineage
+          <!-- Add Cell Button after each entry -->
+          <div class="add-cell-row">
+            <button class="add-cell-btn" @click="showAddCell(index + 1)">
+              <span class="add-icon">+</span>
             </button>
           </div>
+        </template>
+
+        <div v-if="entries.length === 0" class="empty-cells">
+          <p>No cells yet. Add your first cell to start experimenting.</p>
         </div>
       </div>
-    </section>
+
+      <!-- Observations Section -->
+      <section class="notebook-section">
+        <h2 class="section-label">Observations</h2>
+        <TextBlock
+          :content="page.narrative?.observations || ''"
+          placeholder="What did you observe?"
+          :editable="true"
+          @update="content => updateNarrative('observations', content)"
+        />
+      </section>
+
+      <!-- Conclusions Section -->
+      <section class="notebook-section">
+        <h2 class="section-label">Conclusions</h2>
+        <TextBlock
+          :content="page.narrative?.conclusions || ''"
+          placeholder="What conclusions can you draw?"
+          :editable="true"
+          @update="content => updateNarrative('conclusions', content)"
+        />
+      </section>
+
+      <!-- Next Steps Section -->
+      <section class="notebook-section">
+        <h2 class="section-label">Next Steps</h2>
+        <TextBlock
+          :content="page.narrative?.next_steps || ''"
+          placeholder="What should you try next?"
+          :editable="true"
+          @update="content => updateNarrative('next_steps', content)"
+        />
+      </section>
+    </div>
+
+    <!-- New Cell Menu (Dropdown) -->
+    <div v-if="showNewCellMenu" class="cell-menu-overlay" @click="hideAddCell">
+      <div class="cell-menu" @click.stop>
+        <h3>Add Cell</h3>
+        <div class="cell-menu-options">
+          <button
+            v-for="cellType in entryTypes"
+            :key="cellType.type"
+            class="cell-menu-option"
+            @click="addNewCell(cellType.type)"
+          >
+            <span class="cell-menu-icon">{{ cellType.icon }}</span>
+            <span>{{ cellType.label }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
 
     <!-- Variation Modal -->
     <div v-if="showVariationModal" class="modal-overlay" @click.self="closeVariationModal">
@@ -297,205 +308,184 @@ function closeVariationModal() {
         </form>
       </div>
     </div>
-
-    <!-- Lineage Modal -->
-    <div v-if="showLineageModal" class="modal-overlay" @click.self="closeLineageModal">
-      <div class="modal modal-wide">
-        <h2>Entry Lineage</h2>
-        <p class="modal-subtitle">{{ lineageEntry?.title }}</p>
-        
-        <div v-if="loadingLineage" class="loading">Loading lineage...</div>
-        
-        <div v-else-if="lineageData" class="lineage-content">
-          <div class="lineage-section" v-if="lineageData.ancestors.length > 0">
-            <h4>Ancestors</h4>
-            <div class="lineage-list">
-              <div v-for="ancestor in lineageData.ancestors" :key="ancestor.id" class="lineage-item">
-                {{ ancestor.title }} <span class="lineage-status">{{ ancestor.status }}</span>
-              </div>
-            </div>
-          </div>
-          
-          <div class="lineage-section lineage-current">
-            <h4>Current Entry</h4>
-            <div class="lineage-item current">
-              {{ lineageData.entry.title }} <span class="lineage-status">{{ lineageData.entry.status }}</span>
-            </div>
-          </div>
-          
-          <div class="lineage-section" v-if="lineageData.descendants.length > 0">
-            <h4>Descendants</h4>
-            <div class="lineage-list">
-              <div v-for="desc in lineageData.descendants" :key="desc.id" class="lineage-item">
-                {{ desc.title }} <span class="lineage-status">{{ desc.status }}</span>
-              </div>
-            </div>
-          </div>
-          
-          <div v-if="lineageData.ancestors.length === 0 && lineageData.descendants.length === 0" class="empty">
-            No lineage found. This entry has no parent or children.
-          </div>
-        </div>
-        
-        <div class="modal-actions">
-          <button type="button" class="btn" @click="closeLineageModal">Close</button>
-        </div>
-      </div>
-    </div>
   </div>
 
   <div v-else-if="loading" class="loading">Loading page...</div>
 </template>
 
 <style scoped>
-.breadcrumb {
+.notebook-page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.page-header {
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.page-meta {
   display: flex;
-  gap: 0.5rem;
-  color: var(--color-text-secondary);
-  margin-bottom: 1rem;
-}
-
-.breadcrumb a {
-  color: var(--color-text-secondary);
-}
-
-.breadcrumb a:hover {
-  color: var(--color-primary);
-}
-
-.title-row {
-  display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 1rem;
   margin-bottom: 0.5rem;
 }
 
-.date {
+.page-date {
+  font-size: 0.875rem;
   color: var(--color-text-secondary);
-  font-size: 1rem;
+}
+
+.page-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0;
 }
 
 .tags {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
-  margin-top: 0.75rem;
 }
 
-.page-header {
-  margin-bottom: 2rem;
-}
-
-.narrative-section {
-  margin-bottom: 2rem;
-}
-
-.narrative-section h2 {
-  margin-bottom: 1rem;
-}
-
-.narrative-fields {
-  display: grid;
-  gap: 1rem;
-}
-
-.narrative-field h4 {
-  color: var(--color-text-secondary);
-  font-size: 0.875rem;
-  margin-bottom: 0.25rem;
-}
-
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.entries-list {
+.notebook-content {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.5rem;
 }
 
-.entry-card {
-  transition:
-    transform 0.2s,
-    box-shadow 0.2s;
+.notebook-section {
+  padding: 0.5rem 0;
 }
 
-.entry-card:hover {
-  box-shadow: var(--shadow-md);
+.section-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-secondary);
+  margin-bottom: 0.5rem;
 }
 
-.entry-header {
+.cells-container {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 0.75rem;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem 0;
 }
 
-.entry-type {
+.add-cell-row {
+  display: flex;
+  justify-content: center;
+  padding: 0.25rem 0;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.notebook-content:hover .add-cell-row,
+.add-cell-row:hover {
+  opacity: 1;
+}
+
+.add-cell-btn {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  color: var(--color-text-secondary);
-  letter-spacing: 0.05em;
-}
-
-.entry-info h3 {
-  margin-top: 0.25rem;
-}
-
-.entry-status {
-  padding: 0.25rem 0.75rem;
-  border-radius: var(--radius-sm);
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-
-.status-created {
-  background: #e0e7ff;
-  color: #4338ca;
-}
-
-.status-running {
-  background: #fef3c7;
-  color: #b45309;
-}
-
-.status-completed {
-  background: #dcfce7;
-  color: #15803d;
-}
-
-.status-failed {
-  background: #fee2e2;
-  color: #b91c1c;
-}
-
-.entry-meta {
-  display: flex;
-  gap: 1.5rem;
-  font-size: 0.875rem;
-  color: var(--color-text-secondary);
-  margin-bottom: 0.75rem;
-}
-
-.entry-actions {
-  display: flex;
   gap: 0.5rem;
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--color-border);
+  padding: 0.375rem 0.75rem;
+  background: var(--color-background);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
-.loading,
-.empty {
+.add-cell-btn:hover {
+  background: var(--color-surface);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.add-icon {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.empty-cells {
   text-align: center;
   padding: 3rem;
+  background: var(--color-background);
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+  color: var(--color-text-secondary);
+}
+
+.cell-menu-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.cell-menu {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-lg);
+  min-width: 280px;
+}
+
+.cell-menu h3 {
+  margin-bottom: 1rem;
+  font-size: 1rem;
+  color: var(--color-text);
+}
+
+.cell-menu-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.cell-menu-option {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+  font-size: 0.9375rem;
+}
+
+.cell-menu-option:hover {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: white;
+}
+
+.cell-menu-icon {
+  font-size: 1.25rem;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 50vh;
   color: var(--color-text-secondary);
 }
 
@@ -519,10 +509,6 @@ function closeVariationModal() {
   width: 100%;
   max-width: 500px;
   box-shadow: var(--shadow-lg);
-}
-
-.modal-wide {
-  max-width: 700px;
 }
 
 .modal h2 {
@@ -558,45 +544,5 @@ function closeVariationModal() {
   justify-content: flex-end;
   gap: 1rem;
   margin-top: 1.5rem;
-}
-
-.lineage-content {
-  margin: 1rem 0;
-}
-
-.lineage-section {
-  margin-bottom: 1.5rem;
-}
-
-.lineage-section h4 {
-  color: var(--color-text-secondary);
-  font-size: 0.875rem;
-  margin-bottom: 0.5rem;
-}
-
-.lineage-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.lineage-item {
-  padding: 0.75rem;
-  background: var(--color-surface);
-  border-radius: 4px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.lineage-item.current {
-  border: 2px solid var(--color-primary);
-}
-
-.lineage-status {
-  font-size: 0.75rem;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  background: var(--color-border);
 }
 </style>

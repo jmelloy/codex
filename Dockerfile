@@ -9,9 +9,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy requirements and install dependencies
 COPY pyproject.toml .
-COPY codex ./codex
 
-RUN pip install --no-cache-dir -e .
+RUN pip install -e .
+COPY codex ./codex
 
 # Expose the API port
 EXPOSE 8765

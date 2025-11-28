@@ -67,6 +67,19 @@ export const pagesApi = {
         ...data,
       }),
     }),
+
+  update: (
+    workspacePath: string,
+    pageId: string,
+    data: { title?: string; narrative?: Record<string, string>; tags?: string[] },
+  ) =>
+    fetchJSON<Page>(`/pages/${pageId}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        workspace_path: workspacePath,
+        ...data,
+      }),
+    }),
 };
 
 export const entriesApi = {
@@ -104,6 +117,12 @@ export const entriesApi = {
   execute: (workspacePath: string, entryId: string) =>
     fetchJSON<Entry>(`/entries/${entryId}/execute`, {
       method: "POST",
+      body: JSON.stringify({ workspace_path: workspacePath }),
+    }),
+
+  delete: (workspacePath: string, entryId: string) =>
+    fetchJSON<{ success: boolean }>(`/entries/${entryId}`, {
+      method: "DELETE",
       body: JSON.stringify({ workspace_path: workspacePath }),
     }),
 

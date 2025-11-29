@@ -248,8 +248,24 @@ def get_session(engine):
     return Session()
 
 
-def init_db(db_path: str):
-    """Initialize the database schema."""
+def init_db(db_path: str, use_migrations: bool = True):
+    """Initialize the database schema.
+
+    Args:
+        db_path: Path to the SQLite database file.
+        use_migrations: If True, use Alembic migrations. If False, use create_all().
+                       Defaults to True.
+
+    Returns:
+        SQLAlchemy engine instance.
+    """
     engine = get_engine(db_path)
-    Base.metadata.create_all(engine)
+
+    if use_migrations:
+        from codex.db.migrate import initialize_migrations
+
+        initialize_migrations(db_path)
+    else:
+        Base.metadata.create_all(engine)
+
     return engine

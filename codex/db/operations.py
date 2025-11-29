@@ -45,15 +45,61 @@ class DatabaseManager:
         self.engine = None
         self._session = None
 
-    def initialize(self):
-        """Initialize the database."""
-        self.engine = init_db(str(self.db_path))
+    def initialize(self, use_migrations: bool = True):
+        """Initialize the database.
+
+        Args:
+            use_migrations: If True, use Alembic migrations. If False, use create_all().
+                           Defaults to True.
+        """
+        self.engine = init_db(str(self.db_path), use_migrations=use_migrations)
 
     def get_session(self) -> Session:
         """Get a database session."""
         if self.engine is None:
             self.engine = get_engine(str(self.db_path))
         return get_session(self.engine)
+
+    def run_migrations(self, revision: str = "head") -> None:
+        """Run database migrations up to the specified revision.
+
+        Args:
+            revision: Target revision (default: "head" for latest).
+        """
+        from codex.db.migrate import run_migrations
+
+        run_migrations(str(self.db_path), revision)
+
+    def get_migration_status(self) -> dict:
+        """Get current migration status.
+
+        Returns:
+            Dictionary containing current revision, head revision,
+            and whether database is up to date.
+        """
+        from codex.db.migrate import (
+            get_current_revision,
+            get_head_revision,
+            get_pending_migrations,
+            is_up_to_date,
+        )
+
+        return {
+            "current_revision": get_current_revision(str(self.db_path)),
+            "head_revision": get_head_revision(str(self.db_path)),
+            "is_up_to_date": is_up_to_date(str(self.db_path)),
+            "pending_migrations": get_pending_migrations(str(self.db_path)),
+        }
+
+    def get_migration_history(self) -> list[dict]:
+        """Get the history of available migrations.
+
+        Returns:
+            List of migration info dictionaries.
+        """
+        from codex.db.migrate import get_migration_history
+
+        return get_migration_history(str(self.db_path))
 
     # Notebook operations
     def insert_notebook(self, notebook_data: dict) -> Notebook:

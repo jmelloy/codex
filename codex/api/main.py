@@ -12,6 +12,7 @@ from codex.api.routes.entries import router as entries_router
 from codex.api.routes.notebooks import router as notebooks_router
 from codex.api.routes.pages import router as pages_router
 from codex.api.routes.search import router as search_router
+from codex.api.routes.sql import router as sql_router
 from codex.api.routes.workspace import router as workspace_router
 from codex.api.utils import DEFAULT_WORKSPACE_PATH
 from codex.core.workspace import Workspace
@@ -49,6 +50,7 @@ app.include_router(pages_router, prefix="/api/pages", tags=["pages"])
 app.include_router(entries_router, prefix="/api/entries", tags=["entries"])
 app.include_router(artifacts_router, prefix="/api/artifacts", tags=["artifacts"])
 app.include_router(search_router, prefix="/api/search", tags=["search"])
+app.include_router(sql_router, prefix="/api/sql", tags=["sql"])
 
 
 @app.get("/")

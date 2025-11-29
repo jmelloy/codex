@@ -39,6 +39,11 @@ const router = createRouter({
       name: "demo",
       component: () => import("@/views/DemoView.vue"),
     },
+    {
+      path: "/sql",
+      name: "sql-viewer",
+      component: () => import("@/views/SQLViewerView.vue"),
+    },
   ],
 });
 

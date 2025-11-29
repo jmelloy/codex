@@ -89,6 +89,13 @@ function isPageActive(page: Page) {
       </RouterLink>
     </div>
 
+    <div class="sidebar-tools">
+      <RouterLink to="/sql" class="tool-link">
+        <span class="tool-icon">🗃️</span>
+        <span>SQL Viewer</span>
+      </RouterLink>
+    </div>
+
     <nav class="sidebar-nav">
       <div class="nav-section">
         <div class="nav-section-header">
@@ -249,6 +256,37 @@ function isPageActive(page: Page) {
   background: var(--color-border);
   text-decoration: none;
   border-style: solid;
+}
+
+.sidebar-tools {
+  padding: 0.5rem 1rem 0.75rem 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+  margin-left: 8px;
+}
+
+.tool-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--color-background);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  font-size: 0.875rem;
+  border: 1px dashed var(--color-border);
+}
+
+.tool-link:hover {
+  background: var(--color-border);
+  text-decoration: none;
+  border-style: solid;
+  color: var(--color-primary);
+}
+
+.tool-icon {
+  font-size: 1rem;
 }
 
 .sidebar-nav {

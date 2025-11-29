@@ -77,7 +77,7 @@ async def execute_sql(request: SQLExecuteRequest):
     try:
         engine = create_engine(request.connection_string)
 
-        with engine.begin() as conn:
+        with engine.connect() as conn:
             # Execute query with parameters
             if request.parameters:
                 result = conn.execute(text(request.query), request.parameters)
@@ -96,7 +96,8 @@ async def execute_sql(request: SQLExecuteRequest):
                 row_count = len(results)
                 affected_rows = None
             else:
-                # For INSERT/UPDATE/DELETE
+                # For INSERT/UPDATE/DELETE, commit the transaction
+                conn.commit()
                 results = []
                 row_count = 0
                 affected_rows = result.rowcount

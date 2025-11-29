@@ -43,6 +43,11 @@ const pagesForNotebook = computed(() => {
   return pages.value.filter(p => p.notebook_id === selectedNotebookId.value);
 });
 
+// Detect if user is on macOS for keyboard shortcut display
+const isMac = computed(() => {
+  return typeof navigator !== 'undefined' && navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+});
+
 onMounted(async () => {
   await notebooksStore.loadNotebooks();
   notebooks.value = Array.from(notebooksStore.notebooks.values());
@@ -248,7 +253,7 @@ function handleKeyDown(event: KeyboardEvent) {
       <section class="query-section">
         <div class="query-header">
           <h2 class="section-title">Query</h2>
-          <span class="shortcut-hint">⌘ + Enter to run</span>
+          <span class="shortcut-hint">{{ isMac ? '⌘' : 'Ctrl' }} + Enter to run</span>
         </div>
         <textarea
           v-model="query"

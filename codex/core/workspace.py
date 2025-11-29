@@ -226,6 +226,53 @@ class Workspace:
         finally:
             session.close()
 
+    def _scan_directory(self, dir_path: Path, relative_base: Path) -> list[dict]:
+        """
+        Recursively scan a directory and return its contents.
+
+        Args:
+            dir_path: The directory path to scan.
+            relative_base: The base path to compute relative paths from.
+
+        Returns:
+            A list of dictionaries representing files and directories.
+        """
+        items = []
+
+        try:
+            for item in sorted(dir_path.iterdir()):
+                # Skip hidden files and directories
+                if item.name.startswith("."):
+                    continue
+
+                relative_path = item.relative_to(relative_base)
+
+                if item.is_dir():
+                    children = self._scan_directory(item, relative_base)
+                    items.append({
+                        "name": item.name,
+                        "path": str(relative_path),
+                        "type": "directory",
+                        "children": children,
+                    })
+                else:
+                    # Get file info
+                    stat_info = item.stat()
+                    items.append({
+                        "name": item.name,
+                        "path": str(relative_path),
+                        "type": "file",
+                        "size": stat_info.st_size,
+                        "modified": datetime.fromtimestamp(
+                            stat_info.st_mtime, tz=timezone.utc
+                        ).replace(tzinfo=None).isoformat(),
+                        "extension": item.suffix.lower() if item.suffix else "",
+                    })
+        except PermissionError:
+            pass
+
+        return items
+
     def scan_notebooks_directory(self) -> list[dict]:
         """
         Scan the notebooks directory for files and return a hierarchical structure.
@@ -233,50 +280,10 @@ class Workspace:
         Returns a list of file/directory entries representing the filesystem tree
         under the notebooks directory.
         """
-        result = []
-
         if not self.notebooks_path.exists():
-            return result
+            return []
 
-        def scan_directory(dir_path: Path, relative_base: Path) -> list[dict]:
-            """Recursively scan a directory and return its contents."""
-            items = []
-
-            try:
-                for item in sorted(dir_path.iterdir()):
-                    # Skip hidden files and directories
-                    if item.name.startswith("."):
-                        continue
-
-                    relative_path = item.relative_to(relative_base)
-
-                    if item.is_dir():
-                        children = scan_directory(item, relative_base)
-                        items.append({
-                            "name": item.name,
-                            "path": str(relative_path),
-                            "type": "directory",
-                            "children": children,
-                        })
-                    else:
-                        # Get file info
-                        stat_info = item.stat()
-                        items.append({
-                            "name": item.name,
-                            "path": str(relative_path),
-                            "type": "file",
-                            "size": stat_info.st_size,
-                            "modified": datetime.fromtimestamp(
-                                stat_info.st_mtime, tz=timezone.utc
-                            ).replace(tzinfo=None).isoformat(),
-                            "extension": item.suffix.lower() if item.suffix else "",
-                        })
-            except PermissionError:
-                pass
-
-            return items
-
-        return scan_directory(self.notebooks_path, self.notebooks_path)
+        return self._scan_directory(self.notebooks_path, self.notebooks_path)
 
     def scan_artifacts_directory(self) -> list[dict]:
         """
@@ -285,47 +292,7 @@ class Workspace:
         Returns a list of file/directory entries representing the filesystem tree
         under the artifacts directory.
         """
-        result = []
-
         if not self.artifacts_path.exists():
-            return result
+            return []
 
-        def scan_directory(dir_path: Path, relative_base: Path) -> list[dict]:
-            """Recursively scan a directory and return its contents."""
-            items = []
-
-            try:
-                for item in sorted(dir_path.iterdir()):
-                    # Skip hidden files and directories
-                    if item.name.startswith("."):
-                        continue
-
-                    relative_path = item.relative_to(relative_base)
-
-                    if item.is_dir():
-                        children = scan_directory(item, relative_base)
-                        items.append({
-                            "name": item.name,
-                            "path": str(relative_path),
-                            "type": "directory",
-                            "children": children,
-                        })
-                    else:
-                        # Get file info
-                        stat_info = item.stat()
-                        items.append({
-                            "name": item.name,
-                            "path": str(relative_path),
-                            "type": "file",
-                            "size": stat_info.st_size,
-                            "modified": datetime.fromtimestamp(
-                                stat_info.st_mtime, tz=timezone.utc
-                            ).replace(tzinfo=None).isoformat(),
-                            "extension": item.suffix.lower() if item.suffix else "",
-                        })
-            except PermissionError:
-                pass
-
-            return items
-
-        return scan_directory(self.artifacts_path, self.artifacts_path)
+        return self._scan_directory(self.artifacts_path, self.artifacts_path)

@@ -19,7 +19,7 @@ const notebooks = computed(() => Array.from(notebooksStore.notebooks.values()));
 
 const currentNotebookId = computed(() => route.params.notebookId as string | undefined);
 const currentPageId = computed(() => route.params.pageId as string | undefined);
-const currentFilePath = computed(() => route.query.file as string | undefined);
+const currentFilePath = computed(() => route.query.path as string | undefined);
 
 onMounted(async () => {
   await Promise.all([

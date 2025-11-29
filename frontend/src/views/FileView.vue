@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useNotebooksStore } from "@/stores/notebooks";
 
@@ -11,6 +11,16 @@ const loading = ref(true);
 const error = ref<string | null>(null);
 const fileContent = ref<string | null>(null);
 const fileType = ref<string>("unknown");
+
+// Track the current object URL to clean up on changes
+let currentObjectUrl: string | null = null;
+
+function revokeCurrentObjectUrl() {
+  if (currentObjectUrl) {
+    URL.revokeObjectURL(currentObjectUrl);
+    currentObjectUrl = null;
+  }
+}
 
 // Determine file type from extension
 function getFileType(path: string): string {
@@ -30,6 +40,9 @@ async function loadFile() {
     return;
   }
 
+  // Clean up previous object URL before loading new file
+  revokeCurrentObjectUrl();
+
   loading.value = true;
   error.value = null;
   fileType.value = getFileType(filePath.value);
@@ -47,7 +60,8 @@ async function loadFile() {
       fileContent.value = await response.text();
     } else if (fileType.value === "image") {
       const blob = await response.blob();
-      fileContent.value = URL.createObjectURL(blob);
+      currentObjectUrl = URL.createObjectURL(blob);
+      fileContent.value = currentObjectUrl;
     } else {
       fileContent.value = null;
     }
@@ -60,6 +74,11 @@ async function loadFile() {
 
 onMounted(loadFile);
 watch(filePath, loadFile);
+
+// Clean up object URLs when component unmounts
+onUnmounted(() => {
+  revokeCurrentObjectUrl();
+});
 </script>
 
 <template>

@@ -11,6 +11,7 @@ from codex.db.models import (
     Entry,
     EntryLineage,
     EntryTag,
+    IntegrationVariable,
     Notebook,
     NotebookTag,
     Page,
@@ -577,4 +578,176 @@ class DatabaseManager:
             "archive_strategy": artifact.archive_strategy,
             "original_size_bytes": artifact.original_size_bytes,
             "metadata": json.loads(artifact.metadata_) if artifact.metadata_ else {},
+        }
+
+    # Integration variable operations
+    def set_integration_variable(
+        self,
+        integration_type: str,
+        name: str,
+        value: str | dict | list,
+        description: str | None = None,
+        is_secret: bool = False,
+    ) -> dict:
+        """Set an integration variable (create or update).
+
+        Args:
+            integration_type: The integration type (e.g., 'api_call', 'database_query')
+            name: Variable name (e.g., 'base_url', 'connection_string')
+            value: Variable value (will be JSON-encoded if not a string)
+            description: Optional description of the variable
+            is_secret: Whether this is sensitive data (e.g., passwords)
+
+        Returns:
+            The variable as a dictionary
+        """
+        session = self.get_session()
+        try:
+            # JSON encode the value if it's not a string
+            if isinstance(value, (dict, list)):
+                encoded_value = json.dumps(value)
+            else:
+                encoded_value = str(value)
+
+            # Try to find existing variable
+            variable = (
+                session.query(IntegrationVariable)
+                .filter(
+                    IntegrationVariable.integration_type == integration_type,
+                    IntegrationVariable.name == name,
+                )
+                .first()
+            )
+
+            if variable:
+                # Update existing
+                variable.value = encoded_value
+                if description is not None:
+                    variable.description = description
+                variable.is_secret = is_secret
+                variable.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
+            else:
+                # Create new
+                variable = IntegrationVariable(
+                    integration_type=integration_type,
+                    name=name,
+                    value=encoded_value,
+                    description=description,
+                    is_secret=is_secret,
+                    created_at=datetime.now(timezone.utc).replace(tzinfo=None),
+                    updated_at=datetime.now(timezone.utc).replace(tzinfo=None),
+                )
+                session.add(variable)
+
+            session.commit()
+            return self._integration_variable_to_dict(variable)
+        finally:
+            session.close()
+
+    def get_integration_variable(
+        self, integration_type: str, name: str
+    ) -> dict | None:
+        """Get a specific integration variable."""
+        session = self.get_session()
+        try:
+            variable = (
+                session.query(IntegrationVariable)
+                .filter(
+                    IntegrationVariable.integration_type == integration_type,
+                    IntegrationVariable.name == name,
+                )
+                .first()
+            )
+            if variable:
+                return self._integration_variable_to_dict(variable)
+            return None
+        finally:
+            session.close()
+
+    def get_integration_variables(self, integration_type: str) -> dict:
+        """Get all variables for an integration type as a dictionary.
+
+        Returns a dictionary mapping variable names to their values,
+        suitable for merging with entry inputs.
+        """
+        session = self.get_session()
+        try:
+            variables = (
+                session.query(IntegrationVariable)
+                .filter(IntegrationVariable.integration_type == integration_type)
+                .all()
+            )
+            result = {}
+            for var in variables:
+                # Try to decode JSON, fall back to string
+                try:
+                    result[var.name] = json.loads(var.value)
+                except json.JSONDecodeError:
+                    result[var.name] = var.value
+            return result
+        finally:
+            session.close()
+
+    def list_integration_variables(
+        self, integration_type: str | None = None
+    ) -> list[dict]:
+        """List integration variables, optionally filtered by type."""
+        session = self.get_session()
+        try:
+            query = session.query(IntegrationVariable)
+            if integration_type:
+                query = query.filter(
+                    IntegrationVariable.integration_type == integration_type
+                )
+            variables = query.order_by(
+                IntegrationVariable.integration_type,
+                IntegrationVariable.name,
+            ).all()
+            return [self._integration_variable_to_dict(v) for v in variables]
+        finally:
+            session.close()
+
+    def delete_integration_variable(
+        self, integration_type: str, name: str
+    ) -> bool:
+        """Delete an integration variable."""
+        session = self.get_session()
+        try:
+            variable = (
+                session.query(IntegrationVariable)
+                .filter(
+                    IntegrationVariable.integration_type == integration_type,
+                    IntegrationVariable.name == name,
+                )
+                .first()
+            )
+            if variable:
+                session.delete(variable)
+                session.commit()
+                return True
+            return False
+        finally:
+            session.close()
+
+    def _integration_variable_to_dict(self, variable: IntegrationVariable) -> dict:
+        """Convert an integration variable to a dictionary."""
+        # Try to decode JSON, fall back to string
+        try:
+            decoded_value = json.loads(variable.value)
+        except json.JSONDecodeError:
+            decoded_value = variable.value
+
+        return {
+            "id": variable.id,
+            "integration_type": variable.integration_type,
+            "name": variable.name,
+            "value": decoded_value,
+            "description": variable.description,
+            "is_secret": variable.is_secret,
+            "created_at": (
+                variable.created_at.isoformat() if variable.created_at else None
+            ),
+            "updated_at": (
+                variable.updated_at.isoformat() if variable.updated_at else None
+            ),
         }

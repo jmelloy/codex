@@ -43,6 +43,8 @@ class IntegrationRegistry:
 class CustomIntegration(IntegrationBase):
     """Custom/manual entry integration."""
 
+    integration_type = "custom"
+
     async def execute(self, inputs: dict) -> dict:
         """Custom entries don't execute automatically."""
         return {
@@ -54,6 +56,8 @@ class CustomIntegration(IntegrationBase):
 @IntegrationRegistry.register("text")
 class TextIntegration(IntegrationBase):
     """Text content entry integration for Notion-like text blocks."""
+
+    integration_type = "text"
 
     async def execute(self, inputs: dict) -> dict:
         """Text entries don't execute - they just store content."""

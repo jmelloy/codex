@@ -368,3 +368,302 @@ class TestAPICallIntegration:
         assert entry.inputs["url"] == "https://api.example.com/endpoint"
         assert entry.inputs["method"] == "POST"
         assert entry.inputs["headers"] == {"Authorization": "Bearer token"}
+
+
+class TestIntegrationVariables:
+    """Tests for integration variables (default values for plugins)."""
+
+    @pytest.fixture
+    def workspace(self, tmp_path):
+        """Create a test workspace."""
+        return Workspace.initialize(tmp_path, "Test Workspace")
+
+    def test_set_and_get_variable(self, workspace):
+        """Test setting and getting a variable."""
+        variable = workspace.db_manager.set_integration_variable(
+            integration_type="api_call",
+            name="base_url",
+            value="https://api.example.com",
+            description="Default API server",
+        )
+
+        assert variable["integration_type"] == "api_call"
+        assert variable["name"] == "base_url"
+        assert variable["value"] == "https://api.example.com"
+        assert variable["description"] == "Default API server"
+        assert variable["is_secret"] is False
+
+        # Get the variable
+        retrieved = workspace.db_manager.get_integration_variable("api_call", "base_url")
+        assert retrieved["value"] == "https://api.example.com"
+
+    def test_set_variable_with_dict_value(self, workspace):
+        """Test setting a variable with a dictionary value."""
+        headers = {"Authorization": "Bearer token", "X-Custom": "value"}
+        variable = workspace.db_manager.set_integration_variable(
+            integration_type="api_call",
+            name="headers",
+            value=headers,
+            is_secret=True,
+        )
+
+        assert variable["value"] == headers
+        assert variable["is_secret"] is True
+
+    def test_update_variable(self, workspace):
+        """Test updating an existing variable."""
+        # Create variable
+        workspace.db_manager.set_integration_variable(
+            integration_type="api_call",
+            name="base_url",
+            value="https://old.example.com",
+        )
+
+        # Update variable
+        variable = workspace.db_manager.set_integration_variable(
+            integration_type="api_call",
+            name="base_url",
+            value="https://new.example.com",
+        )
+
+        assert variable["value"] == "https://new.example.com"
+
+        # Verify only one variable exists
+        variables = workspace.db_manager.list_integration_variables("api_call")
+        assert len(variables) == 1
+
+    def test_list_variables(self, workspace):
+        """Test listing variables for an integration type."""
+        workspace.db_manager.set_integration_variable(
+            integration_type="api_call",
+            name="base_url",
+            value="https://api.example.com",
+        )
+        workspace.db_manager.set_integration_variable(
+            integration_type="api_call",
+            name="headers",
+            value={"Authorization": "Bearer token"},
+        )
+        workspace.db_manager.set_integration_variable(
+            integration_type="database_query",
+            name="connection_string",
+            value="postgresql://localhost/db",
+        )
+
+        api_call_vars = workspace.db_manager.list_integration_variables("api_call")
+        assert len(api_call_vars) == 2
+
+        all_vars = workspace.db_manager.list_integration_variables()
+        assert len(all_vars) == 3
+
+    def test_get_integration_variables_as_dict(self, workspace):
+        """Test getting variables as a dictionary for merging."""
+        workspace.db_manager.set_integration_variable(
+            integration_type="api_call",
+            name="base_url",
+            value="https://api.example.com",
+        )
+        workspace.db_manager.set_integration_variable(
+            integration_type="api_call",
+            name="headers",
+            value={"Authorization": "Bearer token"},
+        )
+
+        variables = workspace.db_manager.get_integration_variables("api_call")
+        assert variables == {
+            "base_url": "https://api.example.com",
+            "headers": {"Authorization": "Bearer token"},
+        }
+
+    def test_delete_variable(self, workspace):
+        """Test deleting a variable."""
+        workspace.db_manager.set_integration_variable(
+            integration_type="api_call",
+            name="base_url",
+            value="https://api.example.com",
+        )
+
+        success = workspace.db_manager.delete_integration_variable("api_call", "base_url")
+        assert success is True
+
+        # Verify deleted
+        variable = workspace.db_manager.get_integration_variable("api_call", "base_url")
+        assert variable is None
+
+    def test_delete_nonexistent_variable(self, workspace):
+        """Test deleting a variable that doesn't exist."""
+        success = workspace.db_manager.delete_integration_variable("api_call", "nonexistent")
+        assert success is False
+
+
+class TestIntegrationDefaultVariables:
+    """Tests for integration default variable merging."""
+
+    @pytest.fixture
+    def workspace(self, tmp_path):
+        """Create a test workspace."""
+        return Workspace.initialize(tmp_path, "Test Workspace")
+
+    def test_api_call_merge_with_defaults(self, workspace):
+        """Test API call integration merges inputs with defaults."""
+        # Set default variables
+        workspace.db_manager.set_integration_variable(
+            integration_type="api_call",
+            name="base_url",
+            value="https://api.example.com",
+        )
+        workspace.db_manager.set_integration_variable(
+            integration_type="api_call",
+            name="headers",
+            value={"Authorization": "Bearer token"},
+        )
+
+        integration = APICallIntegration(workspace)
+
+        # Entry only provides relative URL
+        inputs = {"url": "/users"}
+        merged = integration.merge_inputs_with_defaults(inputs)
+
+        assert merged["base_url"] == "https://api.example.com"
+        assert merged["url"] == "/users"
+        assert merged["headers"] == {"Authorization": "Bearer token"}
+
+    def test_api_call_merge_header_override(self, workspace):
+        """Test that entry headers merge with default headers."""
+        workspace.db_manager.set_integration_variable(
+            integration_type="api_call",
+            name="headers",
+            value={"Authorization": "Bearer token", "X-Default": "value"},
+        )
+
+        integration = APICallIntegration(workspace)
+
+        # Entry provides additional header
+        inputs = {"url": "https://example.com", "headers": {"X-Custom": "custom"}}
+        merged = integration.merge_inputs_with_defaults(inputs)
+
+        # Headers should be merged
+        assert merged["headers"]["Authorization"] == "Bearer token"
+        assert merged["headers"]["X-Default"] == "value"
+        assert merged["headers"]["X-Custom"] == "custom"
+
+    def test_api_call_input_overrides_default(self, workspace):
+        """Test that entry inputs override defaults."""
+        workspace.db_manager.set_integration_variable(
+            integration_type="api_call",
+            name="method",
+            value="GET",
+        )
+
+        integration = APICallIntegration(workspace)
+
+        # Entry overrides default method
+        inputs = {"url": "https://example.com", "method": "POST"}
+        merged = integration.merge_inputs_with_defaults(inputs)
+
+        assert merged["method"] == "POST"
+
+    def test_database_query_merge_with_defaults(self, workspace):
+        """Test database query integration merges inputs with defaults."""
+        workspace.db_manager.set_integration_variable(
+            integration_type="database_query",
+            name="connection_string",
+            value="sqlite:///:memory:",
+        )
+        workspace.db_manager.set_integration_variable(
+            integration_type="database_query",
+            name="max_rows",
+            value=100,
+        )
+
+        integration = DatabaseQueryIntegration(workspace)
+
+        # Entry only provides query
+        inputs = {"query": "SELECT 1"}
+        merged = integration.merge_inputs_with_defaults(inputs)
+
+        assert merged["connection_string"] == "sqlite:///:memory:"
+        assert merged["query"] == "SELECT 1"
+        assert merged["max_rows"] == 100
+
+    def test_database_query_validate_with_defaults(self, workspace):
+        """Test database query validation uses merged inputs."""
+        workspace.db_manager.set_integration_variable(
+            integration_type="database_query",
+            name="connection_string",
+            value="sqlite:///:memory:",
+        )
+
+        integration = DatabaseQueryIntegration(workspace)
+
+        # Entry only provides query, connection_string comes from defaults
+        inputs = {"query": "SELECT 1"}
+        assert integration.validate_inputs(inputs) is True
+
+    def test_graphql_merge_with_defaults(self, workspace):
+        """Test GraphQL integration merges inputs with defaults."""
+        workspace.db_manager.set_integration_variable(
+            integration_type="graphql",
+            name="url",
+            value="https://api.example.com/graphql",
+        )
+        workspace.db_manager.set_integration_variable(
+            integration_type="graphql",
+            name="headers",
+            value={"Authorization": "Bearer token"},
+        )
+
+        integration = GraphQLIntegration(workspace)
+
+        # Entry only provides query
+        inputs = {"query": "{ users { id } }"}
+        merged = integration.merge_inputs_with_defaults(inputs)
+
+        assert merged["url"] == "https://api.example.com/graphql"
+        assert merged["query"] == "{ users { id } }"
+        assert merged["headers"] == {"Authorization": "Bearer token"}
+
+    @pytest.mark.asyncio
+    async def test_database_query_execute_with_defaults(self, workspace):
+        """Test executing database query with connection string from defaults."""
+        workspace.db_manager.set_integration_variable(
+            integration_type="database_query",
+            name="connection_string",
+            value="sqlite:///:memory:",
+        )
+
+        integration = DatabaseQueryIntegration(workspace)
+
+        # Entry only provides query, connection_string comes from defaults
+        inputs = {"query": "SELECT 1 as value"}
+        result = await integration.execute(inputs)
+
+        assert "outputs" in result
+        assert result["outputs"]["row_count"] == 1
+        assert result["outputs"]["results"][0]["value"] == 1
+
+    @pytest.mark.asyncio
+    async def test_entry_with_default_connection_string(self, workspace):
+        """Test creating and executing entry with default connection string."""
+        # Set default connection string
+        workspace.db_manager.set_integration_variable(
+            integration_type="database_query",
+            name="connection_string",
+            value="sqlite:///:memory:",
+        )
+
+        nb = workspace.create_notebook("Test Notebook")
+        page = nb.create_page("Test Page")
+
+        # Create entry without connection_string - it should use the default
+        entry = page.create_entry(
+            entry_type="database_query",
+            title="Test Query",
+            inputs={"query": "SELECT 1 as value"},
+        )
+
+        # Execute the entry
+        await entry.execute()
+
+        assert entry.status == "completed"
+        assert entry.outputs["row_count"] == 1

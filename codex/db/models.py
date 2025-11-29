@@ -208,6 +208,35 @@ class EntryTag(Base):
     tag = relationship("Tag")
 
 
+class IntegrationVariable(Base):
+    """Integration variable model - stores default values for integrations.
+
+    This allows plugins that call APIs to store variables for default values,
+    like server addresses, headers, or database connection strings.
+    """
+
+    __tablename__ = "integration_variables"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    integration_type = Column(String, nullable=False)
+    name = Column(String, nullable=False)
+    value = Column(Text, nullable=False)  # JSON-encoded value for complex types
+    description = Column(Text, nullable=True)
+    is_secret = Column(Boolean, default=False)  # Flag for sensitive data
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(
+        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+
+Index(
+    "idx_integration_variables_type_name",
+    IntegrationVariable.integration_type,
+    IntegrationVariable.name,
+    unique=True,
+)
+
+
 def get_engine(db_path: str):
     """Create a database engine."""
     return create_engine(f"sqlite:///{db_path}", echo=False)

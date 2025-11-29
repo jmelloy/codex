@@ -1,14 +1,15 @@
 """FastAPI application for Lab Notebook."""
 
+import logging
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
-import logging
 
 from fastapi import FastAPI
 
 from codex.api.routes.artifacts import router as artifacts_router
 from codex.api.routes.entries import router as entries_router
+from codex.api.routes.integration_variables import router as integration_variables_router
 from codex.api.routes.notebooks import router as notebooks_router
 from codex.api.routes.pages import router as pages_router
 from codex.api.routes.search import router as search_router
@@ -51,6 +52,11 @@ app.include_router(entries_router, prefix="/api/entries", tags=["entries"])
 app.include_router(artifacts_router, prefix="/api/artifacts", tags=["artifacts"])
 app.include_router(search_router, prefix="/api/search", tags=["search"])
 app.include_router(sql_router, prefix="/api/sql", tags=["sql"])
+app.include_router(
+    integration_variables_router,
+    prefix="/api/integration-variables",
+    tags=["integration-variables"],
+)
 
 
 @app.get("/")

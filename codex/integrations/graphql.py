@@ -2,6 +2,10 @@
 
 This integration supports executing GraphQL queries and mutations against
 GraphQL API endpoints.
+
+Supports storing default variables for:
+- url: Default GraphQL endpoint URL
+- headers: Default headers to include in all requests
 """
 
 import json
@@ -29,11 +33,15 @@ class GraphQLIntegration(IntegrationBase):
 
     Supports executing GraphQL queries and mutations against any GraphQL endpoint.
 
+    Default Variables (stored via integration variables):
+        url: Default GraphQL endpoint URL
+        headers: Default headers to include in all requests
+
     Inputs:
         url: GraphQL endpoint URL
         query: GraphQL query or mutation string
         variables: Optional dict of query variables
-        headers: Optional dict of HTTP headers
+        headers: Optional dict of HTTP headers (merged with defaults)
         operation_name: Optional operation name (for documents with multiple operations)
 
     Outputs:
@@ -44,15 +52,20 @@ class GraphQLIntegration(IntegrationBase):
         has_errors: Boolean indicating if there were any errors
     """
 
+    integration_type = "graphql"
+
     async def execute(self, inputs: dict) -> dict:
         """Execute a GraphQL query or mutation."""
         import aiohttp
 
-        url = inputs["url"]
-        query = inputs["query"]
-        variables = inputs.get("variables", {})
-        headers = inputs.get("headers", {})
-        operation_name = inputs.get("operation_name")
+        # Merge inputs with stored defaults
+        merged = self.merge_inputs_with_defaults(inputs)
+
+        url = merged["url"]
+        query = merged["query"]
+        variables = merged.get("variables", {})
+        headers = merged.get("headers", {})
+        operation_name = merged.get("operation_name")
 
         # Prepare the GraphQL request payload
         payload: dict[str, Any] = {"query": query}
@@ -145,9 +158,13 @@ class GraphQLIntegration(IntegrationBase):
             }
 
     def validate_inputs(self, inputs: dict) -> bool:
-        """Validate inputs for GraphQL query."""
-        if "url" not in inputs:
+        """Validate inputs for GraphQL query.
+
+        Validates against merged inputs (including defaults).
+        """
+        merged = self.merge_inputs_with_defaults(inputs)
+        if "url" not in merged:
             return False
-        if "query" not in inputs:
+        if "query" not in merged:
             return False
         return True

@@ -2,6 +2,11 @@
 
 This integration supports executing HTTP API calls and tracking their
 requests and responses.
+
+Supports storing default variables for:
+- base_url: Base URL to prepend to relative URLs
+- headers: Default headers to include in all requests
+- method: Default HTTP method
 """
 
 import json
@@ -18,10 +23,15 @@ class APICallIntegration(IntegrationBase):
 
     Supports executing HTTP requests against any API endpoint.
 
+    Default Variables (stored via integration variables):
+        base_url: Base URL to prepend to relative URLs
+        headers: Default headers to include in all requests
+        method: Default HTTP method
+
     Inputs:
-        url: API endpoint URL
+        url: API endpoint URL (can be relative if base_url is set)
         method: HTTP method (GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS)
-        headers: Optional dict of HTTP headers
+        headers: Optional dict of HTTP headers (merged with defaults)
         body: Optional request body (for POST, PUT, PATCH)
 
     Outputs:
@@ -31,14 +41,30 @@ class APICallIntegration(IntegrationBase):
         duration_seconds: Request duration
     """
 
+    integration_type = "api_call"
+
     async def execute(self, inputs: dict) -> dict:
         """Execute an API call."""
         import aiohttp
 
-        method = inputs.get("method", "GET")
-        url = inputs["url"]
-        headers = inputs.get("headers", {})
-        body = inputs.get("body")
+        # Merge inputs with stored defaults
+        merged = self.merge_inputs_with_defaults(inputs)
+
+        method = merged.get("method", "GET")
+        url = merged["url"]
+        headers = merged.get("headers", {})
+        body = merged.get("body")
+
+        # Handle base_url - prepend to relative URLs
+        base_url = merged.get("base_url", "")
+        if base_url and not url.startswith(("http://", "https://", "ftp://", "file://")):
+            # Use urllib for proper URL joining
+            from urllib.parse import urljoin
+
+            # Ensure base_url ends with / for proper joining
+            if not base_url.endswith("/"):
+                base_url = base_url + "/"
+            url = urljoin(base_url, url.lstrip("/"))
 
         start_time = time.time()
 
@@ -123,7 +149,11 @@ class APICallIntegration(IntegrationBase):
             }
 
     def validate_inputs(self, inputs: dict) -> bool:
-        """Validate inputs for API call."""
-        if "url" not in inputs:
+        """Validate inputs for API call.
+
+        Validates against merged inputs (including defaults).
+        """
+        merged = self.merge_inputs_with_defaults(inputs)
+        if "url" not in merged:
             return False
         return True

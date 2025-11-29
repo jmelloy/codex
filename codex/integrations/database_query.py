@@ -2,6 +2,10 @@
 
 This integration supports executing SQL queries against various database backends
 including SQLite, PostgreSQL, and MySQL.
+
+Supports storing default variables for:
+- connection_string: Default database connection string
+- max_rows: Default maximum number of rows to return
 """
 
 import json
@@ -52,6 +56,10 @@ class DatabaseQueryIntegration(IntegrationBase):
     - PostgreSQL: Use connection_string like "postgresql://user:pass@host:port/dbname"
     - MySQL: Use connection_string like "mysql://user:pass@host:port/dbname"
 
+    Default Variables (stored via integration variables):
+        connection_string: Default database connection string
+        max_rows: Default maximum number of rows to return
+
     Inputs:
         connection_string: Database connection string (SQLAlchemy format)
         query: SQL query to execute
@@ -66,15 +74,20 @@ class DatabaseQueryIntegration(IntegrationBase):
         affected_rows: Number of rows affected (for INSERT/UPDATE/DELETE)
     """
 
+    integration_type = "database_query"
+
     async def execute(self, inputs: dict) -> dict:
         """Execute a database query."""
         from sqlalchemy import create_engine, text
         from sqlalchemy.exc import SQLAlchemyError
 
-        connection_string = inputs["connection_string"]
-        query = inputs["query"]
-        parameters = inputs.get("parameters")
-        max_rows = inputs.get("max_rows", 1000)
+        # Merge inputs with stored defaults
+        merged = self.merge_inputs_with_defaults(inputs)
+
+        connection_string = merged["connection_string"]
+        query = merged["query"]
+        parameters = merged.get("parameters")
+        max_rows = merged.get("max_rows", 1000)
 
         start_time = time.time()
 
@@ -164,9 +177,13 @@ class DatabaseQueryIntegration(IntegrationBase):
             }
 
     def validate_inputs(self, inputs: dict) -> bool:
-        """Validate inputs for database query."""
-        if "connection_string" not in inputs:
+        """Validate inputs for database query.
+
+        Validates against merged inputs (including defaults).
+        """
+        merged = self.merge_inputs_with_defaults(inputs)
+        if "connection_string" not in merged:
             return False
-        if "query" not in inputs:
+        if "query" not in merged:
             return False
         return True

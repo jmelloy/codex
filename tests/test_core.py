@@ -5,6 +5,7 @@ from datetime import datetime
 import pytest
 
 from codex.core.storage import StorageManager
+from codex.core.utils import format_table
 from codex.core.workspace import Workspace
 
 
@@ -317,3 +318,88 @@ class TestIntegration:
         # Verify lineage
         lineage = variation.get_lineage()
         assert len(lineage["ancestors"]) >= 1
+
+
+class TestFormatTable:
+    """Tests for table formatting utility."""
+
+    def test_format_table_basic(self):
+        """Test basic table formatting."""
+        columns = ["id", "name", "value"]
+        rows = [
+            {"id": "1", "name": "Alice", "value": "100"},
+            {"id": "2", "name": "Bob", "value": "200"},
+        ]
+
+        result = format_table(columns, rows)
+
+        assert "id" in result
+        assert "name" in result
+        assert "value" in result
+        assert "Alice" in result
+        assert "Bob" in result
+        assert "100" in result
+        assert "200" in result
+        # Check table structure
+        assert result.count("+") >= 8  # At least 8 "+" for corners
+        assert result.count("|") >= 12  # At least 12 "|" for columns
+
+    def test_format_table_empty_rows(self):
+        """Test table formatting with empty rows."""
+        columns = ["id", "name"]
+        rows = []
+
+        result = format_table(columns, rows)
+
+        # Should have headers but no data rows
+        assert "id" in result
+        assert "name" in result
+        lines = result.strip().split("\n")
+        assert len(lines) == 4  # separator, header, separator, separator (closing)
+
+    def test_format_table_empty_columns(self):
+        """Test table formatting with empty columns."""
+        columns = []
+        rows = [{"a": "1"}]
+
+        result = format_table(columns, rows)
+        assert result == ""
+
+    def test_format_table_numeric_values(self):
+        """Test table formatting with numeric values."""
+        columns = ["count", "total"]
+        rows = [
+            {"count": 42, "total": 1000.5},
+        ]
+
+        result = format_table(columns, rows)
+
+        assert "42" in result
+        assert "1000.5" in result
+
+    def test_format_table_missing_columns(self):
+        """Test table formatting with missing columns in rows."""
+        columns = ["a", "b", "c"]
+        rows = [
+            {"a": "1", "c": "3"},  # missing "b"
+        ]
+
+        result = format_table(columns, rows)
+
+        assert "1" in result
+        assert "3" in result
+        # "b" column should be present but empty
+        lines = result.strip().split("\n")
+        assert len(lines) >= 4  # separator, header, separator, data, separator
+
+    def test_format_table_long_values(self):
+        """Test table formatting with long values adjusts column width."""
+        columns = ["short", "long_column"]
+        rows = [
+            {"short": "a", "long_column": "this is a very long value"},
+        ]
+
+        result = format_table(columns, rows)
+
+        # The long value should be present
+        assert "this is a very long value" in result

@@ -5,6 +5,7 @@ from pathlib import Path
 
 import click
 
+from codex.core.utils import format_table
 from codex.core.workspace import Workspace
 
 
@@ -208,6 +209,14 @@ def entry_create(
             click.echo("Executing entry...")
             asyncio.run(e.execute())
             click.echo(f"  Status: {e.status}")
+
+            # Display formatted table for database_query results
+            if e.entry_type == "database_query" and e.status == "completed":
+                outputs = e.outputs
+                if outputs.get("columns") and outputs.get("results"):
+                    click.echo(f"  Rows: {outputs.get('row_count', 0)}")
+                    table = format_table(outputs["columns"], outputs["results"])
+                    click.echo(table)
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
         raise click.Abort()

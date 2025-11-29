@@ -1,5 +1,6 @@
 """Entry operations for Lab Notebook."""
 
+import hashlib
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Optional

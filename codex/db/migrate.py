@@ -132,22 +132,35 @@ def get_pending_migrations(db_path: str | Path) -> list[str]:
         db_path: Path to the SQLite database file.
 
     Returns:
-        List of pending revision IDs.
+        List of pending revision IDs in order to be applied.
     """
     config = get_alembic_config(db_path)
     script = ScriptDirectory.from_config(config)
     current = get_current_revision(db_path)
+    head = get_head_revision(db_path)
 
-    pending = []
+    if current == head:
+        return []
+
+    # Get all revisions from head to base
+    all_revisions = []
     for revision in script.walk_revisions():
-        if current is None or revision.revision != current:
-            pending.append(revision.revision)
-            if revision.down_revision == current:
-                break
-        else:
-            break
+        all_revisions.append(revision.revision)
 
-    return list(reversed(pending))
+    if current is None:
+        # No migrations applied - return all in order
+        return list(reversed(all_revisions))
+
+    # Find revisions after current
+    pending = []
+    found_current = False
+    for rev_id in reversed(all_revisions):
+        if found_current:
+            pending.append(rev_id)
+        if rev_id == current:
+            found_current = True
+
+    return pending
 
 
 def get_migration_history(db_path: str | Path) -> list[dict]:

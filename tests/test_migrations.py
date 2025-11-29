@@ -89,6 +89,19 @@ class TestMigrations:
         pending = get_pending_migrations(str(db_path))
         assert len(pending) == 0
 
+    def test_get_pending_migrations_none_applied(self, tmp_path):
+        """Test getting pending migrations when no migrations have been applied."""
+        db_path = tmp_path / "test.db"
+
+        # Create empty database with tables but no migration tracking
+        engine = get_engine(str(db_path))
+        Base.metadata.create_all(engine)
+
+        # Should return all migrations
+        pending = get_pending_migrations(str(db_path))
+        assert len(pending) >= 1
+        assert "001_initial_schema" in pending
+
     def test_database_exists_with_tables_no_db(self, tmp_path):
         """Test checking for tables in non-existent database."""
         db_path = tmp_path / "nonexistent.db"

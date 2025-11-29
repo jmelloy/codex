@@ -1,12 +1,15 @@
 """Notebook operations for Lab Notebook."""
 
 import hashlib
+import json
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
 from codex.core.utils import slugify
+from codex.db.models import Notebook as NotebookModel
+from codex.db.models import Page as PageModel
 
 if TYPE_CHECKING:
     from codex.core.page import Page
@@ -61,7 +64,22 @@ class Notebook:
         )
 
         # Create in database
-        workspace.db_manager.insert_notebook(notebook.to_dict())
+        session = workspace.db_manager.get_session()
+        try:
+            NotebookModel.create(
+                session,
+                validate_fk=False,
+                id=notebook_id,
+                title=title,
+                description=description,
+                created_at=now,
+                updated_at=now,
+                settings=json.dumps(notebook.settings),
+                metadata_=json.dumps(notebook.metadata),
+            )
+            session.commit()
+        finally:
+            session.close()
 
         # Create Git structure
         workspace.git_manager.create_notebook(notebook_id, notebook.to_dict())
@@ -137,17 +155,48 @@ class Notebook:
         """List all pages in this notebook."""
         from codex.core.page import Page
 
-        pages_data = self.workspace.db_manager.list_pages(self.id)
-        return [Page.from_dict(self.workspace, p_data) for p_data in pages_data]
+        session = self.workspace.db_manager.get_session()
+        try:
+            pages = PageModel.find_by(session, notebook_id=self.id)
+            return [
+                Page.from_dict(self.workspace, {
+                    "id": p.id,
+                    "notebook_id": p.notebook_id,
+                    "title": p.title,
+                    "date": p.date.isoformat() if p.date else None,
+                    "created_at": p.created_at.isoformat() if p.created_at else None,
+                    "updated_at": p.updated_at.isoformat() if p.updated_at else None,
+                    "narrative": json.loads(p.narrative) if p.narrative else {},
+                    "tags": [pt.tag.name for pt in p.tags] if p.tags else [],
+                    "metadata": json.loads(p.metadata_) if p.metadata_ else {},
+                })
+                for p in pages
+            ]
+        finally:
+            session.close()
 
     def get_page(self, page_id: str) -> Optional["Page"]:
         """Get a page by ID."""
         from codex.core.page import Page
 
-        page_data = self.workspace.db_manager.get_page(page_id)
-        if page_data:
-            return Page.from_dict(self.workspace, page_data)
-        return None
+        session = self.workspace.db_manager.get_session()
+        try:
+            page = PageModel.get_by_id(session, page_id)
+            if page:
+                return Page.from_dict(self.workspace, {
+                    "id": page.id,
+                    "notebook_id": page.notebook_id,
+                    "title": page.title,
+                    "date": page.date.isoformat() if page.date else None,
+                    "created_at": page.created_at.isoformat() if page.created_at else None,
+                    "updated_at": page.updated_at.isoformat() if page.updated_at else None,
+                    "narrative": json.loads(page.narrative) if page.narrative else {},
+                    "tags": [pt.tag.name for pt in page.tags] if page.tags else [],
+                    "metadata": json.loads(page.metadata_) if page.metadata_ else {},
+                })
+            return None
+        finally:
+            session.close()
 
     def update(self, **kwargs) -> "Notebook":
         """Update notebook properties."""
@@ -165,7 +214,22 @@ class Notebook:
         self.updated_at = _now()
 
         # Update in database
-        self.workspace.db_manager.update_notebook(self.id, self.to_dict())
+        session = self.workspace.db_manager.get_session()
+        try:
+            notebook = NotebookModel.get_by_id(session, self.id)
+            if notebook:
+                notebook.update(
+                    session,
+                    validate_fk=False,
+                    title=self.title,
+                    description=self.description,
+                    updated_at=self.updated_at,
+                    settings=json.dumps(self.settings),
+                    metadata_=json.dumps(self.metadata),
+                )
+                session.commit()
+        finally:
+            session.close()
 
         # Update in Git
         self.workspace.git_manager.update_notebook(self.id, self.to_dict())
@@ -175,7 +239,12 @@ class Notebook:
     def delete(self) -> bool:
         """Delete this notebook."""
         # Delete from database
-        result = self.workspace.db_manager.delete_notebook(self.id)
+        session = self.workspace.db_manager.get_session()
+        try:
+            result = NotebookModel.delete_by_id(session, self.id)
+            session.commit()
+        finally:
+            session.close()
 
         # Delete from Git
         self.workspace.git_manager.delete_notebook(self.id)

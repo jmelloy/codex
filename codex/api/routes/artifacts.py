@@ -1,6 +1,7 @@
 """Artifacts API routes."""
 
 import io
+import json
 from typing import Optional
 
 from fastapi import APIRouter, File, HTTPException, Query, UploadFile
@@ -8,9 +9,30 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from codex.api.utils import get_workspace_path
+from codex.core.entry import Entry as CoreEntry
 from codex.core.workspace import Workspace
+from codex.db.models import Artifact, Entry
 
 router = APIRouter()
+
+
+def _entry_to_core(ws: Workspace, entry: Entry) -> CoreEntry:
+    """Convert a db Entry model to a CoreEntry instance."""
+    return CoreEntry.from_dict(ws, {
+        "id": entry.id,
+        "page_id": entry.page_id,
+        "entry_type": entry.entry_type,
+        "title": entry.title,
+        "created_at": entry.created_at.isoformat() if entry.created_at else None,
+        "status": entry.status,
+        "parent_id": entry.parent_id,
+        "inputs": json.loads(entry.inputs) if entry.inputs else {},
+        "outputs": json.loads(entry.outputs) if entry.outputs else {},
+        "execution": json.loads(entry.execution) if entry.execution else {},
+        "metrics": json.loads(entry.metrics) if entry.metrics else {},
+        "metadata": json.loads(entry.metadata_) if entry.metadata_ else {},
+        "tags": [et.tag.name for et in entry.tags] if entry.tags else [],
+    })
 
 
 class ArtifactUploadRequest(BaseModel):
@@ -29,29 +51,28 @@ async def upload_artifact(
     metadata: Optional[str] = None,
 ):
     """Upload artifact to entry."""
-    import json
-
     try:
         ws = Workspace.load(get_workspace_path(workspace_path))
+        session = ws.db_manager.get_session()
+        try:
+            entry = Entry.get_by_id(session, entry_id)
+            if not entry:
+                raise HTTPException(status_code=404, detail="Entry not found")
 
-        from codex.core.entry import Entry
+            core_entry = _entry_to_core(ws, entry)
 
-        entry_data = ws.db_manager.get_entry(entry_id)
-        if not entry_data:
-            raise HTTPException(status_code=404, detail="Entry not found")
+            data = await file.read()
+            artifact_metadata = json.loads(metadata) if metadata else {}
 
-        entry = Entry.from_dict(ws, entry_data)
+            artifact = core_entry.add_artifact(
+                artifact_type=file.content_type or "application/octet-stream",
+                data=data,
+                metadata=artifact_metadata,
+            )
 
-        data = await file.read()
-        artifact_metadata = json.loads(metadata) if metadata else {}
-
-        artifact = entry.add_artifact(
-            artifact_type=file.content_type or "application/octet-stream",
-            data=data,
-            metadata=artifact_metadata,
-        )
-
-        return artifact
+            return artifact
+        finally:
+            session.close()
     except HTTPException:
         raise
     except ValueError as e:
@@ -80,8 +101,12 @@ async def get_artifact(
             if not data:
                 raise HTTPException(status_code=404, detail="Artifact not found")
 
-            artifact = ws.db_manager.get_artifact_by_hash(artifact_hash)
-            media_type = artifact["type"] if artifact else "application/octet-stream"
+            session = ws.db_manager.get_session()
+            try:
+                artifact = Artifact.find_one_by(session, hash=artifact_hash)
+                media_type = artifact.type if artifact else "application/octet-stream"
+            finally:
+                session.close()
 
         return StreamingResponse(
             io.BytesIO(data),
@@ -103,12 +128,28 @@ async def get_artifact_info(
     """Get artifact metadata."""
     try:
         ws = Workspace.load(get_workspace_path(workspace_path))
+        session = ws.db_manager.get_session()
+        try:
+            artifact = Artifact.find_one_by(session, hash=artifact_hash)
+            if not artifact:
+                raise HTTPException(status_code=404, detail="Artifact not found")
 
-        artifact = ws.db_manager.get_artifact_by_hash(artifact_hash)
-        if not artifact:
-            raise HTTPException(status_code=404, detail="Artifact not found")
-
-        return artifact
+            return {
+                "id": artifact.id,
+                "entry_id": artifact.entry_id,
+                "type": artifact.type,
+                "hash": artifact.hash,
+                "size_bytes": artifact.size_bytes,
+                "path": artifact.path,
+                "thumbnail_path": artifact.thumbnail_path,
+                "created_at": artifact.created_at.isoformat() if artifact.created_at else None,
+                "archived": artifact.archived,
+                "archive_strategy": artifact.archive_strategy,
+                "original_size_bytes": artifact.original_size_bytes,
+                "metadata": json.loads(artifact.metadata_) if artifact.metadata_ else {},
+            }
+        finally:
+            session.close()
     except HTTPException:
         raise
     except ValueError as e:

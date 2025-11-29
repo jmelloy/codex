@@ -352,6 +352,3 @@ async def list_entry_artifacts(entry_id: str, workspace_path: Optional[str] = Qu
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))

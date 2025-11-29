@@ -394,7 +394,9 @@ class TestIntegrationVariables:
         assert variable["is_secret"] is False
 
         # Get the variable
-        retrieved = workspace.db_manager.get_integration_variable("api_call", "base_url")
+        retrieved = workspace.db_manager.get_integration_variable(
+            "api_call", "base_url"
+        )
         assert retrieved["value"] == "https://api.example.com"
 
     def test_set_variable_with_dict_value(self, workspace):
@@ -483,7 +485,9 @@ class TestIntegrationVariables:
             value="https://api.example.com",
         )
 
-        success = workspace.db_manager.delete_integration_variable("api_call", "base_url")
+        success = workspace.db_manager.delete_integration_variable(
+            "api_call", "base_url"
+        )
         assert success is True
 
         # Verify deleted
@@ -492,7 +496,9 @@ class TestIntegrationVariables:
 
     def test_delete_nonexistent_variable(self, workspace):
         """Test deleting a variable that doesn't exist."""
-        success = workspace.db_manager.delete_integration_variable("api_call", "nonexistent")
+        success = workspace.db_manager.delete_integration_variable(
+            "api_call", "nonexistent"
+        )
         assert success is False
 
 

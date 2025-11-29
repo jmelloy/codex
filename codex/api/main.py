@@ -9,7 +9,9 @@ from fastapi import FastAPI
 
 from codex.api.routes.artifacts import router as artifacts_router
 from codex.api.routes.entries import router as entries_router
-from codex.api.routes.integration_variables import router as integration_variables_router
+from codex.api.routes.integration_variables import (
+    router as integration_variables_router,
+)
 from codex.api.routes.notebooks import router as notebooks_router
 from codex.api.routes.pages import router as pages_router
 from codex.api.routes.search import router as search_router

@@ -526,7 +526,9 @@ def config_list(workspace: str):
 
         if not variables:
             click.echo("No integration variables configured.")
-            click.echo("\nUse 'codex config set <type> <name> <value>' to add defaults.")
+            click.echo(
+                "\nUse 'codex config set <type> <name> <value>' to add defaults."
+            )
             return
 
         # Group by integration type

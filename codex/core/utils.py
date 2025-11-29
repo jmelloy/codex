@@ -46,7 +46,11 @@ def format_table(columns: list[str], rows: list[dict]) -> str:
     # Build data rows
     data_lines = []
     for row in str_rows:
-        line = "|" + "|".join(f" {row[col].ljust(col_widths[col])} " for col in columns) + "|"
+        line = (
+            "|"
+            + "|".join(f" {row[col].ljust(col_widths[col])} " for col in columns)
+            + "|"
+        )
         data_lines.append(line)
 
     # Combine all parts

@@ -269,7 +269,9 @@ async def delete_entry(entry_id: str, workspace_path: Optional[str] = Query(None
 
 
 @router.get("/{entry_id}/artifacts")
-async def list_entry_artifacts(entry_id: str, workspace_path: Optional[str] = Query(None)):
+async def list_entry_artifacts(
+    entry_id: str, workspace_path: Optional[str] = Query(None)
+):
     """List artifacts for an entry."""
     try:
         ws = Workspace.load(get_workspace_path(workspace_path))

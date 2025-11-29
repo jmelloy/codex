@@ -24,7 +24,9 @@ class IntegrationBase:
         """
         if not self.integration_type or not self.workspace:
             return {}
-        return self.workspace.db_manager.get_integration_variables(self.integration_type)
+        return self.workspace.db_manager.get_integration_variables(
+            self.integration_type
+        )
 
     def merge_inputs_with_defaults(self, inputs: dict) -> dict:
         """Merge entry inputs with stored default variables.
@@ -44,7 +46,11 @@ class IntegrationBase:
 
         merged = dict(defaults)
         for key, value in inputs.items():
-            if key in merged and isinstance(merged[key], dict) and isinstance(value, dict):
+            if (
+                key in merged
+                and isinstance(merged[key], dict)
+                and isinstance(value, dict)
+            ):
                 # Merge nested dicts (e.g., headers)
                 merged[key] = {**merged[key], **value}
             else:

@@ -175,8 +175,16 @@ async def update_integration_variable(
         integration_type=integration_type,
         name=name,
         value=body.value,
-        description=body.description if body.description is not None else existing.get("description"),
-        is_secret=body.is_secret if body.is_secret is not None else existing.get("is_secret", False),
+        description=(
+            body.description
+            if body.description is not None
+            else existing.get("description")
+        ),
+        is_secret=(
+            body.is_secret
+            if body.is_secret is not None
+            else existing.get("is_secret", False)
+        ),
     )
     return variable
 

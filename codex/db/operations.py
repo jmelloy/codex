@@ -644,9 +644,7 @@ class DatabaseManager:
         finally:
             session.close()
 
-    def get_integration_variable(
-        self, integration_type: str, name: str
-    ) -> dict | None:
+    def get_integration_variable(self, integration_type: str, name: str) -> dict | None:
         """Get a specific integration variable."""
         session = self.get_session()
         try:
@@ -707,9 +705,7 @@ class DatabaseManager:
         finally:
             session.close()
 
-    def delete_integration_variable(
-        self, integration_type: str, name: str
-    ) -> bool:
+    def delete_integration_variable(self, integration_type: str, name: str) -> bool:
         """Delete an integration variable."""
         session = self.get_session()
         try:

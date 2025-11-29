@@ -57,7 +57,9 @@ class APICallIntegration(IntegrationBase):
 
         # Handle base_url - prepend to relative URLs
         base_url = merged.get("base_url", "")
-        if base_url and not url.startswith(("http://", "https://", "ftp://", "file://")):
+        if base_url and not url.startswith(
+            ("http://", "https://", "ftp://", "file://")
+        ):
             # Use urllib for proper URL joining
             from urllib.parse import urljoin
 

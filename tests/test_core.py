@@ -45,6 +45,87 @@ class TestWorkspace:
         assert config["version"] == "1.0.0"
         assert "created_at" in config
 
+    def test_scan_notebooks_directory_empty(self, tmp_path):
+        """Test scanning empty notebooks directory."""
+        ws = Workspace.initialize(tmp_path, "Test Workspace")
+        files = ws.scan_notebooks_directory()
+
+        # Should contain notebook dirs created by the system
+        # or be empty if no notebooks exist
+        assert isinstance(files, list)
+
+    def test_scan_notebooks_directory_with_files(self, tmp_path):
+        """Test scanning notebooks directory with files."""
+        ws = Workspace.initialize(tmp_path, "Test Workspace")
+
+        # Create some test files
+        test_dir = ws.notebooks_path / "test-notebook"
+        test_dir.mkdir(parents=True)
+
+        (test_dir / "README.md").write_text("# Test")
+        (test_dir / "notes.txt").write_text("Some notes")
+
+        files = ws.scan_notebooks_directory()
+
+        # Find the test-notebook directory
+        test_notebook_entry = None
+        for item in files:
+            if item["name"] == "test-notebook":
+                test_notebook_entry = item
+                break
+
+        assert test_notebook_entry is not None
+        assert test_notebook_entry["type"] == "directory"
+        assert "children" in test_notebook_entry
+
+        # Check for files in the directory
+        children_names = [c["name"] for c in test_notebook_entry["children"]]
+        assert "README.md" in children_names
+        assert "notes.txt" in children_names
+
+    def test_scan_notebooks_directory_skips_hidden_files(self, tmp_path):
+        """Test that hidden files are skipped."""
+        ws = Workspace.initialize(tmp_path, "Test Workspace")
+
+        # Create a hidden file
+        (ws.notebooks_path / ".hidden").write_text("hidden")
+        (ws.notebooks_path / "visible.txt").write_text("visible")
+
+        files = ws.scan_notebooks_directory()
+
+        file_names = [f["name"] for f in files]
+        assert ".hidden" not in file_names
+        assert "visible.txt" in file_names
+
+    def test_scan_artifacts_directory_empty(self, tmp_path):
+        """Test scanning empty artifacts directory."""
+        ws = Workspace.initialize(tmp_path, "Test Workspace")
+        files = ws.scan_artifacts_directory()
+
+        assert isinstance(files, list)
+        assert len(files) == 0
+
+    def test_scan_artifacts_directory_with_files(self, tmp_path):
+        """Test scanning artifacts directory with files."""
+        ws = Workspace.initialize(tmp_path, "Test Workspace")
+
+        # Create some test files
+        (ws.artifacts_path / "image.png").write_bytes(b"fake png data")
+        (ws.artifacts_path / "data.json").write_text('{"key": "value"}')
+
+        files = ws.scan_artifacts_directory()
+
+        file_names = [f["name"] for f in files]
+        assert "image.png" in file_names
+        assert "data.json" in file_names
+
+        # Check file metadata
+        png_file = next(f for f in files if f["name"] == "image.png")
+        assert png_file["type"] == "file"
+        assert png_file["extension"] == ".png"
+        assert "size" in png_file
+        assert "modified" in png_file
+
 
 class TestNotebook:
     """Tests for Notebook class."""

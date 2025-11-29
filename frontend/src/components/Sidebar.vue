@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useNotebooksStore } from "@/stores/notebooks";
-import { pagesApi } from "@/api";
+import { pagesApi, filesApi, type FileTreeItem } from "@/api";
 import type { Notebook, Page } from "@/types";
 
 const route = useRoute();
@@ -10,16 +10,22 @@ const router = useRouter();
 const notebooksStore = useNotebooksStore();
 
 const expandedNotebooks = ref<Set<string>>(new Set());
+const expandedDirs = ref<Set<string>>(new Set());
 const notebookPages = ref<Map<string, Page[]>>(new Map());
+const notebookFiles = ref<FileTreeItem[]>([]);
 const loading = ref(true);
 
 const notebooks = computed(() => Array.from(notebooksStore.notebooks.values()));
 
 const currentNotebookId = computed(() => route.params.notebookId as string | undefined);
 const currentPageId = computed(() => route.params.pageId as string | undefined);
+const currentFilePath = computed(() => route.query.file as string | undefined);
 
 onMounted(async () => {
-  await notebooksStore.loadNotebooks();
+  await Promise.all([
+    notebooksStore.loadNotebooks(),
+    loadNotebookFiles(),
+  ]);
   loading.value = false;
   
   // Auto-expand current notebook
@@ -47,12 +53,29 @@ async function loadPagesForNotebook(notebookId: string) {
   }
 }
 
+async function loadNotebookFiles() {
+  try {
+    const result = await filesApi.listNotebooks(notebooksStore.workspacePath);
+    notebookFiles.value = result.files;
+  } catch (e) {
+    console.error("Failed to load notebook files:", e);
+  }
+}
+
 async function toggleNotebook(notebook: Notebook) {
   if (expandedNotebooks.value.has(notebook.id)) {
     expandedNotebooks.value.delete(notebook.id);
   } else {
     expandedNotebooks.value.add(notebook.id);
     await loadPagesForNotebook(notebook.id);
+  }
+}
+
+function toggleDir(path: string) {
+  if (expandedDirs.value.has(path)) {
+    expandedDirs.value.delete(path);
+  } else {
+    expandedDirs.value.add(path);
   }
 }
 
@@ -64,12 +87,46 @@ function navigateToPage(notebookId: string, page: Page) {
   router.push(`/notebooks/${notebookId}/pages/${page.id}`);
 }
 
+function navigateToFile(filePath: string) {
+  router.push({ path: '/files', query: { path: filePath } });
+}
+
 function isNotebookActive(notebook: Notebook) {
   return currentNotebookId.value === notebook.id && !currentPageId.value;
 }
 
 function isPageActive(page: Page) {
   return currentPageId.value === page.id;
+}
+
+function isFileActive(path: string) {
+  return currentFilePath.value === path;
+}
+
+function getFileIcon(item: FileTreeItem): string {
+  if (item.type === "directory") {
+    return "📁";
+  }
+  
+  const ext = item.extension?.toLowerCase() || "";
+  const iconMap: Record<string, string> = {
+    ".md": "📝",
+    ".txt": "📄",
+    ".json": "📋",
+    ".py": "🐍",
+    ".js": "📜",
+    ".ts": "📜",
+    ".html": "🌐",
+    ".css": "🎨",
+    ".png": "🖼️",
+    ".jpg": "🖼️",
+    ".jpeg": "🖼️",
+    ".gif": "🖼️",
+    ".svg": "🖼️",
+    ".pdf": "📕",
+  };
+  
+  return iconMap[ext] || "📄";
 }
 </script>
 
@@ -152,6 +209,92 @@ function isPageActive(page: Page) {
 
           <div v-if="!notebooks.length" class="tree-empty">
             No notebooks yet
+          </div>
+        </div>
+      </div>
+
+      <!-- Files Section -->
+      <div class="nav-section">
+        <div class="nav-section-header">
+          <span>Files</span>
+        </div>
+
+        <div class="tree">
+          <template v-for="item in notebookFiles" :key="item.path">
+            <!-- Directory -->
+            <div v-if="item.type === 'directory'" class="tree-item">
+              <div class="tree-node dir-node">
+                <button
+                  class="tree-toggle"
+                  @click="toggleDir(item.path)"
+                >
+                  <span v-if="expandedDirs.has(item.path)">▼</span>
+                  <span v-else>▶</span>
+                </button>
+                <span class="tree-icon">{{ getFileIcon(item) }}</span>
+                <span class="tree-label">{{ item.name }}</span>
+              </div>
+
+              <div
+                v-if="expandedDirs.has(item.path) && item.children"
+                class="tree-children"
+              >
+                <template v-for="child in item.children" :key="child.path">
+                  <div
+                    v-if="child.type === 'file'"
+                    class="tree-node file-node"
+                    :class="{ active: isFileActive(child.path) }"
+                    @click="navigateToFile(child.path)"
+                  >
+                    <span class="tree-icon">{{ getFileIcon(child) }}</span>
+                    <span class="tree-label">{{ child.name }}</span>
+                  </div>
+                  <div v-else class="tree-item">
+                    <div class="tree-node dir-node">
+                      <button
+                        class="tree-toggle"
+                        @click="toggleDir(child.path)"
+                      >
+                        <span v-if="expandedDirs.has(child.path)">▼</span>
+                        <span v-else>▶</span>
+                      </button>
+                      <span class="tree-icon">{{ getFileIcon(child) }}</span>
+                      <span class="tree-label">{{ child.name }}</span>
+                    </div>
+                    <div
+                      v-if="expandedDirs.has(child.path) && child.children"
+                      class="tree-children"
+                    >
+                      <div
+                        v-for="grandchild in child.children"
+                        :key="grandchild.path"
+                        class="tree-node file-node"
+                        :class="{ active: isFileActive(grandchild.path) }"
+                        @click="navigateToFile(grandchild.path)"
+                      >
+                        <span class="tree-icon">{{ getFileIcon(grandchild) }}</span>
+                        <span class="tree-label">{{ grandchild.name }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </div>
+
+            <!-- File at root level -->
+            <div
+              v-else
+              class="tree-node file-node"
+              :class="{ active: isFileActive(item.path) }"
+              @click="navigateToFile(item.path)"
+            >
+              <span class="tree-icon">{{ getFileIcon(item) }}</span>
+              <span class="tree-label">{{ item.name }}</span>
+            </div>
+          </template>
+
+          <div v-if="!notebookFiles.length" class="tree-empty">
+            No files yet
           </div>
         </div>
       </div>
@@ -378,6 +521,18 @@ function isPageActive(page: Page) {
 
 .page-node .tree-icon {
   font-size: 0.75rem;
+}
+
+.file-node {
+  padding-left: 0.75rem;
+}
+
+.file-node .tree-icon {
+  font-size: 0.75rem;
+}
+
+.dir-node .tree-icon {
+  font-size: 0.875rem;
 }
 
 .tree-empty {

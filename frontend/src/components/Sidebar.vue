@@ -104,6 +104,14 @@ function isFileActive(path: string) {
 }
 
 function getFileIcon(item: FileTreeItem): string {
+  // Use specific icons for items with properties
+  if (item.properties?.type === "notebook") {
+    return "📓";
+  }
+  if (item.properties?.type === "page") {
+    return "📄";
+  }
+  
   if (item.type === "directory") {
     return "📁";
   }
@@ -127,6 +135,14 @@ function getFileIcon(item: FileTreeItem): string {
   };
   
   return iconMap[ext] || "📄";
+}
+
+function getDisplayName(item: FileTreeItem): string {
+  // Use title from properties if available
+  if (item.properties?.title) {
+    return item.properties.title;
+  }
+  return item.name;
 }
 </script>
 
@@ -232,7 +248,7 @@ function getFileIcon(item: FileTreeItem): string {
                   <span v-else>▶</span>
                 </button>
                 <span class="tree-icon">{{ getFileIcon(item) }}</span>
-                <span class="tree-label">{{ item.name }}</span>
+                <span class="tree-label">{{ getDisplayName(item) }}</span>
               </div>
 
               <div
@@ -247,7 +263,7 @@ function getFileIcon(item: FileTreeItem): string {
                     @click="navigateToFile(child.path)"
                   >
                     <span class="tree-icon">{{ getFileIcon(child) }}</span>
-                    <span class="tree-label">{{ child.name }}</span>
+                    <span class="tree-label">{{ getDisplayName(child) }}</span>
                   </div>
                   <div v-else class="tree-item">
                     <div class="tree-node dir-node">
@@ -259,7 +275,7 @@ function getFileIcon(item: FileTreeItem): string {
                         <span v-else>▶</span>
                       </button>
                       <span class="tree-icon">{{ getFileIcon(child) }}</span>
-                      <span class="tree-label">{{ child.name }}</span>
+                      <span class="tree-label">{{ getDisplayName(child) }}</span>
                     </div>
                     <div
                       v-if="expandedDirs.has(child.path) && child.children"
@@ -273,7 +289,7 @@ function getFileIcon(item: FileTreeItem): string {
                         @click="navigateToFile(grandchild.path)"
                       >
                         <span class="tree-icon">{{ getFileIcon(grandchild) }}</span>
-                        <span class="tree-label">{{ grandchild.name }}</span>
+                        <span class="tree-label">{{ getDisplayName(grandchild) }}</span>
                       </div>
                     </div>
                   </div>
@@ -289,7 +305,7 @@ function getFileIcon(item: FileTreeItem): string {
               @click="navigateToFile(item.path)"
             >
               <span class="tree-icon">{{ getFileIcon(item) }}</span>
-              <span class="tree-label">{{ item.name }}</span>
+              <span class="tree-label">{{ getDisplayName(item) }}</span>
             </div>
           </template>
 

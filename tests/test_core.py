@@ -1,5 +1,6 @@
 """Tests for core functionality."""
 
+import json
 from datetime import datetime
 
 import pytest
@@ -126,6 +127,37 @@ class TestWorkspace:
         assert "size" in png_file
         assert "modified" in png_file
 
+    def test_scan_with_sidecar_files(self, tmp_path):
+        """Test that sidecar properties files are read correctly."""
+        ws = Workspace.initialize(tmp_path, "Test Workspace")
+
+        # Create a directory with a sidecar file
+        test_dir = ws.notebooks_path / "test-notebook"
+        test_dir.mkdir(parents=True)
+
+        # Create sidecar properties file
+        sidecar_data = {
+            "id": "nb-123",
+            "title": "Test Notebook",
+            "type": "notebook",
+        }
+        sidecar_path = ws.notebooks_path / ".test-notebook.json"
+        with open(sidecar_path, "w") as f:
+            json.dump(sidecar_data, f)
+
+        files = ws.scan_notebooks_directory()
+
+        # Find the test-notebook directory
+        test_notebook_entry = next(
+            (item for item in files if item["name"] == "test-notebook"), None
+        )
+
+        assert test_notebook_entry is not None
+        assert "properties" in test_notebook_entry
+        assert test_notebook_entry["properties"]["id"] == "nb-123"
+        assert test_notebook_entry["properties"]["title"] == "Test Notebook"
+        assert test_notebook_entry["properties"]["type"] == "notebook"
+
 
 class TestNotebook:
     """Tests for Notebook class."""
@@ -145,6 +177,17 @@ class TestNotebook:
         assert nb.description == "A test notebook"
         assert "test" in nb.tags
         assert nb.get_directory().exists()
+
+        # Check sidecar file was created
+        sidecar_path = nb.get_directory().parent / f".{nb.get_directory().name}.json"
+        assert sidecar_path.exists()
+
+        # Verify sidecar content
+        with open(sidecar_path) as f:
+            sidecar = json.load(f)
+        assert sidecar["id"] == nb.id
+        assert sidecar["title"] == "Test Notebook"
+        assert sidecar["type"] == "notebook"
 
     def test_list_notebooks(self, tmp_path):
         """Test listing notebooks."""
@@ -208,6 +251,19 @@ class TestPage:
         assert page.title == "Test Page"
         assert page.notebook_id == nb.id
         assert page.narrative["goals"] == "Test goals"
+
+        # Check sidecar file was created
+        page_dir = page.get_directory()
+        sidecar_path = page_dir.parent / f".{page_dir.name}.json"
+        assert sidecar_path.exists()
+
+        # Verify sidecar content
+        with open(sidecar_path) as f:
+            sidecar = json.load(f)
+        assert sidecar["id"] == page.id
+        assert sidecar["title"] == "Test Page"
+        assert sidecar["type"] == "page"
+        assert sidecar["notebook_id"] == nb.id
 
     def test_list_pages(self, tmp_path):
         """Test listing pages."""

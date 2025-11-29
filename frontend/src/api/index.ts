@@ -160,6 +160,13 @@ export interface FileTreeItem {
   modified?: string;
   extension?: string;
   children?: FileTreeItem[];
+  properties?: {
+    id?: string;
+    title?: string;
+    type?: string;
+    notebook_id?: string;
+    [key: string]: unknown;
+  };
 }
 
 export const filesApi = {

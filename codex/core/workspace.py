@@ -226,6 +226,27 @@ class Workspace:
         finally:
             session.close()
 
+    def _read_sidecar(self, file_path: Path) -> Optional[dict]:
+        """
+        Read a sidecar properties file for a file or directory.
+
+        The sidecar file is named .{filename}.json and contains metadata.
+
+        Args:
+            file_path: The path to the file or directory.
+
+        Returns:
+            The sidecar properties as a dictionary, or None if not found.
+        """
+        sidecar_path = file_path.parent / f".{file_path.name}.json"
+        if sidecar_path.exists():
+            try:
+                with open(sidecar_path) as f:
+                    return json.load(f)
+            except (json.JSONDecodeError, OSError):
+                pass
+        return None
+
     def _scan_directory(self, dir_path: Path, relative_base: Path) -> list[dict]:
         """
         Recursively scan a directory and return its contents.
@@ -241,24 +262,30 @@ class Workspace:
 
         try:
             for item in sorted(dir_path.iterdir()):
-                # Skip hidden files and directories
+                # Skip hidden files and directories (including sidecar files)
                 if item.name.startswith("."):
                     continue
 
                 relative_path = item.relative_to(relative_base)
 
+                # Check for sidecar properties file
+                sidecar = self._read_sidecar(item)
+
                 if item.is_dir():
                     children = self._scan_directory(item, relative_base)
-                    items.append({
+                    entry = {
                         "name": item.name,
                         "path": str(relative_path),
                         "type": "directory",
                         "children": children,
-                    })
+                    }
+                    if sidecar:
+                        entry["properties"] = sidecar
+                    items.append(entry)
                 else:
                     # Get file info
                     stat_info = item.stat()
-                    items.append({
+                    entry = {
                         "name": item.name,
                         "path": str(relative_path),
                         "type": "file",
@@ -267,7 +294,10 @@ class Workspace:
                             stat_info.st_mtime, tz=timezone.utc
                         ).replace(tzinfo=None).isoformat(),
                         "extension": item.suffix.lower() if item.suffix else "",
-                    })
+                    }
+                    if sidecar:
+                        entry["properties"] = sidecar
+                    items.append(entry)
         except PermissionError:
             pass
 

@@ -7,6 +7,9 @@ from typing import TYPE_CHECKING, Optional
 
 from codex.core.git_manager import GitManager
 from codex.core.storage import StorageManager
+from codex.db.models import Entry as EntryModel
+from codex.db.models import Notebook as NotebookModel
+from codex.db.models import Page as PageModel
 from codex.db.operations import DatabaseManager
 
 if TYPE_CHECKING:
@@ -128,17 +131,46 @@ class Workspace:
         """List all notebooks."""
         from codex.core.notebook import Notebook
 
-        notebooks_data = self.db_manager.list_notebooks()
-        return [Notebook.from_dict(self, nb_data) for nb_data in notebooks_data]
+        session = self.db_manager.get_session()
+        try:
+            notebooks = NotebookModel.get_all(session)
+            return [
+                Notebook.from_dict(self, {
+                    "id": nb.id,
+                    "title": nb.title,
+                    "description": nb.description,
+                    "created_at": nb.created_at.isoformat() if nb.created_at else None,
+                    "updated_at": nb.updated_at.isoformat() if nb.updated_at else None,
+                    "settings": json.loads(nb.settings) if nb.settings else {},
+                    "metadata": json.loads(nb.metadata_) if nb.metadata_ else {},
+                    "tags": [nt.tag.name for nt in nb.tags] if nb.tags else [],
+                })
+                for nb in notebooks
+            ]
+        finally:
+            session.close()
 
     def get_notebook(self, notebook_id: str) -> Optional["Notebook"]:
         """Get a notebook by ID."""
         from codex.core.notebook import Notebook
 
-        notebook_data = self.db_manager.get_notebook(notebook_id)
-        if notebook_data:
-            return Notebook.from_dict(self, notebook_data)
-        return None
+        session = self.db_manager.get_session()
+        try:
+            notebook = NotebookModel.get_by_id(session, notebook_id)
+            if notebook:
+                return Notebook.from_dict(self, {
+                    "id": notebook.id,
+                    "title": notebook.title,
+                    "description": notebook.description,
+                    "created_at": notebook.created_at.isoformat() if notebook.created_at else None,
+                    "updated_at": notebook.updated_at.isoformat() if notebook.updated_at else None,
+                    "settings": json.loads(notebook.settings) if notebook.settings else {},
+                    "metadata": json.loads(notebook.metadata_) if notebook.metadata_ else {},
+                    "tags": [nt.tag.name for nt in notebook.tags] if notebook.tags else [],
+                })
+            return None
+        finally:
+            session.close()
 
     def search_entries(
         self,
@@ -151,13 +183,45 @@ class Workspace:
         page_id: Optional[str] = None,
     ) -> list[dict]:
         """Search entries across the workspace."""
-        filters = {
-            "query": query,
-            "entry_type": entry_type,
-            "tags": tags,
-            "date_from": date_from,
-            "date_to": date_to,
-            "notebook_id": notebook_id,
-            "page_id": page_id,
-        }
-        return self.db_manager.search_entries(filters)
+        session = self.db_manager.get_session()
+        try:
+            query_obj = session.query(EntryModel)
+
+            if notebook_id:
+                query_obj = query_obj.join(PageModel).filter(
+                    PageModel.notebook_id == notebook_id
+                )
+
+            if page_id:
+                query_obj = query_obj.filter(EntryModel.page_id == page_id)
+
+            if entry_type:
+                query_obj = query_obj.filter(EntryModel.entry_type == entry_type)
+
+            if date_from:
+                query_obj = query_obj.filter(EntryModel.created_at >= date_from)
+
+            if date_to:
+                query_obj = query_obj.filter(EntryModel.created_at <= date_to)
+
+            entries = query_obj.order_by(EntryModel.created_at.desc()).all()
+            return [
+                {
+                    "id": e.id,
+                    "page_id": e.page_id,
+                    "entry_type": e.entry_type,
+                    "title": e.title,
+                    "created_at": e.created_at.isoformat() if e.created_at else None,
+                    "status": e.status,
+                    "parent_id": e.parent_id,
+                    "inputs": json.loads(e.inputs) if e.inputs else {},
+                    "outputs": json.loads(e.outputs) if e.outputs else {},
+                    "execution": json.loads(e.execution) if e.execution else {},
+                    "metrics": json.loads(e.metrics) if e.metrics else {},
+                    "metadata": json.loads(e.metadata_) if e.metadata_ else {},
+                    "tags": [et.tag.name for et in e.tags] if e.tags else [],
+                }
+                for e in entries
+            ]
+        finally:
+            session.close()

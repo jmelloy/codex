@@ -1,5 +1,6 @@
 """Pages API routes."""
 
+import json
 from datetime import datetime
 from typing import Optional
 
@@ -7,9 +8,26 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
 from codex.api.utils import get_workspace_path
+from codex.core.page import Page as CorePage
 from codex.core.workspace import Workspace
+from codex.db.models import Page
 
 router = APIRouter()
+
+
+def _page_to_core(ws: Workspace, page: Page) -> CorePage:
+    """Convert a db Page model to a CorePage instance."""
+    return CorePage.from_dict(ws, {
+        "id": page.id,
+        "notebook_id": page.notebook_id,
+        "title": page.title,
+        "date": page.date.isoformat() if page.date else None,
+        "created_at": page.created_at.isoformat() if page.created_at else None,
+        "updated_at": page.updated_at.isoformat() if page.updated_at else None,
+        "narrative": json.loads(page.narrative) if page.narrative else {},
+        "tags": [pt.tag.name for pt in page.tags] if page.tags else [],
+        "metadata": json.loads(page.metadata_) if page.metadata_ else {},
+    })
 
 
 class PageCreateRequest(BaseModel):
@@ -76,21 +94,25 @@ async def get_page(page_id: str, workspace_path: Optional[str] = Query(None)):
     """Get page details."""
     try:
         ws = Workspace.load(get_workspace_path(workspace_path))
-        page_data = ws.db_manager.get_page(page_id)
-        if not page_data:
-            raise HTTPException(status_code=404, detail="Page not found")
+        session = ws.db_manager.get_session()
+        try:
+            page = Page.get_by_id(session, page_id)
+            if not page:
+                raise HTTPException(status_code=404, detail="Page not found")
 
-        return PageResponse(
-            id=page_data["id"],
-            notebook_id=page_data["notebook_id"],
-            title=page_data["title"],
-            date=page_data.get("date"),
-            created_at=page_data["created_at"],
-            updated_at=page_data["updated_at"],
-            narrative=page_data.get("narrative", {}),
-            tags=page_data.get("tags", []),
-            metadata=page_data.get("metadata", {}),
-        )
+            return PageResponse(
+                id=page.id,
+                notebook_id=page.notebook_id,
+                title=page.title,
+                date=page.date.isoformat() if page.date else None,
+                created_at=page.created_at.isoformat() if page.created_at else None,
+                updated_at=page.updated_at.isoformat() if page.updated_at else None,
+                narrative=json.loads(page.narrative) if page.narrative else {},
+                tags=[pt.tag.name for pt in page.tags] if page.tags else [],
+                metadata=json.loads(page.metadata_) if page.metadata_ else {},
+            )
+        finally:
+            session.close()
     except HTTPException:
         raise
     except ValueError as e:
@@ -115,40 +137,41 @@ async def update_page(page_id: str, request: PageUpdateRequest):
     """Update a page."""
     try:
         ws = Workspace.load(get_workspace_path(request.workspace_path))
+        session = ws.db_manager.get_session()
+        try:
+            page = Page.get_by_id(session, page_id)
+            if not page:
+                raise HTTPException(status_code=404, detail="Page not found")
 
-        from codex.core.page import Page
+            core_page = _page_to_core(ws, page)
 
-        page_data = ws.db_manager.get_page(page_id)
-        if not page_data:
-            raise HTTPException(status_code=404, detail="Page not found")
+            update_data = {}
+            if request.title is not None:
+                update_data["title"] = request.title
+            if request.date is not None:
+                update_data["date"] = datetime.fromisoformat(request.date)
+            if request.narrative is not None:
+                update_data["narrative"] = request.narrative
+            if request.tags is not None:
+                update_data["tags"] = request.tags
+            if request.metadata is not None:
+                update_data["metadata"] = request.metadata
 
-        page = Page.from_dict(ws, page_data)
+            core_page.update(**update_data)
 
-        update_data = {}
-        if request.title is not None:
-            update_data["title"] = request.title
-        if request.date is not None:
-            update_data["date"] = datetime.fromisoformat(request.date)
-        if request.narrative is not None:
-            update_data["narrative"] = request.narrative
-        if request.tags is not None:
-            update_data["tags"] = request.tags
-        if request.metadata is not None:
-            update_data["metadata"] = request.metadata
-
-        page.update(**update_data)
-
-        return PageResponse(
-            id=page.id,
-            notebook_id=page.notebook_id,
-            title=page.title,
-            date=page.date.isoformat() if page.date else None,
-            created_at=page.created_at.isoformat(),
-            updated_at=page.updated_at.isoformat(),
-            narrative=page.narrative,
-            tags=page.tags,
-            metadata=page.metadata,
-        )
+            return PageResponse(
+                id=core_page.id,
+                notebook_id=core_page.notebook_id,
+                title=core_page.title,
+                date=core_page.date.isoformat() if core_page.date else None,
+                created_at=core_page.created_at.isoformat(),
+                updated_at=core_page.updated_at.isoformat(),
+                narrative=core_page.narrative,
+                tags=core_page.tags,
+                metadata=core_page.metadata,
+            )
+        finally:
+            session.close()
     except HTTPException:
         raise
     except ValueError as e:
@@ -170,27 +193,28 @@ async def update_narrative(page_id: str, request: NarrativeUpdateRequest):
     """Update page narrative field."""
     try:
         ws = Workspace.load(get_workspace_path(request.workspace_path))
+        session = ws.db_manager.get_session()
+        try:
+            page = Page.get_by_id(session, page_id)
+            if not page:
+                raise HTTPException(status_code=404, detail="Page not found")
 
-        from codex.core.page import Page
+            core_page = _page_to_core(ws, page)
+            core_page.update_narrative(request.field, request.content)
 
-        page_data = ws.db_manager.get_page(page_id)
-        if not page_data:
-            raise HTTPException(status_code=404, detail="Page not found")
-
-        page = Page.from_dict(ws, page_data)
-        page.update_narrative(request.field, request.content)
-
-        return PageResponse(
-            id=page.id,
-            notebook_id=page.notebook_id,
-            title=page.title,
-            date=page.date.isoformat() if page.date else None,
-            created_at=page.created_at.isoformat(),
-            updated_at=page.updated_at.isoformat(),
-            narrative=page.narrative,
-            tags=page.tags,
-            metadata=page.metadata,
-        )
+            return PageResponse(
+                id=core_page.id,
+                notebook_id=core_page.notebook_id,
+                title=core_page.title,
+                date=core_page.date.isoformat() if core_page.date else None,
+                created_at=core_page.created_at.isoformat(),
+                updated_at=core_page.updated_at.isoformat(),
+                narrative=core_page.narrative,
+                tags=core_page.tags,
+                metadata=core_page.metadata,
+            )
+        finally:
+            session.close()
     except HTTPException:
         raise
     except ValueError as e:
@@ -204,17 +228,18 @@ async def delete_page(page_id: str, workspace_path: Optional[str] = Query(None))
     """Delete a page."""
     try:
         ws = Workspace.load(get_workspace_path(workspace_path))
+        session = ws.db_manager.get_session()
+        try:
+            page = Page.get_by_id(session, page_id)
+            if not page:
+                raise HTTPException(status_code=404, detail="Page not found")
 
-        from codex.core.page import Page
+            core_page = _page_to_core(ws, page)
+            core_page.delete()
 
-        page_data = ws.db_manager.get_page(page_id)
-        if not page_data:
-            raise HTTPException(status_code=404, detail="Page not found")
-
-        page = Page.from_dict(ws, page_data)
-        page.delete()
-
-        return {"message": "Page deleted successfully"}
+            return {"message": "Page deleted successfully"}
+        finally:
+            session.close()
     except HTTPException:
         raise
     except ValueError as e:
@@ -228,34 +253,35 @@ async def list_page_entries(page_id: str, workspace_path: Optional[str] = Query(
     """List entries in a page."""
     try:
         ws = Workspace.load(get_workspace_path(workspace_path))
+        session = ws.db_manager.get_session()
+        try:
+            page = Page.get_by_id(session, page_id)
+            if not page:
+                raise HTTPException(status_code=404, detail="Page not found")
 
-        from codex.core.page import Page
+            core_page = _page_to_core(ws, page)
+            entries = core_page.list_entries()
 
-        page_data = ws.db_manager.get_page(page_id)
-        if not page_data:
-            raise HTTPException(status_code=404, detail="Page not found")
-
-        page = Page.from_dict(ws, page_data)
-        entries = page.list_entries()
-
-        return [
-            {
-                "id": entry.id,
-                "page_id": entry.page_id,
-                "entry_type": entry.entry_type,
-                "title": entry.title,
-                "created_at": entry.created_at.isoformat(),
-                "status": entry.status,
-                "parent_id": entry.parent_id,
-                "inputs": entry.inputs,
-                "outputs": entry.outputs,
-                "execution": entry.execution,
-                "metrics": entry.metrics,
-                "metadata": entry.metadata,
-                "tags": entry.tags,
-            }
-            for entry in entries
-        ]
+            return [
+                {
+                    "id": entry.id,
+                    "page_id": entry.page_id,
+                    "entry_type": entry.entry_type,
+                    "title": entry.title,
+                    "created_at": entry.created_at.isoformat(),
+                    "status": entry.status,
+                    "parent_id": entry.parent_id,
+                    "inputs": entry.inputs,
+                    "outputs": entry.outputs,
+                    "execution": entry.execution,
+                    "metrics": entry.metrics,
+                    "metadata": entry.metadata,
+                    "tags": entry.tags,
+                }
+                for entry in entries
+            ]
+        finally:
+            session.close()
     except HTTPException:
         raise
     except ValueError as e:

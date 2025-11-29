@@ -1,11 +1,15 @@
 """Page operations for Lab Notebook."""
 
 import hashlib
+import json
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Optional
 
 from codex.core.utils import slugify
+from codex.db.models import Entry as EntryModel
+from codex.db.models import Notebook as NotebookModel
+from codex.db.models import Page as PageModel
 
 if TYPE_CHECKING:
     from codex.core.entry import Entry
@@ -66,7 +70,23 @@ class Page:
         )
 
         # Save to database
-        notebook.workspace.db_manager.insert_page(page.to_dict())
+        session = notebook.workspace.db_manager.get_session()
+        try:
+            PageModel.create(
+                session,
+                validate_fk=True,
+                id=page_id,
+                notebook_id=notebook.id,
+                title=title,
+                date=date or now,
+                created_at=now,
+                updated_at=now,
+                narrative=json.dumps(page.narrative),
+                metadata_=json.dumps(page.metadata),
+            )
+            session.commit()
+        finally:
+            session.close()
 
         # Commit to Git
         notebook.workspace.git_manager.create_page(notebook.id, page_id, page.to_dict())
@@ -166,23 +186,76 @@ class Page:
         """List all entries on this page."""
         from codex.core.entry import Entry
 
-        entries_data = self.workspace.db_manager.list_entries(self.id)
-        return [Entry.from_dict(self.workspace, e_data) for e_data in entries_data]
+        session = self.workspace.db_manager.get_session()
+        try:
+            entries = EntryModel.find_by(session, page_id=self.id)
+            return [
+                Entry.from_dict(self.workspace, {
+                    "id": e.id,
+                    "page_id": e.page_id,
+                    "entry_type": e.entry_type,
+                    "title": e.title,
+                    "created_at": e.created_at.isoformat() if e.created_at else None,
+                    "status": e.status,
+                    "parent_id": e.parent_id,
+                    "inputs": json.loads(e.inputs) if e.inputs else {},
+                    "outputs": json.loads(e.outputs) if e.outputs else {},
+                    "execution": json.loads(e.execution) if e.execution else {},
+                    "metrics": json.loads(e.metrics) if e.metrics else {},
+                    "metadata": json.loads(e.metadata_) if e.metadata_ else {},
+                    "tags": [et.tag.name for et in e.tags] if e.tags else [],
+                })
+                for e in entries
+            ]
+        finally:
+            session.close()
 
     def get_entry(self, entry_id: str) -> Optional["Entry"]:
         """Get an entry by ID."""
         from codex.core.entry import Entry
 
-        entry_data = self.workspace.db_manager.get_entry(entry_id)
-        if entry_data:
-            return Entry.from_dict(self.workspace, entry_data)
-        return None
+        session = self.workspace.db_manager.get_session()
+        try:
+            entry = EntryModel.get_by_id(session, entry_id)
+            if entry:
+                return Entry.from_dict(self.workspace, {
+                    "id": entry.id,
+                    "page_id": entry.page_id,
+                    "entry_type": entry.entry_type,
+                    "title": entry.title,
+                    "created_at": entry.created_at.isoformat() if entry.created_at else None,
+                    "status": entry.status,
+                    "parent_id": entry.parent_id,
+                    "inputs": json.loads(entry.inputs) if entry.inputs else {},
+                    "outputs": json.loads(entry.outputs) if entry.outputs else {},
+                    "execution": json.loads(entry.execution) if entry.execution else {},
+                    "metrics": json.loads(entry.metrics) if entry.metrics else {},
+                    "metadata": json.loads(entry.metadata_) if entry.metadata_ else {},
+                    "tags": [et.tag.name for et in entry.tags] if entry.tags else [],
+                })
+            return None
+        finally:
+            session.close()
 
     def update_narrative(self, field_name: str, content: str):
         """Update narrative field."""
         self.narrative[field_name] = content
         self.updated_at = _now()
-        self.workspace.db_manager.update_page(self.id, {"narrative": self.narrative})
+
+        session = self.workspace.db_manager.get_session()
+        try:
+            page = PageModel.get_by_id(session, self.id)
+            if page:
+                page.update(
+                    session,
+                    validate_fk=False,
+                    narrative=json.dumps(self.narrative),
+                    updated_at=self.updated_at,
+                )
+                session.commit()
+        finally:
+            session.close()
+
         self.workspace.git_manager.update_page(
             self.notebook_id, self.id, self.to_dict()
         )
@@ -203,7 +276,22 @@ class Page:
         self.updated_at = _now()
 
         # Update in database
-        self.workspace.db_manager.update_page(self.id, self.to_dict())
+        session = self.workspace.db_manager.get_session()
+        try:
+            page = PageModel.get_by_id(session, self.id)
+            if page:
+                page.update(
+                    session,
+                    validate_fk=False,
+                    title=self.title,
+                    date=self.date,
+                    updated_at=self.updated_at,
+                    narrative=json.dumps(self.narrative),
+                    metadata_=json.dumps(self.metadata),
+                )
+                session.commit()
+        finally:
+            session.close()
 
         # Update in Git
         self.workspace.git_manager.update_page(
@@ -215,7 +303,12 @@ class Page:
     def delete(self) -> bool:
         """Delete this page."""
         # Delete from database
-        result = self.workspace.db_manager.delete_page(self.id)
+        session = self.workspace.db_manager.get_session()
+        try:
+            result = PageModel.delete_by_id(session, self.id)
+            session.commit()
+        finally:
+            session.close()
 
         # Delete from Git
         self.workspace.git_manager.delete_page(self.notebook_id, self.id)
@@ -226,7 +319,20 @@ class Page:
         """Get the parent notebook."""
         from codex.core.notebook import Notebook
 
-        notebook_data = self.workspace.db_manager.get_notebook(self.notebook_id)
-        if notebook_data:
-            return Notebook.from_dict(self.workspace, notebook_data)
-        raise ValueError(f"Notebook {self.notebook_id} not found")
+        session = self.workspace.db_manager.get_session()
+        try:
+            notebook = NotebookModel.get_by_id(session, self.notebook_id)
+            if notebook:
+                return Notebook.from_dict(self.workspace, {
+                    "id": notebook.id,
+                    "title": notebook.title,
+                    "description": notebook.description,
+                    "created_at": notebook.created_at.isoformat() if notebook.created_at else None,
+                    "updated_at": notebook.updated_at.isoformat() if notebook.updated_at else None,
+                    "settings": json.loads(notebook.settings) if notebook.settings else {},
+                    "metadata": json.loads(notebook.metadata_) if notebook.metadata_ else {},
+                    "tags": [nt.tag.name for nt in notebook.tags] if notebook.tags else [],
+                })
+            raise ValueError(f"Notebook {self.notebook_id} not found")
+        finally:
+            session.close()

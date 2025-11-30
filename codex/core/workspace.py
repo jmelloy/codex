@@ -225,3 +225,104 @@ class Workspace:
             ]
         finally:
             session.close()
+
+    def _read_sidecar(self, file_path: Path) -> Optional[dict]:
+        """
+        Read a sidecar properties file for a file or directory.
+
+        The sidecar file is named .{filename}.json and contains metadata.
+
+        Args:
+            file_path: The path to the file or directory.
+
+        Returns:
+            The sidecar properties as a dictionary, or None if not found.
+        """
+        sidecar_path = file_path.parent / f".{file_path.name}.json"
+        if sidecar_path.exists():
+            try:
+                with open(sidecar_path) as f:
+                    return json.load(f)
+            except (json.JSONDecodeError, OSError):
+                pass
+        return None
+
+    def _scan_directory(self, dir_path: Path, relative_base: Path) -> list[dict]:
+        """
+        Recursively scan a directory and return its contents.
+
+        Args:
+            dir_path: The directory path to scan.
+            relative_base: The base path to compute relative paths from.
+
+        Returns:
+            A list of dictionaries representing files and directories.
+        """
+        items = []
+
+        try:
+            for item in sorted(dir_path.iterdir()):
+                # Skip hidden files and directories (including sidecar files)
+                if item.name.startswith("."):
+                    continue
+
+                relative_path = item.relative_to(relative_base)
+
+                # Check for sidecar properties file
+                sidecar = self._read_sidecar(item)
+
+                if item.is_dir():
+                    children = self._scan_directory(item, relative_base)
+                    entry = {
+                        "name": item.name,
+                        "path": str(relative_path),
+                        "type": "directory",
+                        "children": children,
+                    }
+                    if sidecar:
+                        entry["properties"] = sidecar
+                    items.append(entry)
+                else:
+                    # Get file info
+                    stat_info = item.stat()
+                    entry = {
+                        "name": item.name,
+                        "path": str(relative_path),
+                        "type": "file",
+                        "size": stat_info.st_size,
+                        "modified": datetime.fromtimestamp(
+                            stat_info.st_mtime, tz=timezone.utc
+                        ).replace(tzinfo=None).isoformat(),
+                        "extension": item.suffix.lower() if item.suffix else "",
+                    }
+                    if sidecar:
+                        entry["properties"] = sidecar
+                    items.append(entry)
+        except PermissionError:
+            pass
+
+        return items
+
+    def scan_notebooks_directory(self) -> list[dict]:
+        """
+        Scan the notebooks directory for files and return a hierarchical structure.
+
+        Returns a list of file/directory entries representing the filesystem tree
+        under the notebooks directory.
+        """
+        if not self.notebooks_path.exists():
+            return []
+
+        return self._scan_directory(self.notebooks_path, self.notebooks_path)
+
+    def scan_artifacts_directory(self) -> list[dict]:
+        """
+        Scan the artifacts directory for files and return a hierarchical structure.
+
+        Returns a list of file/directory entries representing the filesystem tree
+        under the artifacts directory.
+        """
+        if not self.artifacts_path.exists():
+            return []
+
+        return self._scan_directory(self.artifacts_path, self.artifacts_path)

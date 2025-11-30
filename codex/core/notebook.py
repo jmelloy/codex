@@ -94,6 +94,9 @@ class Notebook:
                 f"# {title}\n\n{description}\n\nCreated: {notebook.created_at.isoformat()}\n"
             )
 
+        # Write sidecar properties file
+        notebook._write_sidecar()
+
         return notebook
 
     @classmethod
@@ -139,6 +142,36 @@ class Notebook:
             "settings": self.settings,
             "metadata": self.metadata,
         }
+
+    def _write_sidecar(self) -> None:
+        """Write a sidecar properties file for this notebook."""
+        notebook_dir = self.get_directory()
+
+        # The sidecar file is named .{directory_name}.json
+        sidecar_path = notebook_dir.parent / f".{notebook_dir.name}.json"
+
+        sidecar_data = {
+            "id": self.id,
+            "title": self.title,
+            "description": self.description,
+            "created_at": (
+                self.created_at.isoformat()
+                if isinstance(self.created_at, datetime)
+                else self.created_at
+            ),
+            "updated_at": (
+                self.updated_at.isoformat()
+                if isinstance(self.updated_at, datetime)
+                else self.updated_at
+            ),
+            "tags": self.tags,
+            "settings": self.settings,
+            "metadata": self.metadata,
+            "type": "notebook",
+        }
+
+        with open(sidecar_path, "w") as f:
+            json.dump(sidecar_data, f, indent=2)
 
     def create_page(
         self,
@@ -234,10 +267,22 @@ class Notebook:
         # Update in Git
         self.workspace.git_manager.update_notebook(self.id, self.to_dict())
 
+        # Update sidecar file
+        self._write_sidecar()
+
         return self
 
     def delete(self) -> bool:
         """Delete this notebook."""
+        # Delete sidecar file if exists
+        try:
+            notebook_dir = self.get_directory()
+            sidecar_path = notebook_dir.parent / f".{notebook_dir.name}.json"
+            if sidecar_path.exists():
+                sidecar_path.unlink()
+        except Exception:
+            pass  # Ignore errors when deleting sidecar
+
         # Delete from database
         session = self.workspace.db_manager.get_session()
         try:

@@ -224,3 +224,4 @@ frontend/tsconfig.node.tsbuildinfo
 
 # Lab workspace data (auto-generated)
 .lab/
+frontend/dist/

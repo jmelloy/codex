@@ -4,6 +4,7 @@ import hashlib
 import json
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
 from codex.core.utils import slugify
@@ -108,6 +109,9 @@ class Page:
             f.write("## Conclusions\n\n")
             f.write("## Next Steps\n\n")
 
+        # Write sidecar properties file
+        page._write_sidecar(page_dir)
+
         return page
 
     @classmethod
@@ -161,6 +165,47 @@ class Page:
             "tags": self.tags,
             "metadata": self.metadata,
         }
+
+    def get_directory(self) -> Path:
+        """Get the user-facing directory for this page."""
+        notebook = self.get_notebook()
+        date_str = self.date.strftime("%Y-%m-%d") if self.date else "undated"
+        page_slug = slugify(self.title)
+        return notebook.get_directory() / f"{date_str}-{page_slug}"
+
+    def _write_sidecar(self, page_dir: Optional[Path] = None) -> None:
+        """Write a sidecar properties file for this page."""
+        if page_dir is None:
+            page_dir = self.get_directory()
+
+        # The sidecar file is named .{directory_name}.json
+        sidecar_path = page_dir.parent / f".{page_dir.name}.json"
+
+        sidecar_data = {
+            "id": self.id,
+            "notebook_id": self.notebook_id,
+            "title": self.title,
+            "date": (
+                self.date.isoformat() if isinstance(self.date, datetime) else self.date
+            ),
+            "created_at": (
+                self.created_at.isoformat()
+                if isinstance(self.created_at, datetime)
+                else self.created_at
+            ),
+            "updated_at": (
+                self.updated_at.isoformat()
+                if isinstance(self.updated_at, datetime)
+                else self.updated_at
+            ),
+            "narrative": self.narrative,
+            "tags": self.tags,
+            "metadata": self.metadata,
+            "type": "page",
+        }
+
+        with open(sidecar_path, "w") as f:
+            json.dump(sidecar_data, f, indent=2)
 
     def create_entry(
         self,
@@ -260,6 +305,9 @@ class Page:
             self.notebook_id, self.id, self.to_dict()
         )
 
+        # Update sidecar file
+        self._write_sidecar()
+
     def update(self, **kwargs) -> "Page":
         """Update page properties."""
         if "title" in kwargs:
@@ -298,10 +346,22 @@ class Page:
             self.notebook_id, self.id, self.to_dict()
         )
 
+        # Update sidecar file
+        self._write_sidecar()
+
         return self
 
     def delete(self) -> bool:
         """Delete this page."""
+        # Delete sidecar file if exists
+        try:
+            page_dir = self.get_directory()
+            sidecar_path = page_dir.parent / f".{page_dir.name}.json"
+            if sidecar_path.exists():
+                sidecar_path.unlink()
+        except Exception:
+            pass  # Ignore errors when deleting sidecar
+
         # Delete from database
         session = self.workspace.db_manager.get_session()
         try:

@@ -71,3 +71,135 @@ async def list_integrations():
         "integrations": integrations,
         "count": len(integrations),
     }
+
+
+@router.get("/files/notebooks")
+async def list_notebooks_files(workspace_path: Optional[str] = Query(None)):
+    """List all files in the notebooks directory."""
+    try:
+        ws = Workspace.load(get_workspace_path(workspace_path))
+        files = ws.scan_notebooks_directory()
+        return {
+            "path": str(ws.notebooks_path),
+            "files": files,
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/files/artifacts")
+async def list_artifacts_files(workspace_path: Optional[str] = Query(None)):
+    """List all files in the artifacts directory."""
+    try:
+        ws = Workspace.load(get_workspace_path(workspace_path))
+        files = ws.scan_artifacts_directory()
+        return {
+            "path": str(ws.artifacts_path),
+            "files": files,
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/files/notebooks/content")
+async def get_notebook_file_content(
+    path: str = Query(..., description="Relative path to the file"),
+    workspace_path: Optional[str] = Query(None),
+):
+    """Get the content of a file from the notebooks directory."""
+    import mimetypes
+
+    from fastapi.responses import FileResponse
+
+    try:
+        ws = Workspace.load(get_workspace_path(workspace_path))
+
+        # Sanitize path to prevent directory traversal
+        safe_path = Path(path).as_posix()
+        if ".." in safe_path or safe_path.startswith("/"):
+            raise HTTPException(status_code=400, detail="Invalid file path")
+
+        file_path = ws.notebooks_path / safe_path
+
+        # Ensure the file is within the notebooks directory
+        try:
+            file_path.resolve().relative_to(ws.notebooks_path.resolve())
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid file path")
+
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="File not found")
+
+        if not file_path.is_file():
+            raise HTTPException(status_code=400, detail="Path is not a file")
+
+        # Determine content type
+        content_type, _ = mimetypes.guess_type(str(file_path))
+        if content_type is None:
+            content_type = "application/octet-stream"
+
+        return FileResponse(
+            path=str(file_path),
+            media_type=content_type,
+            filename=file_path.name,
+        )
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/files/artifacts/content")
+async def get_artifact_file_content(
+    path: str = Query(..., description="Relative path to the file"),
+    workspace_path: Optional[str] = Query(None),
+):
+    """Get the content of a file from the artifacts directory."""
+    import mimetypes
+
+    from fastapi.responses import FileResponse
+
+    try:
+        ws = Workspace.load(get_workspace_path(workspace_path))
+
+        # Sanitize path to prevent directory traversal
+        safe_path = Path(path).as_posix()
+        if ".." in safe_path or safe_path.startswith("/"):
+            raise HTTPException(status_code=400, detail="Invalid file path")
+
+        file_path = ws.artifacts_path / safe_path
+
+        # Ensure the file is within the artifacts directory
+        try:
+            file_path.resolve().relative_to(ws.artifacts_path.resolve())
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid file path")
+
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="File not found")
+
+        if not file_path.is_file():
+            raise HTTPException(status_code=400, detail="Path is not a file")
+
+        # Determine content type
+        content_type, _ = mimetypes.guess_type(str(file_path))
+        if content_type is None:
+            content_type = "application/octet-stream"
+
+        return FileResponse(
+            path=str(file_path),
+            media_type=content_type,
+            filename=file_path.name,
+        )
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

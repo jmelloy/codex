@@ -151,3 +151,32 @@ export const searchApi = {
       body: JSON.stringify({ workspace_path: workspacePath, ...params }),
     }),
 };
+
+export interface FileTreeItem {
+  name: string;
+  path: string;
+  type: "file" | "directory";
+  size?: number;
+  modified?: string;
+  extension?: string;
+  children?: FileTreeItem[];
+  properties?: {
+    id?: string;
+    title?: string;
+    type?: string;
+    notebook_id?: string;
+    [key: string]: unknown;
+  };
+}
+
+export const filesApi = {
+  listNotebooks: (workspacePath: string) =>
+    fetchJSON<{ path: string; files: FileTreeItem[] }>(
+      `/files/notebooks?workspace_path=${encodeURIComponent(workspacePath)}`,
+    ),
+
+  listArtifacts: (workspacePath: string) =>
+    fetchJSON<{ path: string; files: FileTreeItem[] }>(
+      `/files/artifacts?workspace_path=${encodeURIComponent(workspacePath)}`,
+    ),
+};

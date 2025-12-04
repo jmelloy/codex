@@ -13,7 +13,7 @@ Supports storing default variables for:
 import asyncio
 import time
 import uuid
-from typing import Any
+from typing import Any, Optional
 
 import aiohttp
 
@@ -32,7 +32,7 @@ class ComfyUIClient:
         """
         self.server_url = server_url.rstrip("/")
 
-    async def queue_prompt(self, workflow: dict, client_id: str | None = None) -> str:
+    async def queue_prompt(self, workflow: dict, client_id: Optional[str] = None) -> str:
         """Queue a workflow for execution.
 
         Args:

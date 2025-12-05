@@ -2152,7 +2152,7 @@ Contributions are welcome! Please see our contribution guidelines:
    - Implement the `IntegrationBase` interface
    - Add comprehensive tests
    - Document usage examples
-   - See [Integration Development Guide](https://github.com/jmelloy/codex/wiki/Integration-Development)
+   - See integration examples in [codex/integrations/](https://github.com/jmelloy/codex/tree/main/codex/integrations)
 
 3. **Agent Development**
    - See [agents.md](agents.md) for agent architecture

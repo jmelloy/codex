@@ -3,6 +3,8 @@
 **Last Updated**: 2024-12-05  
 **Status**: Planning & Early Development
 
+> **Note**: This document describes planned capabilities and architecture. Most agent features are under development.
+
 This document describes the AI agent architecture and integration points for the Codex digital laboratory journal system.
 
 ## Table of Contents
@@ -104,8 +106,12 @@ class AnalysisAgent:
     
     def analyze_notebook(self, notebook_id: str) -> dict:
         """Analyze all experiments in a notebook."""
-        notebook = self.workspace.get_notebook(notebook_id)
-        pages = notebook.list_pages()
+        try:
+            notebook = self.workspace.get_notebook(notebook_id)
+            pages = notebook.list_pages()
+        except Exception as e:
+            # Handle errors gracefully
+            return {"error": f"Failed to load notebook: {e}"}
         
         insights = {
             "total_entries": 0,
@@ -114,17 +120,35 @@ class AnalysisAgent:
         }
         
         for page in pages:
-            entries = page.list_entries()
-            insights["total_entries"] += len(entries)
-            
-            # Perform analysis on entries
-            patterns = self._detect_patterns(entries)
-            insights["patterns"].extend(patterns)
+            try:
+                entries = page.list_entries()
+                insights["total_entries"] += len(entries)
+                
+                # Perform analysis on entries
+                patterns = self._detect_patterns(entries)
+                insights["patterns"].extend(patterns)
+            except Exception as e:
+                # Log error but continue processing
+                insights.setdefault("errors", []).append(str(e))
         
         return insights
     
     def _detect_patterns(self, entries):
-        # AI-powered pattern detection logic
+        """
+        Detect patterns in experimental entries.
+        
+        This method should analyze entries to find:
+        - Parameter correlations (e.g., CFG vs. quality)
+        - Temporal trends
+        - Success/failure patterns
+        - Common configurations
+        
+        Returns:
+            List[Dict]: Detected patterns with descriptions and confidence scores
+        """
+        # Example implementation would use ML/statistical analysis
+        # patterns = ml_model.analyze(entries)
+        # return patterns
         pass
 ```
 
@@ -379,6 +403,7 @@ entry.save()
 from datetime import datetime
 from codex.core.workspace import Workspace
 from my_agents import DocumentationAgent
+# Note: 'schedule' is an external package - install with: pip install schedule
 import schedule
 
 def summarize_daily_work():

@@ -64,10 +64,11 @@ entry = page.create_entry(
 Any AI agent can integrate via the REST API endpoints:
 
 ```python
+# Note: requires 'httpx' package - install with: pip install httpx
 import httpx
 
 # Example: Agent reading recent entries
-async def analyze_recent_experiments():
+async def analyze_recent_experiments(page_id: str):
     async with httpx.AsyncClient() as client:
         # Get recent entries
         response = await client.get(
@@ -76,8 +77,9 @@ async def analyze_recent_experiments():
         )
         entries = response.json()
         
-        # Analyze patterns
-        analysis = perform_ai_analysis(entries)
+        # Analyze patterns (user-defined function)
+        # analysis = perform_ai_analysis(entries)
+        analysis = {"summary": "Analysis results here..."}
         
         # Update page narrative with insights
         await client.patch(
@@ -561,17 +563,18 @@ We welcome contributions of new agent implementations!
    cd codex
    ```
 
-2. **Create Agent Module**
+2. **Create Agent Module** (when agent system is implemented)
    ```bash
    mkdir -p codex/agents/your_agent
    touch codex/agents/your_agent/__init__.py
    touch codex/agents/your_agent/agent.py
    ```
 
-3. **Implement Agent**
+3. **Implement Agent** (using planned base class)
    ```python
    # codex/agents/your_agent/agent.py
-   from codex.agents.base import CodexAgent
+   # Note: codex.agents.base is planned for Q1 2025
+   from codex.agents.base import CodexAgent  # Planned module
    
    class YourAgent(CodexAgent):
        async def process(self, context):

@@ -2152,11 +2152,11 @@ Contributions are welcome! Please see our contribution guidelines:
    - Implement the `IntegrationBase` interface
    - Add comprehensive tests
    - Document usage examples
-   - See integration examples in [codex/integrations/](https://github.com/jmelloy/codex/tree/main/codex/integrations)
+   - See integration examples in [codex/integrations/](codex/integrations/)
 
 3. **Agent Development**
-   - See [agents.md](agents.md) for agent architecture
-   - Follow the `CodexAgent` base class
+   - See [agents.md](agents.md) for agent architecture (planned)
+   - Follow the `CodexAgent` base class pattern
    - Include example usage
    - Document security considerations
 

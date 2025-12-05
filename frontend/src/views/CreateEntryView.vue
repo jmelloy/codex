@@ -9,6 +9,7 @@ import GraphQLForm from "@/components/entry/GraphQLForm.vue";
 import ApiCallForm from "@/components/entry/ApiCallForm.vue";
 import CustomForm from "@/components/entry/CustomForm.vue";
 import TextForm from "@/components/entry/TextForm.vue";
+import ComfyUIForm from "@/components/entry/ComfyUIForm.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -41,6 +42,12 @@ const entryTypes = [
     label: "Custom",
     description: "Custom entry with JSON data",
     icon: "🔧",
+  },
+  {
+    value: "comfyui",
+    label: "ComfyUI",
+    description: "ComfyUI workflow execution",
+    icon: "🎨",
   },
   {
     value: "api_call",
@@ -76,6 +83,8 @@ const formComponent = computed(() => {
       return GraphQLForm;
     case "api_call":
       return ApiCallForm;
+    case "comfyui":
+      return ComfyUIForm;
     case "custom":
     default:
       return CustomForm;
@@ -121,6 +130,8 @@ const isValid = computed(() => {
       return !!(inputs.value.url && inputs.value.query);
     case "api_call":
       return !!inputs.value.url;
+    case "comfyui":
+      return !!inputs.value.workflow;
     case "text":
     case "custom":
     default:

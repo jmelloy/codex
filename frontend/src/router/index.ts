@@ -30,6 +30,11 @@ const router = createRouter({
       component: () => import("@/views/CreateEntryView.vue"),
     },
     {
+      path: "/comfyui",
+      name: "comfyui",
+      component: () => import("@/views/ComfyUIView.vue"),
+    },
+    {
       path: "/search",
       name: "search",
       component: () => import("@/views/SearchView.vue"),

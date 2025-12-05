@@ -167,6 +167,10 @@ function getDisplayName(item: FileTreeItem): string {
         <span class="tool-icon">🗃️</span>
         <span>SQL Viewer</span>
       </RouterLink>
+      <RouterLink to="/comfyui" class="tool-link">
+        <span class="tool-icon">🎨</span>
+        <span>ComfyUI</span>
+      </RouterLink>
     </div>
 
     <nav class="sidebar-nav">

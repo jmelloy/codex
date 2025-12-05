@@ -44,7 +44,7 @@
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| **ComfyUI Integration** | ❌ Not Started | Workflow execution pending |
+| **ComfyUI Integration** | 🚧 In Progress | Standalone page and form completed, workflow execution backend ready |
 | **Jupyter Integration** | ❌ Not Started | Notebook cell execution pending |
 | **AI-Powered Insights** | ❌ Not Started | Summarization, pattern detection pending |
 | **Export/Import** | ❌ Not Started | Notebook export functionality pending |

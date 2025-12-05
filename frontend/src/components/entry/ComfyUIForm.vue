@@ -52,7 +52,35 @@ const updateValue = () => {
 
 // Example workflow template
 const exampleWorkflow = `{
+  "1": {
+    "inputs": {
+      "ckpt_name": "sd_xl_base_1.0.safetensors"
+    },
+    "class_type": "CheckpointLoaderSimple"
+  },
+  "2": {
+    "inputs": {
+      "text": "a beautiful sunset over mountains",
+      "clip": ["1", 1]
+    },
+    "class_type": "CLIPTextEncode"
+  },
   "3": {
+    "inputs": {
+      "text": "low quality, blurry",
+      "clip": ["1", 1]
+    },
+    "class_type": "CLIPTextEncode"
+  },
+  "4": {
+    "inputs": {
+      "width": 1024,
+      "height": 1024,
+      "batch_size": 1
+    },
+    "class_type": "EmptyLatentImage"
+  },
+  "5": {
     "inputs": {
       "seed": 42,
       "steps": 20,
@@ -60,12 +88,26 @@ const exampleWorkflow = `{
       "sampler_name": "euler",
       "scheduler": "normal",
       "denoise": 1,
-      "model": ["4", 0],
-      "positive": ["6", 0],
-      "negative": ["7", 0],
-      "latent_image": ["5", 0]
+      "model": ["1", 0],
+      "positive": ["2", 0],
+      "negative": ["3", 0],
+      "latent_image": ["4", 0]
     },
     "class_type": "KSampler"
+  },
+  "6": {
+    "inputs": {
+      "samples": ["5", 0],
+      "vae": ["1", 2]
+    },
+    "class_type": "VAEDecode"
+  },
+  "7": {
+    "inputs": {
+      "filename_prefix": "ComfyUI",
+      "images": ["6", 0]
+    },
+    "class_type": "SaveImage"
   }
 }`;
 

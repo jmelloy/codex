@@ -145,19 +145,14 @@ onMounted(loadArtifact);
               <span>{{ formatBytes(artifact.original_size_bytes) }}</span>
             </div>
 
-            <div v-if="artifact.metadata.width && artifact.metadata.height" class="metadata-item">
+            <div v-if="artifact.metadata?.width && artifact.metadata?.height" class="metadata-item">
               <label>Dimensions</label>
               <span>{{ artifact.metadata.width }} × {{ artifact.metadata.height }}</span>
             </div>
 
             <div v-if="entry" class="metadata-item full-width">
               <label>Entry</label>
-              <router-link 
-                :to="`/notebooks/${entry.page_id.split('-')[0]}/pages/${entry.page_id}`"
-                class="entry-link"
-              >
-                {{ entry.title }}
-              </router-link>
+              <span class="entry-info">{{ entry.title }} ({{ entry.id.substring(0, 12) }})</span>
             </div>
           </div>
 
@@ -339,14 +334,9 @@ onMounted(loadArtifact);
   font-weight: 600;
 }
 
-.entry-link {
-  color: var(--color-primary, #4f46e5);
-  text-decoration: none;
-  font-weight: 500;
-}
-
-.entry-link:hover {
-  text-decoration: underline;
+.entry-info {
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
 }
 
 .custom-metadata {

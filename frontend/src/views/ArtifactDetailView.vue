@@ -26,6 +26,13 @@ const isImage = computed(() => {
   return artifact.value?.type.startsWith("image/") || false;
 });
 
+const additionalMetadata = computed(() => {
+  if (!artifact.value?.metadata) return {};
+  // Filter out metadata fields already displayed elsewhere
+  const { width, height, ...rest } = artifact.value.metadata;
+  return rest;
+});
+
 function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 Bytes";
   const k = 1024;
@@ -138,7 +145,7 @@ onMounted(loadArtifact);
               <span>{{ formatBytes(artifact.original_size_bytes) }}</span>
             </div>
 
-            <div v-if="artifact.metadata.width || artifact.metadata.height" class="metadata-item">
+            <div v-if="artifact.metadata.width && artifact.metadata.height" class="metadata-item">
               <label>Dimensions</label>
               <span>{{ artifact.metadata.width }} × {{ artifact.metadata.height }}</span>
             </div>
@@ -155,9 +162,9 @@ onMounted(loadArtifact);
           </div>
 
           <!-- Additional metadata if present -->
-          <div v-if="Object.keys(artifact.metadata).length > 0" class="custom-metadata">
+          <div v-if="Object.keys(additionalMetadata).length > 0" class="custom-metadata">
             <h3>Additional Metadata</h3>
-            <pre>{{ JSON.stringify(artifact.metadata, null, 2) }}</pre>
+            <pre>{{ JSON.stringify(additionalMetadata, null, 2) }}</pre>
           </div>
         </div>
 

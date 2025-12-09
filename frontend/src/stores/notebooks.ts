@@ -7,7 +7,7 @@ export const useNotebooksStore = defineStore("notebooks", () => {
   const notebooks = ref<Map<string, Notebook>>(new Map());
   const loading = ref(false);
   const error = ref<string | null>(null);
-  const workspacePath = ref<string>(".");
+  const workspacePath = ref<string>("/tmp/test_workspace");
 
   const notebooksList = computed(() => Array.from(notebooks.value.values()));
 

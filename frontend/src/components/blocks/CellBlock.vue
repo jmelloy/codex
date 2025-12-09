@@ -100,10 +100,6 @@ function formatOutput(outputs: Record<string, unknown>): string {
   return JSON.stringify(outputs, null, 2);
 }
 
-function getArtifactUrl(artifact: Artifact): string {
-  return artifactsApi.getUrl(notebooksStore.workspacePath, artifact.hash);
-}
-
 function getThumbnailUrl(artifact: Artifact): string {
   return artifactsApi.getUrl(notebooksStore.workspacePath, artifact.hash, true);
 }

@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, onMounted } from "vue";
+import { useRouter } from "vue-router";
 import { marked } from "marked";
 import DOMPurify from "dompurify";
-import type { Entry } from "@/types";
+import { useNotebooksStore } from "@/stores/notebooks";
+import { artifactsApi, entriesApi } from "@/api";
+import type { Entry, Artifact } from "@/types";
 
 const props = defineProps<{
   entry: Entry;
@@ -16,10 +19,15 @@ const emit = defineEmits<{
   (e: "create-variation"): void;
 }>();
 
+const router = useRouter();
+const notebooksStore = useNotebooksStore();
+
 const isExpanded = ref(true);
 const isEditing = ref(false);
 const editInputs = ref({ ...props.entry.inputs });
 const editInputsJson = ref(JSON.stringify(props.entry.inputs, null, 2));
+const artifacts = ref<Artifact[]>([]);
+const loadingArtifacts = ref(false);
 
 const entryTypeIcon = computed(() => {
   const icons: Record<string, string> = {
@@ -58,6 +66,10 @@ const statusClass = computed(() => {
 
 const canExecute = computed(() => props.entry.status === "created");
 
+const imageArtifacts = computed(() => {
+  return artifacts.value.filter((a) => a.type.startsWith("image/"));
+});
+
 function toggleExpand() {
   isExpanded.value = !isExpanded.value;
 }
@@ -87,6 +99,47 @@ function saveEditing() {
 function formatOutput(outputs: Record<string, unknown>): string {
   return JSON.stringify(outputs, null, 2);
 }
+
+function getArtifactUrl(artifact: Artifact): string {
+  return artifactsApi.getUrl(notebooksStore.workspacePath, artifact.hash);
+}
+
+function getThumbnailUrl(artifact: Artifact): string {
+  return artifactsApi.getUrl(notebooksStore.workspacePath, artifact.hash, true);
+}
+
+function viewArtifactDetail(artifact: Artifact) {
+  router.push({
+    name: "artifact-detail",
+    params: { hash: artifact.hash },
+    query: { entryId: props.entry.id },
+  });
+}
+
+async function loadArtifacts() {
+  if (props.entry.artifacts && props.entry.artifacts.length > 0) {
+    artifacts.value = props.entry.artifacts;
+    return;
+  }
+
+  loadingArtifacts.value = true;
+  try {
+    artifacts.value = await entriesApi.getArtifacts(
+      notebooksStore.workspacePath,
+      props.entry.id
+    );
+  } catch (e) {
+    console.error("Failed to load artifacts:", e);
+  } finally {
+    loadingArtifacts.value = false;
+  }
+}
+
+onMounted(() => {
+  if (props.entry.status === "completed") {
+    loadArtifacts();
+  }
+});
 </script>
 
 <template>
@@ -159,6 +212,37 @@ function formatOutput(outputs: Record<string, unknown>): string {
           </span>
         </div>
       </template>
+
+      <!-- Artifacts Section (for all entry types) -->
+      <div v-if="imageArtifacts.length > 0" class="cell-section artifacts-section">
+        <h4>Artifacts ({{ artifacts.length }})</h4>
+        <div class="artifacts-gallery">
+          <div
+            v-for="artifact in imageArtifacts"
+            :key="artifact.id"
+            class="artifact-item"
+            @click="viewArtifactDetail(artifact)"
+            role="button"
+            tabindex="0"
+            @keydown.enter="viewArtifactDetail(artifact)"
+          >
+            <img
+              :src="getThumbnailUrl(artifact)"
+              :alt="`Artifact ${artifact.hash.substring(0, 8)}`"
+              class="artifact-thumbnail"
+            />
+            <div class="artifact-overlay">
+              <span class="artifact-type">{{ artifact.type }}</span>
+            </div>
+          </div>
+        </div>
+        <p v-if="artifacts.length > imageArtifacts.length" class="non-image-note">
+          + {{ artifacts.length - imageArtifacts.length }} non-image artifact(s)
+        </p>
+      </div>
+      <div v-else-if="loadingArtifacts" class="cell-section artifacts-section">
+        <p class="loading-text">Loading artifacts...</p>
+      </div>
 
       <div class="cell-actions">
         <!-- Text entries are content-only and don't need execution like API calls or queries -->
@@ -493,6 +577,81 @@ function formatOutput(outputs: Record<string, unknown>): string {
   padding-left: 1rem;
   margin: 0.75rem 0;
   color: var(--color-text-secondary);
+  font-style: italic;
+}
+
+/* Artifacts Section */
+.artifacts-section {
+  margin-top: 1rem;
+}
+
+.artifacts-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.artifact-item {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  background: repeating-conic-gradient(#e0e0e0 0% 25%, #f5f5f5 0% 50%) 50% / 10px 10px;
+  border: 1px solid var(--color-border);
+}
+
+.artifact-item:hover {
+  transform: scale(1.05);
+  box-shadow: var(--shadow-md);
+  z-index: 1;
+}
+
+.artifact-item:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.artifact-thumbnail {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.artifact-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);
+  padding: 0.5rem;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.artifact-item:hover .artifact-overlay {
+  opacity: 1;
+}
+
+.artifact-type {
+  font-size: 0.625rem;
+  color: white;
+  font-family: var(--font-mono);
+}
+
+.non-image-note {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  margin-top: 0.5rem;
+  font-style: italic;
+}
+
+.loading-text {
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
   font-style: italic;
 }
 </style>

@@ -54,6 +54,11 @@ const router = createRouter({
       name: "files",
       component: () => import("@/views/FileView.vue"),
     },
+    {
+      path: "/artifacts/:hash",
+      name: "artifact-detail",
+      component: () => import("@/views/ArtifactDetailView.vue"),
+    },
   ],
 });
 

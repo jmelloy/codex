@@ -1,4 +1,4 @@
-import type { Notebook, Page, Entry } from "@/types";
+import type { Notebook, Page, Entry, Artifact } from "@/types";
 
 const API_BASE = "/api";
 
@@ -132,6 +132,13 @@ export const entriesApi = {
         workspacePath,
       )}&depth=${depth}`,
     ),
+
+  getArtifacts: (workspacePath: string, entryId: string) =>
+    fetchJSON<Artifact[]>(
+      `/entries/${entryId}/artifacts?workspace_path=${encodeURIComponent(
+        workspacePath,
+      )}`,
+    ),
 };
 
 export const artifactsApi = {
@@ -139,6 +146,13 @@ export const artifactsApi = {
     `${API_BASE}/artifacts/${artifactHash}?workspace_path=${encodeURIComponent(
       workspacePath,
     )}${thumbnail ? "&thumbnail=true" : ""}`,
+
+  getInfo: (workspacePath: string, artifactHash: string) =>
+    fetchJSON<Artifact>(
+      `/artifacts/${artifactHash}/info?workspace_path=${encodeURIComponent(
+        workspacePath,
+      )}`,
+    ),
 };
 
 export const searchApi = {

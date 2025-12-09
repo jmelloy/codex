@@ -49,6 +49,7 @@ export interface Entry {
     rating?: number | null;
     archived?: boolean;
   };
+  artifacts?: Artifact[];
 }
 
 export interface Artifact {
@@ -59,5 +60,9 @@ export interface Artifact {
   size_bytes: number;
   path: string;
   thumbnail_path?: string;
+  created_at?: string;
+  archived?: boolean;
+  archive_strategy?: string;
+  original_size_bytes?: number;
   metadata: Record<string, unknown>;
 }

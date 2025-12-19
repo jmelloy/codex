@@ -2,8 +2,19 @@ FROM node:20-alpine
 
 WORKDIR /app/web
 
-COPY package.json package-lock.json .
+# Copy package files
+COPY package.json package-lock.json ./
 
-RUN npm install 
+# Install dependencies
+RUN npm install
 
+# Copy source files
+COPY . .
+
+# Expose the development server port
+EXPOSE 5174
+
+# Start development server
+# Note: The actual command is overridden in docker-compose.yml to support hot reload with bind mounts
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
 

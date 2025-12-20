@@ -27,7 +27,27 @@
 
 ## Quick Start
 
-### Installation
+### Docker Installation (Recommended)
+
+The fastest way to get started is using Docker Compose:
+
+```bash
+# Clone the repository
+git clone https://github.com/jmelloy/codex.git
+cd codex
+
+# Start the production environment
+docker compose -f docker-compose.prod.yml up -d
+
+# Access the application
+# - Frontend: http://localhost
+# - API: http://localhost:8765
+# - API Docs: http://localhost:8765/docs
+```
+
+For detailed Docker deployment options, see [DOCKER.md](DOCKER.md).
+
+### Manual Installation
 
 ```bash
 # Clone the repository
@@ -187,7 +207,7 @@ codex search --query "experiment"
 - [ ] Add rate limiting to API endpoints
 - [ ] Create user documentation and tutorials
 - [ ] Set up CI/CD pipeline
-- [ ] Add Docker Compose for easy deployment
+- [x] Add Docker Compose for easy deployment (see [DOCKER.md](DOCKER.md))
 - [ ] Implement artifact thumbnail generation
 - [ ] Add API authentication and authorization
 

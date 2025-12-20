@@ -17,23 +17,28 @@ This guide explains how to deploy Codex using Docker and Docker Compose for both
    cd codex
    ```
 
-2. **Configure environment (optional)**
+2. **Validate configuration (optional but recommended)**
+   ```bash
+   ./validate-docker.sh
+   ```
+
+3. **Configure environment (optional)**
    ```bash
    cp .env.example .env
    # Edit .env file with your configuration
    ```
 
-3. **Start the services**
+4. **Start the services**
    ```bash
    docker compose -f docker-compose.prod.yml up -d
    ```
 
-4. **Access the application**
+5. **Access the application**
    - Frontend: http://localhost
    - API: http://localhost:8765
    - API Documentation: http://localhost:8765/docs
 
-5. **Check service health**
+6. **Check service health**
    ```bash
    docker compose -f docker-compose.prod.yml ps
    docker compose -f docker-compose.prod.yml logs
@@ -237,6 +242,31 @@ docker volume rm codex_workspace
 
 # Restart services (will initialize fresh database)
 docker compose -f docker-compose.prod.yml up -d
+```
+
+### Build Issues
+
+#### SSL Certificate Errors
+
+If you encounter SSL certificate errors during build (common in CI/CD environments with corporate proxies):
+
+```bash
+# Option 1: Use pre-built images (recommended)
+# Pull from Docker Hub instead of building
+docker compose -f docker-compose.prod.yml pull
+
+# Option 2: Build with disabled SSL verification (NOT recommended for production)
+docker compose -f docker-compose.prod.yml build --build-arg PIP_TRUSTED_HOST=pypi.org
+```
+
+#### Network Issues During Build
+
+If builds fail due to network issues:
+
+```bash
+# Clean Docker build cache and retry
+docker builder prune -a
+docker compose -f docker-compose.prod.yml build --no-cache
 ```
 
 ### Permission Issues

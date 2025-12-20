@@ -172,17 +172,45 @@ Unhealthy containers will automatically restart.
 
 **Customizing Health Checks**
 
-If you need to modify health checks (e.g., to use different tools), edit `docker-compose.prod.yml`:
+The default health checks use built-in tools to avoid external dependencies. However, you can simplify them if needed.
+
+**Simpler Backend Health Check Options:**
+
+1. **Install curl in Dockerfile** (recommended for production):
+   ```dockerfile
+   # Add to Dockerfile after system dependencies
+   RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+   ```
+   Then in docker-compose.prod.yml:
+   ```yaml
+   healthcheck:
+     test: ["CMD", "curl", "-f", "http://localhost:8765/health"]
+   ```
+
+2. **Use a health check script**:
+   Create `healthcheck.py` in your project:
+   ```python
+   import http.client
+   h = http.client.HTTPConnection('localhost:8765')
+   h.request('GET', '/health')
+   exit(0 if h.getresponse().status == 200 else 1)
+   ```
+   Then in docker-compose.prod.yml:
+   ```yaml
+   healthcheck:
+     test: ["CMD", "python", "/app/healthcheck.py"]
+   ```
+
+**Frontend Health Check Alternatives:**
 
 ```yaml
-# Example: Use curl instead of wget for frontend
+# Using curl (requires adding curl to nginx image)
 healthcheck:
   test: ["CMD", "curl", "-f", "http://localhost/"]
 
-# Example: Install and use curl in backend
+# Check nginx configuration and process
 healthcheck:
-  test: ["CMD", "curl", "-f", "http://localhost:8765/health"]
-  # Note: May require installing curl in Dockerfile
+  test: ["CMD-SHELL", "nginx -t && pgrep nginx"]
 ```
 
 ## Development Deployment
@@ -266,12 +294,18 @@ docker compose -f docker-compose.prod.yml up -d
 If you encounter SSL certificate errors during build (common in CI/CD environments with corporate proxies):
 
 ```bash
-# Option 1: Use pre-built images (recommended)
-# Pull from Docker Hub instead of building
-docker compose -f docker-compose.prod.yml pull
-
-# Option 2: Build with disabled SSL verification (NOT recommended for production)
+# Option 1: Configure pip to trust your certificates
+# Add to Dockerfile or build args
 docker compose -f docker-compose.prod.yml build --build-arg PIP_TRUSTED_HOST=pypi.org
+
+# Option 2: Use system certificates
+# Mount CA certificates as a build secret (Docker Buildx)
+docker buildx build --secret id=cacert,src=/etc/ssl/certs/ca-certificates.crt .
+
+# Option 3: Temporarily disable SSL verification (NOT recommended for production)
+# Only use in controlled CI/CD environments
+export DOCKER_BUILDKIT=1
+docker compose -f docker-compose.prod.yml build --build-arg PIP_NO_VERIFY=1
 ```
 
 #### Network Issues During Build

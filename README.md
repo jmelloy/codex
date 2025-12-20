@@ -191,6 +191,17 @@ codex search --query "experiment"
 - [ ] Implement artifact thumbnail generation
 - [ ] Add API authentication and authorization
 
+### ✅ Agent Task System (New)
+
+| Component | Status | Description |
+|-----------|--------|-------------|
+| **Markdown Format** | ✅ | Standard format with frontmatter and block delimiters |
+| **Task System** | ✅ | Task management for agent and chat operations |
+| **Folder Configuration** | ✅ | Hierarchical `.` directory configuration system |
+| **Agent Sandbox** | ✅ | Safe execution with verify/apply/rollback |
+
+See [AGENT_SYSTEM.md](AGENT_SYSTEM.md) for complete documentation.
+
 ---
 
 ## Abstract

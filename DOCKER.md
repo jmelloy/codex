@@ -160,8 +160,8 @@ docker volume inspect codex_workspace
 ### Health Checks
 
 Both services include health checks:
-- **Backend**: Checks `/health` endpoint every 30 seconds
-- **Frontend**: Checks nginx status every 30 seconds
+- **Backend**: Checks `/health` endpoint using Python's built-in `http.client` every 30 seconds
+- **Frontend**: Checks nginx status using `wget` every 30 seconds
 
 View health status:
 ```bash
@@ -169,6 +169,21 @@ docker compose -f docker-compose.prod.yml ps
 ```
 
 Unhealthy containers will automatically restart.
+
+**Customizing Health Checks**
+
+If you need to modify health checks (e.g., to use different tools), edit `docker-compose.prod.yml`:
+
+```yaml
+# Example: Use curl instead of wget for frontend
+healthcheck:
+  test: ["CMD", "curl", "-f", "http://localhost/"]
+
+# Example: Install and use curl in backend
+healthcheck:
+  test: ["CMD", "curl", "-f", "http://localhost:8765/health"]
+  # Note: May require installing curl in Dockerfile
+```
 
 ## Development Deployment
 

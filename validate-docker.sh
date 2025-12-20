@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Docker Compose Validation Script
 # This script validates Docker Compose configurations without actually building images
 

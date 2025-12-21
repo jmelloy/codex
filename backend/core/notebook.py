@@ -89,13 +89,20 @@ class Notebook:
         notebook_dir.mkdir(exist_ok=True)
 
         # Create README
-        with open(notebook_dir / "README.md", "w") as f:
+        readme_path = notebook_dir / "README.md"
+        with open(readme_path, "w") as f:
             f.write(
                 f"# {title}\n\n{description}\n\nCreated: {notebook.created_at.isoformat()}\n"
             )
 
         # Write sidecar properties file
         notebook._write_sidecar()
+
+        # Commit to workspace git
+        workspace.commit_file_changes(
+            [readme_path],
+            f"Create notebook: {title}"
+        )
 
         return notebook
 

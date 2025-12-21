@@ -12,6 +12,7 @@ from api.routes.entries import router as entries_router
 from api.routes.integration_variables import (
     router as integration_variables_router,
 )
+from api.routes.markdown import router as markdown_router
 from api.routes.notebooks import router as notebooks_router
 from api.routes.pages import router as pages_router
 from api.routes.search import router as search_router
@@ -54,6 +55,7 @@ app.include_router(entries_router, prefix="/api/entries", tags=["entries"])
 app.include_router(artifacts_router, prefix="/api/artifacts", tags=["artifacts"])
 app.include_router(search_router, prefix="/api/search", tags=["search"])
 app.include_router(sql_router, prefix="/api/sql", tags=["sql"])
+app.include_router(markdown_router, prefix="/api/markdown", tags=["markdown"])
 app.include_router(
     integration_variables_router,
     prefix="/api/integration-variables",

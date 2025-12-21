@@ -3,7 +3,7 @@
 import subprocess
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 
 class GitHookManager:
@@ -242,7 +242,7 @@ Commits will be automatically logged here by the git post-commit hook.
             note_path.write_text(content)
         return note_path
 
-    def list_daily_notes(self, limit: Optional[int] = None) -> list[Path]:
+    def list_daily_notes(self, limit: Optional[int] = None) -> List[Path]:
         """List daily notes in reverse chronological order.
 
         Args:

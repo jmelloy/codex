@@ -7,15 +7,9 @@ from pathlib import Path
 
 from fastapi import FastAPI
 
-from api.routes.artifacts import router as artifacts_router
-from api.routes.entries import router as entries_router
-from api.routes.integration_variables import (
-    router as integration_variables_router,
-)
 from api.routes.notebooks import router as notebooks_router
 from api.routes.pages import router as pages_router
 from api.routes.search import router as search_router
-from api.routes.sql import router as sql_router
 from api.routes.workspace import router as workspace_router
 from api.utils import DEFAULT_WORKSPACE_PATH
 from core.workspace import Workspace
@@ -50,15 +44,7 @@ app = FastAPI(
 app.include_router(workspace_router, prefix="/api", tags=["workspace"])
 app.include_router(notebooks_router, prefix="/api/notebooks", tags=["notebooks"])
 app.include_router(pages_router, prefix="/api/pages", tags=["pages"])
-app.include_router(entries_router, prefix="/api/entries", tags=["entries"])
-app.include_router(artifacts_router, prefix="/api/artifacts", tags=["artifacts"])
 app.include_router(search_router, prefix="/api/search", tags=["search"])
-app.include_router(sql_router, prefix="/api/sql", tags=["sql"])
-app.include_router(
-    integration_variables_router,
-    prefix="/api/integration-variables",
-    tags=["integration-variables"],
-)
 
 
 @app.get("/")

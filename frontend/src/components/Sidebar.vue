@@ -76,10 +76,22 @@ function navigateToFile(filePath: string) {
 }
 
 function isFileActive(path: string) {
-  // Normalize both paths for comparison to handle encoding differences
-  const normalizedCurrent = currentFilePath.value?.replace(/\+/g, ' ').trim();
-  const normalizedPath = path?.replace(/\+/g, ' ').trim();
-  return normalizedCurrent === normalizedPath;
+  // Decode both paths for comparison to handle any encoding differences
+  const decodeCurrent = () => {
+    try {
+      return decodeURIComponent(currentFilePath.value || '');
+    } catch {
+      return currentFilePath.value || '';
+    }
+  };
+  const decodePath = () => {
+    try {
+      return decodeURIComponent(path || '');
+    } catch {
+      return path || '';
+    }
+  };
+  return decodeCurrent().trim() === decodePath().trim();
 }
 
 function getFileIcon(item: FileTreeItem): string {

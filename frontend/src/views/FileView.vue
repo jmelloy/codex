@@ -9,8 +9,14 @@ const notebooksStore = useNotebooksStore();
 
 const filePath = computed(() => {
   const path = route.query.path as string || "";
-  // Normalize the path: replace + with space (in case of URL encoding issues)
-  return path.replace(/\+/g, ' ');
+  // Decode any URL encoding to show clean filesystem paths
+  // This handles %20 -> space, and other encoded characters
+  try {
+    return decodeURIComponent(path);
+  } catch {
+    // If decoding fails, return the original path
+    return path;
+  }
 });
 const loading = ref(true);
 const error = ref<string | null>(null);

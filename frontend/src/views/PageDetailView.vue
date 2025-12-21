@@ -1,34 +1,15 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, nextTick } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { ref, computed, onMounted, watch } from "vue";
+import { useRoute } from "vue-router";
 import { useNotebooksStore } from "@/stores/notebooks";
-import { pagesApi, entriesApi } from "@/api";
-import type { Page, Entry } from "@/types";
-import TextBlock from "@/components/blocks/TextBlock.vue";
-import CellBlock from "@/components/blocks/CellBlock.vue";
+import { pagesApi } from "@/api";
+import type { Page } from "@/types";
 
 const route = useRoute();
-const router = useRouter();
 const notebooksStore = useNotebooksStore();
 
 const page = ref<Page | null>(null);
-const entries = ref<Entry[]>([]);
 const loading = ref(true);
-const executingEntries = ref<Set<string>>(new Set());
-
-// New cell creation state (Notion-like inline creation)
-const showNewCellMenu = ref(false);
-const newCellPosition = ref<number | null>(null);
-const isCreatingTextCell = ref(false);
-const newTextCellContent = ref("");
-const newTextCellTitle = ref("");
-const newTextCellInputRef = ref<HTMLInputElement | null>(null);
-
-// Variation modal state
-const showVariationModal = ref(false);
-const variationEntry = ref<Entry | null>(null);
-const variationTitle = ref("");
-const creatingVariation = ref(false);
 
 const notebookId = computed(() => route.params.notebookId as string);
 const pageId = computed(() => route.params.pageId as string);
@@ -46,10 +27,6 @@ async function loadPage() {
   await notebooksStore.loadNotebook(notebookId.value);
   try {
     page.value = await pagesApi.get(notebooksStore.workspacePath, pageId.value);
-    entries.value = await entriesApi.list(
-      notebooksStore.workspacePath,
-      pageId.value,
-    );
   } catch (e) {
     console.error("Failed to load page:", e);
   } finally {
@@ -70,14 +47,133 @@ async function updateNarrative(field: string, content: string) {
   }
 }
 
-async function executeEntry(entry: Entry) {
-  executingEntries.value.add(entry.id);
-  try {
-    const updated = await entriesApi.execute(notebooksStore.workspacePath, entry.id);
-    const idx = entries.value.findIndex(e => e.id === entry.id);
-    if (idx >= 0) {
-      entries.value[idx] = updated;
-    }
+const formattedDate = computed(() => {
+  if (!page.value?.date) return null;
+  return new Date(page.value.date).toLocaleDateString();
+});
+</script>
+
+<template>
+  <div class="page-detail-view">
+    <div v-if="loading" class="loading">Loading page...</div>
+
+    <div v-else-if="page" class="page-content">
+      <div class="page-header">
+        <h1 class="page-title">{{ page.title }}</h1>
+        <p v-if="formattedDate" class="page-date">{{ formattedDate }}</p>
+      </div>
+
+      <div class="narrative-section">
+        <h2>Narrative</h2>
+        
+        <div class="narrative-field">
+          <h3>Goals</h3>
+          <textarea
+            :value="page.narrative?.goals || ''"
+            @input="updateNarrative('goals', ($event.target as HTMLTextAreaElement).value)"
+            placeholder="What are you trying to achieve?"
+            rows="3"
+          ></textarea>
+        </div>
+
+        <div class="narrative-field">
+          <h3>Hypothesis</h3>
+          <textarea
+            :value="page.narrative?.hypothesis || ''"
+            @input="updateNarrative('hypothesis', ($event.target as HTMLTextAreaElement).value)"
+            placeholder="What do you expect to happen?"
+            rows="3"
+          ></textarea>
+        </div>
+
+        <div class="narrative-field">
+          <h3>Observations</h3>
+          <textarea
+            :value="page.narrative?.observations || ''"
+            @input="updateNarrative('observations', ($event.target as HTMLTextAreaElement).value)"
+            placeholder="What did you observe?"
+            rows="4"
+          ></textarea>
+        </div>
+
+        <div class="narrative-field">
+          <h3>Conclusions</h3>
+          <textarea
+            :value="page.narrative?.conclusions || ''"
+            @input="updateNarrative('conclusions', ($event.target as HTMLTextAreaElement).value)"
+            placeholder="What did you learn?"
+            rows="4"
+          ></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.page-detail-view {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.loading {
+  text-align: center;
+  padding: 2rem;
+  color: var(--color-text-secondary);
+}
+
+.page-header {
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.page-title {
+  font-size: 2rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.page-date {
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+}
+
+.narrative-section {
+  margin-bottom: 2rem;
+}
+
+.narrative-section h2 {
+  font-size: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.narrative-field {
+  margin-bottom: 1.5rem;
+}
+
+.narrative-field h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.narrative-field textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  font-size: 0.875rem;
+  resize: vertical;
+}
+
+.narrative-field textarea:focus {
+  outline: none;
+  border-color: var(--color-primary, #4f46e5);
+}
+</style>
   } catch (e) {
     console.error("Failed to execute entry:", e);
     alert("Failed to execute entry: " + (e instanceof Error ? e.message : "Unknown error"));

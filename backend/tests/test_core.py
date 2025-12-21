@@ -288,77 +288,6 @@ class TestPage:
         assert retrieved.narrative["goals"] == "New goals"
 
 
-class TestEntry:
-    """Tests for Entry class."""
-
-    def test_create_entry(self, tmp_path):
-        """Test entry creation."""
-        ws = Workspace.initialize(tmp_path, "Test Workspace")
-        nb = ws.create_notebook("Test Notebook")
-        page = nb.create_page("Test Page")
-
-        entry = page.create_entry(
-            entry_type="custom",
-            title="Test Entry",
-            inputs={"param1": "value1"},
-            tags=["test"],
-        )
-
-        assert entry.id.startswith("entry-")
-        assert entry.title == "Test Entry"
-        assert entry.entry_type == "custom"
-        assert entry.inputs["param1"] == "value1"
-        assert entry.status == "created"
-
-    def test_list_entries(self, tmp_path):
-        """Test listing entries."""
-        ws = Workspace.initialize(tmp_path, "Test Workspace")
-        nb = ws.create_notebook("Test Notebook")
-        page = nb.create_page("Test Page")
-
-        page.create_entry("custom", "Entry 1", {})
-        page.create_entry("custom", "Entry 2", {})
-
-        entries = page.list_entries()
-        assert len(entries) == 2
-
-    def test_create_variation(self, tmp_path):
-        """Test creating entry variation."""
-        ws = Workspace.initialize(tmp_path, "Test Workspace")
-        nb = ws.create_notebook("Test Notebook")
-        page = nb.create_page("Test Page")
-
-        entry = page.create_entry(
-            entry_type="custom",
-            title="Original Entry",
-            inputs={"param1": "value1", "param2": "value2"},
-        )
-
-        variation = entry.create_variation(
-            title="Variation Entry",
-            input_overrides={"param1": "new_value"},
-        )
-
-        assert variation.parent_id == entry.id
-        assert variation.inputs["param1"] == "new_value"
-        assert variation.inputs["param2"] == "value2"
-
-    def test_get_lineage(self, tmp_path):
-        """Test getting entry lineage."""
-        ws = Workspace.initialize(tmp_path, "Test Workspace")
-        nb = ws.create_notebook("Test Notebook")
-        page = nb.create_page("Test Page")
-
-        entry1 = page.create_entry("custom", "Entry 1", {})
-        entry2 = entry1.create_variation("Entry 2", {})
-        _ = entry2.create_variation("Entry 3", {})  # entry3 used for lineage test
-
-        lineage = entry2.get_lineage(depth=3)
-
-        assert len(lineage["ancestors"]) >= 1
-        assert len(lineage["descendants"]) >= 1
-
-
 class TestStorageManager:
     """Tests for StorageManager class."""
 
@@ -407,54 +336,6 @@ class TestStorageManager:
 
         size = storage.get_size(hash_value)
         assert size == len(data)
-
-
-class TestIntegration:
-    """Integration tests for the full workflow."""
-
-    def test_full_workflow(self, tmp_path):
-        """Test complete workflow from workspace to entry."""
-        # Initialize workspace
-        ws = Workspace.initialize(tmp_path, "My Lab")
-
-        # Create notebook
-        nb = ws.create_notebook(
-            title="AI Art Production",
-            description="Testing image generation",
-            tags=["sdxl", "test"],
-        )
-
-        # Create page
-        page = nb.create_page(
-            title="Landscape Experiments",
-            date=datetime(2024, 11, 27),
-            narrative={"goals": "Generate sunset landscapes"},
-        )
-
-        # Create entry
-        entry = page.create_entry(
-            entry_type="custom",
-            title="Initial test",
-            inputs={
-                "prompt": "a serene lake at sunset",
-                "seed": 42,
-            },
-        )
-
-        # Create variation
-        variation = entry.create_variation(
-            title="Higher CFG test",
-            input_overrides={"cfg": 10.0},
-        )
-
-        # Verify everything was created
-        assert len(ws.list_notebooks()) == 1
-        assert len(nb.list_pages()) == 1
-        assert len(page.list_entries()) == 2
-
-        # Verify lineage
-        lineage = variation.get_lineage()
-        assert len(lineage["ancestors"]) >= 1
 
 
 class TestFormatTable:

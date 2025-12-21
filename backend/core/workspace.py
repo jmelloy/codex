@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING, Optional
 
 from core.git_manager import GitManager
 from core.storage import StorageManager
-from db.models import Entry as EntryModel
 from db.models import Notebook as NotebookModel
 from db.models import Page as PageModel
 from db.operations import DatabaseManager

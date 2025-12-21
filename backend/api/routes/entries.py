@@ -6,47 +6,53 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
-from codex.api.utils import get_workspace_path
-from codex.core.entry import Entry as CoreEntry
-from codex.core.page import Page as CorePage
-from codex.core.workspace import Workspace
-from codex.db.models import Artifact, Entry, Page
+from api.utils import get_workspace_path
+from core.entry import Entry as CoreEntry
+from core.page import Page as CorePage
+from core.workspace import Workspace
+from db.models import Artifact, Entry, Page
 
 router = APIRouter()
 
 
 def _entry_to_core(ws: Workspace, entry: Entry) -> CoreEntry:
     """Convert a db Entry model to a CoreEntry instance."""
-    return CoreEntry.from_dict(ws, {
-        "id": entry.id,
-        "page_id": entry.page_id,
-        "entry_type": entry.entry_type,
-        "title": entry.title,
-        "created_at": entry.created_at.isoformat() if entry.created_at else None,
-        "status": entry.status,
-        "parent_id": entry.parent_id,
-        "inputs": json.loads(entry.inputs) if entry.inputs else {},
-        "outputs": json.loads(entry.outputs) if entry.outputs else {},
-        "execution": json.loads(entry.execution) if entry.execution else {},
-        "metrics": json.loads(entry.metrics) if entry.metrics else {},
-        "metadata": json.loads(entry.metadata_) if entry.metadata_ else {},
-        "tags": [et.tag.name for et in entry.tags] if entry.tags else [],
-    })
+    return CoreEntry.from_dict(
+        ws,
+        {
+            "id": entry.id,
+            "page_id": entry.page_id,
+            "entry_type": entry.entry_type,
+            "title": entry.title,
+            "created_at": entry.created_at.isoformat() if entry.created_at else None,
+            "status": entry.status,
+            "parent_id": entry.parent_id,
+            "inputs": json.loads(entry.inputs) if entry.inputs else {},
+            "outputs": json.loads(entry.outputs) if entry.outputs else {},
+            "execution": json.loads(entry.execution) if entry.execution else {},
+            "metrics": json.loads(entry.metrics) if entry.metrics else {},
+            "metadata": json.loads(entry.metadata_) if entry.metadata_ else {},
+            "tags": [et.tag.name for et in entry.tags] if entry.tags else [],
+        },
+    )
 
 
 def _page_to_core(ws: Workspace, page: Page) -> CorePage:
     """Convert a db Page model to a CorePage instance."""
-    return CorePage.from_dict(ws, {
-        "id": page.id,
-        "notebook_id": page.notebook_id,
-        "title": page.title,
-        "date": page.date.isoformat() if page.date else None,
-        "created_at": page.created_at.isoformat() if page.created_at else None,
-        "updated_at": page.updated_at.isoformat() if page.updated_at else None,
-        "narrative": json.loads(page.narrative) if page.narrative else {},
-        "tags": [pt.tag.name for pt in page.tags] if page.tags else [],
-        "metadata": json.loads(page.metadata_) if page.metadata_ else {},
-    })
+    return CorePage.from_dict(
+        ws,
+        {
+            "id": page.id,
+            "notebook_id": page.notebook_id,
+            "title": page.title,
+            "date": page.date.isoformat() if page.date else None,
+            "created_at": page.created_at.isoformat() if page.created_at else None,
+            "updated_at": page.updated_at.isoformat() if page.updated_at else None,
+            "narrative": json.loads(page.narrative) if page.narrative else {},
+            "tags": [pt.tag.name for pt in page.tags] if page.tags else [],
+            "metadata": json.loads(page.metadata_) if page.metadata_ else {},
+        },
+    )
 
 
 class EntryCreateRequest(BaseModel):

@@ -27,8 +27,8 @@ include = ["codex*"]
 When installed, the package is available as `codex` (not `backend.codex`), e.g.:
 
 ```python
-from codex.core.workspace import Workspace
-from codex.api.main import app
+from core.workspace import Workspace
+from api.main import app
 ```
 
 ## Development

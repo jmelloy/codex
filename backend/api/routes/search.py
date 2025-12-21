@@ -6,8 +6,8 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
-from codex.api.utils import get_workspace_path
-from codex.core.workspace import Workspace
+from api.utils import get_workspace_path
+from core.workspace import Workspace
 
 router = APIRouter()
 

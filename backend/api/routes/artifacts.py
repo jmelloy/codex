@@ -8,31 +8,34 @@ from fastapi import APIRouter, File, HTTPException, Query, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from codex.api.utils import get_workspace_path
-from codex.core.entry import Entry as CoreEntry
-from codex.core.workspace import Workspace
-from codex.db.models import Artifact, Entry
+from api.utils import get_workspace_path
+from core.entry import Entry as CoreEntry
+from core.workspace import Workspace
+from db.models import Artifact, Entry
 
 router = APIRouter()
 
 
 def _entry_to_core(ws: Workspace, entry: Entry) -> CoreEntry:
     """Convert a db Entry model to a CoreEntry instance."""
-    return CoreEntry.from_dict(ws, {
-        "id": entry.id,
-        "page_id": entry.page_id,
-        "entry_type": entry.entry_type,
-        "title": entry.title,
-        "created_at": entry.created_at.isoformat() if entry.created_at else None,
-        "status": entry.status,
-        "parent_id": entry.parent_id,
-        "inputs": json.loads(entry.inputs) if entry.inputs else {},
-        "outputs": json.loads(entry.outputs) if entry.outputs else {},
-        "execution": json.loads(entry.execution) if entry.execution else {},
-        "metrics": json.loads(entry.metrics) if entry.metrics else {},
-        "metadata": json.loads(entry.metadata_) if entry.metadata_ else {},
-        "tags": [et.tag.name for et in entry.tags] if entry.tags else [],
-    })
+    return CoreEntry.from_dict(
+        ws,
+        {
+            "id": entry.id,
+            "page_id": entry.page_id,
+            "entry_type": entry.entry_type,
+            "title": entry.title,
+            "created_at": entry.created_at.isoformat() if entry.created_at else None,
+            "status": entry.status,
+            "parent_id": entry.parent_id,
+            "inputs": json.loads(entry.inputs) if entry.inputs else {},
+            "outputs": json.loads(entry.outputs) if entry.outputs else {},
+            "execution": json.loads(entry.execution) if entry.execution else {},
+            "metrics": json.loads(entry.metrics) if entry.metrics else {},
+            "metadata": json.loads(entry.metadata_) if entry.metadata_ else {},
+            "tags": [et.tag.name for et in entry.tags] if entry.tags else [],
+        },
+    )
 
 
 class ArtifactUploadRequest(BaseModel):
@@ -142,11 +145,15 @@ async def get_artifact_info(
                 "size_bytes": artifact.size_bytes,
                 "path": artifact.path,
                 "thumbnail_path": artifact.thumbnail_path,
-                "created_at": artifact.created_at.isoformat() if artifact.created_at else None,
+                "created_at": (
+                    artifact.created_at.isoformat() if artifact.created_at else None
+                ),
                 "archived": artifact.archived,
                 "archive_strategy": artifact.archive_strategy,
                 "original_size_bytes": artifact.original_size_bytes,
-                "metadata": json.loads(artifact.metadata_) if artifact.metadata_ else {},
+                "metadata": (
+                    json.loads(artifact.metadata_) if artifact.metadata_ else {}
+                ),
             }
         finally:
             session.close()

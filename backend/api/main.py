@@ -7,18 +7,18 @@ from pathlib import Path
 
 from fastapi import FastAPI
 
-from codex.api.routes.artifacts import router as artifacts_router
-from codex.api.routes.entries import router as entries_router
-from codex.api.routes.integration_variables import (
+from api.routes.artifacts import router as artifacts_router
+from api.routes.entries import router as entries_router
+from api.routes.integration_variables import (
     router as integration_variables_router,
 )
-from codex.api.routes.notebooks import router as notebooks_router
-from codex.api.routes.pages import router as pages_router
-from codex.api.routes.search import router as search_router
-from codex.api.routes.sql import router as sql_router
-from codex.api.routes.workspace import router as workspace_router
-from codex.api.utils import DEFAULT_WORKSPACE_PATH
-from codex.core.workspace import Workspace
+from api.routes.notebooks import router as notebooks_router
+from api.routes.pages import router as pages_router
+from api.routes.search import router as search_router
+from api.routes.sql import router as sql_router
+from api.routes.workspace import router as workspace_router
+from api.utils import DEFAULT_WORKSPACE_PATH
+from core.workspace import Workspace
 
 DEBUG = os.environ.get("DEBUG", "false") == "true"
 if DEBUG:

@@ -7,27 +7,30 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
-from codex.api.utils import get_workspace_path
-from codex.core.page import Page as CorePage
-from codex.core.workspace import Workspace
-from codex.db.models import Page
+from api.utils import get_workspace_path
+from core.page import Page as CorePage
+from core.workspace import Workspace
+from db.models import Page
 
 router = APIRouter()
 
 
 def _page_to_core(ws: Workspace, page: Page) -> CorePage:
     """Convert a db Page model to a CorePage instance."""
-    return CorePage.from_dict(ws, {
-        "id": page.id,
-        "notebook_id": page.notebook_id,
-        "title": page.title,
-        "date": page.date.isoformat() if page.date else None,
-        "created_at": page.created_at.isoformat() if page.created_at else None,
-        "updated_at": page.updated_at.isoformat() if page.updated_at else None,
-        "narrative": json.loads(page.narrative) if page.narrative else {},
-        "tags": [pt.tag.name for pt in page.tags] if page.tags else [],
-        "metadata": json.loads(page.metadata_) if page.metadata_ else {},
-    })
+    return CorePage.from_dict(
+        ws,
+        {
+            "id": page.id,
+            "notebook_id": page.notebook_id,
+            "title": page.title,
+            "date": page.date.isoformat() if page.date else None,
+            "created_at": page.created_at.isoformat() if page.created_at else None,
+            "updated_at": page.updated_at.isoformat() if page.updated_at else None,
+            "narrative": json.loads(page.narrative) if page.narrative else {},
+            "tags": [pt.tag.name for pt in page.tags] if page.tags else [],
+            "metadata": json.loads(page.metadata_) if page.metadata_ else {},
+        },
+    )
 
 
 class PageCreateRequest(BaseModel):

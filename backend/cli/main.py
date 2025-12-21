@@ -359,7 +359,7 @@ def serve(host: str, port: int, reload: bool):
 
     click.echo(f"Starting Codex server at http://{host}:{port}")
     uvicorn.run(
-        "codex.api.main:app",
+        "api.main:app",
         host=host,
         port=port,
         reload=reload,
@@ -591,7 +591,9 @@ def db():
 
 
 @db.command("migrate")
-@click.option("--revision", "-r", default="head", help="Target revision (default: head)")
+@click.option(
+    "--revision", "-r", default="head", help="Target revision (default: head)"
+)
 @click.option("--workspace", "-w", default=".", help="Workspace path")
 def db_migrate(revision: str, workspace: str):
     """Run database migrations.
@@ -691,7 +693,9 @@ def hooks():
     help="Git hooks directory path (default: ~/.git-hooks)",
 )
 @click.option("--workspace", "-w", default=None, help="Workspace path for daily notes")
-@click.option("--global", "is_global", is_flag=True, help="Set as global git hooks path")
+@click.option(
+    "--global", "is_global", is_flag=True, help="Set as global git hooks path"
+)
 def hooks_install(hooks_path: str, workspace: str, is_global: bool):
     """Install the Codex post-commit git hook.
 
@@ -785,9 +789,7 @@ def hooks_uninstall(hooks_path: str):
         if success:
             click.echo(f"✓ Uninstalled post-commit hook from: {hooks_path}")
         else:
-            click.echo(
-                f"Warning: No post-commit hook found at: {hooks_path}", err=True
-            )
+            click.echo(f"Warning: No post-commit hook found at: {hooks_path}", err=True)
 
     except Exception as e:
         click.echo(f"Error: {e}", err=True)

@@ -17,4 +17,4 @@ COPY . .
 EXPOSE 8765
 
 # Run the API server
-CMD ["uvicorn", "codex.api.main:app", "--host", "0.0.0.0", "--port", "8765"]
+CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8765"]

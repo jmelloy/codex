@@ -299,3 +299,57 @@ class TestMarkdownFileOperations:
             assert len(original_doc.blocks) == len(loaded_doc.blocks)
         finally:
             Path(temp_path).unlink()
+
+
+class TestColophonBlocks:
+    """Test colophon block helper functions."""
+
+    def test_add_sql_colophon(self):
+        """Test adding a SQL colophon block."""
+        from core.markdown import add_sql_colophon
+        
+        doc = MarkdownDocument()
+        add_sql_colophon(
+            doc,
+            query="SELECT * FROM users WHERE active = 1",
+            result_summary="10 rows returned",
+            metadata={"database": "production", "execution_time": "0.5s"}
+        )
+        
+        assert len(doc.blocks) == 1
+        assert doc.blocks[0]["type"] == "sql_colophon"
+        assert "SELECT * FROM users" in doc.blocks[0]["content"]
+        assert "10 rows returned" in doc.blocks[0]["content"]
+        assert "database: production" in doc.blocks[0]["content"]
+
+    def test_add_comfyui_colophon(self):
+        """Test adding a ComfyUI colophon block."""
+        from core.markdown import add_comfyui_colophon
+        
+        doc = MarkdownDocument()
+        add_comfyui_colophon(
+            doc,
+            workflow_name="txt2img-sdxl",
+            result_summary="Generated 4 images",
+            metadata={"server": "localhost:8188", "prompt_id": "abc123"}
+        )
+        
+        assert len(doc.blocks) == 1
+        assert doc.blocks[0]["type"] == "comfyui_colophon"
+        assert "txt2img-sdxl" in doc.blocks[0]["content"]
+        assert "Generated 4 images" in doc.blocks[0]["content"]
+        assert "server: localhost:8188" in doc.blocks[0]["content"]
+
+    def test_get_colophon_blocks(self):
+        """Test retrieving colophon blocks."""
+        from core.markdown import add_sql_colophon, add_comfyui_colophon, get_colophon_blocks
+        
+        doc = MarkdownDocument()
+        doc.add_block("info", "Regular info block")
+        add_sql_colophon(doc, "SELECT 1", "1 row")
+        add_comfyui_colophon(doc, "workflow", "Success")
+        
+        colophons = get_colophon_blocks(doc)
+        assert len(colophons) == 2
+        assert colophons[0][0] == "sql_colophon"
+        assert colophons[1][0] == "comfyui_colophon"

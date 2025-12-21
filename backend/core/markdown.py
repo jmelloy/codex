@@ -180,3 +180,61 @@ def write_markdown_file(path: str, doc: MarkdownDocument) -> None:
     """
     with open(path, "w", encoding="utf-8") as f:
         f.write(doc.to_markdown())
+
+
+def add_sql_colophon(doc: MarkdownDocument, query: str, result_summary: str, metadata: Optional[Dict[str, Any]] = None) -> None:
+    """Add a SQL colophon block to a markdown document.
+    
+    A SQL colophon documents a database query execution with metadata.
+    
+    Args:
+        doc: MarkdownDocument to add the colophon to
+        query: SQL query that was executed
+        result_summary: Summary of results (e.g., "10 rows returned")
+        metadata: Optional metadata (connection string, execution time, etc.)
+    """
+    colophon_content = f"**Query:**\n```sql\n{query}\n```\n\n**Result:** {result_summary}"
+    
+    if metadata:
+        colophon_content += "\n\n**Metadata:**\n"
+        for key, value in metadata.items():
+            colophon_content += f"- {key}: {value}\n"
+    
+    doc.add_block("sql_colophon", colophon_content)
+
+
+def add_comfyui_colophon(doc: MarkdownDocument, workflow_name: str, result_summary: str, metadata: Optional[Dict[str, Any]] = None) -> None:
+    """Add a ComfyUI colophon block to a markdown document.
+    
+    A ComfyUI colophon documents a workflow execution with metadata.
+    
+    Args:
+        doc: MarkdownDocument to add the colophon to
+        workflow_name: Name of the ComfyUI workflow executed
+        result_summary: Summary of results (e.g., "Generated 4 images")
+        metadata: Optional metadata (server URL, execution time, prompt ID, etc.)
+    """
+    colophon_content = f"**Workflow:** {workflow_name}\n\n**Result:** {result_summary}"
+    
+    if metadata:
+        colophon_content += "\n\n**Metadata:**\n"
+        for key, value in metadata.items():
+            colophon_content += f"- {key}: {value}\n"
+    
+    doc.add_block("comfyui_colophon", colophon_content)
+
+
+def get_colophon_blocks(doc: MarkdownDocument) -> List[Tuple[str, str]]:
+    """Get all colophon blocks from a document.
+    
+    Args:
+        doc: MarkdownDocument to extract colophons from
+    
+    Returns:
+        List of tuples (colophon_type, content) for all colophon blocks
+    """
+    colophons = []
+    for block in doc.blocks:
+        if block["type"].endswith("_colophon"):
+            colophons.append((block["type"], block["content"]))
+    return colophons

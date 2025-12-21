@@ -2,7 +2,7 @@
 
 import pytest
 
-from codex.db.models import (
+from db.models import (
     Artifact,
     Entry,
     EntryLineage,
@@ -156,12 +156,8 @@ class TestGetOperations:
 
     def test_get_all(self, db_session):
         """get_all should return all instances."""
-        Notebook.create(
-            db_session, validate_fk=False, id="nb-all-1", title="First"
-        )
-        Notebook.create(
-            db_session, validate_fk=False, id="nb-all-2", title="Second"
-        )
+        Notebook.create(db_session, validate_fk=False, id="nb-all-1", title="First")
+        Notebook.create(db_session, validate_fk=False, id="nb-all-2", title="Second")
         db_session.commit()
 
         results = Notebook.get_all(db_session)
@@ -173,12 +169,8 @@ class TestGetOperations:
 
     def test_find_by_single_filter(self, db_session):
         """find_by should filter by a single column."""
-        Notebook.create(
-            db_session, validate_fk=False, id="nb-find-1", title="Alpha"
-        )
-        Notebook.create(
-            db_session, validate_fk=False, id="nb-find-2", title="Beta"
-        )
+        Notebook.create(db_session, validate_fk=False, id="nb-find-1", title="Alpha")
+        Notebook.create(db_session, validate_fk=False, id="nb-find-2", title="Beta")
         db_session.commit()
 
         results = Notebook.find_by(db_session, title="Alpha")
@@ -211,9 +203,7 @@ class TestGetOperations:
 
     def test_find_one_by(self, db_session):
         """find_one_by should return a single instance."""
-        Notebook.create(
-            db_session, validate_fk=False, id="nb-one-1", title="Unique"
-        )
+        Notebook.create(db_session, validate_fk=False, id="nb-one-1", title="Unique")
         db_session.commit()
 
         result = Notebook.find_one_by(db_session, title="Unique")
@@ -256,12 +246,8 @@ class TestUpdateOperation:
 
     def test_update_with_fk_validation_success(self, db_session):
         """update should succeed when FK references exist."""
-        Notebook.create(
-            db_session, validate_fk=False, id="nb-upd-fk-1", title="First"
-        )
-        Notebook.create(
-            db_session, validate_fk=False, id="nb-upd-fk-2", title="Second"
-        )
+        Notebook.create(db_session, validate_fk=False, id="nb-upd-fk-1", title="First")
+        Notebook.create(db_session, validate_fk=False, id="nb-upd-fk-2", title="Second")
         page = Page.create(
             db_session,
             validate_fk=False,
@@ -315,9 +301,7 @@ class TestDeleteOperations:
 
     def test_delete_by_id_found(self, db_session):
         """delete_by_id should remove the instance when found."""
-        Notebook.create(
-            db_session, validate_fk=False, id="nb-del-2", title="To Delete"
-        )
+        Notebook.create(db_session, validate_fk=False, id="nb-del-2", title="To Delete")
         db_session.commit()
 
         result = Notebook.delete_by_id(db_session, "nb-del-2")
@@ -337,9 +321,7 @@ class TestForeignKeyValidation:
 
     def test_validate_foreign_keys_success(self, db_session):
         """validate_foreign_keys should return info when references exist."""
-        Notebook.create(
-            db_session, validate_fk=False, id="nb-val-1", title="Notebook"
-        )
+        Notebook.create(db_session, validate_fk=False, id="nb-val-1", title="Notebook")
         db_session.commit()
 
         result = Page.validate_foreign_keys(
@@ -425,9 +407,7 @@ class TestCompositePrimaryKey:
     def test_get_by_id_with_composite_key(self, db_session):
         """get_by_id should work with composite primary keys."""
         # Create prerequisite data
-        Notebook.create(
-            db_session, validate_fk=False, id="nb-comp-1", title="Notebook"
-        )
+        Notebook.create(db_session, validate_fk=False, id="nb-comp-1", title="Notebook")
         Tag.create(db_session, validate_fk=False, name="comp-tag")
         db_session.commit()
 

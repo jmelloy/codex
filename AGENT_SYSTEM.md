@@ -53,7 +53,7 @@ More regular content.
 ### Usage Example
 
 ```python
-from codex.core.markdown import MarkdownDocument
+from core.markdown import MarkdownDocument
 
 # Parse a markdown file
 doc = MarkdownDocument.parse(text)
@@ -92,7 +92,7 @@ doc.add_block("info", "Additional information")
 ### Usage Example
 
 ```python
-from codex.core.tasks import TaskManager, TaskType, TaskStatus
+from core.tasks import TaskManager, TaskType, TaskStatus
 
 # Initialize task manager
 manager = TaskManager(Path("~/.codex/tasks"))
@@ -132,6 +132,7 @@ Each folder can have a `.` directory containing:
 ### Hierarchical Configuration
 
 Configuration is inherited from parent folders:
+
 - Child folders inherit parent configuration
 - Child values override parent values
 - Explicit `inherit=False` disables inheritance
@@ -139,7 +140,7 @@ Configuration is inherited from parent folders:
 ### Usage Example
 
 ```python
-from codex.core.folder_config import FolderConfig, ConfigManager
+from core.folder_config import FolderConfig, ConfigManager
 
 # Create folder configuration
 config = FolderConfig(Path("/workspace/notebooks/experiments"))
@@ -184,18 +185,20 @@ model: claude-3-opus
 temperature: 0.3
 
 Analyzer-specific instructions:
+
 - Focus on code quality
 - Check for vulnerabilities
-:::
+  :::
 
 ::: writer
 model: gpt-4
 temperature: 0.9
 
 Writer-specific instructions:
+
 - Use clear language
 - Follow format standards
-:::
+  :::
 ```
 
 ## Agent Sandbox System
@@ -225,7 +228,7 @@ Writer-specific instructions:
 ### Usage Example
 
 ```python
-from codex.core.sandbox import AgentSandbox, SandboxManager
+from core.sandbox import AgentSandbox, SandboxManager
 
 # Create sandbox
 manager = SandboxManager(Path("/tmp/sandboxes"))
@@ -264,10 +267,10 @@ Here's a complete example of using all components together:
 
 ```python
 from pathlib import Path
-from codex.core.tasks import TaskManager, TaskType
-from codex.core.folder_config import FolderConfig
-from codex.core.sandbox import AgentSandbox
-from codex.core.markdown import MarkdownDocument
+from core.tasks import TaskManager, TaskType
+from core.folder_config import FolderConfig
+from core.sandbox import AgentSandbox
+from core.markdown import MarkdownDocument
 
 # 1. Setup
 workspace = Path("/workspace")
@@ -302,19 +305,19 @@ try:
         content="# Documentation\n\nGenerated content here.",
     )
     doc.add_block("note", "This was automatically generated.")
-    
+
     sandbox.create_file("generated.md", doc.to_markdown().encode())
-    
+
     # 6. Verify and apply
     verification = sandbox.verify_changes()
-    
+
     if verification["safe"]:
         result = sandbox.apply_changes()
         task.mark_completed({"files_created": result["applied"]})
     else:
         task.mark_failed("Changes are not safe to apply")
         sandbox.rollback()
-        
+
 except Exception as e:
     task.mark_failed(str(e))
     sandbox.rollback()
@@ -389,14 +392,17 @@ DELETE /api/sandboxes/{sandbox_id}   # Delete sandbox
 ### Common Issues
 
 1. **Import Errors**
+
    - Ensure `pyyaml` is installed: `pip install pyyaml`
    - Check Python version >= 3.10
 
 2. **Sandbox Permissions**
+
    - Ensure write permissions on sandbox directory
    - Check file ownership and permissions
 
 3. **Configuration Not Found**
+
    - Verify `.` directory exists in folder
    - Check file names (`agents.md`, not `agent.md`)
    - Use `find_config_file()` to debug

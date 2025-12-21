@@ -5,12 +5,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from codex.core.workspace import Workspace
-from codex.integrations import IntegrationRegistry
-from codex.integrations.api_call import APICallIntegration
-from codex.integrations.comfyui import ComfyUIClient, ComfyUIIntegration
-from codex.integrations.database_query import DatabaseQueryIntegration
-from codex.integrations.graphql import GraphQLIntegration
+from core.workspace import Workspace
+from integrations import IntegrationRegistry
+from integrations.api_call import APICallIntegration
+from integrations.comfyui import ComfyUIClient, ComfyUIIntegration
+from integrations.database_query import DatabaseQueryIntegration
+from integrations.graphql import GraphQLIntegration
 
 
 class TestIntegrationRegistry:
@@ -736,9 +736,7 @@ class TestComfyUIIntegration:
         }
 
         # Mock the ComfyUIClient
-        with patch(
-            "codex.integrations.comfyui.ComfyUIClient"
-        ) as mock_client_class:
+        with patch("integrations.comfyui.ComfyUIClient") as mock_client_class:
             mock_client = MagicMock()
             mock_client_class.return_value = mock_client
 
@@ -763,9 +761,7 @@ class TestComfyUIIntegration:
             )
 
             # Mock download_image
-            mock_client.download_image = AsyncMock(
-                return_value=b"fake-image-data"
-            )
+            mock_client.download_image = AsyncMock(return_value=b"fake-image-data")
 
             inputs = {"workflow": workflow}
             result = await integration.execute(inputs)
@@ -790,9 +786,7 @@ class TestComfyUIIntegration:
         """Test executing workflow that generates multiple images."""
         workflow = {"1": {"class_type": "KSampler"}}
 
-        with patch(
-            "codex.integrations.comfyui.ComfyUIClient"
-        ) as mock_client_class:
+        with patch("integrations.comfyui.ComfyUIClient") as mock_client_class:
             mock_client = MagicMock()
             mock_client_class.return_value = mock_client
 
@@ -814,9 +808,7 @@ class TestComfyUIIntegration:
                     }
                 }
             )
-            mock_client.download_image = AsyncMock(
-                return_value=b"image-data"
-            )
+            mock_client.download_image = AsyncMock(return_value=b"image-data")
 
             result = await integration.execute({"workflow": workflow})
 
@@ -833,16 +825,12 @@ class TestComfyUIIntegration:
         """Test executing with custom server URL."""
         workflow = {"1": {"class_type": "CheckpointLoaderSimple"}}
 
-        with patch(
-            "codex.integrations.comfyui.ComfyUIClient"
-        ) as mock_client_class:
+        with patch("integrations.comfyui.ComfyUIClient") as mock_client_class:
             mock_client = MagicMock()
             mock_client_class.return_value = mock_client
 
             mock_client.queue_prompt = AsyncMock(return_value="test-prompt-789")
-            mock_client.wait_for_completion = AsyncMock(
-                return_value={"outputs": {}}
-            )
+            mock_client.wait_for_completion = AsyncMock(return_value={"outputs": {}})
 
             inputs = {
                 "workflow": workflow,
@@ -858,9 +846,7 @@ class TestComfyUIIntegration:
         """Test handling of timeout errors."""
         workflow = {"1": {"class_type": "KSampler"}}
 
-        with patch(
-            "codex.integrations.comfyui.ComfyUIClient"
-        ) as mock_client_class:
+        with patch("integrations.comfyui.ComfyUIClient") as mock_client_class:
             mock_client = MagicMock()
             mock_client_class.return_value = mock_client
 
@@ -880,9 +866,7 @@ class TestComfyUIIntegration:
         """Test handling of connection errors."""
         workflow = {"1": {"class_type": "KSampler"}}
 
-        with patch(
-            "codex.integrations.comfyui.ComfyUIClient"
-        ) as mock_client_class:
+        with patch("integrations.comfyui.ComfyUIClient") as mock_client_class:
             mock_client = MagicMock()
             mock_client_class.return_value = mock_client
 
@@ -933,19 +917,13 @@ class TestComfyUIClient:
 
         with patch("aiohttp.ClientSession") as mock_session_class:
             mock_session = MagicMock()
-            mock_session_class.return_value.__aenter__.return_value = (
-                mock_session
-            )
+            mock_session_class.return_value.__aenter__.return_value = mock_session
 
             mock_response = MagicMock()
-            mock_response.json = AsyncMock(
-                return_value={"prompt_id": "abc123"}
-            )
+            mock_response.json = AsyncMock(return_value={"prompt_id": "abc123"})
             mock_response.raise_for_status = MagicMock()
 
-            mock_session.post.return_value.__aenter__.return_value = (
-                mock_response
-            )
+            mock_session.post.return_value.__aenter__.return_value = mock_response
 
             prompt_id = await client.queue_prompt(workflow)
 
@@ -959,19 +937,13 @@ class TestComfyUIClient:
 
         with patch("aiohttp.ClientSession") as mock_session_class:
             mock_session = MagicMock()
-            mock_session_class.return_value.__aenter__.return_value = (
-                mock_session
-            )
+            mock_session_class.return_value.__aenter__.return_value = mock_session
 
             mock_response = MagicMock()
-            mock_response.json = AsyncMock(
-                return_value={"prompt-123": {"outputs": {}}}
-            )
+            mock_response.json = AsyncMock(return_value={"prompt-123": {"outputs": {}}})
             mock_response.raise_for_status = MagicMock()
 
-            mock_session.get.return_value.__aenter__.return_value = (
-                mock_response
-            )
+            mock_session.get.return_value.__aenter__.return_value = mock_response
 
             history = await client.get_history("prompt-123")
 
@@ -985,17 +957,13 @@ class TestComfyUIClient:
 
         with patch("aiohttp.ClientSession") as mock_session_class:
             mock_session = MagicMock()
-            mock_session_class.return_value.__aenter__.return_value = (
-                mock_session
-            )
+            mock_session_class.return_value.__aenter__.return_value = mock_session
 
             mock_response = MagicMock()
             mock_response.read = AsyncMock(return_value=b"image-bytes")
             mock_response.raise_for_status = MagicMock()
 
-            mock_session.get.return_value.__aenter__.return_value = (
-                mock_response
-            )
+            mock_session.get.return_value.__aenter__.return_value = mock_response
 
             image_data = await client.download_image("test.png")
 
@@ -1083,16 +1051,12 @@ class TestComfyUIIntegrationVariables:
         )
 
         # Mock execution
-        with patch(
-            "codex.integrations.comfyui.ComfyUIClient"
-        ) as mock_client_class:
+        with patch("integrations.comfyui.ComfyUIClient") as mock_client_class:
             mock_client = MagicMock()
             mock_client_class.return_value = mock_client
 
             mock_client.queue_prompt = AsyncMock(return_value="test-prompt")
-            mock_client.wait_for_completion = AsyncMock(
-                return_value={"outputs": {}}
-            )
+            mock_client.wait_for_completion = AsyncMock(return_value={"outputs": {}})
 
             await entry.execute()
 

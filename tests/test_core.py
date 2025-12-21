@@ -5,9 +5,9 @@ from datetime import datetime
 
 import pytest
 
-from codex.core.storage import StorageManager
-from codex.core.utils import format_table
-from codex.core.workspace import Workspace
+from core.storage import StorageManager
+from core.utils import format_table
+from core.workspace import Workspace
 
 
 class TestWorkspace:

@@ -3,6 +3,7 @@
 ## Overview
 
 The Mac Active Window Logger helps you automatically track which applications and windows you're working in throughout the day. This is especially useful for:
+
 - Time tracking and productivity analysis
 - Context switching awareness
 - Creating a detailed work log
@@ -25,6 +26,7 @@ codex daily-note add-window \
 ### Standalone Scripts
 
 #### Shell Script
+
 ```bash
 # Run directly
 ./scripts/mac/log-active-window.sh
@@ -34,6 +36,7 @@ CODEX_WORKSPACE=~/my-workspace ./scripts/mac/log-active-window.sh
 ```
 
 #### AppleScript
+
 ```bash
 # Run with osascript
 osascript scripts/mac/log-active-window.applescript
@@ -47,6 +50,7 @@ osascript scripts/mac/log-active-window.applescript
 ### 1. Keyboard Shortcut (Recommended)
 
 **Using Automator:**
+
 1. Open Automator
 2. File → New → Quick Action
 3. Workflow receives: "no input" in "any application"
@@ -63,6 +67,7 @@ osascript scripts/mac/log-active-window.applescript
 10. Find "Log Active Window" and assign a shortcut (e.g., ⌘⌥L)
 
 **Using Keyboard Maestro:**
+
 - Create new macro
 - Trigger: Hot Key (e.g., ⌘⌥L)
 - Action: Execute Shell Script
@@ -72,14 +77,15 @@ osascript scripts/mac/log-active-window.applescript
 
 **Every 5 minutes using launchd:**
 
-Create `~/Library/LaunchAgents/com.codex.log-window.plist`:
+Create `~/Library/LaunchAgents/com.log-window.plist`:
+
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.codex.log-window</string>
+    <string>com.log-window</string>
     <key>ProgramArguments</key>
     <array>
         <string>/path/to/codex/scripts/mac/log-active-window.sh</string>
@@ -93,11 +99,13 @@ Create `~/Library/LaunchAgents/com.codex.log-window.plist`:
 ```
 
 Load it:
+
 ```bash
-launchctl load ~/Library/LaunchAgents/com.codex.log-window.plist
+launchctl load ~/Library/LaunchAgents/com.log-window.plist
 ```
 
 **Using cron (alternative):**
+
 ```bash
 # Edit crontab
 crontab -e
@@ -111,6 +119,7 @@ crontab -e
 **Using SwiftBar/BitBar:**
 
 Create `~/Library/Application Support/SwiftBar/codex-logger.5m.sh`:
+
 ```bash
 #!/bin/bash
 # <swiftbar.title>Codex Logger</swiftbar.title>
@@ -130,6 +139,7 @@ echo "View Today's Note | bash='codex daily-note view' terminal=true"
 **Using Hammerspoon:**
 
 Add to `~/.hammerspoon/init.lua`:
+
 ```lua
 -- Log window when switching applications
 function logActiveWindow()
@@ -172,6 +182,7 @@ Window entries appear in your daily note like this:
 ## Supported Browsers
 
 URL detection works for:
+
 - ✅ Safari
 - ✅ Google Chrome / Chromium
 - ✅ Brave Browser
@@ -182,24 +193,29 @@ URL detection works for:
 ## Troubleshooting
 
 ### Permission Denied
+
 ```bash
 chmod +x scripts/mac/log-active-window.sh
 chmod +x scripts/mac/log-active-window.applescript
 ```
 
 ### Accessibility Permissions
+
 1. System Preferences → Security & Privacy → Privacy → Accessibility
 2. Add Terminal (or your terminal app)
 3. Add the script or app you're using
 
 ### Command Not Found
+
 Make sure `codex` is in your PATH:
+
 ```bash
 which codex
 # If not found, install codex or use full path
 ```
 
 ### No URL Captured
+
 - Ensure browser is running with at least one window
 - Some browsers need accessibility permissions
 - Firefox doesn't support AppleScript URL detection
@@ -214,6 +230,7 @@ which codex
 ## Examples
 
 ### Morning Workflow
+
 ```bash
 # Start your day
 codex daily-note create
@@ -229,6 +246,7 @@ codex daily-note view
 ```
 
 ### Integration with Focus Modes
+
 ```bash
 # When entering "Deep Work" focus mode
 echo "## Deep Work Session Started" >> ~/codex/daily-notes/$(date +%Y-%m-%d).md

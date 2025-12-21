@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from codex.core.tasks import (
+from core.tasks import (
     Task,
     TaskManager,
     TaskMessage,
@@ -27,7 +27,9 @@ class TestTaskMessage:
 
     def test_message_to_dict(self):
         """Test converting message to dictionary."""
-        msg = TaskMessage(role="assistant", content="Response", metadata={"key": "value"})
+        msg = TaskMessage(
+            role="assistant", content="Response", metadata={"key": "value"}
+        )
         data = msg.to_dict()
         assert data["role"] == "assistant"
         assert data["content"] == "Response"
@@ -140,7 +142,7 @@ class TestTask:
             workspace_path="/path/to/workspace",
         )
         task.add_message("user", "Hello")
-        
+
         data = task.to_dict()
         assert data["id"] == "task-1"
         assert data["task_type"] == "agent_operation"
@@ -209,7 +211,7 @@ class TestTaskManager:
                 task_type=TaskType.AGENT_OPERATION,
                 title="Test Task",
             )
-            
+
             retrieved_task = manager.get_task("task-1")
             assert retrieved_task is not None
             assert retrieved_task.id == created_task.id
@@ -229,7 +231,7 @@ class TestTaskManager:
             manager.create_task("task-1", TaskType.AGENT_OPERATION, "Task 1")
             manager.create_task("task-2", TaskType.CHAT_INTERACTION, "Task 2")
             manager.create_task("task-3", TaskType.ANALYSIS, "Task 3")
-            
+
             tasks = manager.list_tasks()
             assert len(tasks) == 3
 
@@ -239,14 +241,14 @@ class TestTaskManager:
             manager = TaskManager(Path(tmpdir))
             task1 = manager.create_task("task-1", TaskType.AGENT_OPERATION, "Task 1")
             task2 = manager.create_task("task-2", TaskType.AGENT_OPERATION, "Task 2")
-            
+
             task1.mark_running()
             manager.update_task(task1)
-            
+
             running_tasks = manager.list_tasks(status=TaskStatus.RUNNING)
             assert len(running_tasks) == 1
             assert running_tasks[0].id == "task-1"
-            
+
             pending_tasks = manager.list_tasks(status=TaskStatus.PENDING)
             assert len(pending_tasks) == 1
             assert pending_tasks[0].id == "task-2"
@@ -258,10 +260,10 @@ class TestTaskManager:
             manager.create_task("task-1", TaskType.AGENT_OPERATION, "Task 1")
             manager.create_task("task-2", TaskType.CHAT_INTERACTION, "Task 2")
             manager.create_task("task-3", TaskType.AGENT_OPERATION, "Task 3")
-            
+
             agent_tasks = manager.list_tasks(task_type=TaskType.AGENT_OPERATION)
             assert len(agent_tasks) == 2
-            
+
             chat_tasks = manager.list_tasks(task_type=TaskType.CHAT_INTERACTION)
             assert len(chat_tasks) == 1
 
@@ -270,10 +272,10 @@ class TestTaskManager:
         with tempfile.TemporaryDirectory() as tmpdir:
             manager = TaskManager(Path(tmpdir))
             task = manager.create_task("task-1", TaskType.AGENT_OPERATION, "Task 1")
-            
+
             task.add_message("user", "Hello")
             manager.update_task(task)
-            
+
             retrieved_task = manager.get_task("task-1")
             assert len(retrieved_task.messages) == 1
 
@@ -282,10 +284,10 @@ class TestTaskManager:
         with tempfile.TemporaryDirectory() as tmpdir:
             manager = TaskManager(Path(tmpdir))
             manager.create_task("task-1", TaskType.AGENT_OPERATION, "Task 1")
-            
+
             result = manager.delete_task("task-1")
             assert result is True
-            
+
             task = manager.get_task("task-1")
             assert task is None
 
@@ -303,12 +305,12 @@ class TestTaskManager:
             manager1 = TaskManager(Path(tmpdir))
             manager1.create_task("task-1", TaskType.AGENT_OPERATION, "Task 1")
             manager1.create_task("task-2", TaskType.CHAT_INTERACTION, "Task 2")
-            
+
             # Load tasks in a new manager instance
             manager2 = TaskManager(Path(tmpdir))
             tasks = manager2.list_tasks()
             assert len(tasks) == 2
-            
+
             task1 = manager2.get_task("task-1")
             assert task1 is not None
             assert task1.title == "Task 1"

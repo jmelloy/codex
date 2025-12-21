@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from codex.core.markdown import (
+from core.markdown import (
     MarkdownDocument,
     parse_markdown_file,
     write_markdown_file,
@@ -167,13 +167,13 @@ Some code here.
 """
         # Parse original
         doc = MarkdownDocument.parse(original_text)
-        
+
         # Convert back to markdown
         result = doc.to_markdown()
-        
+
         # Parse again
         doc2 = MarkdownDocument.parse(result)
-        
+
         # Compare
         assert doc.frontmatter == doc2.frontmatter
         assert len(doc.blocks) == len(doc2.blocks)
@@ -206,7 +206,7 @@ Some code here.
         assert len(notes) == 2
         assert "Note 1" in notes
         assert "Note 2" in notes
-        
+
         info = doc.get_all_blocks("info")
         assert len(info) == 1
         assert "Info 1" in info
@@ -267,11 +267,11 @@ class TestMarkdownFileOperations:
 
         try:
             write_markdown_file(temp_path, doc)
-            
+
             # Read back and verify
             with open(temp_path, "r") as f:
                 content = f.read()
-            
+
             assert "title: Write Test" in content
             assert "# Content here" in content
             assert "::: info" in content
@@ -293,7 +293,7 @@ class TestMarkdownFileOperations:
         try:
             write_markdown_file(temp_path, original_doc)
             loaded_doc = parse_markdown_file(temp_path)
-            
+
             assert original_doc.frontmatter == loaded_doc.frontmatter
             assert original_doc.content.strip() == loaded_doc.content.strip()
             assert len(original_doc.blocks) == len(loaded_doc.blocks)

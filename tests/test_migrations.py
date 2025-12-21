@@ -1,8 +1,7 @@
 """Tests for database migrations."""
 
-
-from codex.core.workspace import Workspace
-from codex.db.migrate import (
+from core.workspace import Workspace
+from db.migrate import (
     database_exists_with_tables,
     get_current_revision,
     get_head_revision,
@@ -11,7 +10,7 @@ from codex.db.migrate import (
     is_up_to_date,
     stamp_revision,
 )
-from codex.db.models import Base, get_engine, init_db
+from db.models import Base, get_engine, init_db
 
 
 class TestMigrations:

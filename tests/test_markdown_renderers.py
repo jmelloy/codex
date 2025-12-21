@@ -2,7 +2,7 @@
 
 import pytest
 
-from codex.core.markdown_renderers import (
+from core.markdown_renderers import (
     BooleanRenderer,
     DateRenderer,
     FrontmatterRendererRegistry,
@@ -135,7 +135,7 @@ class TestFrontmatterRendererRegistry:
     def test_default_registry_initialization(self):
         """Test that default registry is properly initialized."""
         registry = FrontmatterRendererRegistry()
-        
+
         # Check type-based renderers
         assert registry.get_renderer("test", True).__class__ == BooleanRenderer
         assert registry.get_renderer("test", 42).__class__ == NumberRenderer
@@ -144,11 +144,13 @@ class TestFrontmatterRendererRegistry:
     def test_key_based_renderer(self):
         """Test key-based renderer selection."""
         registry = FrontmatterRendererRegistry()
-        
+
         # Date keys should use DateRenderer
         assert registry.get_renderer("date", "2024-12-20").__class__ == DateRenderer
-        assert registry.get_renderer("created_at", "2024-12-20").__class__ == DateRenderer
-        
+        assert (
+            registry.get_renderer("created_at", "2024-12-20").__class__ == DateRenderer
+        )
+
         # Tags should use ListRenderer
         assert registry.get_renderer("tags", ["a", "b"]).__class__ == ListRenderer
 
@@ -157,14 +159,14 @@ class TestFrontmatterRendererRegistry:
         registry = FrontmatterRendererRegistry()
         custom_renderer = TextRenderer()
         registry.register_for_key("custom_field", custom_renderer)
-        
+
         assert registry.get_renderer("custom_field", "value") == custom_renderer
 
     def test_render_field(self):
         """Test rendering a single field."""
         registry = FrontmatterRendererRegistry()
         result = registry.render_field("title", "Test Title")
-        
+
         assert result["key"] == "title"
         assert result["type"] == "text"
         assert result["value"] == "Test Title"
@@ -180,23 +182,23 @@ class TestFrontmatterRendererRegistry:
             "count": 42,
             "active": True,
         }
-        
+
         rendered = registry.render_frontmatter(frontmatter)
-        
+
         # Check all fields are rendered
         assert "title" in rendered
         assert "date" in rendered
         assert "tags" in rendered
         assert "count" in rendered
         assert "active" in rendered
-        
+
         # Check types
         assert rendered["title"]["type"] == "text"
         assert rendered["date"]["type"] == "date"
         assert rendered["tags"]["type"] == "list"
         assert rendered["count"]["type"] == "number"
         assert rendered["active"]["type"] == "boolean"
-        
+
         # Check values
         assert rendered["title"]["value"] == "Test Document"
         assert rendered["date"]["value"] == "2024-12-20"
@@ -212,6 +214,6 @@ class TestGlobalRegistry:
         """Test getting the global registry."""
         registry = get_registry()
         assert isinstance(registry, FrontmatterRendererRegistry)
-        
+
         # Should return the same instance
         assert get_registry() is registry

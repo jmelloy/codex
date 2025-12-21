@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from codex.core.folder_config import ConfigManager, FolderConfig
-from codex.core.markdown import MarkdownDocument
+from core.folder_config import ConfigManager, FolderConfig
+from core.markdown import MarkdownDocument
 
 
 class TestFolderConfig:
@@ -36,10 +36,10 @@ class TestFolderConfig:
             folder = Path(tmpdir) / "test_folder"
             folder.mkdir()
             config = FolderConfig(folder)
-            
+
             config.set_property("name", "Test")
             config.set_property("count", 42)
-            
+
             assert config.get_property("name") == "Test"
             assert config.get_property("count") == 42
 
@@ -48,11 +48,11 @@ class TestFolderConfig:
         with tempfile.TemporaryDirectory() as tmpdir:
             folder = Path(tmpdir) / "test_folder"
             folder.mkdir()
-            
+
             # Set properties
             config1 = FolderConfig(folder)
             config1.set_property("key", "value")
-            
+
             # Load in new instance
             config2 = FolderConfig(folder)
             assert config2.get_property("key") == "value"
@@ -65,16 +65,16 @@ class TestFolderConfig:
             child = parent / "child"
             parent.mkdir()
             child.mkdir()
-            
+
             # Set property in parent
             parent_config = FolderConfig(parent)
             parent_config.set_property("inherited", "from_parent")
             parent_config.set_property("color", "blue")
-            
+
             # Set property in child
             child_config = FolderConfig(child)
             child_config.set_property("color", "red")
-            
+
             # Child should inherit from parent
             assert child_config.get_property("inherited") == "from_parent"
             # Child should override parent
@@ -88,10 +88,10 @@ class TestFolderConfig:
             child = parent / "child"
             parent.mkdir()
             child.mkdir()
-            
+
             parent_config = FolderConfig(parent)
             parent_config.set_property("key", "parent_value")
-            
+
             child_config = FolderConfig(child)
             # Should not find parent value when inherit=False
             assert child_config.get_property("key", inherit=False) is None
@@ -102,10 +102,10 @@ class TestFolderConfig:
             folder = Path(tmpdir) / "test_folder"
             folder.mkdir()
             config = FolderConfig(folder)
-            
+
             agent_cfg = {"model": "gpt-4", "temperature": 0.7}
             config.set_agent_config(agent_cfg)
-            
+
             retrieved = config.get_agent_config()
             assert retrieved["model"] == "gpt-4"
             assert retrieved["temperature"] == 0.7
@@ -116,10 +116,10 @@ class TestFolderConfig:
             folder = Path(tmpdir) / "test_folder"
             folder.mkdir()
             config = FolderConfig(folder)
-            
+
             # Set config for specific agent
             config.set_agent_config({"model": "claude-3"}, agent_name="analyzer")
-            
+
             # Get config for that agent
             analyzer_cfg = config.get_agent_config("analyzer")
             assert analyzer_cfg["model"] == "claude-3"
@@ -132,15 +132,15 @@ class TestFolderConfig:
             child = parent / "child"
             parent.mkdir()
             child.mkdir()
-            
+
             # Set global config in parent
             parent_config = FolderConfig(parent)
             parent_config.set_agent_config({"model": "gpt-4", "temperature": 0.5})
-            
+
             # Override in child
             child_config = FolderConfig(child)
             child_config.set_agent_config({"temperature": 0.9})
-            
+
             # Child should inherit model but override temperature
             cfg = child_config.get_agent_config()
             assert cfg["model"] == "gpt-4"
@@ -152,10 +152,10 @@ class TestFolderConfig:
             folder = Path(tmpdir) / "test_folder"
             folder.mkdir()
             config = FolderConfig(folder)
-            
+
             instructions = "These are the agent instructions."
             config.add_agent_instructions(instructions)
-            
+
             retrieved = config.get_agent_instructions()
             assert instructions in retrieved
 
@@ -165,13 +165,15 @@ class TestFolderConfig:
             folder = Path(tmpdir) / "test_folder"
             folder.mkdir()
             config = FolderConfig(folder)
-            
-            config.add_agent_instructions("Analyzer instructions", agent_name="analyzer")
+
+            config.add_agent_instructions(
+                "Analyzer instructions", agent_name="analyzer"
+            )
             config.add_agent_instructions("Writer instructions", agent_name="writer")
-            
+
             analyzer_instr = config.get_agent_instructions("analyzer")
             writer_instr = config.get_agent_instructions("writer")
-            
+
             assert "Analyzer" in analyzer_instr
             assert "Writer" in writer_instr
 
@@ -181,7 +183,7 @@ class TestFolderConfig:
             folder = Path(tmpdir) / "test_folder"
             folder.mkdir()
             config = FolderConfig(folder)
-            
+
             agents = config.list_agents()
             assert agents == []
 
@@ -191,11 +193,11 @@ class TestFolderConfig:
             folder = Path(tmpdir) / "test_folder"
             folder.mkdir()
             config = FolderConfig(folder)
-            
+
             config.set_agent_config({"model": "gpt-4"}, agent_name="analyzer")
             config.set_agent_config({"model": "claude"}, agent_name="writer")
             config.add_agent_instructions("Instructions", agent_name="reviewer")
-            
+
             agents = config.list_agents()
             assert "analyzer" in agents
             assert "writer" in agents
@@ -209,13 +211,15 @@ class TestFolderConfig:
             child = parent / "child"
             parent.mkdir()
             child.mkdir()
-            
+
             parent_config = FolderConfig(parent)
-            parent_config.set_agent_config({"model": "gpt-4"}, agent_name="parent_agent")
-            
+            parent_config.set_agent_config(
+                {"model": "gpt-4"}, agent_name="parent_agent"
+            )
+
             child_config = FolderConfig(child)
             child_config.set_agent_config({"model": "claude"}, agent_name="child_agent")
-            
+
             agents = child_config.list_agents()
             assert "parent_agent" in agents
             assert "child_agent" in agents
@@ -226,7 +230,7 @@ class TestFolderConfig:
             folder = Path(tmpdir) / "test_folder"
             folder.mkdir()
             config = FolderConfig(folder)
-            
+
             config.ensure_config_dir()
             assert config.config_dir.exists()
             assert config.config_dir.is_dir()
@@ -246,10 +250,10 @@ class TestConfigManager:
         with tempfile.TemporaryDirectory() as tmpdir:
             folder = Path(tmpdir) / "test_folder"
             folder.mkdir()
-            
+
             manager = ConfigManager(Path(tmpdir))
             config = manager.get_config(folder)
-            
+
             assert isinstance(config, FolderConfig)
             assert config.folder_path == folder
 
@@ -258,11 +262,11 @@ class TestConfigManager:
         with tempfile.TemporaryDirectory() as tmpdir:
             folder = Path(tmpdir) / "test_folder"
             folder.mkdir()
-            
+
             manager = ConfigManager(Path(tmpdir))
             config1 = manager.get_config(folder)
             config2 = manager.get_config(folder)
-            
+
             # Should return same instance
             assert config1 is config2
 
@@ -274,16 +278,16 @@ class TestConfigManager:
             child = parent / "child"
             parent.mkdir()
             child.mkdir()
-            
+
             # Create config in parent
             parent_config_dir = parent / "."
             parent_config_dir.mkdir(exist_ok=True)
             agents_file = parent_config_dir / "agents.md"
             agents_file.write_text("# Agent config")
-            
+
             manager = ConfigManager(root)
             found = manager.find_config_file(child, "agents.md")
-            
+
             assert found is not None
             assert found == agents_file
 
@@ -292,10 +296,10 @@ class TestConfigManager:
         with tempfile.TemporaryDirectory() as tmpdir:
             folder = Path(tmpdir) / "test_folder"
             folder.mkdir()
-            
+
             manager = ConfigManager(Path(tmpdir))
             found = manager.find_config_file(folder, "nonexistent.md")
-            
+
             assert found is None
 
     def test_get_effective_config(self):
@@ -306,20 +310,20 @@ class TestConfigManager:
             child = parent / "child"
             parent.mkdir()
             child.mkdir()
-            
+
             # Set properties at different levels
             parent_config = FolderConfig(parent)
             parent_config.set_property("color", "blue")
             parent_config.set_property("size", "large")
-            
+
             child_config = FolderConfig(child)
             child_config.set_property("color", "red")
             child_config.set_property("shape", "circle")
-            
+
             # Get effective config
             manager = ConfigManager(root)
             effective = manager.get_effective_config(child)
-            
+
             # Should have child override and both parent and child properties
             assert effective["color"] == "red"  # Overridden
             assert effective["size"] == "large"  # Inherited
@@ -330,8 +334,8 @@ class TestConfigManager:
         with tempfile.TemporaryDirectory() as tmpdir:
             folder = Path(tmpdir) / "test_folder"
             folder.mkdir()
-            
+
             manager = ConfigManager(Path(tmpdir))
             effective = manager.get_effective_config(folder)
-            
+
             assert effective == {}

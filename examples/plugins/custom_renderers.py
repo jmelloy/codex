@@ -6,7 +6,7 @@ displaying frontmatter fields in a specialized way.
 
 from typing import Any, Dict
 
-from codex.core.markdown_renderers import (
+from core.markdown_renderers import (
     FrontmatterRenderer,
     register_renderer_for_key,
 )

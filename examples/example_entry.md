@@ -16,6 +16,7 @@ This is an example of how notebook entries should be formatted using the Codex m
 ## Introduction
 
 All files in the Codex system follow a standard markdown format with:
+
 1. YAML frontmatter enclosed in `---` delimiters
 2. Content blocks enclosed in `:::` delimiters
 3. Regular markdown content
@@ -29,11 +30,13 @@ This is a note block. It contains important information that stands out from the
 :::
 
 ::: code
+
 ```python
 def example_function():
     """An example function in a code block."""
     return "Hello, World!"
 ```
+
 :::
 
 ::: warning
@@ -50,7 +53,7 @@ Regular markdown content goes here. You can use all standard markdown features:
 
 - Bullet lists
 - **Bold text**
-- *Italic text*
+- _Italic text_
 - `code snippets`
 - Links: [Example](https://example.com)
 
@@ -64,7 +67,7 @@ You can organize content with headers at different levels.
 import codex
 
 # Initialize workspace
-workspace = codex.Workspace("~/my-lab")
+workspace = Workspace("~/my-lab")
 
 # Create notebook
 notebook = workspace.create_notebook("Experiments")

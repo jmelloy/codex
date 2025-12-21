@@ -677,5 +677,315 @@ def db_history(workspace: str):
         raise click.Abort()
 
 
+@cli.group()
+def hooks():
+    """Git hooks management commands."""
+    pass
+
+
+@hooks.command("install")
+@click.option(
+    "--hooks-path",
+    "-p",
+    default=None,
+    help="Git hooks directory path (default: ~/.git-hooks)",
+)
+@click.option("--workspace", "-w", default=None, help="Workspace path for daily notes")
+@click.option("--global", "is_global", is_flag=True, help="Set as global git hooks path")
+def hooks_install(hooks_path: str, workspace: str, is_global: bool):
+    """Install the Codex post-commit git hook.
+
+    This hook automatically logs commits to daily notes in your workspace.
+
+    Examples:
+
+    \b
+    # Install with default settings
+    codex hooks install --global
+
+    \b
+    # Install with custom hooks path and workspace
+    codex hooks install --hooks-path ~/.my-hooks --workspace ~/lab --global
+    """
+    from codex.core.git_hooks import GitHookManager
+
+    try:
+        # Determine hooks path
+        if hooks_path is None:
+            hooks_path = Path.home() / ".git-hooks"
+        else:
+            hooks_path = Path(hooks_path).expanduser().resolve()
+
+        # Determine workspace path
+        ws_path = None
+        if workspace:
+            ws_path = Path(workspace).expanduser().resolve()
+
+        # Install the hook
+        success = GitHookManager.install_post_commit_hook(hooks_path, ws_path)
+
+        if not success:
+            click.echo("Error: Failed to install post-commit hook", err=True)
+            raise click.Abort()
+
+        click.echo(f"✓ Installed post-commit hook to: {hooks_path}")
+
+        # Set as global hooks path if requested
+        if is_global:
+            if GitHookManager.set_global_hooks_path(hooks_path):
+                click.echo(f"✓ Set global git hooks path to: {hooks_path}")
+            else:
+                click.echo(
+                    f"Warning: Could not set global git hooks path. "
+                    f"Run manually: git config --global core.hooksPath {hooks_path}",
+                    err=True,
+                )
+
+        click.echo("\nThe post-commit hook will now log commits to daily notes.")
+        if ws_path:
+            click.echo(f"Daily notes location: {ws_path / 'daily-notes'}")
+        else:
+            click.echo(
+                "Note: No workspace specified. Use --workspace flag "
+                "or the hook will use the current directory."
+            )
+
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        raise click.Abort()
+
+
+@hooks.command("uninstall")
+@click.option(
+    "--hooks-path",
+    "-p",
+    default=None,
+    help="Git hooks directory path (default: ~/.git-hooks)",
+)
+def hooks_uninstall(hooks_path: str):
+    """Uninstall the Codex post-commit git hook.
+
+    Example:
+
+    \b
+    codex hooks uninstall
+    """
+    from codex.core.git_hooks import GitHookManager
+
+    try:
+        # Determine hooks path
+        if hooks_path is None:
+            hooks_path = Path.home() / ".git-hooks"
+        else:
+            hooks_path = Path(hooks_path).expanduser().resolve()
+
+        # Uninstall the hook
+        success = GitHookManager.uninstall_post_commit_hook(hooks_path)
+
+        if success:
+            click.echo(f"✓ Uninstalled post-commit hook from: {hooks_path}")
+        else:
+            click.echo(
+                f"Warning: No post-commit hook found at: {hooks_path}", err=True
+            )
+
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        raise click.Abort()
+
+
+@hooks.command("status")
+def hooks_status():
+    """Show git hooks configuration status.
+
+    Example:
+
+    \b
+    codex hooks status
+    """
+    from codex.core.git_hooks import GitHookManager
+
+    try:
+        hooks_path = GitHookManager.get_global_hooks_path()
+
+        if hooks_path:
+            click.echo(f"Global git hooks path: {hooks_path}")
+
+            post_commit = hooks_path / "post-commit"
+            if post_commit.exists():
+                click.echo("✓ Post-commit hook: Installed")
+                # Check if it's executable
+                if post_commit.stat().st_mode & 0o111:
+                    click.echo("  Status: Executable")
+                else:
+                    click.echo("  Status: Not executable (may not work)")
+            else:
+                click.echo("✗ Post-commit hook: Not installed")
+        else:
+            click.echo("Global git hooks path: Not configured")
+            click.echo("\nRun 'codex hooks install --global' to set up git hooks.")
+
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        raise click.Abort()
+
+
+@cli.group(name="daily-note")
+def daily_note():
+    """Daily note management commands."""
+    pass
+
+
+@daily_note.command("create")
+@click.option("--workspace", "-w", default=".", help="Workspace path")
+@click.option("--date", "-d", default=None, help="Date (YYYY-MM-DD, default: today)")
+def daily_note_create(workspace: str, date: str):
+    """Create a new daily note.
+
+    Example:
+
+    \b
+    # Create today's daily note
+    codex daily-note create
+
+    \b
+    # Create a daily note for a specific date
+    codex daily-note create --date 2024-12-20
+    """
+    from codex.core.git_hooks import DailyNoteManager
+
+    try:
+        ws_path = Path(workspace).expanduser().resolve()
+        manager = DailyNoteManager(ws_path)
+
+        note_date = None
+        if date:
+            note_date = datetime.strptime(date, "%Y-%m-%d")
+
+        note_path = manager.create_daily_note(note_date)
+        click.echo(f"✓ Created daily note: {note_path}")
+
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        raise click.Abort()
+
+
+@daily_note.command("list")
+@click.option("--workspace", "-w", default=".", help="Workspace path")
+@click.option("--limit", "-n", default=10, help="Number of notes to show")
+def daily_note_list(workspace: str, limit: int):
+    """List daily notes.
+
+    Example:
+
+    \b
+    # List last 10 daily notes
+    codex daily-note list
+
+    \b
+    # List last 30 daily notes
+    codex daily-note list --limit 30
+    """
+    from codex.core.git_hooks import DailyNoteManager
+
+    try:
+        ws_path = Path(workspace).expanduser().resolve()
+        manager = DailyNoteManager(ws_path)
+
+        notes = manager.list_daily_notes(limit)
+
+        if not notes:
+            click.echo("No daily notes found.")
+            click.echo(f"\nDaily notes location: {manager.daily_notes_path}")
+            return
+
+        click.echo(f"Daily notes ({len(notes)}):")
+        for note in notes:
+            click.echo(f"  {note.stem}: {note}")
+
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        raise click.Abort()
+
+
+@daily_note.command("add-commit")
+@click.option("--sha", required=True, help="Commit SHA")
+@click.option("--message", required=True, help="Commit message")
+@click.option("--branch", required=True, help="Branch name")
+@click.option("--repo", required=True, help="Repository name")
+@click.option("--workspace", "-w", default=".", help="Workspace path")
+def daily_note_add_commit(
+    sha: str, message: str, branch: str, repo: str, workspace: str
+):
+    """Add a commit entry to today's daily note.
+
+    This command is typically called by the post-commit git hook.
+
+    Example:
+
+    \b
+    codex daily-note add-commit \\
+        --sha abc123 \\
+        --message "Fix bug" \\
+        --branch main \\
+        --repo myproject
+    """
+    from codex.core.git_hooks import DailyNoteManager
+
+    try:
+        ws_path = Path(workspace).expanduser().resolve()
+        manager = DailyNoteManager(ws_path)
+
+        manager.add_commit_entry(sha, message, branch, repo)
+        # Silent success for hook usage
+        # click.echo(f"✓ Added commit to: {note_path}")
+
+    except Exception:
+        # Silently fail for hook usage
+        pass
+
+
+@daily_note.command("view")
+@click.option("--workspace", "-w", default=".", help="Workspace path")
+@click.option("--date", "-d", default=None, help="Date (YYYY-MM-DD, default: today)")
+def daily_note_view(workspace: str, date: str):
+    """View a daily note.
+
+    Example:
+
+    \b
+    # View today's daily note
+    codex daily-note view
+
+    \b
+    # View a specific date's daily note
+    codex daily-note view --date 2024-12-20
+    """
+    from codex.core.git_hooks import DailyNoteManager
+
+    try:
+        ws_path = Path(workspace).expanduser().resolve()
+        manager = DailyNoteManager(ws_path)
+
+        note_date = None
+        if date:
+            note_date = datetime.strptime(date, "%Y-%m-%d")
+
+        note_path = manager.get_daily_note_path(note_date)
+
+        if not note_path.exists():
+            date_str = (note_date or datetime.now()).strftime("%Y-%m-%d")
+            click.echo(f"Daily note for {date_str} does not exist.")
+            click.echo(f"Create it with: codex daily-note create --date {date_str}")
+            return
+
+        content = note_path.read_text()
+        click.echo(content)
+
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        raise click.Abort()
+
+
 if __name__ == "__main__":
     cli()

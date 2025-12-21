@@ -222,6 +222,28 @@ codex search --query "experiment"
 
 See [AGENT_SYSTEM.md](AGENT_SYSTEM.md) for complete documentation.
 
+### ✅ Git Hooks Integration (New)
+
+| Component | Status | Description |
+|-----------|--------|-------------|
+| **Post-Commit Hook** | ✅ | Automatically log commits to daily notes |
+| **Daily Notes** | ✅ | Markdown-based daily logs with commit tracking |
+| **CLI Commands** | ✅ | Install, manage, and view git hooks and daily notes |
+
+See [GIT_HOOKS.md](GIT_HOOKS.md) for complete documentation.
+
+**Quick Start:**
+```bash
+# Install the post-commit hook globally
+codex hooks install --global --workspace ~/my-lab
+
+# Make commits as usual - they'll be logged automatically
+git commit -m "Implement feature X"
+
+# View today's commits
+codex daily-note view
+```
+
 ---
 
 ## Abstract

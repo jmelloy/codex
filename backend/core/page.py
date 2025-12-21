@@ -7,6 +7,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
+import yaml
+
 from core.utils import slugify
 from db.models import Notebook as NotebookModel
 from db.models import Page as PageModel
@@ -90,25 +92,16 @@ class Page:
         # Commit to Git
         notebook.workspace.git_manager.create_page(notebook.id, page_id, page.to_dict())
 
-        # Create user-facing directory
+        # Create user-facing markdown file (not a directory)
         date_str = page.date.strftime("%Y-%m-%d") if page.date else "undated"
         page_slug = slugify(title)
-        page_dir = notebook.get_directory() / f"{date_str}-{page_slug}"
-        page_dir.mkdir(parents=True, exist_ok=True)
-        (page_dir / "entries").mkdir(exist_ok=True)
+        page_file = notebook.get_directory() / f"{date_str}-{page_slug}.md"
+        
+        # Ensure notebook directory exists
+        notebook.get_directory().mkdir(parents=True, exist_ok=True)
 
-        # Create README with narrative
-        with open(page_dir / "README.md", "w") as f:
-            f.write(f"# {title}\n\n")
-            f.write(f"**Date**: {date_str}\n\n")
-            f.write(f"## Goals\n{page.narrative.get('goals', '')}\n\n")
-            f.write(f"## Hypothesis\n{page.narrative.get('hypothesis', '')}\n\n")
-            f.write("## Observations\n\n")
-            f.write("## Conclusions\n\n")
-            f.write("## Next Steps\n\n")
-
-        # Write sidecar properties file
-        page._write_sidecar(page_dir)
+        # Write markdown file with frontmatter and narrative sections
+        page._write_markdown_file(page_file)
 
         return page
 
@@ -165,14 +158,30 @@ class Page:
         }
 
     def get_directory(self) -> Path:
-        """Get the user-facing directory for this page."""
+        """Get the user-facing directory for this page.
+        
+        Note: This method is deprecated. Pages are now markdown files, not directories.
+        Use get_file_path() instead. This is kept for backward compatibility with
+        legacy page directories.
+        """
         notebook = self.get_notebook()
         date_str = self.date.strftime("%Y-%m-%d") if self.date else "undated"
         page_slug = slugify(self.title)
         return notebook.get_directory() / f"{date_str}-{page_slug}"
 
+    def get_file_path(self) -> Path:
+        """Get the markdown file path for this page."""
+        notebook = self.get_notebook()
+        date_str = self.date.strftime("%Y-%m-%d") if self.date else "undated"
+        page_slug = slugify(self.title)
+        return notebook.get_directory() / f"{date_str}-{page_slug}.md"
+
     def _write_sidecar(self, page_dir: Optional[Path] = None) -> None:
-        """Write a sidecar properties file for this page."""
+        """Write a sidecar properties file for this page.
+        
+        Note: This method is deprecated in favor of frontmatter in markdown files.
+        Kept for backward compatibility.
+        """
         if page_dir is None:
             page_dir = self.get_directory()
 
@@ -205,6 +214,90 @@ class Page:
         with open(sidecar_path, "w") as f:
             json.dump(sidecar_data, f, indent=2)
 
+    def _write_markdown_file(self, file_path: Optional[Path] = None) -> None:
+        """Write page as a markdown file with frontmatter and narrative sections."""
+        if file_path is None:
+            file_path = self.get_file_path()
+
+        # Build frontmatter with page metadata
+        frontmatter = {
+            "id": self.id,
+            "notebook_id": self.notebook_id,
+            "title": self.title,
+            "type": "page",
+        }
+        
+        if self.date:
+            frontmatter["date"] = (
+                self.date.isoformat() if isinstance(self.date, datetime) else self.date
+            )
+        
+        frontmatter["created_at"] = (
+            self.created_at.isoformat()
+            if isinstance(self.created_at, datetime)
+            else self.created_at
+        )
+        frontmatter["updated_at"] = (
+            self.updated_at.isoformat()
+            if isinstance(self.updated_at, datetime)
+            else self.updated_at
+        )
+        
+        if self.tags:
+            frontmatter["tags"] = self.tags
+        
+        if self.metadata:
+            frontmatter["metadata"] = self.metadata
+
+        # Build markdown content with narrative sections
+        content_parts = []
+        
+        # Goals section
+        if self.narrative.get("goals"):
+            content_parts.append("## Goals\n")
+            content_parts.append(f"{self.narrative['goals']}\n")
+        else:
+            content_parts.append("## Goals\n\n")
+        
+        # Hypothesis section
+        if self.narrative.get("hypothesis"):
+            content_parts.append("## Hypothesis\n")
+            content_parts.append(f"{self.narrative['hypothesis']}\n")
+        else:
+            content_parts.append("## Hypothesis\n\n")
+        
+        # Observations section
+        if self.narrative.get("observations"):
+            content_parts.append("## Observations\n")
+            content_parts.append(f"{self.narrative['observations']}\n")
+        else:
+            content_parts.append("## Observations\n\n")
+        
+        # Conclusions section
+        if self.narrative.get("conclusions"):
+            content_parts.append("## Conclusions\n")
+            content_parts.append(f"{self.narrative['conclusions']}\n")
+        else:
+            content_parts.append("## Conclusions\n\n")
+        
+        # Next Steps section
+        if self.narrative.get("next_steps"):
+            content_parts.append("## Next Steps\n")
+            content_parts.append(f"{self.narrative['next_steps']}\n")
+        else:
+            content_parts.append("## Next Steps\n\n")
+
+        # Write the markdown file with frontmatter
+        with open(file_path, "w") as f:
+            # Write frontmatter
+            f.write("---\n")
+            import yaml
+            f.write(yaml.dump(frontmatter, default_flow_style=False, sort_keys=False))
+            f.write("---\n\n")
+            
+            # Write content
+            f.write("".join(content_parts))
+
     def update_narrative(self, field_name: str, content: str):
         """Update narrative field."""
         self.narrative[field_name] = content
@@ -228,8 +321,8 @@ class Page:
             self.notebook_id, self.id, self.to_dict()
         )
 
-        # Update sidecar file
-        self._write_sidecar()
+        # Update markdown file
+        self._write_markdown_file()
 
     def update(self, **kwargs) -> "Page":
         """Update page properties."""
@@ -269,21 +362,20 @@ class Page:
             self.notebook_id, self.id, self.to_dict()
         )
 
-        # Update sidecar file
-        self._write_sidecar()
+        # Update markdown file
+        self._write_markdown_file()
 
         return self
 
     def delete(self) -> bool:
         """Delete this page."""
-        # Delete sidecar file if exists
+        # Delete markdown file if exists
         try:
-            page_dir = self.get_directory()
-            sidecar_path = page_dir.parent / f".{page_dir.name}.json"
-            if sidecar_path.exists():
-                sidecar_path.unlink()
+            file_path = self.get_file_path()
+            if file_path.exists():
+                file_path.unlink()
         except Exception:
-            pass  # Ignore errors when deleting sidecar
+            pass  # Ignore errors when deleting file
 
         # Delete from database
         session = self.workspace.db_manager.get_session()

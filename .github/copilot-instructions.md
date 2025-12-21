@@ -5,6 +5,7 @@
 **Codex** is a hierarchical digital laboratory journal system for tracking computational experiments, creative iterations, and technical investigations with full provenance and reproducibility. It's structured as Workspace → Notebook → Page → Entry.
 
 **Tech Stack:**
+
 - **Backend**: Python 3.12+ with FastAPI, SQLAlchemy, SQLite, Alembic migrations
 - **Frontend**: Vue.js 3, TypeScript, Vite
 - **CLI**: Click-based command-line interface
@@ -20,6 +21,7 @@
 **Python Version Required**: 3.12+ (3.13 in CI)
 
 **Installation Steps (Always run in this order):**
+
 ```bash
 # 1. Install dependencies (ALWAYS run before testing or building)
 pip install -e ".[dev]"
@@ -32,6 +34,7 @@ ruff check backend/
 ```
 
 **Known Linting Issues** (Do NOT fix unless you're changing those files):
+
 - `backend/codex/cli/main.py:1020` - Import sorting issue
 - `backend/codex/core/git_hooks.py` - Whitespace on blank lines (lines 306, 309, 326)
 - `backend/codex/core/mac_windows.py:3` - Import sorting issue
@@ -41,6 +44,7 @@ ruff check backend/
 **Node Version Required**: 20+ (tested with 20.19.6)
 
 **Build Steps:**
+
 ```bash
 cd frontend
 
@@ -62,12 +66,15 @@ npm run dev  # Runs on port 5174
 ### Docker Deployment
 
 **Validate Docker Setup (ALWAYS run before docker compose):**
+
 ```bash
 ./validate-docker.sh
 ```
+
 This checks all required files exist and Docker Compose configs are valid.
 
 **Development Deployment:**
+
 ```bash
 docker compose up -d
 # Frontend: http://localhost:5174
@@ -76,6 +83,7 @@ docker compose up -d
 ```
 
 **Production Deployment:**
+
 ```bash
 docker compose -f docker-compose.prod.yml up -d
 # Frontend: http://localhost
@@ -91,6 +99,7 @@ The project uses Alembic for database migrations. The migration system automatic
 ## Project Layout
 
 ### Repository Structure
+
 ```
 /
 ├── .github/workflows/test.yml    # CI: Python 3.13, pip install, pytest
@@ -105,7 +114,7 @@ The project uses Alembic for database migrations. The migration system automatic
 │   ├── core/                    # Core business logic
 │   │   ├── workspace.py         # Workspace management
 │   │   ├── notebook.py          # Notebook operations
-│   │   ├── page.py              # Page operations  
+│   │   ├── page.py              # Page operations
 │   │   ├── entry.py             # Entry CRUD and execution
 │   │   ├── storage.py           # Content-addressable storage
 │   │   ├── git_hooks.py         # Git hook integration
@@ -147,6 +156,7 @@ The project uses Alembic for database migrations. The migration system automatic
 ```
 
 ### Key Configuration Files
+
 - **pyproject.toml**: Python dependencies, project metadata, ruff linting config, pytest config
 - **mise.toml**: Specifies Python 3.13 and black for development
 - **package.json**: Frontend dependencies and build scripts
@@ -155,9 +165,10 @@ The project uses Alembic for database migrations. The migration system automatic
 ### CI/CD Pipeline
 
 **GitHub Actions** (`.github/workflows/test.yml`):
+
 - **Triggers**: Push/PR to main or develop branches, manual dispatch
 - **Environment**: Ubuntu latest, Python 3.13
-- **Steps**: 
+- **Steps**:
   1. Checkout code
   2. Setup Python 3.13
   3. Install dependencies: `pip install -e ".[dev]"`
@@ -167,6 +178,7 @@ The project uses Alembic for database migrations. The migration system automatic
 ### Data Model
 
 The system stores data in SQLite (`.lab/db/index.db`) with these main tables:
+
 - **notebooks**: Project-level containers
 - **pages**: Session-level grouping with narrative fields (goals, hypothesis, observations, conclusions)
 - **entries**: Individual experiments with inputs, outputs, execution data
@@ -202,7 +214,7 @@ codex page create "Initial Tests" --notebook "AI Experiments"
 codex search --query "experiment"
 
 # Start API server
-uvicorn codex.api.main:app --reload --port 8765
+uvicorn api.main:app --reload --port 8765
 
 # Start full stack (dev)
 docker compose up -d

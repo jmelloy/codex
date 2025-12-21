@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY pyproject.toml .
 
 RUN pip install -e .
-COPY backend ./backend
+COPY . .
 
 # Expose the API port
 EXPOSE 8765

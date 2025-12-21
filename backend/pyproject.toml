@@ -9,8 +9,6 @@ description = "A hierarchical digital laboratory journal system"
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.12"
-authors = [{ name = "Engineering Team" }]
-keywords = ["codex", "laboratory", "notebook", "experiment", "tracking"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -52,8 +50,7 @@ codex = "codex.cli.main:cli"
 Homepage = "https://github.com/jmelloy/labview"
 
 [tool.setuptools.packages.find]
-where = ["backend"]
-include = ["codex*"]
+where = ["."]
 
 [tool.ruff]
 line-length = 100

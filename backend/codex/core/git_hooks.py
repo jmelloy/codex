@@ -183,10 +183,10 @@ tags:
         # Create commit entry
         commit_entry = f"""
 ::: commit
-**Time**: {timestamp}  
-**Repo**: {repo}  
-**Branch**: {branch}  
-**SHA**: `{commit_sha[:8]}`  
+**Time**: {timestamp}
+**Repo**: {repo}
+**Branch**: {branch}
+**SHA**: `{commit_sha[:8]}`
 **Message**: {commit_message}
 :::
 """

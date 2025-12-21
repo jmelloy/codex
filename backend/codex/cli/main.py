@@ -725,7 +725,7 @@ def hooks_install(hooks_path: str, workspace: str, is_global: bool):
         success = GitHookManager.install_post_commit_hook(hooks_path, ws_path)
 
         if not success:
-            click.echo(f"Error: Failed to install post-commit hook", err=True)
+            click.echo("Error: Failed to install post-commit hook", err=True)
             raise click.Abort()
 
         click.echo(f"✓ Installed post-commit hook to: {hooks_path}")
@@ -813,14 +813,14 @@ def hooks_status():
 
             post_commit = hooks_path / "post-commit"
             if post_commit.exists():
-                click.echo(f"✓ Post-commit hook: Installed")
+                click.echo("✓ Post-commit hook: Installed")
                 # Check if it's executable
                 if post_commit.stat().st_mode & 0o111:
                     click.echo("  Status: Executable")
                 else:
                     click.echo("  Status: Not executable (may not work)")
             else:
-                click.echo(f"✗ Post-commit hook: Not installed")
+                click.echo("✗ Post-commit hook: Not installed")
         else:
             click.echo("Global git hooks path: Not configured")
             click.echo("\nRun 'codex hooks install --global' to set up git hooks.")
@@ -936,7 +936,7 @@ def daily_note_add_commit(
         ws_path = Path(workspace).expanduser().resolve()
         manager = DailyNoteManager(ws_path)
 
-        note_path = manager.add_commit_entry(sha, message, branch, repo)
+        manager.add_commit_entry(sha, message, branch, repo)
         # Silent success for hook usage
         # click.echo(f"✓ Added commit to: {note_path}")
 

@@ -7,6 +7,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 
+from api.routes.markdown import router as markdown_router
 from api.routes.notebooks import router as notebooks_router
 from api.routes.pages import router as pages_router
 from api.routes.search import router as search_router
@@ -45,6 +46,7 @@ app.include_router(workspace_router, prefix="/api", tags=["workspace"])
 app.include_router(notebooks_router, prefix="/api/notebooks", tags=["notebooks"])
 app.include_router(pages_router, prefix="/api/pages", tags=["pages"])
 app.include_router(search_router, prefix="/api/search", tags=["search"])
+app.include_router(markdown_router, prefix="/api/markdown", tags=["markdown"])
 
 
 @app.get("/")

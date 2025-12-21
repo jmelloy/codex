@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useNotebooksStore } from "@/stores/notebooks";
+import FrontmatterViewer from "@/components/markdown/FrontmatterViewer.vue";
 
 const route = useRoute();
 const notebooksStore = useNotebooksStore();
@@ -11,6 +12,12 @@ const loading = ref(true);
 const error = ref<string | null>(null);
 const fileContent = ref<string | null>(null);
 const fileType = ref<string>("unknown");
+const markdownData = ref<{
+  frontmatter: any;
+  rendered: any;
+  content: string;
+  blocks: any[];
+} | null>(null);
 
 // Track the current object URL to clean up on changes
 let currentObjectUrl: string | null = null;
@@ -28,6 +35,7 @@ function getFileType(path: string): string {
   const textTypes = ["md", "txt", "json", "py", "js", "ts", "html", "css", "yaml", "yml", "toml", "xml", "csv"];
   const imageTypes = ["png", "jpg", "jpeg", "gif", "svg", "webp"];
   
+  if (ext === "md" || ext === "markdown") return "markdown";
   if (textTypes.includes(ext)) return "text";
   if (imageTypes.includes(ext)) return "image";
   if (ext === "pdf") return "pdf";
@@ -46,8 +54,41 @@ async function loadFile() {
   loading.value = true;
   error.value = null;
   fileType.value = getFileType(filePath.value);
+  markdownData.value = null;
 
   try {
+    // For markdown files, try to fetch parsed data first
+    if (fileType.value === "markdown") {
+      try {
+        const renderedResponse = await fetch(
+          `/api/markdown/frontmatter/rendered?workspace_path=${encodeURIComponent(notebooksStore.workspacePath)}&path=${encodeURIComponent(filePath.value)}`
+        );
+        
+        if (renderedResponse.ok) {
+          const renderedData = await renderedResponse.json();
+          
+          // Also fetch the parsed content
+          const parsedResponse = await fetch(
+            `/api/markdown/parse?workspace_path=${encodeURIComponent(notebooksStore.workspacePath)}&path=${encodeURIComponent(filePath.value)}`
+          );
+          
+          if (parsedResponse.ok) {
+            const parsedData = await parsedResponse.json();
+            markdownData.value = {
+              frontmatter: parsedData.frontmatter,
+              rendered: renderedData.rendered,
+              content: parsedData.content,
+              blocks: parsedData.blocks,
+            };
+          }
+        }
+      } catch (e) {
+        // If parsing fails, fall back to raw text display
+        console.warn("Failed to parse markdown, falling back to raw display", e);
+      }
+    }
+
+    // Load file content (for text/image display or fallback)
     const response = await fetch(
       `/api/files/notebooks/content?workspace_path=${encodeURIComponent(notebooksStore.workspacePath)}&path=${encodeURIComponent(filePath.value)}`
     );
@@ -56,7 +97,7 @@ async function loadFile() {
       throw new Error(`Failed to load file: ${response.statusText}`);
     }
 
-    if (fileType.value === "text") {
+    if (fileType.value === "text" || fileType.value === "markdown") {
       fileContent.value = await response.text();
     } else if (fileType.value === "image") {
       const blob = await response.blob();
@@ -100,8 +141,38 @@ onUnmounted(() => {
     </div>
 
     <div v-else class="file-content">
-      <!-- Text content -->
-      <pre v-if="fileType === 'text'" class="text-content">{{ fileContent }}</pre>
+      <!-- Markdown with frontmatter -->
+      <div v-if="fileType === 'markdown' && markdownData" class="markdown-view">
+        <!-- Display rendered frontmatter -->
+        <FrontmatterViewer
+          v-if="Object.keys(markdownData.rendered).length > 0"
+          :rendered="markdownData.rendered"
+        />
+
+        <!-- Display content blocks -->
+        <div v-if="markdownData.blocks.length > 0" class="content-blocks">
+          <h3>Content Blocks</h3>
+          <div
+            v-for="(block, index) in markdownData.blocks"
+            :key="index"
+            class="content-block"
+          >
+            <div class="block-header">
+              <span class="block-type">{{ block.type }}</span>
+            </div>
+            <pre class="block-content">{{ block.content }}</pre>
+          </div>
+        </div>
+
+        <!-- Display main markdown content -->
+        <div v-if="markdownData.content" class="markdown-content">
+          <h3>Content</h3>
+          <pre class="text-content">{{ markdownData.content }}</pre>
+        </div>
+      </div>
+
+      <!-- Plain text content (including markdown fallback) -->
+      <pre v-else-if="fileType === 'text' || fileType === 'markdown'" class="text-content">{{ fileContent }}</pre>
 
       <!-- Image content -->
       <div v-else-if="fileType === 'image'" class="image-content">
@@ -188,5 +259,77 @@ onUnmounted(() => {
   color: var(--color-text-secondary);
   font-size: 0.875rem;
   font-family: var(--font-mono);
+}
+
+.markdown-view {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.content-blocks {
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+}
+
+.content-blocks h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.content-block {
+  margin-bottom: 1.5rem;
+}
+
+.content-block:last-child {
+  margin-bottom: 0;
+}
+
+.block-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.block-type {
+  display: inline-block;
+  padding: 0.125rem 0.625rem;
+  background: #3b82f6;
+  color: white;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.block-content {
+  padding: 1rem;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  line-height: 1.6;
+  background: var(--color-background-soft);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.markdown-content {
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+}
+
+.markdown-content h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+  font-weight: 600;
 }
 </style>

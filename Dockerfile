@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM python:3.13-slim
 
 WORKDIR /app
 
@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY pyproject.toml .
 
 RUN pip install -e .
-COPY codex ./codex
+COPY backend ./backend
 
 # Expose the API port
 EXPOSE 8765

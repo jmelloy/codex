@@ -54,7 +54,7 @@ class Entry:
         tags: Optional[list[str]] = None,
     ) -> "Entry":
         """Create a new entry."""
-        entry_id = str(ULID())
+        entry_id = f"entry-{ULID()}"
 
         entry = cls(
             id=entry_id,

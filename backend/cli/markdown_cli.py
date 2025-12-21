@@ -317,5 +317,125 @@ def page_update(
         raise click.Abort()
 
 
+@markdown_cli.group()
+def entry():
+    """Entry management commands."""
+    pass
+
+
+@entry.command("add")
+@click.argument("title")
+@click.option("--page", "-p", required=True, help="Page ID")
+@click.option("--notebook", "-n", required=True, help="Notebook ID")
+@click.option("--type", "-t", "entry_type", default="custom", help="Entry type")
+@click.option("--input", "-i", "inputs", multiple=True, help="Input key=value pairs")
+@click.option("--output", "-o", "outputs", multiple=True, help="Output key=value pairs")
+@click.option("--artifact", "-a", "artifacts", multiple=True, help="Artifact paths")
+@click.option("--workspace", "-w", default=".", help="Workspace path")
+def entry_add(
+    title: str,
+    page: str,
+    notebook: str,
+    entry_type: str,
+    inputs: tuple,
+    outputs: tuple,
+    artifacts: tuple,
+    workspace: str,
+):
+    """Add an entry to a page."""
+    try:
+        ws = MarkdownWorkspace(Path(workspace).resolve())
+        nb = ws.get_notebook(notebook)
+        
+        if not nb:
+            click.echo(f"✗ Notebook not found: {notebook}", err=True)
+            raise click.Abort()
+        
+        p = nb.get_page(page)
+        if not p:
+            click.echo(f"✗ Page not found: {page}", err=True)
+            raise click.Abort()
+        
+        # Parse inputs
+        input_dict = {}
+        for inp in inputs:
+            if "=" in inp:
+                key, value = inp.split("=", 1)
+                input_dict[key] = value
+        
+        # Parse outputs
+        output_dict = {}
+        for out in outputs:
+            if "=" in out:
+                key, value = out.split("=", 1)
+                output_dict[key] = value
+        
+        # Parse artifacts
+        artifact_list = []
+        for art in artifacts:
+            artifact_list.append({
+                "path": art,
+                "type": "unknown"
+            })
+        
+        entry_id = p.add_entry(
+            title=title,
+            entry_type=entry_type,
+            inputs=input_dict,
+            outputs=output_dict if output_dict else None,
+            artifacts=artifact_list if artifact_list else None,
+        )
+        
+        click.echo(f"✓ Added entry: {entry_id}")
+        click.echo(f"  Title: {title}")
+        click.echo(f"  Type: {entry_type}")
+        click.echo(f"  Inputs: {len(input_dict)} key(s)")
+        if output_dict:
+            click.echo(f"  Outputs: {len(output_dict)} key(s)")
+        if artifact_list:
+            click.echo(f"  Artifacts: {len(artifact_list)}")
+    except Exception as e:
+        click.echo(f"✗ Error: {e}", err=True)
+        raise click.Abort()
+
+
+@entry.command("list")
+@click.option("--page", "-p", required=True, help="Page ID")
+@click.option("--notebook", "-n", required=True, help="Notebook ID")
+@click.option("--workspace", "-w", default=".", help="Workspace path")
+def entry_list(page: str, notebook: str, workspace: str):
+    """List entries in a page."""
+    try:
+        ws = MarkdownWorkspace(Path(workspace).resolve())
+        nb = ws.get_notebook(notebook)
+        
+        if not nb:
+            click.echo(f"✗ Notebook not found: {notebook}", err=True)
+            raise click.Abort()
+        
+        p = nb.get_page(page)
+        if not p:
+            click.echo(f"✗ Page not found: {page}", err=True)
+            raise click.Abort()
+        
+        if not p.entries:
+            click.echo(f"No entries in page: {p.title}")
+            return
+        
+        click.echo(f"Found {len(p.entries)} entry/entries in '{p.title}':\n")
+        for entry in p.entries:
+            click.echo(f"  📝 {entry.get('title', 'Untitled')}")
+            click.echo(f"     ID: {entry.get('id', 'unknown')}")
+            click.echo(f"     Type: {entry.get('entry_type', 'unknown')}")
+            click.echo(f"     Status: {entry.get('status', 'unknown')}")
+            click.echo(f"     Created: {entry.get('created_at', 'unknown')}")
+            if entry.get('artifacts'):
+                click.echo(f"     Artifacts: {len(entry['artifacts'])}")
+            click.echo()
+    except Exception as e:
+        click.echo(f"✗ Error: {e}", err=True)
+        raise click.Abort()
+
+
 if __name__ == "__main__":
     markdown_cli()

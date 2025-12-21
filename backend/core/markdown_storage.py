@@ -391,15 +391,48 @@ class MarkdownPage:
         
         return page
 
-    def add_entry(self, entry_data: dict):
+    def add_entry(
+        self,
+        title: str,
+        entry_type: str,
+        inputs: dict,
+        outputs: Optional[dict] = None,
+        artifacts: Optional[list] = None,
+        metadata: Optional[dict] = None,
+    ) -> str:
         """Add an entry to this page.
         
         Args:
-            entry_data: Entry data dictionary
+            title: Entry title
+            entry_type: Type of entry (custom, api_call, comfyui, etc.)
+            inputs: Input parameters
+            outputs: Output results
+            artifacts: List of artifact references
+            metadata: Additional metadata
+            
+        Returns:
+            Entry ID
         """
+        # Generate entry ID
+        entry_id = f"entry-{hashlib.sha256(f'{_now().isoformat()}-{title}'.encode()).hexdigest()[:12]}"
+        
+        entry_data = {
+            "id": entry_id,
+            "title": title,
+            "entry_type": entry_type,
+            "created_at": _now().isoformat(),
+            "status": "created",
+            "inputs": inputs,
+            "outputs": outputs or {},
+            "artifacts": artifacts or [],
+            "metadata": metadata or {},
+        }
+        
         self.entries.append(entry_data)
         self.updated_at = _now()
         self.save()
+        
+        return entry_id
 
     def update_narrative(self, field: str, content: str):
         """Update a narrative field.

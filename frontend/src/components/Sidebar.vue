@@ -3,7 +3,7 @@ import { ref, computed, onMounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useNotebooksStore } from "@/stores/notebooks";
 import { pagesApi, filesApi, type FileTreeItem } from "@/api";
-import type { Notebook, Page } from "@/types";
+import type {  Page } from "@/types";
 
 const route = useRoute();
 const router = useRouter();
@@ -15,10 +15,8 @@ const notebookPages = ref<Map<string, Page[]>>(new Map());
 const notebookFiles = ref<FileTreeItem[]>([]);
 const loading = ref(true);
 
-const notebooks = computed(() => Array.from(notebooksStore.notebooks.values()));
 
 const currentNotebookId = computed(() => route.params.notebookId as string | undefined);
-const currentPageId = computed(() => route.params.pageId as string | undefined);
 const currentFilePath = computed(() => route.query.path as string | undefined);
 
 onMounted(async () => {
@@ -62,14 +60,7 @@ async function loadNotebookFiles() {
   }
 }
 
-async function toggleNotebook(notebook: Notebook) {
-  if (expandedNotebooks.value.has(notebook.id)) {
-    expandedNotebooks.value.delete(notebook.id);
-  } else {
-    expandedNotebooks.value.add(notebook.id);
-    await loadPagesForNotebook(notebook.id);
-  }
-}
+
 
 function toggleDir(path: string) {
   if (expandedDirs.value.has(path)) {
@@ -79,28 +70,16 @@ function toggleDir(path: string) {
   }
 }
 
-function navigateToNotebook(notebook: Notebook) {
-  router.push(`/notebooks/${notebook.id}`);
-}
-
-function navigateToPage(notebookId: string, page: Page) {
-  router.push(`/notebooks/${notebookId}/pages/${page.id}`);
-}
-
 function navigateToFile(filePath: string) {
+  // Ensure path is properly passed to router - Vue Router will handle encoding
   router.push({ path: '/files', query: { path: filePath } });
 }
 
-function isNotebookActive(notebook: Notebook) {
-  return currentNotebookId.value === notebook.id && !currentPageId.value;
-}
-
-function isPageActive(page: Page) {
-  return currentPageId.value === page.id;
-}
-
 function isFileActive(path: string) {
-  return currentFilePath.value === path;
+  // Normalize both paths for comparison to handle encoding differences
+  const normalizedCurrent = currentFilePath.value?.replace(/\+/g, ' ').trim();
+  const normalizedPath = path?.replace(/\+/g, ' ').trim();
+  return normalizedCurrent === normalizedPath;
 }
 
 function getFileIcon(item: FileTreeItem): string {

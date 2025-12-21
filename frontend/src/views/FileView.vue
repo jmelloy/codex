@@ -7,7 +7,11 @@ import FrontmatterViewer from "@/components/markdown/FrontmatterViewer.vue";
 const route = useRoute();
 const notebooksStore = useNotebooksStore();
 
-const filePath = computed(() => route.query.path as string || "");
+const filePath = computed(() => {
+  const path = route.query.path as string || "";
+  // Normalize the path: replace + with space (in case of URL encoding issues)
+  return path.replace(/\+/g, ' ');
+});
 const loading = ref(true);
 const error = ref<string | null>(null);
 const fileContent = ref<string | null>(null);

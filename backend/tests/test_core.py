@@ -252,18 +252,19 @@ class TestPage:
         assert page.notebook_id == nb.id
         assert page.narrative["goals"] == "Test goals"
 
-        # Check sidecar file was created
-        page_dir = page.get_directory()
-        sidecar_path = page_dir.parent / f".{page_dir.name}.json"
-        assert sidecar_path.exists()
+        # Check markdown file was created
+        file_path = page.get_file_path()
+        assert file_path.exists()
+        assert file_path.suffix == ".md"
 
-        # Verify sidecar content
-        with open(sidecar_path) as f:
-            sidecar = json.load(f)
-        assert sidecar["id"] == page.id
-        assert sidecar["title"] == "Test Page"
-        assert sidecar["type"] == "page"
-        assert sidecar["notebook_id"] == nb.id
+        # Verify markdown content has frontmatter and narrative sections
+        with open(file_path) as f:
+            content = f.read()
+        assert "---" in content  # frontmatter delimiter
+        assert page.id in content
+        assert "Test Page" in content
+        assert "## Goals" in content
+        assert "Test goals" in content
 
     def test_list_pages(self, tmp_path):
         """Test listing pages."""

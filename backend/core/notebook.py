@@ -187,7 +187,7 @@ class Notebook:
             return  # Git not available
 
         notebook_dir = self.get_directory()
-        
+
         try:
             # Check if already a git repo
             self._notebook_repo = Repo(notebook_dir)
@@ -228,7 +228,7 @@ class Notebook:
         """Commit changes to files in this notebook."""
         if not self._notebook_repo:
             self._load_notebook_git()
-        
+
         if not self._notebook_repo:
             return  # No git repo available
 
@@ -240,7 +240,7 @@ class Notebook:
                 if file_path.exists():
                     rel_path = file_path.relative_to(notebook_dir)
                     relative_paths.append(str(rel_path))
-            
+
             if relative_paths:
                 self._notebook_repo.index.add(relative_paths)
                 self._notebook_repo.index.commit(message)

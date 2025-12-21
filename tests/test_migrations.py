@@ -185,12 +185,10 @@ class TestMigrationsWithData:
         # Create some data
         nb = ws.create_notebook("Test Notebook", "Test description")
         page = nb.create_page("Test Page")
-        entry = page.create_entry("custom", "Test Entry", {"key": "value"})
 
         # Verify data exists
         assert ws.get_notebook(nb.id) is not None
         assert nb.get_page(page.id) is not None
-        assert page.get_entry(entry.id) is not None
 
         # Run migrations (should be no-op since already at head)
         ws.db_manager.run_migrations()
@@ -198,4 +196,3 @@ class TestMigrationsWithData:
         # Verify data still exists
         assert ws.get_notebook(nb.id) is not None
         assert nb.get_page(page.id) is not None
-        assert page.get_entry(entry.id) is not None

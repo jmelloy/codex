@@ -289,3 +289,188 @@ class TestDailyNoteFormat:
 
         # Check task list format
         assert "- [ ]" in content
+
+
+class TestWindowLogging:
+    """Tests for window logging functionality."""
+
+    @pytest.fixture
+    def manager(self, tmp_path):
+        """Create a DailyNoteManager for testing."""
+        return DailyNoteManager(tmp_path)
+
+    def test_add_window_entry_to_new_note(self, manager):
+        """Test adding window entry to a new daily note."""
+        note_path = manager.add_window_entry(
+            app_name="Safari",
+            window_name="GitHub - Pull Requests",
+            url="https://github.com/pulls",
+        )
+        assert note_path.exists()
+
+        content = note_path.read_text()
+        assert "::: window" in content
+        assert "Safari" in content
+        assert "GitHub - Pull Requests" in content
+        assert "https://github.com/pulls" in content
+
+    def test_add_window_entry_without_url(self, manager):
+        """Test adding window entry without URL."""
+        note_path = manager.add_window_entry(
+            app_name="Visual Studio Code",
+            window_name="main.py - myproject",
+        )
+        assert note_path.exists()
+
+        content = note_path.read_text()
+        assert "::: window" in content
+        assert "Visual Studio Code" in content
+        assert "main.py - myproject" in content
+        assert "**URL**:" not in content
+
+    def test_add_window_entry_to_existing_note(self, manager):
+        """Test adding window entry to existing daily note."""
+        # Create initial note with first window
+        manager.add_window_entry(
+            app_name="Safari",
+            window_name="First Window",
+        )
+
+        # Add second window
+        note_path = manager.add_window_entry(
+            app_name="Chrome",
+            window_name="Second Window",
+            url="https://example.com",
+        )
+
+        content = note_path.read_text()
+        assert content.count("::: window") == 2
+        assert "First Window" in content
+        assert "Second Window" in content
+        assert "Safari" in content
+        assert "Chrome" in content
+
+    def test_add_window_entry_creates_active_windows_section(self, manager):
+        """Test that window entry creates Active Windows section."""
+        note_path = manager.add_window_entry(
+            app_name="Terminal",
+            window_name="bash",
+        )
+
+        content = note_path.read_text()
+        assert "## Active Windows" in content
+
+    def test_add_window_entry_before_commits_section(self, manager):
+        """Test that Active Windows section is added before Commits."""
+        # Create note with commit first
+        manager.add_commit_entry(
+            commit_sha="abc123",
+            commit_message="Test commit",
+            branch="main",
+            repo="test-repo",
+        )
+
+        # Add window entry
+        note_path = manager.add_window_entry(
+            app_name="Terminal",
+            window_name="bash",
+        )
+
+        content = note_path.read_text()
+
+        # Active Windows should come before Commits
+        windows_pos = content.find("## Active Windows")
+        commits_pos = content.find("## Commits")
+        assert windows_pos < commits_pos
+
+    def test_window_entry_format(self, manager):
+        """Test that window entry has correct format."""
+        manager.add_window_entry(
+            app_name="Safari",
+            window_name="GitHub",
+            url="https://github.com",
+        )
+        note_path = manager.get_daily_note_path()
+        content = note_path.read_text()
+
+        # Check block delimiters
+        assert "::: window" in content
+        assert ":::" in content
+
+        # Check window details
+        assert "**Time**:" in content
+        assert "**App**:" in content
+        assert "**Window**:" in content
+        assert "**URL**:" in content
+
+    def test_multiple_window_entries_same_day(self, manager):
+        """Test adding multiple window entries on same day."""
+        apps = [
+            ("Safari", "GitHub", "https://github.com"),
+            ("Visual Studio Code", "main.py", None),
+            ("Terminal", "bash", None),
+            ("Chrome", "Google", "https://google.com"),
+        ]
+
+        for app_name, window_name, url in apps:
+            manager.add_window_entry(app_name, window_name, url)
+
+        note_path = manager.get_daily_note_path()
+        content = note_path.read_text()
+
+        # Should have all 4 window entries
+        assert content.count("::: window") == 4
+        for app_name, window_name, url in apps:
+            assert app_name in content
+            assert window_name in content
+            if url:
+                assert url in content
+
+    def test_window_entry_with_multiple_sections(self, manager):
+        """Test that window entries are correctly placed with multiple sections."""
+        # Create note with multiple sections
+        manager.create_daily_note()
+        
+        # Add a commit
+        manager.add_commit_entry(
+            commit_sha="abc123",
+            commit_message="Test commit",
+            branch="main",
+            repo="test-repo",
+        )
+        
+        # Add window entry (should go before commits)
+        manager.add_window_entry(
+            app_name="Terminal",
+            window_name="bash",
+        )
+        
+        # Add another window entry
+        manager.add_window_entry(
+            app_name="Safari",
+            window_name="GitHub",
+            url="https://github.com",
+        )
+        
+        note_path = manager.get_daily_note_path()
+        content = note_path.read_text()
+        
+        # Verify all sections exist in the correct order
+        notes_pos = content.find("## Notes")
+        windows_pos = content.find("## Active Windows")
+        commits_pos = content.find("## Commits")
+        tasks_pos = content.find("## Tasks")
+        
+        # All sections should exist
+        assert notes_pos > 0
+        assert windows_pos > 0
+        assert commits_pos > 0
+        assert tasks_pos > 0
+        
+        # Verify order: Notes < Active Windows < Commits < Tasks
+        assert notes_pos < windows_pos < commits_pos < tasks_pos
+        
+        # Verify both window entries are present
+        assert content.count("::: window") == 2
+        assert "Terminal" in content
+        assert "Safari" in content

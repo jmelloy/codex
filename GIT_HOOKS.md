@@ -2,7 +2,11 @@
 
 Codex provides Git hook integration to automatically track your commits in daily notes. This feature helps you maintain a chronological log of your development work across all repositories.
 
+Additionally, on macOS, Codex can track the active window and application you're working in, including browser URLs.
+
 ## Overview
+
+### Git Commit Tracking
 
 The post-commit hook automatically captures commit information and appends it to your daily note file:
 - Commit SHA (shortened)
@@ -10,6 +14,16 @@ The post-commit hook automatically captures commit information and appends it to
 - Branch name
 - Repository name
 - Timestamp
+
+### Active Window Tracking (macOS)
+
+The active window logger captures information about the currently focused application:
+- Application name
+- Window title
+- Current URL (for web browsers)
+- Timestamp
+
+Supports Safari, Chrome, Brave, Edge, Arc, and other browsers.
 
 ## Installation
 
@@ -144,6 +158,28 @@ codex daily-note add-commit \
     --branch main \
     --repo myproject
 ```
+
+### Active Window Logging (macOS)
+
+Log the currently active window to your daily note:
+
+```bash
+# Auto-detect active window (macOS only)
+codex daily-note add-window
+
+# Manually specify window information
+codex daily-note add-window \
+    --app "Visual Studio Code" \
+    --window "main.py - myproject"
+
+# With URL for browsers
+codex daily-note add-window \
+    --app "Safari" \
+    --window "GitHub" \
+    --url "https://github.com"
+```
+
+For macOS-specific scripts and automation options, see [scripts/mac/README.md](scripts/mac/README.md).
 
 ## Configuration
 

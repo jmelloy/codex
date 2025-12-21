@@ -7,7 +7,7 @@ services:
       - "8765:8765"
     volumes:
       - ~/.codex/workspace:/data/workspace
-      - ./backend:/app/backend
+      - ./backend:/app
     environment:
       - CODEX_WORKSPACE_PATH=/data/workspace
       - DEBUG=true

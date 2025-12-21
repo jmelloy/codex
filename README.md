@@ -229,6 +229,7 @@ See [AGENT_SYSTEM.md](AGENT_SYSTEM.md) for complete documentation.
 | **Post-Commit Hook** | ✅ | Automatically log commits to daily notes |
 | **Daily Notes** | ✅ | Markdown-based daily logs with commit tracking |
 | **CLI Commands** | ✅ | Install, manage, and view git hooks and daily notes |
+| **Active Window Logger (macOS)** | ✅ | Track active applications and browser URLs |
 
 See [GIT_HOOKS.md](GIT_HOOKS.md) for complete documentation.
 
@@ -240,9 +241,23 @@ codex hooks install --global --workspace ~/my-lab
 # Make commits as usual - they'll be logged automatically
 git commit -m "Implement feature X"
 
-# View today's commits
+# Log active window (macOS only)
+codex daily-note add-window
+
+# View today's commits and windows
 codex daily-note view
 ```
+
+**macOS Scripts:**
+```bash
+# Run standalone AppleScript to log active window
+./scripts/mac/log-active-window.applescript
+
+# Or use the shell script wrapper
+./scripts/mac/log-active-window.sh
+```
+
+See [scripts/mac/README.md](scripts/mac/README.md) for automation ideas (keyboard shortcuts, periodic logging, etc.).
 
 ---
 

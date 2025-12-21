@@ -987,5 +987,82 @@ def daily_note_view(workspace: str, date: str):
         raise click.Abort()
 
 
+@daily_note.command("add-window")
+@click.option("--workspace", "-w", default=".", help="Workspace path")
+@click.option("--app", help="Application name (auto-detected on Mac if not provided)")
+@click.option("--window", help="Window title (auto-detected on Mac if not provided)")
+@click.option("--url", help="URL (auto-detected for browsers on Mac if not provided)")
+def daily_note_add_window(workspace: str, app: str, window: str, url: str):
+    """Add active window information to today's daily note.
+
+    On macOS, this command automatically detects the currently active window
+    and its details. For web browsers, it also captures the current URL.
+
+    Example:
+
+    \b
+    # Auto-detect active window (macOS only)
+    codex daily-note add-window
+
+    \b
+    # Manually specify window information
+    codex daily-note add-window \\
+        --app "Visual Studio Code" \\
+        --window "main.py - myproject"
+
+    \b
+    # Manually specify browser with URL
+    codex daily-note add-window \\
+        --app "Safari" \\
+        --window "GitHub" \\
+        --url "https://github.com"
+    """
+    from codex.core.git_hooks import DailyNoteManager
+    import platform
+
+    try:
+        ws_path = Path(workspace).expanduser().resolve()
+        manager = DailyNoteManager(ws_path)
+
+        # If no manual input provided, try auto-detection on macOS
+        if not app or not window:
+            if platform.system() != "Darwin":
+                click.echo(
+                    "Error: Auto-detection is only supported on macOS. "
+                    "Please provide --app and --window options.",
+                    err=True,
+                )
+                raise click.Abort()
+
+            try:
+                from codex.core.mac_windows import MacWindowDetector
+
+                window_info = MacWindowDetector.get_active_window_info()
+                if not window_info:
+                    click.echo("Error: Could not detect active window.", err=True)
+                    raise click.Abort()
+
+                app = window_info.get("app_name", "Unknown")
+                window = window_info.get("window_name", "Unknown")
+                if not url and "url" in window_info:
+                    url = window_info["url"]
+
+            except ImportError:
+                click.echo(
+                    "Error: Mac window detection not available. "
+                    "Please provide --app and --window options.",
+                    err=True,
+                )
+                raise click.Abort()
+
+        # Add the window entry
+        note_path = manager.add_window_entry(app, window, url)
+        click.echo(f"✓ Added window entry to: {note_path}")
+
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        raise click.Abort()
+
+
 if __name__ == "__main__":
     cli()

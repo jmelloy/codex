@@ -255,3 +255,74 @@ Commits will be automatically logged here by the git post-commit hook.
         if limit:
             notes = notes[:limit]
         return notes
+
+    def add_window_entry(
+        self,
+        app_name: str,
+        window_name: str,
+        url: Optional[str] = None,
+        date: Optional[datetime] = None,
+    ) -> Path:
+        """Add an active window entry to the daily note.
+
+        Args:
+            app_name: Application name
+            window_name: Window title
+            url: URL if it's a web browser (optional)
+            date: Date for the note (defaults to today)
+
+        Returns:
+            Path to the updated daily note
+        """
+        note_path = self.get_daily_note_path(date)
+        timestamp = datetime.now().strftime("%H:%M:%S")
+
+        # Check if file exists
+        if note_path.exists():
+            content = note_path.read_text()
+        else:
+            # Create new daily note with frontmatter
+            date_str = (date or datetime.now()).strftime("%Y-%m-%d")
+            content = f"""---
+title: Daily Note - {date_str}
+date: {date_str}
+tags:
+  - daily-note
+  - auto-generated
+---
+
+# Daily Note - {date_str}
+
+## Active Windows
+
+"""
+
+        # Create window entry
+        window_entry = f"""
+::: window
+**Time**: {timestamp}
+**App**: {app_name}
+**Window**: {window_name}"""
+        
+        if url:
+            window_entry += f"\n**URL**: {url}"
+        
+        window_entry += "\n:::\n"
+
+        # Append to the Active Windows section
+        if "## Active Windows" in content:
+            # Add after the Active Windows header
+            parts = content.split("## Active Windows", 1)
+            content = parts[0] + "## Active Windows" + parts[1] + window_entry
+        else:
+            # Add Active Windows section if it doesn't exist
+            # Try to add it before Commits section if it exists
+            if "## Commits" in content:
+                parts = content.split("## Commits", 1)
+                content = parts[0] + "\n## Active Windows\n" + window_entry + "\n## Commits" + parts[1]
+            else:
+                content += "\n## Active Windows\n" + window_entry
+
+        # Write the updated content
+        note_path.write_text(content)
+        return note_path

@@ -377,7 +377,7 @@ class TestWindowLogging:
         )
 
         content = note_path.read_text()
-        
+
         # Active Windows should come before Commits
         windows_pos = content.find("## Active Windows")
         commits_pos = content.find("## Commits")
@@ -425,3 +425,52 @@ class TestWindowLogging:
             assert window_name in content
             if url:
                 assert url in content
+
+    def test_window_entry_with_multiple_sections(self, manager):
+        """Test that window entries are correctly placed with multiple sections."""
+        # Create note with multiple sections
+        manager.create_daily_note()
+        
+        # Add a commit
+        manager.add_commit_entry(
+            commit_sha="abc123",
+            commit_message="Test commit",
+            branch="main",
+            repo="test-repo",
+        )
+        
+        # Add window entry (should go before commits)
+        manager.add_window_entry(
+            app_name="Terminal",
+            window_name="bash",
+        )
+        
+        # Add another window entry
+        manager.add_window_entry(
+            app_name="Safari",
+            window_name="GitHub",
+            url="https://github.com",
+        )
+        
+        note_path = manager.get_daily_note_path()
+        content = note_path.read_text()
+        
+        # Verify all sections exist in the correct order
+        notes_pos = content.find("## Notes")
+        windows_pos = content.find("## Active Windows")
+        commits_pos = content.find("## Commits")
+        tasks_pos = content.find("## Tasks")
+        
+        # All sections should exist
+        assert notes_pos > 0
+        assert windows_pos > 0
+        assert commits_pos > 0
+        assert tasks_pos > 0
+        
+        # Verify order: Notes < Active Windows < Commits < Tasks
+        assert notes_pos < windows_pos < commits_pos < tasks_pos
+        
+        # Verify both window entries are present
+        assert content.count("::: window") == 2
+        assert "Terminal" in content
+        assert "Safari" in content

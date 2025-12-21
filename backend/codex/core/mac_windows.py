@@ -189,23 +189,3 @@ class MacWindowDetector:
             return output if output else None
         except (subprocess.SubprocessError, subprocess.TimeoutExpired):
             return None
-
-    @staticmethod
-    def format_window_entry(window_info: Dict[str, str]) -> str:
-        """Format window information for daily note entry.
-
-        Args:
-            window_info: Dictionary with app_name, window_name, and optional url
-
-        Returns:
-            Formatted string for daily note
-        """
-        app_name = window_info.get("app_name", "Unknown")
-        window_name = window_info.get("window_name", "Unknown")
-        url = window_info.get("url")
-
-        entry = f"**App**: {app_name}  \n**Window**: {window_name}"
-        if url:
-            entry += f"  \n**URL**: {url}"
-
-        return entry

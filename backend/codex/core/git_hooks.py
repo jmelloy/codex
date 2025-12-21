@@ -311,9 +311,23 @@ tags:
 
         # Append to the Active Windows section
         if "## Active Windows" in content:
-            # Add after the Active Windows header
+            # Find where to insert: after the section header, preserve existing entries
+            # Split on the section header and append to that section
             parts = content.split("## Active Windows", 1)
-            content = parts[0] + "## Active Windows" + parts[1] + window_entry
+            # Find the next section marker or end of content
+            rest = parts[1]
+            next_section = None
+            for section_marker in ["\n## ", "\n# "]:
+                if section_marker in rest:
+                    idx = rest.index(section_marker)
+                    next_section = rest[idx:]
+                    rest = rest[:idx]
+                    break
+            
+            if next_section:
+                content = parts[0] + "## Active Windows" + rest + window_entry + next_section
+            else:
+                content = parts[0] + "## Active Windows" + rest + window_entry
         else:
             # Add Active Windows section if it doesn't exist
             # Try to add it before Commits section if it exists

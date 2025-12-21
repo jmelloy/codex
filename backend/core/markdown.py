@@ -1,4 +1,4 @@
-"""Markdown format utilities for Codex.
+"""Markdown format utilities for
 
 This module provides utilities for working with markdown files that follow
 the Codex standard format:
@@ -59,7 +59,7 @@ class MarkdownDocument:
         # Extract blocks
         blocks = []
         block_pattern = r":::\s*(\w+)\s*\n(.*?)\n:::"
-        
+
         for match in re.finditer(block_pattern, remaining_text, re.DOTALL):
             block_type = match.group(1)
             block_content = match.group(2).strip()
@@ -122,7 +122,9 @@ class MarkdownDocument:
         Returns:
             List of block contents
         """
-        return [block["content"] for block in self.blocks if block["type"] == block_type]
+        return [
+            block["content"] for block in self.blocks if block["type"] == block_type
+        ]
 
     def add_block(self, block_type: str, content: str) -> None:
         """Add a new block to the document.

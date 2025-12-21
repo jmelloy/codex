@@ -8,14 +8,14 @@ from typing import TYPE_CHECKING, Optional
 
 from ulid import ULID
 
-from codex.db.models import Artifact as ArtifactModel
-from codex.db.models import Entry as EntryModel
-from codex.db.models import EntryLineage as EntryLineageModel
-from codex.db.models import Page as PageModel
+from db.models import Artifact as ArtifactModel
+from db.models import Entry as EntryModel
+from db.models import EntryLineage as EntryLineageModel
+from db.models import Page as PageModel
 
 if TYPE_CHECKING:
-    from codex.core.page import Page
-    from codex.core.workspace import Workspace
+    from core.page import Page
+    from core.workspace import Workspace
 
 
 def _now() -> datetime:
@@ -95,12 +95,14 @@ class Entry:
                 outputs=json.dumps({}),
                 execution=json.dumps({}),
                 metrics=json.dumps({}),
-                metadata_=json.dumps({
-                    "tags": tags or [],
-                    "notes": "",
-                    "rating": None,
-                    "archived": False,
-                }),
+                metadata_=json.dumps(
+                    {
+                        "tags": tags or [],
+                        "notes": "",
+                        "rating": None,
+                        "archived": False,
+                    }
+                ),
             )
 
             # Update lineage if has parent
@@ -176,7 +178,7 @@ class Entry:
 
     async def execute(self, integration_class=None):
         """Execute this entry using its integration."""
-        from codex.integrations.registry import IntegrationRegistry
+        from integrations.registry import IntegrationRegistry
 
         self.status = "running"
         self.execution["started_at"] = _now().isoformat()
@@ -322,21 +324,37 @@ class Entry:
                     for pid in parent_ids:
                         e = EntryModel.get_by_id(session, pid)
                         if e:
-                            entries.append({
-                                "id": e.id,
-                                "page_id": e.page_id,
-                                "entry_type": e.entry_type,
-                                "title": e.title,
-                                "created_at": e.created_at.isoformat() if e.created_at else None,
-                                "status": e.status,
-                                "parent_id": e.parent_id,
-                                "inputs": json.loads(e.inputs) if e.inputs else {},
-                                "outputs": json.loads(e.outputs) if e.outputs else {},
-                                "execution": json.loads(e.execution) if e.execution else {},
-                                "metrics": json.loads(e.metrics) if e.metrics else {},
-                                "metadata": json.loads(e.metadata_) if e.metadata_ else {},
-                                "tags": [et.tag.name for et in e.tags] if e.tags else [],
-                            })
+                            entries.append(
+                                {
+                                    "id": e.id,
+                                    "page_id": e.page_id,
+                                    "entry_type": e.entry_type,
+                                    "title": e.title,
+                                    "created_at": (
+                                        e.created_at.isoformat()
+                                        if e.created_at
+                                        else None
+                                    ),
+                                    "status": e.status,
+                                    "parent_id": e.parent_id,
+                                    "inputs": json.loads(e.inputs) if e.inputs else {},
+                                    "outputs": (
+                                        json.loads(e.outputs) if e.outputs else {}
+                                    ),
+                                    "execution": (
+                                        json.loads(e.execution) if e.execution else {}
+                                    ),
+                                    "metrics": (
+                                        json.loads(e.metrics) if e.metrics else {}
+                                    ),
+                                    "metadata": (
+                                        json.loads(e.metadata_) if e.metadata_ else {}
+                                    ),
+                                    "tags": (
+                                        [et.tag.name for et in e.tags] if e.tags else []
+                                    ),
+                                }
+                            )
                     ancestors.extend(entries)
                     current_ids = parent_ids
                 else:
@@ -360,21 +378,37 @@ class Entry:
                     for cid in child_ids:
                         e = EntryModel.get_by_id(session, cid)
                         if e:
-                            entries.append({
-                                "id": e.id,
-                                "page_id": e.page_id,
-                                "entry_type": e.entry_type,
-                                "title": e.title,
-                                "created_at": e.created_at.isoformat() if e.created_at else None,
-                                "status": e.status,
-                                "parent_id": e.parent_id,
-                                "inputs": json.loads(e.inputs) if e.inputs else {},
-                                "outputs": json.loads(e.outputs) if e.outputs else {},
-                                "execution": json.loads(e.execution) if e.execution else {},
-                                "metrics": json.loads(e.metrics) if e.metrics else {},
-                                "metadata": json.loads(e.metadata_) if e.metadata_ else {},
-                                "tags": [et.tag.name for et in e.tags] if e.tags else [],
-                            })
+                            entries.append(
+                                {
+                                    "id": e.id,
+                                    "page_id": e.page_id,
+                                    "entry_type": e.entry_type,
+                                    "title": e.title,
+                                    "created_at": (
+                                        e.created_at.isoformat()
+                                        if e.created_at
+                                        else None
+                                    ),
+                                    "status": e.status,
+                                    "parent_id": e.parent_id,
+                                    "inputs": json.loads(e.inputs) if e.inputs else {},
+                                    "outputs": (
+                                        json.loads(e.outputs) if e.outputs else {}
+                                    ),
+                                    "execution": (
+                                        json.loads(e.execution) if e.execution else {}
+                                    ),
+                                    "metrics": (
+                                        json.loads(e.metrics) if e.metrics else {}
+                                    ),
+                                    "metadata": (
+                                        json.loads(e.metadata_) if e.metadata_ else {}
+                                    ),
+                                    "tags": (
+                                        [et.tag.name for et in e.tags] if e.tags else []
+                                    ),
+                                }
+                            )
                     descendants.extend(entries)
                     current_ids = child_ids
                 else:
@@ -395,7 +429,7 @@ class Entry:
         tags: Optional[list[str]] = None,
     ) -> "Entry":
         """Create a variation of this entry."""
-        from codex.core.page import Page
+        from core.page import Page
 
         # Merge inputs with overrides
         new_inputs = {**self.inputs}
@@ -418,11 +452,21 @@ class Entry:
                 "notebook_id": page_model.notebook_id,
                 "title": page_model.title,
                 "date": page_model.date.isoformat() if page_model.date else None,
-                "created_at": page_model.created_at.isoformat() if page_model.created_at else None,
-                "updated_at": page_model.updated_at.isoformat() if page_model.updated_at else None,
-                "narrative": json.loads(page_model.narrative) if page_model.narrative else {},
-                "tags": [pt.tag.name for pt in page_model.tags] if page_model.tags else [],
-                "metadata": json.loads(page_model.metadata_) if page_model.metadata_ else {},
+                "created_at": (
+                    page_model.created_at.isoformat() if page_model.created_at else None
+                ),
+                "updated_at": (
+                    page_model.updated_at.isoformat() if page_model.updated_at else None
+                ),
+                "narrative": (
+                    json.loads(page_model.narrative) if page_model.narrative else {}
+                ),
+                "tags": (
+                    [pt.tag.name for pt in page_model.tags] if page_model.tags else []
+                ),
+                "metadata": (
+                    json.loads(page_model.metadata_) if page_model.metadata_ else {}
+                ),
             }
         finally:
             session.close()
@@ -502,23 +546,34 @@ class Entry:
 
     def get_page(self) -> "Page":
         """Get the parent page."""
-        from codex.core.page import Page
+        from core.page import Page
 
         session = self.workspace.db_manager.get_session()
         try:
             page = PageModel.get_by_id(session, self.page_id)
             if page:
-                return Page.from_dict(self.workspace, {
-                    "id": page.id,
-                    "notebook_id": page.notebook_id,
-                    "title": page.title,
-                    "date": page.date.isoformat() if page.date else None,
-                    "created_at": page.created_at.isoformat() if page.created_at else None,
-                    "updated_at": page.updated_at.isoformat() if page.updated_at else None,
-                    "narrative": json.loads(page.narrative) if page.narrative else {},
-                    "tags": [pt.tag.name for pt in page.tags] if page.tags else [],
-                    "metadata": json.loads(page.metadata_) if page.metadata_ else {},
-                })
+                return Page.from_dict(
+                    self.workspace,
+                    {
+                        "id": page.id,
+                        "notebook_id": page.notebook_id,
+                        "title": page.title,
+                        "date": page.date.isoformat() if page.date else None,
+                        "created_at": (
+                            page.created_at.isoformat() if page.created_at else None
+                        ),
+                        "updated_at": (
+                            page.updated_at.isoformat() if page.updated_at else None
+                        ),
+                        "narrative": (
+                            json.loads(page.narrative) if page.narrative else {}
+                        ),
+                        "tags": [pt.tag.name for pt in page.tags] if page.tags else [],
+                        "metadata": (
+                            json.loads(page.metadata_) if page.metadata_ else {}
+                        ),
+                    },
+                )
             raise ValueError(f"Page {self.page_id} not found")
         finally:
             session.close()

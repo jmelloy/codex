@@ -44,7 +44,7 @@ dev = [
 ]
 
 [project.scripts]
-codex = "codex.cli.main:cli"
+codex = "cli.main:cli"
 
 [project.urls]
 Homepage = "https://github.com/jmelloy/labview"

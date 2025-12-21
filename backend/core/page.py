@@ -7,15 +7,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
-from codex.core.utils import slugify
-from codex.db.models import Entry as EntryModel
-from codex.db.models import Notebook as NotebookModel
-from codex.db.models import Page as PageModel
+from core.utils import slugify
+from db.models import Entry as EntryModel
+from db.models import Notebook as NotebookModel
+from db.models import Page as PageModel
 
 if TYPE_CHECKING:
-    from codex.core.entry import Entry
-    from codex.core.notebook import Notebook
-    from codex.core.workspace import Workspace
+    from core.entry import Entry
+    from core.notebook import Notebook
+    from core.workspace import Workspace
 
 
 def _now() -> datetime:
@@ -216,7 +216,7 @@ class Page:
         tags: Optional[list[str]] = None,
     ) -> "Entry":
         """Create a new entry on this page."""
-        from codex.core.entry import Entry
+        from core.entry import Entry
 
         return Entry.create(
             self,
@@ -229,27 +229,32 @@ class Page:
 
     def list_entries(self) -> list["Entry"]:
         """List all entries on this page."""
-        from codex.core.entry import Entry
+        from core.entry import Entry
 
         session = self.workspace.db_manager.get_session()
         try:
             entries = EntryModel.find_by(session, page_id=self.id)
             return [
-                Entry.from_dict(self.workspace, {
-                    "id": e.id,
-                    "page_id": e.page_id,
-                    "entry_type": e.entry_type,
-                    "title": e.title,
-                    "created_at": e.created_at.isoformat() if e.created_at else None,
-                    "status": e.status,
-                    "parent_id": e.parent_id,
-                    "inputs": json.loads(e.inputs) if e.inputs else {},
-                    "outputs": json.loads(e.outputs) if e.outputs else {},
-                    "execution": json.loads(e.execution) if e.execution else {},
-                    "metrics": json.loads(e.metrics) if e.metrics else {},
-                    "metadata": json.loads(e.metadata_) if e.metadata_ else {},
-                    "tags": [et.tag.name for et in e.tags] if e.tags else [],
-                })
+                Entry.from_dict(
+                    self.workspace,
+                    {
+                        "id": e.id,
+                        "page_id": e.page_id,
+                        "entry_type": e.entry_type,
+                        "title": e.title,
+                        "created_at": (
+                            e.created_at.isoformat() if e.created_at else None
+                        ),
+                        "status": e.status,
+                        "parent_id": e.parent_id,
+                        "inputs": json.loads(e.inputs) if e.inputs else {},
+                        "outputs": json.loads(e.outputs) if e.outputs else {},
+                        "execution": json.loads(e.execution) if e.execution else {},
+                        "metrics": json.loads(e.metrics) if e.metrics else {},
+                        "metadata": json.loads(e.metadata_) if e.metadata_ else {},
+                        "tags": [et.tag.name for et in e.tags] if e.tags else [],
+                    },
+                )
                 for e in entries
             ]
         finally:
@@ -257,27 +262,38 @@ class Page:
 
     def get_entry(self, entry_id: str) -> Optional["Entry"]:
         """Get an entry by ID."""
-        from codex.core.entry import Entry
+        from core.entry import Entry
 
         session = self.workspace.db_manager.get_session()
         try:
             entry = EntryModel.get_by_id(session, entry_id)
             if entry:
-                return Entry.from_dict(self.workspace, {
-                    "id": entry.id,
-                    "page_id": entry.page_id,
-                    "entry_type": entry.entry_type,
-                    "title": entry.title,
-                    "created_at": entry.created_at.isoformat() if entry.created_at else None,
-                    "status": entry.status,
-                    "parent_id": entry.parent_id,
-                    "inputs": json.loads(entry.inputs) if entry.inputs else {},
-                    "outputs": json.loads(entry.outputs) if entry.outputs else {},
-                    "execution": json.loads(entry.execution) if entry.execution else {},
-                    "metrics": json.loads(entry.metrics) if entry.metrics else {},
-                    "metadata": json.loads(entry.metadata_) if entry.metadata_ else {},
-                    "tags": [et.tag.name for et in entry.tags] if entry.tags else [],
-                })
+                return Entry.from_dict(
+                    self.workspace,
+                    {
+                        "id": entry.id,
+                        "page_id": entry.page_id,
+                        "entry_type": entry.entry_type,
+                        "title": entry.title,
+                        "created_at": (
+                            entry.created_at.isoformat() if entry.created_at else None
+                        ),
+                        "status": entry.status,
+                        "parent_id": entry.parent_id,
+                        "inputs": json.loads(entry.inputs) if entry.inputs else {},
+                        "outputs": json.loads(entry.outputs) if entry.outputs else {},
+                        "execution": (
+                            json.loads(entry.execution) if entry.execution else {}
+                        ),
+                        "metrics": json.loads(entry.metrics) if entry.metrics else {},
+                        "metadata": (
+                            json.loads(entry.metadata_) if entry.metadata_ else {}
+                        ),
+                        "tags": (
+                            [et.tag.name for et in entry.tags] if entry.tags else []
+                        ),
+                    },
+                )
             return None
         finally:
             session.close()
@@ -377,22 +393,41 @@ class Page:
 
     def get_notebook(self) -> "Notebook":
         """Get the parent notebook."""
-        from codex.core.notebook import Notebook
+        from core.notebook import Notebook
 
         session = self.workspace.db_manager.get_session()
         try:
             notebook = NotebookModel.get_by_id(session, self.notebook_id)
             if notebook:
-                return Notebook.from_dict(self.workspace, {
-                    "id": notebook.id,
-                    "title": notebook.title,
-                    "description": notebook.description,
-                    "created_at": notebook.created_at.isoformat() if notebook.created_at else None,
-                    "updated_at": notebook.updated_at.isoformat() if notebook.updated_at else None,
-                    "settings": json.loads(notebook.settings) if notebook.settings else {},
-                    "metadata": json.loads(notebook.metadata_) if notebook.metadata_ else {},
-                    "tags": [nt.tag.name for nt in notebook.tags] if notebook.tags else [],
-                })
+                return Notebook.from_dict(
+                    self.workspace,
+                    {
+                        "id": notebook.id,
+                        "title": notebook.title,
+                        "description": notebook.description,
+                        "created_at": (
+                            notebook.created_at.isoformat()
+                            if notebook.created_at
+                            else None
+                        ),
+                        "updated_at": (
+                            notebook.updated_at.isoformat()
+                            if notebook.updated_at
+                            else None
+                        ),
+                        "settings": (
+                            json.loads(notebook.settings) if notebook.settings else {}
+                        ),
+                        "metadata": (
+                            json.loads(notebook.metadata_) if notebook.metadata_ else {}
+                        ),
+                        "tags": (
+                            [nt.tag.name for nt in notebook.tags]
+                            if notebook.tags
+                            else []
+                        ),
+                    },
+                )
             raise ValueError(f"Notebook {self.notebook_id} not found")
         finally:
             session.close()

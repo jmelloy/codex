@@ -7,13 +7,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
-from codex.core.utils import slugify
-from codex.db.models import Notebook as NotebookModel
-from codex.db.models import Page as PageModel
+from core.utils import slugify
+from db.models import Notebook as NotebookModel
+from db.models import Page as PageModel
 
 if TYPE_CHECKING:
-    from codex.core.page import Page
-    from codex.core.workspace import Workspace
+    from core.page import Page
+    from core.workspace import Workspace
 
 
 def _now() -> datetime:
@@ -180,29 +180,36 @@ class Notebook:
         narrative: Optional[dict] = None,
     ) -> "Page":
         """Create a new page in this notebook."""
-        from codex.core.page import Page
+        from core.page import Page
 
         return Page.create(self, title, date, narrative or {})
 
     def list_pages(self) -> list["Page"]:
         """List all pages in this notebook."""
-        from codex.core.page import Page
+        from core.page import Page
 
         session = self.workspace.db_manager.get_session()
         try:
             pages = PageModel.find_by(session, notebook_id=self.id)
             return [
-                Page.from_dict(self.workspace, {
-                    "id": p.id,
-                    "notebook_id": p.notebook_id,
-                    "title": p.title,
-                    "date": p.date.isoformat() if p.date else None,
-                    "created_at": p.created_at.isoformat() if p.created_at else None,
-                    "updated_at": p.updated_at.isoformat() if p.updated_at else None,
-                    "narrative": json.loads(p.narrative) if p.narrative else {},
-                    "tags": [pt.tag.name for pt in p.tags] if p.tags else [],
-                    "metadata": json.loads(p.metadata_) if p.metadata_ else {},
-                })
+                Page.from_dict(
+                    self.workspace,
+                    {
+                        "id": p.id,
+                        "notebook_id": p.notebook_id,
+                        "title": p.title,
+                        "date": p.date.isoformat() if p.date else None,
+                        "created_at": (
+                            p.created_at.isoformat() if p.created_at else None
+                        ),
+                        "updated_at": (
+                            p.updated_at.isoformat() if p.updated_at else None
+                        ),
+                        "narrative": json.loads(p.narrative) if p.narrative else {},
+                        "tags": [pt.tag.name for pt in p.tags] if p.tags else [],
+                        "metadata": json.loads(p.metadata_) if p.metadata_ else {},
+                    },
+                )
                 for p in pages
             ]
         finally:
@@ -210,23 +217,34 @@ class Notebook:
 
     def get_page(self, page_id: str) -> Optional["Page"]:
         """Get a page by ID."""
-        from codex.core.page import Page
+        from core.page import Page
 
         session = self.workspace.db_manager.get_session()
         try:
             page = PageModel.get_by_id(session, page_id)
             if page:
-                return Page.from_dict(self.workspace, {
-                    "id": page.id,
-                    "notebook_id": page.notebook_id,
-                    "title": page.title,
-                    "date": page.date.isoformat() if page.date else None,
-                    "created_at": page.created_at.isoformat() if page.created_at else None,
-                    "updated_at": page.updated_at.isoformat() if page.updated_at else None,
-                    "narrative": json.loads(page.narrative) if page.narrative else {},
-                    "tags": [pt.tag.name for pt in page.tags] if page.tags else [],
-                    "metadata": json.loads(page.metadata_) if page.metadata_ else {},
-                })
+                return Page.from_dict(
+                    self.workspace,
+                    {
+                        "id": page.id,
+                        "notebook_id": page.notebook_id,
+                        "title": page.title,
+                        "date": page.date.isoformat() if page.date else None,
+                        "created_at": (
+                            page.created_at.isoformat() if page.created_at else None
+                        ),
+                        "updated_at": (
+                            page.updated_at.isoformat() if page.updated_at else None
+                        ),
+                        "narrative": (
+                            json.loads(page.narrative) if page.narrative else {}
+                        ),
+                        "tags": [pt.tag.name for pt in page.tags] if page.tags else [],
+                        "metadata": (
+                            json.loads(page.metadata_) if page.metadata_ else {}
+                        ),
+                    },
+                )
             return None
         finally:
             session.close()

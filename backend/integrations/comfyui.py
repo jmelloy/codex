@@ -17,8 +17,8 @@ from typing import Any, Optional
 
 import aiohttp
 
-from codex.integrations.base import IntegrationBase
-from codex.integrations.registry import IntegrationRegistry
+from integrations.base import IntegrationBase
+from integrations.registry import IntegrationRegistry
 
 
 class ComfyUIClient:
@@ -32,7 +32,9 @@ class ComfyUIClient:
         """
         self.server_url = server_url.rstrip("/")
 
-    async def queue_prompt(self, workflow: dict, client_id: Optional[str] = None) -> str:
+    async def queue_prompt(
+        self, workflow: dict, client_id: Optional[str] = None
+    ) -> str:
         """Queue a workflow for execution.
 
         Args:

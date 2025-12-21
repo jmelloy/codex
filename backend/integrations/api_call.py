@@ -13,8 +13,8 @@ import json
 import time
 from typing import Any
 
-from codex.integrations.base import IntegrationBase
-from codex.integrations.registry import IntegrationRegistry
+from integrations.base import IntegrationBase
+from integrations.registry import IntegrationRegistry
 
 
 @IntegrationRegistry.register("api_call")

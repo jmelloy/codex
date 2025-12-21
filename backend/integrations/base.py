@@ -3,7 +3,7 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from codex.core.workspace import Workspace
+    from core.workspace import Workspace
 
 
 class IntegrationBase:

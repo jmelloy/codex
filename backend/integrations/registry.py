@@ -2,7 +2,7 @@
 
 from typing import Type
 
-from codex.integrations.base import IntegrationBase
+from integrations.base import IntegrationBase
 
 
 class IntegrationRegistry:

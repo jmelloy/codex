@@ -44,6 +44,7 @@ Codex works seamlessly with GitHub Copilot for enhanced development workflow:
 - **Code Review**: Validate experimental code and configurations
 
 **Example Usage**:
+
 ```python
 # Copilot can help complete integration configurations
 entry = page.create_entry(
@@ -76,11 +77,11 @@ async def analyze_recent_experiments(page_id: str):
             params={"limit": 50, "sort": "created_at"}
         )
         entries = response.json()
-        
+
         # Analyze patterns (user-defined function)
         # analysis = perform_ai_analysis(entries)
         analysis = {"summary": "Analysis results here..."}
-        
+
         # Update page narrative with insights
         await client.patch(
             f"http://localhost:8765/api/pages/{page_id}/narrative",
@@ -98,14 +99,14 @@ async def analyze_recent_experiments(page_id: str):
 Direct integration via the Codex Python SDK:
 
 ```python
-from codex.core.workspace import Workspace
+from core.workspace import Workspace
 
 class AnalysisAgent:
     """Custom agent using Codex SDK."""
-    
+
     def __init__(self, workspace_path: str):
         self.workspace = Workspace.load(workspace_path)
-    
+
     def analyze_notebook(self, notebook_id: str) -> dict:
         """Analyze all experiments in a notebook."""
         try:
@@ -114,37 +115,37 @@ class AnalysisAgent:
         except Exception as e:
             # Handle errors gracefully
             return {"error": f"Failed to load notebook: {e}"}
-        
+
         insights = {
             "total_entries": 0,
             "patterns": [],
             "recommendations": []
         }
-        
+
         for page in pages:
             try:
                 entries = page.list_entries()
                 insights["total_entries"] += len(entries)
-                
+
                 # Perform analysis on entries
                 patterns = self._detect_patterns(entries)
                 insights["patterns"].extend(patterns)
             except Exception as e:
                 # Log error but continue processing
                 insights.setdefault("errors", []).append(str(e))
-        
+
         return insights
-    
+
     def _detect_patterns(self, entries):
         """
         Detect patterns in experimental entries.
-        
+
         This method should analyze entries to find:
         - Parameter correlations (e.g., CFG vs. quality)
         - Temporal trends
         - Success/failure patterns
         - Common configurations
-        
+
         Returns:
             List[Dict]: Detected patterns with descriptions and confidence scores
         """
@@ -163,12 +164,14 @@ class AnalysisAgent:
 **Status**: 🚧 Planned for Q1 2025
 
 **Planned Capabilities**:
+
 - Generate README files for notebooks and pages based on entry patterns
 - Summarize experimental results into narrative form
 - Auto-update goals, hypotheses, and conclusions
 - Create markdown reports from entry sequences
 
 **Use Case Example**:
+
 ```python
 # After running multiple experiments
 documentation_agent = DocumentationAgent(workspace)
@@ -190,12 +193,14 @@ summary = documentation_agent.summarize_page(page_id)
 **Status**: 🚧 Planned for Q2 2025
 
 **Planned Capabilities**:
+
 - Pattern detection across related entries
 - Anomaly detection in outputs and metrics
 - Trend analysis over time (parameter vs. outcome)
 - Statistical comparison of entry variations
 
 **Use Case Example**:
+
 ```python
 analysis_agent = AnalysisAgent(workspace)
 insights = analysis_agent.analyze_variations(base_entry_id)
@@ -215,12 +220,14 @@ insights = analysis_agent.analyze_variations(base_entry_id)
 **Status**: 🚧 Planned for Q2 2025
 
 **Planned Capabilities**:
+
 - Parameter optimization suggestions (e.g., "try CFG 8.5 next")
 - Similar experiment recommendations from history
 - Gap analysis ("you haven't tested negative prompts yet")
 - Success prediction for proposed configurations
 
 **Use Case Example**:
+
 ```python
 recommendation_agent = RecommendationAgent(workspace)
 suggestions = recommendation_agent.next_steps(page_id)
@@ -246,12 +253,14 @@ suggestions = recommendation_agent.next_steps(page_id)
 **Status**: 🚧 Planned for Q3 2025
 
 **Planned Capabilities**:
+
 - ComfyUI workflow generation from natural language
 - API call configuration from API documentation
 - Database query construction from schema
 - Custom script generation for integrations
 
 **Use Case Example**:
+
 ```python
 codegen_agent = CodeGenerationAgent(workspace)
 workflow = codegen_agent.create_comfyui_workflow(
@@ -270,12 +279,12 @@ workflow = codegen_agent.create_comfyui_workflow(
 
 Agents can integrate with Codex through multiple interfaces:
 
-| Interface | Status | Use Case |
-|-----------|--------|----------|
-| **REST API** | ✅ Available | External agents, language-agnostic integration |
-| **Python SDK** | ✅ Available | Python-based agents, direct workspace access |
-| **CLI Hooks** | 🚧 Planned | Command-line automation, scripting |
-| **WebSocket** | 🚧 Planned | Real-time interaction during entry execution |
+| Interface      | Status       | Use Case                                       |
+| -------------- | ------------ | ---------------------------------------------- |
+| **REST API**   | ✅ Available | External agents, language-agnostic integration |
+| **Python SDK** | ✅ Available | Python-based agents, direct workspace access   |
+| **CLI Hooks**  | 🚧 Planned   | Command-line automation, scripting             |
+| **WebSocket**  | 🚧 Planned   | Real-time interaction during entry execution   |
 
 ### Agent Base Class (Planned)
 
@@ -285,29 +294,29 @@ from typing import Any, Dict, List
 
 class CodexAgent(ABC):
     """Base class for Codex AI agents."""
-    
+
     def __init__(self, workspace_path: str):
         """Initialize agent with workspace."""
         self.workspace = Workspace.load(workspace_path)
-    
+
     @abstractmethod
     async def process(self, context: Dict[str, Any]) -> Dict[str, Any]:
         """
         Process data and return results.
-        
+
         Args:
             context: Input data and configuration
-            
+
         Returns:
             Results dictionary with agent outputs
         """
         pass
-    
+
     @abstractmethod
     def get_capabilities(self) -> List[str]:
         """Return list of agent capabilities."""
         pass
-    
+
     def validate_context(self, context: Dict[str, Any]) -> bool:
         """Validate input context before processing."""
         return True
@@ -321,9 +330,9 @@ from datetime import datetime
 
 class AgentRegistry:
     """Central registry for Codex agents."""
-    
+
     _agents: Dict[str, Type[CodexAgent]] = {}
-    
+
     @classmethod
     def register(cls, agent_name: str):
         """Decorator to register an agent."""
@@ -331,14 +340,14 @@ class AgentRegistry:
             cls._agents[agent_name] = agent_class
             return agent_class
         return decorator
-    
+
     @classmethod
     def get(cls, agent_name: str) -> Type[CodexAgent]:
         """Retrieve registered agent by name."""
         if agent_name not in cls._agents:
             raise ValueError(f"Unknown agent: {agent_name}")
         return cls._agents[agent_name]
-    
+
     @classmethod
     def list_agents(cls) -> List[str]:
         """List all registered agents."""
@@ -351,16 +360,16 @@ class DocumentationAgent(CodexAgent):
     async def process(self, context: Dict[str, Any]) -> Dict[str, Any]:
         page_id = context["page_id"]
         page = self.workspace.get_page(page_id)
-        
+
         # Generate documentation
         summary = await self._generate_summary(page)
-        
+
         return {
             "status": "success",
             "summary": summary,
             "updated_at": datetime.utcnow().isoformat()
         }
-    
+
     def get_capabilities(self) -> List[str]:
         return ["summarization", "documentation", "narrative_generation"]
 ```
@@ -372,7 +381,7 @@ class DocumentationAgent(CodexAgent):
 ### Example 1: Entry Analysis on Creation
 
 ```python
-from codex.core.workspace import Workspace
+from core.workspace import Workspace
 from my_agents import AnalysisAgent
 
 # Create workspace and entry
@@ -403,7 +412,7 @@ entry.save()
 
 ```python
 from datetime import datetime
-from codex.core.workspace import Workspace
+from core.workspace import Workspace
 from my_agents import DocumentationAgent
 # Note: 'schedule' is an external package - install with: pip install schedule
 import schedule
@@ -412,14 +421,14 @@ def summarize_daily_work():
     """Summarize today's experiments."""
     ws = Workspace.load("~/my-lab")
     agent = DocumentationAgent(ws)
-    
+
     # Get today's pages
     today_pages = ws.search_pages(date=datetime.today())
-    
+
     for page in today_pages:
         # Generate summary
         summary = agent.summarize_page(page.id)
-        
+
         # Update page narrative
         page.update_narrative("conclusions", summary)
 
@@ -431,27 +440,27 @@ schedule.every().day.at("18:00").do(summarize_daily_work)
 
 ```python
 # Future: WebSocket-based real-time agent interaction
-from codex.agents.websocket import WebSocketAgent
+from agents.websocket import WebSocketAgent
 
 class RealtimeRecommendationAgent(WebSocketAgent):
     async def on_entry_start(self, entry_id: str):
         """Called when entry execution starts."""
         entry = self.workspace.get_entry(entry_id)
-        
+
         # Analyze similar past entries
         similar = self.find_similar_entries(entry)
-        
+
         # Send recommendation
         await self.send_message({
             "type": "recommendation",
             "message": "Based on similar experiments, consider CFG=8.5",
             "similar_entries": [e.id for e in similar[:5]]
         })
-    
+
     async def on_entry_complete(self, entry_id: str):
         """Called when entry execution completes."""
         entry = self.workspace.get_entry(entry_id)
-        
+
         # Suggest next steps
         suggestions = self.generate_next_steps(entry)
         await self.send_message({
@@ -469,21 +478,25 @@ class RealtimeRecommendationAgent(WebSocketAgent):
 When integrating AI agents with Codex:
 
 1. **Data Privacy**
+
    - Agents should only access workspace data they need
    - Use scoped permissions for API access
    - Avoid sending sensitive data to external AI services without encryption
 
 2. **API Security**
+
    - Store API keys and credentials in environment variables, not in notebooks
    - Use secrets management for production deployments
    - Implement authentication for agent API endpoints
 
 3. **Rate Limiting**
+
    - Implement rate limits for external API calls to avoid quota exhaustion
    - Queue long-running agent tasks
    - Cache agent results when appropriate
 
 4. **Audit Logging**
+
    - Log all agent actions for traceability
    - Track which agent modified which entries
    - Maintain audit trail for compliance
@@ -502,7 +515,7 @@ class MyAgent(CodexAgent):
         super().__init__(workspace_path)
         self.notebook_id = notebook_id
         self.notebook = self.workspace.get_notebook(notebook_id)
-    
+
     async def process(self, context: Dict[str, Any]) -> Dict[str, Any]:
         # Only access data from specified notebook
         pages = self.notebook.list_pages()
@@ -558,12 +571,14 @@ We welcome contributions of new agent implementations!
 ### How to Contribute an Agent
 
 1. **Fork the Repository**
+
    ```bash
-   git clone https://github.com/jmelloy/codex.git
+   git clone https://github.com/jmelloy/git
    cd codex
    ```
 
 2. **Create Agent Module** (when agent system is implemented)
+
    ```bash
    mkdir -p codex/agents/your_agent
    touch codex/agents/your_agent/__init__.py
@@ -571,26 +586,29 @@ We welcome contributions of new agent implementations!
    ```
 
 3. **Implement Agent** (using planned base class)
+
    ```python
    # codex/agents/your_agent/agent.py
-   # Note: codex.agents.base is planned for Q1 2025
-   from codex.agents.base import CodexAgent  # Planned module
-   
+   # Note: agents.base is planned for Q1 2025
+   from agents.base import CodexAgent  # Planned module
+
    class YourAgent(CodexAgent):
        async def process(self, context):
            # Your implementation
            pass
-       
+
        def get_capabilities(self):
            return ["your_capability"]
    ```
 
 4. **Add Tests**
+
    ```bash
    touch tests/test_agents/test_your_agent.py
    ```
 
 5. **Document Your Agent**
+
    - Add docstrings to all methods
    - Create examples in the agent module
    - Update this document with usage examples

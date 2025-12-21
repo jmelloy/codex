@@ -1,4 +1,4 @@
-"""Git hooks integration for Codex."""
+"""Git hooks integration for"""
 
 import subprocess
 from datetime import datetime
@@ -70,7 +70,7 @@ class GitHookManager:
         """Generate the post-commit hook script content."""
         workspace_arg = f' --workspace "{workspace_path}"' if workspace_path else ""
 
-        return f'''#!/bin/sh
+        return f"""#!/bin/sh
 # Codex post-commit hook
 # Automatically log commits to daily notes
 
@@ -89,7 +89,7 @@ codex daily-note add-commit \\
 
 # Exit successfully even if codex command fails
 exit 0
-'''
+"""
 
     @staticmethod
     def uninstall_post_commit_hook(hooks_path: Path) -> bool:
@@ -303,10 +303,10 @@ tags:
 **Time**: {timestamp}
 **App**: {app_name}
 **Window**: {window_name}"""
-        
+
         if url:
             window_entry += f"\n**URL**: {url}"
-        
+
         window_entry += "\n:::\n"
 
         # Append to the Active Windows section
@@ -323,9 +323,11 @@ tags:
                     next_section = rest[idx:]
                     rest = rest[:idx]
                     break
-            
+
             if next_section:
-                content = parts[0] + "## Active Windows" + rest + window_entry + next_section
+                content = (
+                    parts[0] + "## Active Windows" + rest + window_entry + next_section
+                )
             else:
                 content = parts[0] + "## Active Windows" + rest + window_entry
         else:
@@ -333,7 +335,13 @@ tags:
             # Try to add it before Commits section if it exists
             if "## Commits" in content:
                 parts = content.split("## Commits", 1)
-                content = parts[0] + "\n## Active Windows\n" + window_entry + "\n## Commits" + parts[1]
+                content = (
+                    parts[0]
+                    + "\n## Active Windows\n"
+                    + window_entry
+                    + "\n## Commits"
+                    + parts[1]
+                )
             else:
                 content += "\n## Active Windows\n" + window_entry
 

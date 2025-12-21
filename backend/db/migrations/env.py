@@ -9,7 +9,7 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
-from codex.db.models import Base
+from db.models import Base
 
 # Alembic Config object
 config = context.config

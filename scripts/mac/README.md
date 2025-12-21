@@ -20,6 +20,7 @@ Scripts that capture information about the currently active application window a
 Uses the Codex CLI to log active windows. Requires Codex to be installed.
 
 **Usage:**
+
 ```bash
 # Using default workspace ($HOME/codex)
 ./scripts/mac/log-active-window.sh
@@ -29,6 +30,7 @@ CODEX_WORKSPACE=~/my-workspace ./scripts/mac/log-active-window.sh
 ```
 
 **Setup:**
+
 ```bash
 # Make executable (already done in repo)
 chmod +x scripts/mac/log-active-window.sh
@@ -42,6 +44,7 @@ alias log-window='~/path/to/codex/scripts/mac/log-active-window.sh'
 Standalone AppleScript that doesn't require Codex CLI installation. Works independently.
 
 **Usage:**
+
 ```bash
 # Run directly
 ./scripts/mac/log-active-window.applescript
@@ -51,6 +54,7 @@ osascript scripts/mac/log-active-window.applescript
 ```
 
 **Setup:**
+
 ```bash
 # Make executable (already done in repo)
 chmod +x scripts/mac/log-active-window.applescript
@@ -62,6 +66,7 @@ chmod +x scripts/mac/log-active-window.applescript
 **Convert to Application:**
 
 You can convert the AppleScript to a standalone app that can be:
+
 - Added to the Dock
 - Triggered with keyboard shortcuts
 - Run from the menu bar
@@ -128,6 +133,7 @@ Window entries are logged in this format:
 Use macOS Automator or a tool like [Keyboard Maestro](https://www.keyboardmaestro.com/) to trigger the script with a keyboard shortcut.
 
 **With Automator:**
+
 1. Open Automator
 2. Create new "Quick Action"
 3. Add "Run Shell Script" action
@@ -142,13 +148,13 @@ Use `launchd` to log active windows at regular intervals:
 
 ```bash
 # Create a launchd plist file
-cat > ~/Library/LaunchAgents/com.codex.log-window.plist << 'EOF'
+cat > ~/Library/LaunchAgents/com.log-window.plist << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.codex.log-window</string>
+    <string>com.log-window</string>
     <key>ProgramArguments</key>
     <array>
         <string>/path/to/codex/scripts/mac/log-active-window.sh</string>
@@ -162,19 +168,21 @@ cat > ~/Library/LaunchAgents/com.codex.log-window.plist << 'EOF'
 EOF
 
 # Load the launch agent
-launchctl load ~/Library/LaunchAgents/com.codex.log-window.plist
+launchctl load ~/Library/LaunchAgents/com.log-window.plist
 
 # To unload later
-launchctl unload ~/Library/LaunchAgents/com.codex.log-window.plist
+launchctl unload ~/Library/LaunchAgents/com.log-window.plist
 ```
 
 #### Menu Bar App
 
 Create a menu bar app using tools like:
+
 - [SwiftBar](https://github.com/swiftbar/SwiftBar)
 - [BitBar](https://github.com/matryer/bitbar)
 
 Example SwiftBar script:
+
 ```bash
 #!/bin/bash
 # <bitbar.title>Codex Window Logger</bitbar.title>
@@ -190,6 +198,7 @@ echo "Log Active Window | bash=/path/to/codex/scripts/mac/log-active-window.sh t
 ### Supported Browsers
 
 The scripts support URL detection for:
+
 - Safari
 - Google Chrome / Chromium
 - Brave Browser
@@ -202,6 +211,7 @@ The scripts support URL detection for:
 #### Permission Issues
 
 If you get permission errors, you may need to grant accessibility permissions:
+
 1. System Preferences > Security & Privacy > Privacy > Accessibility
 2. Add Terminal (or your terminal app) to the list
 3. If using the AppleScript app, add it to the list as well
@@ -209,16 +219,19 @@ If you get permission errors, you may need to grant accessibility permissions:
 #### Script Not Working
 
 1. **Check if running on macOS:**
+
    ```bash
    uname  # Should output: Darwin
    ```
 
 2. **Test AppleScript directly:**
+
    ```bash
    osascript -e 'tell application "System Events" to get name of first process whose frontmost is true'
    ```
 
 3. **Check Codex installation (for shell script):**
+
    ```bash
    which codex
    codex --version
@@ -232,6 +245,7 @@ If you get permission errors, you may need to grant accessibility permissions:
 #### URL Not Captured
 
 If URLs aren't being captured for browsers:
+
 - Ensure the browser is running and has a window open
 - Some browsers require accessibility permissions
 - Firefox doesn't support URL retrieval via AppleScript
@@ -245,6 +259,7 @@ If URLs aren't being captured for browsers:
 ## Contributing
 
 Contributions to improve the Mac scripts are welcome! Some ideas:
+
 - Support for more browsers
 - Integration with time tracking tools
 - Context detection (coding, browsing, writing, etc.)

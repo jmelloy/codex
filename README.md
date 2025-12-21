@@ -33,7 +33,7 @@ The fastest way to get started is using Docker Compose:
 
 ```bash
 # Clone the repository
-git clone https://github.com/jmelloy/codex.git
+git clone https://github.com/jmelloy/git
 cd codex
 
 # Start the production environment
@@ -51,7 +51,7 @@ For detailed Docker deployment options, see [DOCKER.md](DOCKER.md).
 
 ```bash
 # Clone the repository
-git clone https://github.com/jmelloy/codex.git
+git clone https://github.com/jmelloy/git
 cd codex
 
 # Install Python dependencies

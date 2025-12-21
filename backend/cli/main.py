@@ -5,8 +5,8 @@ from pathlib import Path
 
 import click
 
-from codex.core.utils import format_table
-from codex.core.workspace import Workspace
+from core.utils import format_table
+from core.workspace import Workspace
 
 
 @click.group()
@@ -174,7 +174,7 @@ def entry_create(
     try:
         ws = Workspace.load(Path(workspace).resolve())
 
-        from codex.core.page import Page
+        from core.page import Page
 
         page_data = ws.db_manager.get_page(page)
         if not page_data:
@@ -230,7 +230,7 @@ def entry_list(page: str, workspace: str):
     try:
         ws = Workspace.load(Path(workspace).resolve())
 
-        from codex.core.page import Page
+        from core.page import Page
 
         page_data = ws.db_manager.get_page(page)
         if not page_data:
@@ -262,7 +262,7 @@ def entry_variation(entry_id: str, title: str, override: tuple, workspace: str):
     try:
         ws = Workspace.load(Path(workspace).resolve())
 
-        from codex.core.entry import Entry
+        from core.entry import Entry
 
         entry_data = ws.db_manager.get_entry(entry_id)
         if not entry_data:
@@ -326,7 +326,7 @@ def lineage(entry_id: str, depth: int, workspace: str):
     try:
         ws = Workspace.load(Path(workspace).resolve())
 
-        from codex.core.entry import Entry
+        from core.entry import Entry
 
         entry_data = ws.db_manager.get_entry(entry_id)
         if not entry_data:
@@ -415,7 +415,7 @@ def config_set(
         ws = Workspace.load(Path(workspace).resolve())
 
         # Check if integration type exists
-        from codex.integrations import IntegrationRegistry
+        from integrations import IntegrationRegistry
 
         if not IntegrationRegistry.has_integration(integration_type):
             click.echo(
@@ -711,7 +711,7 @@ def hooks_install(hooks_path: str, workspace: str, is_global: bool):
     # Install with custom hooks path and workspace
     codex hooks install --hooks-path ~/.my-hooks --workspace ~/lab --global
     """
-    from codex.core.git_hooks import GitHookManager
+    from core.git_hooks import GitHookManager
 
     try:
         # Determine hooks path
@@ -774,7 +774,7 @@ def hooks_uninstall(hooks_path: str):
     \b
     codex hooks uninstall
     """
-    from codex.core.git_hooks import GitHookManager
+    from core.git_hooks import GitHookManager
 
     try:
         # Determine hooks path
@@ -805,7 +805,7 @@ def hooks_status():
     \b
     codex hooks status
     """
-    from codex.core.git_hooks import GitHookManager
+    from core.git_hooks import GitHookManager
 
     try:
         hooks_path = GitHookManager.get_global_hooks_path()
@@ -854,7 +854,7 @@ def daily_note_create(workspace: str, date: str):
     # Create a daily note for a specific date
     codex daily-note create --date 2024-12-20
     """
-    from codex.core.git_hooks import DailyNoteManager
+    from core.git_hooks import DailyNoteManager
 
     try:
         ws_path = Path(workspace).expanduser().resolve()
@@ -888,7 +888,7 @@ def daily_note_list(workspace: str, limit: int):
     # List last 30 daily notes
     codex daily-note list --limit 30
     """
-    from codex.core.git_hooks import DailyNoteManager
+    from core.git_hooks import DailyNoteManager
 
     try:
         ws_path = Path(workspace).expanduser().resolve()
@@ -932,7 +932,7 @@ def daily_note_add_commit(
         --branch main \\
         --repo myproject
     """
-    from codex.core.git_hooks import DailyNoteManager
+    from core.git_hooks import DailyNoteManager
 
     try:
         ws_path = Path(workspace).expanduser().resolve()
@@ -963,7 +963,7 @@ def daily_note_view(workspace: str, date: str):
     # View a specific date's daily note
     codex daily-note view --date 2024-12-20
     """
-    from codex.core.git_hooks import DailyNoteManager
+    from core.git_hooks import DailyNoteManager
 
     try:
         ws_path = Path(workspace).expanduser().resolve()
@@ -1019,7 +1019,7 @@ def daily_note_add_window(workspace: str, app: str, window: str, url: str):
         --window "GitHub" \\
         --url "https://github.com"
     """
-    from codex.core.git_hooks import DailyNoteManager
+    from core.git_hooks import DailyNoteManager
     import platform
 
     try:
@@ -1037,7 +1037,7 @@ def daily_note_add_window(workspace: str, app: str, window: str, url: str):
                 raise click.Abort()
 
             try:
-                from codex.core.mac_windows import MacWindowDetector
+                from core.mac_windows import MacWindowDetector
 
                 window_info = MacWindowDetector.get_active_window_info()
                 if not window_info:

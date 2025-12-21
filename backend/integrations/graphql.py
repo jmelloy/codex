@@ -12,8 +12,8 @@ import json
 import time
 from typing import Any, Optional
 
-from codex.integrations.base import IntegrationBase
-from codex.integrations.registry import IntegrationRegistry
+from integrations.base import IntegrationBase
+from integrations.registry import IntegrationRegistry
 
 
 def _extract_error_message(response_data: dict) -> Optional[str]:

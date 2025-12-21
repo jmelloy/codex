@@ -6,7 +6,7 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
-from codex.db.models import (
+from db.models import (
     Artifact,
     Entry,
     EntryLineage,
@@ -66,7 +66,7 @@ class DatabaseManager:
         Args:
             revision: Target revision (default: "head" for latest).
         """
-        from codex.db.migrate import run_migrations
+        from db.migrate import run_migrations
 
         run_migrations(str(self.db_path), revision)
 
@@ -77,7 +77,7 @@ class DatabaseManager:
             Dictionary containing current revision, head revision,
             and whether database is up to date.
         """
-        from codex.db.migrate import (
+        from db.migrate import (
             get_current_revision,
             get_head_revision,
             get_pending_migrations,
@@ -97,7 +97,7 @@ class DatabaseManager:
         Returns:
             List of migration info dictionaries.
         """
-        from codex.db.migrate import get_migration_history
+        from db.migrate import get_migration_history
 
         return get_migration_history(str(self.db_path))
 

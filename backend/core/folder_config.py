@@ -1,4 +1,4 @@
-"""Folder-level configuration system for Codex.
+"""Folder-level configuration system for
 
 This module provides support for `.` directories that contain
 configuration files and properties at each folder level.
@@ -7,7 +7,7 @@ configuration files and properties at each folder level.
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from codex.core.markdown import MarkdownDocument, parse_markdown_file
+from core.markdown import MarkdownDocument, parse_markdown_file
 
 
 class FolderConfig:
@@ -123,7 +123,9 @@ class FolderConfig:
 
         return config
 
-    def set_agent_config(self, config: Dict[str, Any], agent_name: Optional[str] = None) -> None:
+    def set_agent_config(
+        self, config: Dict[str, Any], agent_name: Optional[str] = None
+    ) -> None:
         """Set agent configuration.
 
         Args:
@@ -164,7 +166,9 @@ class FolderConfig:
         # Return main content as default instructions
         return self.agents_config.content if self.agents_config.content else None
 
-    def add_agent_instructions(self, instructions: str, agent_name: Optional[str] = None) -> None:
+    def add_agent_instructions(
+        self, instructions: str, agent_name: Optional[str] = None
+    ) -> None:
         """Add agent instructions.
 
         Args:

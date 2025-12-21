@@ -1,6 +1,6 @@
 """Database module initialization."""
 
-from codex.db.migrate import (
+from db.migrate import (
     get_current_revision,
     get_head_revision,
     get_migration_history,
@@ -11,8 +11,8 @@ from codex.db.migrate import (
     run_migrations,
     stamp_revision,
 )
-from codex.db.models import Base, get_engine, get_session, init_db
-from codex.db.operations import DatabaseManager
+from db.models import Base, get_engine, get_session, init_db
+from db.operations import DatabaseManager
 
 __all__ = [
     "Base",

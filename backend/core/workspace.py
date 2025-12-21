@@ -5,15 +5,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
-from codex.core.git_manager import GitManager
-from codex.core.storage import StorageManager
-from codex.db.models import Entry as EntryModel
-from codex.db.models import Notebook as NotebookModel
-from codex.db.models import Page as PageModel
-from codex.db.operations import DatabaseManager
+from core.git_manager import GitManager
+from core.storage import StorageManager
+from db.models import Entry as EntryModel
+from db.models import Notebook as NotebookModel
+from db.models import Page as PageModel
+from db.operations import DatabaseManager
 
 if TYPE_CHECKING:
-    from codex.core.notebook import Notebook
+    from core.notebook import Notebook
 
 
 def _now() -> datetime:
@@ -123,28 +123,35 @@ class Workspace:
         tags: Optional[list[str]] = None,
     ) -> "Notebook":
         """Create a new notebook."""
-        from codex.core.notebook import Notebook
+        from core.notebook import Notebook
 
         return Notebook.create(self, title, description, tags or [])
 
     def list_notebooks(self) -> list["Notebook"]:
         """List all notebooks."""
-        from codex.core.notebook import Notebook
+        from core.notebook import Notebook
 
         session = self.db_manager.get_session()
         try:
             notebooks = NotebookModel.get_all(session)
             return [
-                Notebook.from_dict(self, {
-                    "id": nb.id,
-                    "title": nb.title,
-                    "description": nb.description,
-                    "created_at": nb.created_at.isoformat() if nb.created_at else None,
-                    "updated_at": nb.updated_at.isoformat() if nb.updated_at else None,
-                    "settings": json.loads(nb.settings) if nb.settings else {},
-                    "metadata": json.loads(nb.metadata_) if nb.metadata_ else {},
-                    "tags": [nt.tag.name for nt in nb.tags] if nb.tags else [],
-                })
+                Notebook.from_dict(
+                    self,
+                    {
+                        "id": nb.id,
+                        "title": nb.title,
+                        "description": nb.description,
+                        "created_at": (
+                            nb.created_at.isoformat() if nb.created_at else None
+                        ),
+                        "updated_at": (
+                            nb.updated_at.isoformat() if nb.updated_at else None
+                        ),
+                        "settings": json.loads(nb.settings) if nb.settings else {},
+                        "metadata": json.loads(nb.metadata_) if nb.metadata_ else {},
+                        "tags": [nt.tag.name for nt in nb.tags] if nb.tags else [],
+                    },
+                )
                 for nb in notebooks
             ]
         finally:
@@ -152,22 +159,41 @@ class Workspace:
 
     def get_notebook(self, notebook_id: str) -> Optional["Notebook"]:
         """Get a notebook by ID."""
-        from codex.core.notebook import Notebook
+        from core.notebook import Notebook
 
         session = self.db_manager.get_session()
         try:
             notebook = NotebookModel.get_by_id(session, notebook_id)
             if notebook:
-                return Notebook.from_dict(self, {
-                    "id": notebook.id,
-                    "title": notebook.title,
-                    "description": notebook.description,
-                    "created_at": notebook.created_at.isoformat() if notebook.created_at else None,
-                    "updated_at": notebook.updated_at.isoformat() if notebook.updated_at else None,
-                    "settings": json.loads(notebook.settings) if notebook.settings else {},
-                    "metadata": json.loads(notebook.metadata_) if notebook.metadata_ else {},
-                    "tags": [nt.tag.name for nt in notebook.tags] if notebook.tags else [],
-                })
+                return Notebook.from_dict(
+                    self,
+                    {
+                        "id": notebook.id,
+                        "title": notebook.title,
+                        "description": notebook.description,
+                        "created_at": (
+                            notebook.created_at.isoformat()
+                            if notebook.created_at
+                            else None
+                        ),
+                        "updated_at": (
+                            notebook.updated_at.isoformat()
+                            if notebook.updated_at
+                            else None
+                        ),
+                        "settings": (
+                            json.loads(notebook.settings) if notebook.settings else {}
+                        ),
+                        "metadata": (
+                            json.loads(notebook.metadata_) if notebook.metadata_ else {}
+                        ),
+                        "tags": (
+                            [nt.tag.name for nt in notebook.tags]
+                            if notebook.tags
+                            else []
+                        ),
+                    },
+                )
             return None
         finally:
             session.close()
@@ -292,7 +318,9 @@ class Workspace:
                         "size": stat_info.st_size,
                         "modified": datetime.fromtimestamp(
                             stat_info.st_mtime, tz=timezone.utc
-                        ).replace(tzinfo=None).isoformat(),
+                        )
+                        .replace(tzinfo=None)
+                        .isoformat(),
                         "extension": item.suffix.lower() if item.suffix else "",
                     }
                     if sidecar:

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from codex.core.sandbox import (
+from core.sandbox import (
     AgentSandbox,
     ChangeType,
     FileChange,

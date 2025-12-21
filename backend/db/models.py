@@ -45,7 +45,9 @@ class Base(DeclarativeBase):
         return cls._fk_cache[table_name]
 
     @classmethod
-    def validate_foreign_keys(cls, session: Session, data: dict[str, Any]) -> dict[str, Any]:
+    def validate_foreign_keys(
+        cls, session: Session, data: dict[str, Any]
+    ) -> dict[str, Any]:
         """Validate that foreign key references exist.
 
         Args:
@@ -89,7 +91,9 @@ class Base(DeclarativeBase):
         return fk_status
 
     @classmethod
-    def create(cls: type[T], session: Session, validate_fk: bool = True, **kwargs: Any) -> T:
+    def create(
+        cls: type[T], session: Session, validate_fk: bool = True, **kwargs: Any
+    ) -> T:
         """Create a new instance and add it to the session.
 
         Args:
@@ -486,7 +490,7 @@ def init_db(db_path: str, use_migrations: bool = True):
     engine = get_engine(db_path)
 
     if use_migrations:
-        from codex.db.migrate import initialize_migrations
+        from db.migrate import initialize_migrations
 
         initialize_migrations(db_path)
     else:

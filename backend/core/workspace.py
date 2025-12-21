@@ -161,7 +161,7 @@ class Workspace:
         """Commit changes to files in the workspace."""
         if not self._workspace_repo:
             self._load_workspace_git()
-        
+
         if not self._workspace_repo:
             return  # No git repo available
 
@@ -172,11 +172,11 @@ class Workspace:
                 if file_path.exists():
                     rel_path = file_path.relative_to(self.path)
                     relative_paths.append(str(rel_path))
-            
+
             if relative_paths:
                 self._workspace_repo.index.add(relative_paths)
                 self._workspace_repo.index.commit(message)
-        except Exception as e:
+        except Exception:
             # Log but don't fail if git operations fail
             pass  # Silently ignore git errors
 

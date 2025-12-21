@@ -7,8 +7,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
-import yaml
-
 from core.utils import slugify
 from db.models import Notebook as NotebookModel
 from db.models import Page as PageModel
@@ -96,7 +94,7 @@ class Page:
         date_str = page.date.strftime("%Y-%m-%d") if page.date else "undated"
         page_slug = slugify(title)
         page_file = notebook.get_directory() / f"{date_str}-{page_slug}.md"
-        
+
         # Ensure notebook directory exists
         notebook.get_directory().mkdir(parents=True, exist_ok=True)
 
@@ -165,7 +163,7 @@ class Page:
 
     def get_directory(self) -> Path:
         """Get the user-facing directory for this page.
-        
+
         Note: This method is deprecated. Pages are now markdown files, not directories.
         Use get_file_path() instead. This is kept for backward compatibility with
         legacy page directories.
@@ -184,7 +182,7 @@ class Page:
 
     def _write_sidecar(self, page_dir: Optional[Path] = None) -> None:
         """Write a sidecar properties file for this page.
-        
+
         Note: This method is deprecated in favor of frontmatter in markdown files.
         Kept for backward compatibility.
         """
@@ -232,12 +230,12 @@ class Page:
             "title": self.title,
             "type": "page",
         }
-        
+
         if self.date:
             frontmatter["date"] = (
                 self.date.isoformat() if isinstance(self.date, datetime) else self.date
             )
-        
+
         frontmatter["created_at"] = (
             self.created_at.isoformat()
             if isinstance(self.created_at, datetime)
@@ -248,44 +246,44 @@ class Page:
             if isinstance(self.updated_at, datetime)
             else self.updated_at
         )
-        
+
         if self.tags:
             frontmatter["tags"] = self.tags
-        
+
         if self.metadata:
             frontmatter["metadata"] = self.metadata
 
         # Build markdown content with narrative sections
         content_parts = []
-        
+
         # Goals section
         if self.narrative.get("goals"):
             content_parts.append("## Goals\n")
             content_parts.append(f"{self.narrative['goals']}\n")
         else:
             content_parts.append("## Goals\n\n")
-        
+
         # Hypothesis section
         if self.narrative.get("hypothesis"):
             content_parts.append("## Hypothesis\n")
             content_parts.append(f"{self.narrative['hypothesis']}\n")
         else:
             content_parts.append("## Hypothesis\n\n")
-        
+
         # Observations section
         if self.narrative.get("observations"):
             content_parts.append("## Observations\n")
             content_parts.append(f"{self.narrative['observations']}\n")
         else:
             content_parts.append("## Observations\n\n")
-        
+
         # Conclusions section
         if self.narrative.get("conclusions"):
             content_parts.append("## Conclusions\n")
             content_parts.append(f"{self.narrative['conclusions']}\n")
         else:
             content_parts.append("## Conclusions\n\n")
-        
+
         # Next Steps section
         if self.narrative.get("next_steps"):
             content_parts.append("## Next Steps\n")
@@ -300,7 +298,7 @@ class Page:
             import yaml
             f.write(yaml.dump(frontmatter, default_flow_style=False, sort_keys=False))
             f.write("---\n\n")
-            
+
             # Write content
             f.write("".join(content_parts))
 

@@ -7,6 +7,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
+import yaml
+
 from core.utils import slugify
 from db.models import Notebook as NotebookModel
 from db.models import Page as PageModel
@@ -295,7 +297,6 @@ class Page:
         with open(file_path, "w") as f:
             # Write frontmatter
             f.write("---\n")
-            import yaml
             f.write(yaml.dump(frontmatter, default_flow_style=False, sort_keys=False))
             f.write("---\n\n")
 
@@ -392,8 +393,14 @@ class Page:
             file_path = self.get_file_path()
             if file_path.exists():
                 file_path.unlink()
-        except Exception:
-            pass  # Ignore errors when deleting file
+        except (FileNotFoundError, PermissionError) as e:
+            # Log specific file operation errors
+            import logging
+            logging.warning(f"Failed to delete page file {file_path}: {e}")
+        except OSError as e:
+            # Catch other filesystem errors
+            import logging
+            logging.warning(f"Filesystem error while deleting page file: {e}")
 
         # Delete from database
         session = self.workspace.db_manager.get_session()

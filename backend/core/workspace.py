@@ -176,9 +176,14 @@ class Workspace:
             if relative_paths:
                 self._workspace_repo.index.add(relative_paths)
                 self._workspace_repo.index.commit(message)
-        except Exception:
-            # Log but don't fail if git operations fail
-            pass  # Silently ignore git errors
+        except (OSError, IOError) as e:
+            # Log but don't fail if git operations fail (e.g., permission errors)
+            import logging
+            logging.warning(f"Git commit failed for {file_paths}: {e}")
+        except Exception as e:
+            # Catch other git-related exceptions
+            import logging
+            logging.warning(f"Unexpected error during git commit: {e}")
 
     def get_config(self) -> dict:
         """Get workspace configuration."""

@@ -162,77 +162,7 @@ function getDisplayName(item: FileTreeItem): string {
       </RouterLink>
     </div>
 
-    <div class="sidebar-tools">
-      <RouterLink to="/sql" class="tool-link">
-        <span class="tool-icon">🗃️</span>
-        <span>SQL Viewer</span>
-      </RouterLink>
-      <RouterLink to="/comfyui" class="tool-link">
-        <span class="tool-icon">🎨</span>
-        <span>ComfyUI</span>
-      </RouterLink>
-    </div>
-
     <nav class="sidebar-nav">
-      <div class="nav-section">
-        <div class="nav-section-header">
-          <span>Notebooks</span>
-        </div>
-
-        <div v-if="loading" class="loading">Loading...</div>
-
-        <div v-else class="tree">
-          <div v-for="notebook in notebooks" :key="notebook.id" class="tree-item">
-            <div
-              class="tree-node notebook-node"
-              :class="{ active: isNotebookActive(notebook) }"
-            >
-              <button
-                class="tree-toggle"
-                @click="toggleNotebook(notebook)"
-              >
-                <span v-if="expandedNotebooks.has(notebook.id)">▼</span>
-                <span v-else>▶</span>
-              </button>
-              <span class="tree-icon">📓</span>
-              <span
-                class="tree-label"
-                @click="navigateToNotebook(notebook)"
-              >
-                {{ notebook.title }}
-              </span>
-            </div>
-
-            <div
-              v-if="expandedNotebooks.has(notebook.id)"
-              class="tree-children"
-            >
-              <div
-                v-for="page in notebookPages.get(notebook.id) || []"
-                :key="page.id"
-                class="tree-node page-node"
-                :class="{ active: isPageActive(page) }"
-                @click="navigateToPage(notebook.id, page)"
-              >
-                <span class="tree-icon">📄</span>
-                <span class="tree-label">{{ page.title }}</span>
-              </div>
-
-              <div
-                v-if="!notebookPages.get(notebook.id)?.length"
-                class="tree-empty"
-              >
-                No pages
-              </div>
-            </div>
-          </div>
-
-          <div v-if="!notebooks.length" class="tree-empty">
-            No notebooks yet
-          </div>
-        </div>
-      </div>
-
       <!-- Files Section -->
       <div class="nav-section">
         <div class="nav-section-header">

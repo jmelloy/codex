@@ -8,7 +8,6 @@ from pydantic import BaseModel
 
 from api.utils import get_workspace_path
 from core.workspace import Workspace
-from integrations import IntegrationRegistry
 
 router = APIRouter()
 

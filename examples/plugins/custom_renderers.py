@@ -20,7 +20,7 @@ class StatusRenderer(FrontmatterRenderer):
         "in_progress": {"color": "#3b82f6", "icon": "🔄"},
         "review": {"color": "#f59e0b", "icon": "👀"},
         "published": {"color": "#10b981", "icon": "✅"},
-        "archived": {"color": "#ef4444", "icon": "��"},
+        "archived": {"color": "#ef4444", "icon": "��️"},
     }
 
     def render(self, value: Any, key: str) -> Dict[str, Any]:

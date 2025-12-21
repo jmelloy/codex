@@ -16,19 +16,26 @@ const props = defineProps<Props>();
 
 // Group fields for better display
 const commonFields = ["title", "date", "author", "created_at", "updated_at"];
+const commonFieldsToRender = computed(() => {
+  return commonFields.filter(key => props.rendered[key]);
+});
 const otherFields = computed(() => {
   return Object.keys(props.rendered).filter((key) => !commonFields.includes(key));
+});
+
+// Combine all fields in order: common fields first, then others
+const allFields = computed(() => {
+  return [...commonFieldsToRender.value, ...otherFields.value];
 });
 </script>
 
 <template>
   <div class="frontmatter-viewer">
     <div class="frontmatter-grid">
-      <!-- Display common fields in prominent positions -->
+      <!-- Render all fields using a single loop -->
       <div
-        v-for="key in commonFields"
+        v-for="key in allFields"
         :key="key"
-        v-show="rendered[key]"
         class="field"
         :class="`field-${rendered[key]?.type || 'text'}`"
       >
@@ -92,53 +99,6 @@ const otherFields = computed(() => {
           </span>
         </div>
       </div>
-
-      <!-- Display other fields -->
-      <div
-        v-for="key in otherFields"
-        :key="key"
-        class="field"
-        :class="`field-${rendered[key]?.type || 'text'}`"
-      >
-        <label class="field-label">{{ key }}</label>
-        <div class="field-value">
-          <!-- Text, Date, Number, Boolean, List, Link, Markdown - Same as above -->
-          <span v-if="rendered[key]?.type === 'text'" class="value-text">
-            {{ rendered[key].display }}
-          </span>
-          <span v-else-if="rendered[key]?.type === 'date'" class="value-date">
-            {{ rendered[key].display }}
-          </span>
-          <span v-else-if="rendered[key]?.type === 'number'" class="value-number">
-            {{ rendered[key].display }}
-          </span>
-          <span v-else-if="rendered[key]?.type === 'boolean'" class="value-boolean">
-            <span class="boolean-indicator" :class="{ active: rendered[key].value }">
-              {{ rendered[key].display }}
-            </span>
-          </span>
-          <div v-else-if="rendered[key]?.type === 'list'" class="value-list">
-            <span v-for="(item, index) in rendered[key].value" :key="index" class="list-item">
-              {{ item }}
-            </span>
-          </div>
-          <a
-            v-else-if="rendered[key]?.type === 'link'"
-            :href="rendered[key].value"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="value-link"
-          >
-            {{ rendered[key].display }}
-          </a>
-          <div v-else-if="rendered[key]?.type === 'markdown'" class="value-markdown">
-            {{ rendered[key].display }}
-          </div>
-          <span v-else class="value-default">
-            {{ rendered[key]?.display || rendered[key]?.value }}
-          </span>
-        </div>
-      </div>
     </div>
   </div>
 </template>
@@ -177,20 +137,24 @@ const otherFields = computed(() => {
   color: var(--color-text);
 }
 
+/* Text values */
 .value-text {
   font-weight: 500;
 }
 
+/* Date values */
 .value-date {
   font-family: var(--font-mono);
   font-size: 0.8125rem;
 }
 
+/* Number values */
 .value-number {
   font-family: var(--font-mono);
   font-weight: 600;
 }
 
+/* Boolean values */
 .value-boolean {
   display: inline-block;
 }
@@ -210,6 +174,7 @@ const otherFields = computed(() => {
   color: white;
 }
 
+/* List values (tags) */
 .value-list {
   display: flex;
   flex-wrap: wrap;
@@ -226,6 +191,7 @@ const otherFields = computed(() => {
   color: var(--color-text);
 }
 
+/* Link values */
 .value-link {
   color: #3b82f6;
   text-decoration: none;
@@ -236,17 +202,20 @@ const otherFields = computed(() => {
   text-decoration: underline;
 }
 
+/* Markdown values */
 .value-markdown {
   font-size: 0.875rem;
   line-height: 1.5;
   color: var(--color-text-secondary);
 }
 
+/* Default fallback */
 .value-default {
   font-style: italic;
   color: var(--color-text-secondary);
 }
 
+/* Responsive adjustments */
 @media (max-width: 768px) {
   .frontmatter-grid {
     grid-template-columns: 1fr;

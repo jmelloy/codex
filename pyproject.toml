@@ -53,7 +53,7 @@ codex = "codex.cli.main:cli"
 Homepage = "https://github.com/jmelloy/labview"
 
 [tool.setuptools.packages.find]
-where = ["."]
+where = ["backend"]
 include = ["codex*"]
 
 [tool.ruff]

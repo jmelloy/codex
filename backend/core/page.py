@@ -103,8 +103,8 @@ class Page:
         # Write markdown file with frontmatter and narrative sections
         page._write_markdown_file(page_file)
 
-        # Commit to workspace git
-        notebook.workspace.commit_file_changes(
+        # Commit to notebook git
+        notebook.commit_file_changes(
             [page_file],
             f"Create page: {title}"
         )
@@ -330,8 +330,9 @@ class Page:
         file_path = self.get_file_path()
         self._write_markdown_file()
 
-        # Commit to workspace git
-        self.workspace.commit_file_changes(
+        # Commit to notebook git
+        notebook = self.get_notebook()
+        notebook.commit_file_changes(
             [file_path],
             f"Update {field_name} in page: {self.title}"
         )
@@ -378,8 +379,9 @@ class Page:
         file_path = self.get_file_path()
         self._write_markdown_file()
 
-        # Commit to workspace git
-        self.workspace.commit_file_changes(
+        # Commit to notebook git
+        notebook = self.get_notebook()
+        notebook.commit_file_changes(
             [file_path],
             f"Update page: {self.title}"
         )

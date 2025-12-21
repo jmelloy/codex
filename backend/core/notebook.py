@@ -34,6 +34,7 @@ class Notebook:
     tags: list[str] = field(default_factory=list)
     settings: dict = field(default_factory=dict)
     metadata: dict = field(default_factory=dict)
+    _notebook_repo = None  # Git repo for this notebook
 
     @classmethod
     def create(
@@ -98,11 +99,8 @@ class Notebook:
         # Write sidecar properties file
         notebook._write_sidecar()
 
-        # Commit to workspace git
-        workspace.commit_file_changes(
-            [readme_path],
-            f"Create notebook: {title}"
-        )
+        # Initialize notebook git repository
+        notebook._init_notebook_git()
 
         return notebook
 
@@ -179,6 +177,81 @@ class Notebook:
 
         with open(sidecar_path, "w") as f:
             json.dump(sidecar_data, f, indent=2)
+
+    def _init_notebook_git(self):
+        """Initialize git repository for this notebook."""
+        try:
+            from git import Repo
+            from git.exc import InvalidGitRepositoryError
+        except ImportError:
+            return  # Git not available
+
+        notebook_dir = self.get_directory()
+        
+        try:
+            # Check if already a git repo
+            self._notebook_repo = Repo(notebook_dir)
+        except InvalidGitRepositoryError:
+            # Initialize new git repo
+            self._notebook_repo = Repo.init(notebook_dir)
+
+            # Create .gitignore to exclude sidecar files
+            gitignore_path = notebook_dir / ".gitignore"
+            if not gitignore_path.exists():
+                with open(gitignore_path, "w") as f:
+                    f.write("# Sidecar metadata files\n")
+                    f.write(".*.json\n")
+                    f.write("\n")
+                    f.write("# Python cache\n")
+                    f.write("__pycache__/\n")
+                    f.write("*.pyc\n")
+
+            # Create initial commit with README and .gitignore
+            self._notebook_repo.index.add([".gitignore", "README.md"])
+            self._notebook_repo.index.commit(f"Initialize notebook: {self.title}")
+
+    def _load_notebook_git(self):
+        """Load existing notebook git repository."""
+        try:
+            from git import Repo
+            from git.exc import InvalidGitRepositoryError
+        except ImportError:
+            return  # Git not available
+
+        notebook_dir = self.get_directory()
+        try:
+            self._notebook_repo = Repo(notebook_dir)
+        except InvalidGitRepositoryError:
+            pass  # No git repo, that's ok
+
+    def commit_file_changes(self, file_paths: list[Path], message: str):
+        """Commit changes to files in this notebook."""
+        if not self._notebook_repo:
+            self._load_notebook_git()
+        
+        if not self._notebook_repo:
+            return  # No git repo available
+
+        try:
+            notebook_dir = self.get_directory()
+            # Convert to relative paths and add to index
+            relative_paths = []
+            for file_path in file_paths:
+                if file_path.exists():
+                    rel_path = file_path.relative_to(notebook_dir)
+                    relative_paths.append(str(rel_path))
+            
+            if relative_paths:
+                self._notebook_repo.index.add(relative_paths)
+                self._notebook_repo.index.commit(message)
+        except (OSError, IOError) as e:
+            # Log but don't fail if git operations fail (e.g., permission errors)
+            import logging
+            logging.warning(f"Git commit failed for {file_paths}: {e}")
+        except Exception as e:
+            # Catch other git-related exceptions
+            import logging
+            logging.warning(f"Unexpected error during git commit: {e}")
 
     def create_page(
         self,

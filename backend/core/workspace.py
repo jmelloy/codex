@@ -34,7 +34,6 @@ class Workspace:
         self._db_manager: Optional[DatabaseManager] = None
         self._storage_manager: Optional[StorageManager] = None
         self._git_manager: Optional[GitManager] = None
-        self._workspace_repo = None  # Git repo for the workspace itself
 
     @property
     def db_manager(self) -> DatabaseManager:
@@ -92,9 +91,6 @@ class Workspace:
         with open(ws.lab_path / "config.json", "w") as f:
             json.dump(config, f, indent=2)
 
-        # Initialize workspace-level git repository
-        ws._init_workspace_git()
-
         return ws
 
     @classmethod
@@ -105,85 +101,11 @@ class Workspace:
         if not ws.is_initialized():
             raise ValueError(f"No workspace found at {path}")
 
-        # Load workspace git if available
-        ws._load_workspace_git()
-
         return ws
 
     def is_initialized(self) -> bool:
         """Check if workspace is initialized."""
         return (self.lab_path / "config.json").exists()
-
-    def _init_workspace_git(self):
-        """Initialize git repository for the workspace."""
-        try:
-            from git import Repo
-            from git.exc import InvalidGitRepositoryError
-        except ImportError:
-            return  # Git not available
-
-        try:
-            # Check if already a git repo
-            self._workspace_repo = Repo(self.path)
-        except InvalidGitRepositoryError:
-            # Initialize new git repo
-            self._workspace_repo = Repo.init(self.path)
-
-            # Create .gitignore to exclude .lab directory
-            gitignore_path = self.path / ".gitignore"
-            if not gitignore_path.exists():
-                with open(gitignore_path, "w") as f:
-                    f.write("# Lab internal files\n")
-                    f.write(".lab/\n")
-                    f.write("\n")
-                    f.write("# Python cache\n")
-                    f.write("__pycache__/\n")
-                    f.write("*.pyc\n")
-
-            # Create initial commit
-            self._workspace_repo.index.add([".gitignore"])
-            self._workspace_repo.index.commit("Initialize workspace")
-
-    def _load_workspace_git(self):
-        """Load existing workspace git repository."""
-        try:
-            from git import Repo
-            from git.exc import InvalidGitRepositoryError
-        except ImportError:
-            return  # Git not available
-
-        try:
-            self._workspace_repo = Repo(self.path)
-        except InvalidGitRepositoryError:
-            pass  # No git repo, that's ok
-
-    def commit_file_changes(self, file_paths: list[Path], message: str):
-        """Commit changes to files in the workspace."""
-        if not self._workspace_repo:
-            self._load_workspace_git()
-
-        if not self._workspace_repo:
-            return  # No git repo available
-
-        try:
-            # Convert to relative paths and add to index
-            relative_paths = []
-            for file_path in file_paths:
-                if file_path.exists():
-                    rel_path = file_path.relative_to(self.path)
-                    relative_paths.append(str(rel_path))
-
-            if relative_paths:
-                self._workspace_repo.index.add(relative_paths)
-                self._workspace_repo.index.commit(message)
-        except (OSError, IOError) as e:
-            # Log but don't fail if git operations fail (e.g., permission errors)
-            import logging
-            logging.warning(f"Git commit failed for {file_paths}: {e}")
-        except Exception as e:
-            # Catch other git-related exceptions
-            import logging
-            logging.warning(f"Unexpected error during git commit: {e}")
 
     def get_config(self) -> dict:
         """Get workspace configuration."""

@@ -5,9 +5,20 @@ import { notebooksApi, pagesApi, entriesApi } from '@/api'
 const mockFetch = vi.fn()
 global.fetch = mockFetch
 
+// Mock localStorage
+const mockLocalStorage = {
+  getItem: vi.fn(),
+  setItem: vi.fn(),
+  removeItem: vi.fn(),
+  clear: vi.fn(),
+}
+global.localStorage = mockLocalStorage as any
+
 describe('API Client', () => {
   beforeEach(() => {
     mockFetch.mockClear()
+    mockLocalStorage.getItem.mockClear()
+    mockLocalStorage.getItem.mockReturnValue('mock-jwt-token')
   })
 
   afterEach(() => {
@@ -15,7 +26,7 @@ describe('API Client', () => {
   })
 
   describe('notebooksApi', () => {
-    it('lists notebooks with workspace path', async () => {
+    it('lists notebooks without workspace path', async () => {
       const mockNotebooks = [
         { id: '1', title: 'Notebook 1', description: 'Test', tags: [] },
       ]
@@ -25,13 +36,14 @@ describe('API Client', () => {
         json: async () => mockNotebooks,
       })
 
-      const result = await notebooksApi.list('/test/workspace')
+      const result = await notebooksApi.list()
 
       expect(mockFetch).toHaveBeenCalledWith(
-        '/api/notebooks?workspace_path=%2Ftest%2Fworkspace',
+        '/api/notebooks',
         expect.objectContaining({
           headers: expect.objectContaining({
             'Content-Type': 'application/json',
+            'Authorization': 'Bearer mock-jwt-token',
           }),
         })
       )
@@ -46,16 +58,20 @@ describe('API Client', () => {
         json: async () => mockNotebook,
       })
 
-      const result = await notebooksApi.get('/workspace', '1')
+      const result = await notebooksApi.get('1')
 
       expect(mockFetch).toHaveBeenCalledWith(
-        '/api/notebooks/1?workspace_path=%2Fworkspace',
-        expect.any(Object)
+        '/api/notebooks/1',
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            'Authorization': 'Bearer mock-jwt-token',
+          }),
+        })
       )
       expect(result).toEqual(mockNotebook)
     })
 
-    it('creates a notebook', async () => {
+    it('creates a notebook without workspace path', async () => {
       const mockNotebook = { 
         id: '1', 
         title: 'New Notebook', 
@@ -68,7 +84,7 @@ describe('API Client', () => {
         json: async () => mockNotebook,
       })
 
-      const result = await notebooksApi.create('/workspace', {
+      const result = await notebooksApi.create({
         title: 'New Notebook',
         description: 'Test description',
         tags: ['test'],
@@ -78,8 +94,10 @@ describe('API Client', () => {
         '/api/notebooks',
         expect.objectContaining({
           method: 'POST',
+          headers: expect.objectContaining({
+            'Authorization': 'Bearer mock-jwt-token',
+          }),
           body: JSON.stringify({
-            workspace_path: '/workspace',
             title: 'New Notebook',
             description: 'Test description',
             tags: ['test'],
@@ -96,9 +114,27 @@ describe('API Client', () => {
         statusText: 'Not Found',
       })
 
-      await expect(notebooksApi.list('/workspace')).rejects.toThrow(
+      await expect(notebooksApi.list()).rejects.toThrow(
         'API Error: 404 Not Found'
       )
+    })
+
+    it('redirects to login on 401 response', async () => {
+      const originalHref = window.location.href
+      delete (window as any).location
+      window.location = { href: '' } as any
+
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+      })
+
+      await expect(notebooksApi.list()).rejects.toThrow('Unauthorized')
+      expect(window.location.href).toBe('/login')
+      expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('auth_token')
+      expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('user')
+
+      window.location.href = originalHref
     })
   })
 
@@ -113,11 +149,15 @@ describe('API Client', () => {
         json: async () => mockPages,
       })
 
-      const result = await pagesApi.list('/workspace', 'nb1')
+      const result = await pagesApi.list('nb1')
 
       expect(mockFetch).toHaveBeenCalledWith(
-        '/api/notebooks/nb1/pages?workspace_path=%2Fworkspace',
-        expect.any(Object)
+        '/api/notebooks/nb1/pages',
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            'Authorization': 'Bearer mock-jwt-token',
+          }),
+        })
       )
       expect(result).toEqual(mockPages)
     })
@@ -135,7 +175,7 @@ describe('API Client', () => {
         json: async () => mockPage,
       })
 
-      const result = await pagesApi.create('/workspace', 'nb1', {
+      const result = await pagesApi.create('nb1', {
         title: 'New Page',
         date: '2024-01-01',
       })
@@ -144,6 +184,9 @@ describe('API Client', () => {
         '/api/pages',
         expect.objectContaining({
           method: 'POST',
+          headers: expect.objectContaining({
+            'Authorization': 'Bearer mock-jwt-token',
+          }),
           body: expect.stringContaining('New Page'),
         })
       )
@@ -162,7 +205,7 @@ describe('API Client', () => {
         json: async () => mockPage,
       })
 
-      const result = await pagesApi.update('/workspace', '1', {
+      const result = await pagesApi.update('1', {
         title: 'Updated Page',
       })
 
@@ -170,6 +213,9 @@ describe('API Client', () => {
         '/api/pages/1',
         expect.objectContaining({
           method: 'PATCH',
+          headers: expect.objectContaining({
+            'Authorization': 'Bearer mock-jwt-token',
+          }),
         })
       )
       expect(result).toEqual(mockPage)
@@ -187,11 +233,15 @@ describe('API Client', () => {
         json: async () => mockEntries,
       })
 
-      const result = await entriesApi.list('/workspace', 'p1')
+      const result = await entriesApi.list('p1')
 
       expect(mockFetch).toHaveBeenCalledWith(
-        '/api/pages/p1/entries?workspace_path=%2Fworkspace',
-        expect.any(Object)
+        '/api/pages/p1/entries',
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            'Authorization': 'Bearer mock-jwt-token',
+          }),
+        })
       )
       expect(result).toEqual(mockEntries)
     })
@@ -204,11 +254,15 @@ describe('API Client', () => {
         json: async () => mockEntry,
       })
 
-      const result = await entriesApi.get('/workspace', '1')
+      const result = await entriesApi.get('1')
 
       expect(mockFetch).toHaveBeenCalledWith(
-        '/api/entries/1?workspace_path=%2Fworkspace',
-        expect.any(Object)
+        '/api/entries/1',
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            'Authorization': 'Bearer mock-jwt-token',
+          }),
+        })
       )
       expect(result).toEqual(mockEntry)
     })

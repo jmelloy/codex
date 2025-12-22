@@ -25,7 +25,7 @@ Successfully implemented JWT-based authentication system for Codex, replacing wo
 
 #### 2. Authentication System
 - **Auth Utilities** (`backend/api/auth.py`):
-  - Password hashing with passlib[bcrypt]
+  - Password hashing with bcrypt
   - JWT token generation/validation with python-jose
   - Token expiration: 30 days
   - `get_current_user()` dependency for protected routes
@@ -46,7 +46,7 @@ All data API routes updated to use authentication:
 
 #### 4. Dependencies
 Updated `backend/pyproject.toml`:
-- `passlib[bcrypt]>=1.7.4` - Password hashing
+- `bcrypt>=4.0.0` - Password hashing
 - `python-jose[cryptography]>=3.3.0` - JWT tokens
 - `pydantic[email]>=2.0.0` - Email validation
 

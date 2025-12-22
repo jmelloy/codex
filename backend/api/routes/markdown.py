@@ -29,7 +29,7 @@ class ParsedMarkdownResponse(BaseModel):
     content: str
 
 
-@router.get("/markdown/parse", response_model=ParsedMarkdownResponse)
+@router.get("/parse", response_model=ParsedMarkdownResponse)
 async def parse_markdown(
     path: str = Query(..., description="Relative path to the markdown file"),
     workspace_path: Optional[str] = Query(None),
@@ -97,7 +97,7 @@ async def parse_markdown(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/markdown/frontmatter")
+@router.get("/frontmatter")
 async def get_frontmatter(
     path: str = Query(..., description="Relative path to the markdown file"),
     workspace_path: Optional[str] = Query(None),
@@ -151,7 +151,7 @@ async def get_frontmatter(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/markdown/frontmatter/rendered")
+@router.get("/frontmatter/rendered")
 async def get_rendered_frontmatter(
     path: str = Query(..., description="Relative path to the markdown file"),
     workspace_path: Optional[str] = Query(None),

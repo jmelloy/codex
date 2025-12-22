@@ -63,11 +63,14 @@ def test_register_user(client, temp_workspace):
 
 def test_register_duplicate_username(client, temp_workspace):
     """Test registering with a duplicate username."""
+    import uuid
+    username = f"testuser_{uuid.uuid4().hex[:8]}"
+    
     # Register first user
     client.post(
         "/api/auth/register",
         json={
-            "username": "testuser",
+            "username": username,
             "email": "test1@example.com",
             "password": "testpassword123"
         }
@@ -77,7 +80,7 @@ def test_register_duplicate_username(client, temp_workspace):
     response = client.post(
         "/api/auth/register",
         json={
-            "username": "testuser",
+            "username": username,
             "email": "test2@example.com",
             "password": "testpassword456"
         }
@@ -89,12 +92,15 @@ def test_register_duplicate_username(client, temp_workspace):
 
 def test_register_duplicate_email(client, temp_workspace):
     """Test registering with a duplicate email."""
+    import uuid
+    email = f"test_{uuid.uuid4().hex[:8]}@example.com"
+    
     # Register first user
     client.post(
         "/api/auth/register",
         json={
-            "username": "testuser1",
-            "email": "test@example.com",
+            "username": f"testuser1_{uuid.uuid4().hex[:8]}",
+            "email": email,
             "password": "testpassword123"
         }
     )
@@ -103,8 +109,8 @@ def test_register_duplicate_email(client, temp_workspace):
     response = client.post(
         "/api/auth/register",
         json={
-            "username": "testuser2",
-            "email": "test@example.com",
+            "username": f"testuser2_{uuid.uuid4().hex[:8]}",
+            "email": email,
             "password": "testpassword456"
         }
     )
@@ -115,12 +121,15 @@ def test_register_duplicate_email(client, temp_workspace):
 
 def test_login_user(client, temp_workspace):
     """Test user login."""
+    import uuid
+    username = f"testuser_{uuid.uuid4().hex[:8]}"
+    
     # Register a user
     client.post(
         "/api/auth/register",
         json={
-            "username": "testuser",
-            "email": "test@example.com",
+            "username": username,
+            "email": f"{username}@example.com",
             "password": "testpassword123"
         }
     )
@@ -129,7 +138,7 @@ def test_login_user(client, temp_workspace):
     response = client.post(
         "/api/auth/login",
         json={
-            "username": "testuser",
+            "username": username,
             "password": "testpassword123"
         }
     )
@@ -138,17 +147,20 @@ def test_login_user(client, temp_workspace):
     data = response.json()
     assert "access_token" in data
     assert data["token_type"] == "bearer"
-    assert data["user"]["username"] == "testuser"
+    assert data["user"]["username"] == username
 
 
 def test_login_wrong_password(client, temp_workspace):
     """Test login with wrong password."""
+    import uuid
+    username = f"testuser_{uuid.uuid4().hex[:8]}"
+    
     # Register a user
     client.post(
         "/api/auth/register",
         json={
-            "username": "testuser",
-            "email": "test@example.com",
+            "username": username,
+            "email": f"{username}@example.com",
             "password": "testpassword123"
         }
     )
@@ -157,7 +169,7 @@ def test_login_wrong_password(client, temp_workspace):
     response = client.post(
         "/api/auth/login",
         json={
-            "username": "testuser",
+            "username": username,
             "password": "wrongpassword"
         }
     )
@@ -182,12 +194,15 @@ def test_login_nonexistent_user(client, temp_workspace):
 
 def test_get_current_user(client, temp_workspace):
     """Test getting current user info."""
+    import uuid
+    username = f"testuser_{uuid.uuid4().hex[:8]}"
+    
     # Register and get token
     register_response = client.post(
         "/api/auth/register",
         json={
-            "username": "testuser",
-            "email": "test@example.com",
+            "username": username,
+            "email": f"{username}@example.com",
             "password": "testpassword123"
         }
     )
@@ -201,8 +216,8 @@ def test_get_current_user(client, temp_workspace):
     
     assert response.status_code == 200
     data = response.json()
-    assert data["username"] == "testuser"
-    assert data["email"] == "test@example.com"
+    assert data["username"] == username
+    assert data["email"] == f"{username}@example.com"
     assert "password" not in data
 
 
@@ -225,12 +240,15 @@ def test_authenticated_endpoint_with_invalid_token(client, temp_workspace):
 
 def test_authenticated_endpoint_with_valid_token(client, temp_workspace):
     """Test accessing authenticated endpoint with valid token."""
+    import uuid
+    username = f"testuser_{uuid.uuid4().hex[:8]}"
+    
     # Register and get token
     register_response = client.post(
         "/api/auth/register",
         json={
-            "username": "testuser",
-            "email": "test@example.com",
+            "username": username,
+            "email": f"{username}@example.com",
             "password": "testpassword123"
         }
     )
@@ -248,12 +266,15 @@ def test_authenticated_endpoint_with_valid_token(client, temp_workspace):
 
 def test_user_workspace_isolation(client, temp_workspace):
     """Test that users have isolated workspaces."""
+    import uuid
+    
     # Register first user
+    username1 = f"user1_{uuid.uuid4().hex[:8]}"
     response1 = client.post(
         "/api/auth/register",
         json={
-            "username": "user1",
-            "email": "user1@example.com",
+            "username": username1,
+            "email": f"{username1}@example.com",
             "password": "password123"
         }
     )
@@ -261,11 +282,12 @@ def test_user_workspace_isolation(client, temp_workspace):
     workspace1 = response1.json()["user"]["workspace_path"]
     
     # Register second user
+    username2 = f"user2_{uuid.uuid4().hex[:8]}"
     response2 = client.post(
         "/api/auth/register",
         json={
-            "username": "user2",
-            "email": "user2@example.com",
+            "username": username2,
+            "email": f"{username2}@example.com",
             "password": "password123"
         }
     )
@@ -282,12 +304,15 @@ def test_user_workspace_isolation(client, temp_workspace):
 
 def test_create_notebook_with_auth(client, temp_workspace):
     """Test creating a notebook with authentication."""
+    import uuid
+    username = f"testuser_{uuid.uuid4().hex[:8]}"
+    
     # Register and get token
     register_response = client.post(
         "/api/auth/register",
         json={
-            "username": "testuser",
-            "email": "test@example.com",
+            "username": username,
+            "email": f"{username}@example.com",
             "password": "testpassword123"
         }
     )

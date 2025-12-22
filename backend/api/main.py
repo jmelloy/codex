@@ -7,6 +7,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 
+from api.routes.auth import router as auth_router
 from api.routes.markdown import router as markdown_router
 from api.routes.notebooks import router as notebooks_router
 from api.routes.pages import router as pages_router
@@ -42,6 +43,7 @@ app = FastAPI(
 )
 
 # Include routers
+app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
 app.include_router(workspace_router, prefix="/api", tags=["workspace"])
 app.include_router(notebooks_router, prefix="/api/notebooks", tags=["notebooks"])
 app.include_router(pages_router, prefix="/api/pages", tags=["pages"])

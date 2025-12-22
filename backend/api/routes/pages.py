@@ -4,10 +4,10 @@ import json
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
-from api.utils import get_workspace_path
+from api.auth import get_current_user_workspace
 from core.page import Page as CorePage
 from core.workspace import Workspace
 from db.models import Page
@@ -36,7 +36,6 @@ def _page_to_core(ws: Workspace, page: Page) -> CorePage:
 class PageCreateRequest(BaseModel):
     """Request model for creating a page."""
 
-    workspace_path: Optional[str] = None
     notebook_id: str
     title: str
     date: Optional[str] = None
@@ -58,10 +57,12 @@ class PageResponse(BaseModel):
 
 
 @router.post("", response_model=PageResponse)
-async def create_page(request: PageCreateRequest):
+async def create_page(
+    request: PageCreateRequest,
+    ws: Workspace = Depends(get_current_user_workspace),
+):
     """Create a new page."""
     try:
-        ws = Workspace.load(get_workspace_path(request.workspace_path))
         notebook = ws.get_notebook(request.notebook_id)
         if not notebook:
             raise HTTPException(status_code=404, detail="Notebook not found")
@@ -93,10 +94,12 @@ async def create_page(request: PageCreateRequest):
 
 
 @router.get("/{page_id}", response_model=PageResponse)
-async def get_page(page_id: str, workspace_path: Optional[str] = Query(None)):
+async def get_page(
+    page_id: str,
+    ws: Workspace = Depends(get_current_user_workspace),
+):
     """Get page details."""
     try:
-        ws = Workspace.load(get_workspace_path(workspace_path))
         session = ws.db_manager.get_session()
         try:
             page = Page.get_by_id(session, page_id)
@@ -127,7 +130,6 @@ async def get_page(page_id: str, workspace_path: Optional[str] = Query(None)):
 class PageUpdateRequest(BaseModel):
     """Request model for updating a page."""
 
-    workspace_path: Optional[str] = None
     title: Optional[str] = None
     date: Optional[str] = None
     narrative: Optional[dict] = None
@@ -136,10 +138,13 @@ class PageUpdateRequest(BaseModel):
 
 
 @router.patch("/{page_id}", response_model=PageResponse)
-async def update_page(page_id: str, request: PageUpdateRequest):
+async def update_page(
+    page_id: str,
+    request: PageUpdateRequest,
+    ws: Workspace = Depends(get_current_user_workspace),
+):
     """Update a page."""
     try:
-        ws = Workspace.load(get_workspace_path(request.workspace_path))
         session = ws.db_manager.get_session()
         try:
             page = Page.get_by_id(session, page_id)
@@ -186,16 +191,18 @@ async def update_page(page_id: str, request: PageUpdateRequest):
 class NarrativeUpdateRequest(BaseModel):
     """Request model for updating page narrative."""
 
-    workspace_path: Optional[str] = None
     field: str
     content: str
 
 
 @router.patch("/{page_id}/narrative", response_model=PageResponse)
-async def update_narrative(page_id: str, request: NarrativeUpdateRequest):
+async def update_narrative(
+    page_id: str,
+    request: NarrativeUpdateRequest,
+    ws: Workspace = Depends(get_current_user_workspace),
+):
     """Update page narrative field."""
     try:
-        ws = Workspace.load(get_workspace_path(request.workspace_path))
         session = ws.db_manager.get_session()
         try:
             page = Page.get_by_id(session, page_id)
@@ -227,10 +234,12 @@ async def update_narrative(page_id: str, request: NarrativeUpdateRequest):
 
 
 @router.delete("/{page_id}")
-async def delete_page(page_id: str, workspace_path: Optional[str] = Query(None)):
+async def delete_page(
+    page_id: str,
+    ws: Workspace = Depends(get_current_user_workspace),
+):
     """Delete a page."""
     try:
-        ws = Workspace.load(get_workspace_path(workspace_path))
         session = ws.db_manager.get_session()
         try:
             page = Page.get_by_id(session, page_id)
@@ -252,10 +261,12 @@ async def delete_page(page_id: str, workspace_path: Optional[str] = Query(None))
 
 
 @router.get("/{page_id}/entries")
-async def list_page_entries(page_id: str, workspace_path: Optional[str] = Query(None)):
+async def list_page_entries(
+    page_id: str,
+    ws: Workspace = Depends(get_current_user_workspace),
+):
     """List entries in a page."""
     try:
-        ws = Workspace.load(get_workspace_path(workspace_path))
         session = ws.db_manager.get_session()
         try:
             page = Page.get_by_id(session, page_id)

@@ -225,3 +225,6 @@ frontend/tsconfig.node.tsbuildinfo
 # Lab workspace data (auto-generated)
 .lab/
 frontend/dist/
+
+# Test workspaces (created during test runs)
+backend/workspaces/

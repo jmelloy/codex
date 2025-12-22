@@ -6,7 +6,6 @@ from pathlib import Path
 import click
 
 from core.markdown_storage import MarkdownWorkspace
-from core.utils import format_table
 
 
 @click.group()

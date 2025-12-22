@@ -6,7 +6,6 @@ as the primary data store instead of SQLite database tables.
 
 import hashlib
 import json
-import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
@@ -193,6 +192,10 @@ class MarkdownNotebook:
             
         Returns:
             MarkdownPage instance or None
+            
+        Note:
+            This currently has O(n) complexity as it loads all pages to find the match.
+            For large notebooks, consider adding an index or caching mechanism.
         """
         for page_file in self.list_pages():
             page = MarkdownPage(page_file)
@@ -526,6 +529,10 @@ class MarkdownWorkspace:
             
         Returns:
             MarkdownNotebook instance or None
+            
+        Note:
+            This currently has O(n) complexity as it loads all notebooks to find the match.
+            For workspaces with many notebooks, consider adding an index or caching mechanism.
         """
         for notebook in self.list_notebooks():
             if notebook.id == notebook_id:

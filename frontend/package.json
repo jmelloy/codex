@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@types/dompurify": "^3.0.5",
-    "@types/marked": "^5.0.2",
+    "@types/marked": "^6.0.0",
     "dompurify": "^3.3.0",
     "marked": "^17.0.1",
     "pinia": "^2.1.7",

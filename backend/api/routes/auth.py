@@ -60,9 +60,15 @@ async def register(request: UserRegisterRequest):
     """Register a new user."""
     # Get database connection from default workspace
     db_path = Path(DEFAULT_WORKSPACE_PATH) / ".lab" / "db" / "index.db"
-    db_manager = DatabaseManager(db_path)
     
-    with db_manager.session() as session:
+    # Ensure database directory exists
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    db_manager = DatabaseManager(db_path)
+    db_manager.initialize()  # Initialize database with migrations
+    
+    session = db_manager.get_session()
+    try:
         # Check if username already exists
         existing_user = User.find_one_by(session, username=request.username)
         if existing_user:
@@ -122,6 +128,8 @@ async def register(request: UserRegisterRequest):
                 created_at=user.created_at.isoformat(),
             )
         )
+    finally:
+        session.close()
 
 
 @router.post("/login", response_model=LoginResponse)
@@ -129,9 +137,15 @@ async def login(request: UserLoginRequest):
     """Login a user."""
     # Get database connection from default workspace
     db_path = Path(DEFAULT_WORKSPACE_PATH) / ".lab" / "db" / "index.db"
-    db_manager = DatabaseManager(db_path)
     
-    with db_manager.session() as session:
+    # Ensure database directory exists
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    db_manager = DatabaseManager(db_path)
+    db_manager.initialize()  # Initialize database with migrations
+    
+    session = db_manager.get_session()
+    try:
         # Find user by username
         user = User.find_one_by(session, username=request.username)
         if not user:
@@ -171,6 +185,8 @@ async def login(request: UserLoginRequest):
                 created_at=user.created_at.isoformat(),
             )
         )
+    finally:
+        session.close()
 
 
 @router.get("/me", response_model=UserResponse)
@@ -178,9 +194,15 @@ async def get_current_user_info(current_user: UserInDB = Depends(get_current_use
     """Get current user information."""
     # Get full user data from database
     db_path = Path(DEFAULT_WORKSPACE_PATH) / ".lab" / "db" / "index.db"
-    db_manager = DatabaseManager(db_path)
     
-    with db_manager.session() as session:
+    # Ensure database directory exists
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    db_manager = DatabaseManager(db_path)
+    db_manager.initialize()  # Initialize database with migrations
+    
+    session = db_manager.get_session()
+    try:
         user = User.find_one_by(session, username=current_user.username)
         if not user:
             raise HTTPException(
@@ -196,3 +218,5 @@ async def get_current_user_info(current_user: UserInDB = Depends(get_current_use
             is_active=user.is_active,
             created_at=user.created_at.isoformat(),
         )
+    finally:
+        session.close()

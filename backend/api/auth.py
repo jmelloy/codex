@@ -101,9 +101,15 @@ async def get_current_user(
     
     # Use the default workspace database to store users
     db_path = Path(DEFAULT_WORKSPACE_PATH) / ".lab" / "db" / "index.db"
-    db_manager = DatabaseManager(db_path)
     
-    with db_manager.session() as session:
+    # Ensure database directory exists
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    db_manager = DatabaseManager(db_path)
+    db_manager.initialize()  # Initialize database with migrations
+    
+    session = db_manager.get_session()
+    try:
         user = User.find_one_by(session, username=token_data.username)
         if user is None:
             raise HTTPException(
@@ -125,6 +131,8 @@ async def get_current_user(
             workspace_path=user.workspace_path,
             is_active=user.is_active,
         )
+    finally:
+        session.close()
 
 
 async def get_current_user_workspace(

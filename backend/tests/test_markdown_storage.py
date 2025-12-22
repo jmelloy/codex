@@ -273,22 +273,19 @@ class TestMarkdownPage:
             page = MarkdownPage.create(notebook, "Test Page")
             
             # Add entry
-            entry_data = {
-                "id": "entry-123",
-                "title": "Test Entry",
-                "entry_type": "custom",
-                "created_at": datetime.utcnow().isoformat(),
-                "status": "completed",
-                "inputs": {"param": "value"},
-                "outputs": {"result": "success"},
-            }
-            page.add_entry(entry_data)
+            entry_id = page.add_entry(
+                title="Test Entry",
+                entry_type="custom",
+                inputs={"param": "value"},
+                outputs={"result": "success"},
+            )
             
             # Reload and check
             reloaded = MarkdownPage(page.path)
             assert len(reloaded.entries) == 1
-            assert reloaded.entries[0]["id"] == "entry-123"
+            assert reloaded.entries[0]["id"] == entry_id
             assert reloaded.entries[0]["title"] == "Test Entry"
+            assert reloaded.entries[0]["inputs"]["param"] == "value"
 
     def test_to_dict(self):
         """Test converting page to dictionary."""
@@ -338,19 +335,15 @@ class TestMarkdownIntegration:
             )
             
             # Add entry
-            entry_data = {
-                "id": "entry-001",
-                "title": "Experiment 1",
-                "entry_type": "api_call",
-                "created_at": datetime.utcnow().isoformat(),
-                "status": "completed",
-                "inputs": {"url": "https://api.example.com", "method": "GET"},
-                "outputs": {"status_code": 200, "body": "Success"},
-                "artifacts": [
+            entry_id = page.add_entry(
+                title="Experiment 1",
+                entry_type="api_call",
+                inputs={"url": "https://api.example.com", "method": "GET"},
+                outputs={"status_code": 200, "body": "Success"},
+                artifacts=[
                     {"type": "application/json", "path": "artifacts/response.json"}
                 ],
-            }
-            page.add_entry(entry_data)
+            )
             
             # Verify everything is saved
             assert notebook.path.exists()

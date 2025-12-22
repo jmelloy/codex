@@ -3,10 +3,10 @@
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
-from api.utils import get_workspace_path
+from api.auth import get_current_user_workspace
 from core.workspace import Workspace
 
 router = APIRouter()
@@ -15,7 +15,6 @@ router = APIRouter()
 class SearchRequest(BaseModel):
     """Request model for search."""
 
-    workspace_path: Optional[str] = None
     query: Optional[str] = None
     entry_type: Optional[str] = None
     tags: Optional[list[str]] = None
@@ -26,11 +25,12 @@ class SearchRequest(BaseModel):
 
 
 @router.post("")
-async def search(request: SearchRequest):
+async def search(
+    request: SearchRequest,
+    ws: Workspace = Depends(get_current_user_workspace),
+):
     """Search entries."""
     try:
-        ws = Workspace.load(get_workspace_path(request.workspace_path))
-
         results = ws.search_entries(
             query=request.query,
             entry_type=request.entry_type,
@@ -57,7 +57,7 @@ async def search(request: SearchRequest):
 
 @router.get("")
 async def search_get(
-    workspace_path: Optional[str] = Query(None),
+    ws: Workspace = Depends(get_current_user_workspace),
     query: Optional[str] = None,
     entry_type: Optional[str] = None,
     notebook_id: Optional[str] = None,
@@ -67,8 +67,6 @@ async def search_get(
 ):
     """Search entries (GET method)."""
     try:
-        ws = Workspace.load(get_workspace_path(workspace_path))
-
         results = ws.search_entries(
             query=query,
             entry_type=entry_type,

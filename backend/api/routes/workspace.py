@@ -3,9 +3,10 @@
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
+from api.auth import get_current_user_workspace
 from api.utils import get_workspace_path
 from core.workspace import Workspace
 
@@ -45,10 +46,9 @@ async def init_workspace(request: WorkspaceInitRequest):
 
 
 @router.get("/workspace")
-async def get_workspace(workspace_path: Optional[str] = Query(None)):
+async def get_workspace(ws: Workspace = Depends(get_current_user_workspace)):
     """Get workspace info."""
     try:
-        ws = Workspace.load(get_workspace_path(workspace_path))
         config = ws.get_config()
         return {
             "path": str(ws.path),
@@ -73,10 +73,9 @@ async def list_integrations():
 
 
 @router.get("/files/notebooks")
-async def list_notebooks_files(workspace_path: Optional[str] = Query(None)):
+async def list_notebooks_files(ws: Workspace = Depends(get_current_user_workspace)):
     """List all files in the notebooks directory."""
     try:
-        ws = Workspace.load(get_workspace_path(workspace_path))
         files = ws.scan_notebooks_directory()
         return {
             "path": str(ws.notebooks_path),
@@ -89,10 +88,9 @@ async def list_notebooks_files(workspace_path: Optional[str] = Query(None)):
 
 
 @router.get("/files/artifacts")
-async def list_artifacts_files(workspace_path: Optional[str] = Query(None)):
+async def list_artifacts_files(ws: Workspace = Depends(get_current_user_workspace)):
     """List all files in the artifacts directory."""
     try:
-        ws = Workspace.load(get_workspace_path(workspace_path))
         files = ws.scan_artifacts_directory()
         return {
             "path": str(ws.artifacts_path),
@@ -107,7 +105,7 @@ async def list_artifacts_files(workspace_path: Optional[str] = Query(None)):
 @router.get("/files/notebooks/content")
 async def get_notebook_file_content(
     path: str = Query(..., description="Relative path to the file"),
-    workspace_path: Optional[str] = Query(None),
+    ws: Workspace = Depends(get_current_user_workspace),
 ):
     """Get the content of a file from the notebooks directory."""
     import mimetypes
@@ -115,8 +113,6 @@ async def get_notebook_file_content(
     from fastapi.responses import FileResponse
 
     try:
-        ws = Workspace.load(get_workspace_path(workspace_path))
-
         # Sanitize path to prevent directory traversal
         safe_path = Path(path).as_posix()
         if ".." in safe_path or safe_path.startswith("/"):
@@ -157,7 +153,7 @@ async def get_notebook_file_content(
 @router.get("/files/artifacts/content")
 async def get_artifact_file_content(
     path: str = Query(..., description="Relative path to the file"),
-    workspace_path: Optional[str] = Query(None),
+    ws: Workspace = Depends(get_current_user_workspace),
 ):
     """Get the content of a file from the artifacts directory."""
     import mimetypes
@@ -165,8 +161,6 @@ async def get_artifact_file_content(
     from fastapi.responses import FileResponse
 
     try:
-        ws = Workspace.load(get_workspace_path(workspace_path))
-
         # Sanitize path to prevent directory traversal
         safe_path = Path(path).as_posix()
         if ".." in safe_path or safe_path.startswith("/"):

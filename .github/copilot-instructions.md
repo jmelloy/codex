@@ -18,7 +18,7 @@
 
 ### Python Backend
 
-**Python Version Required**: 3.12+ (3.13 in CI)
+**Python Version Required**: 3.12+ (3.14 in CI)
 
 **Installation Steps (Always run in this order):**
 
@@ -41,7 +41,7 @@ ruff check backend/
 
 ### Frontend
 
-**Node Version Required**: 20+ (tested with 20.19.6)
+**Node Version Required**: 24+ (tested with 24.0.0)
 
 **Build Steps:**
 
@@ -102,7 +102,7 @@ The project uses Alembic for database migrations. The migration system automatic
 
 ```
 /
-├── .github/workflows/test.yml    # CI: Python 3.13, pip install, pytest
+├── .github/workflows/test.yml    # CI: Python 3.14, pip install, pytest
 ├── backend/codex/                # Main Python package
 │   ├── api/                      # FastAPI application
 │   │   ├── main.py              # API entry point
@@ -147,7 +147,7 @@ The project uses Alembic for database migrations. The migration system automatic
 │   └── test_*.py                # Other test modules
 ├── scripts/mac/                 # macOS-specific scripts for window tracking
 ├── pyproject.toml               # Python package configuration and dependencies
-├── mise.toml                    # Development tool versions (Python 3.13, black)
+├── mise.toml                    # Development tool versions (Python 3.14, black)
 ├── build.sh                     # Build script (frontend build + pip install)
 ├── validate-docker.sh           # Docker validation script
 ├── docker-compose.yml           # Development Docker setup
@@ -158,7 +158,7 @@ The project uses Alembic for database migrations. The migration system automatic
 ### Key Configuration Files
 
 - **pyproject.toml**: Python dependencies, project metadata, ruff linting config, pytest config
-- **mise.toml**: Specifies Python 3.13 and black for development
+- **mise.toml**: Specifies Python 3.14 and black for development
 - **package.json**: Frontend dependencies and build scripts
 - **.gitignore**: Excludes `.lab/`, `frontend/dist/`, `frontend/node_modules/`, Python cache files
 
@@ -167,10 +167,10 @@ The project uses Alembic for database migrations. The migration system automatic
 **GitHub Actions** (`.github/workflows/test.yml`):
 
 - **Triggers**: Push/PR to main or develop branches, manual dispatch
-- **Environment**: Ubuntu latest, Python 3.13
+- **Environment**: Ubuntu latest, Python 3.14
 - **Steps**:
   1. Checkout code
-  2. Setup Python 3.13
+  2. Setup Python 3.14
   3. Install dependencies: `pip install -e ".[dev]"`
   4. Run tests: `pytest tests/ -v`
 - **Expected Result**: 251 tests pass, 63 deprecation warnings (these are acceptable)
@@ -229,7 +229,7 @@ codex <command> --help
 
 2. **Deprecation Warnings in Tests**: 63 warnings about `datetime.utcnow()` are expected - do NOT fix these unless specifically asked.
 
-3. **Python 3.12 vs 3.13**: Local development may use Python 3.12, but CI uses 3.13. Both work fine.
+3. **Python 3.12 vs 3.14**: Local development may use Python 3.12, but CI uses 3.14. Both work fine.
 
 4. **Docker Build Context**: When building, the frontend must be built separately inside its Dockerfile (see Dockerfile.dev.frontend).
 

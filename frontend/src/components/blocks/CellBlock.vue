@@ -3,7 +3,6 @@ import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { marked } from "marked";
 import DOMPurify from "dompurify";
-import { useNotebooksStore } from "@/stores/notebooks";
 import { artifactsApi, entriesApi } from "@/api";
 import type { Entry, Artifact } from "@/types";
 
@@ -20,7 +19,6 @@ const emit = defineEmits<{
 }>();
 
 const router = useRouter();
-const notebooksStore = useNotebooksStore();
 
 const isExpanded = ref(true);
 const isEditing = ref(false);
@@ -101,7 +99,7 @@ function formatOutput(outputs: Record<string, unknown>): string {
 }
 
 function getThumbnailUrl(artifact: Artifact): string {
-  return artifactsApi.getUrl(notebooksStore.workspacePath, artifact.hash, true);
+  return artifactsApi.getUrl(artifact.hash, true);
 }
 
 function viewArtifactDetail(artifact: Artifact) {
@@ -120,10 +118,7 @@ async function loadArtifacts() {
 
   loadingArtifacts.value = true;
   try {
-    artifacts.value = await entriesApi.getArtifacts(
-      notebooksStore.workspacePath,
-      props.entry.id
-    );
+    artifacts.value = await entriesApi.getArtifacts(props.entry.id);
   } catch (e) {
     console.error("Failed to load artifacts:", e);
   } finally {

@@ -1,10 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import { useNotebooksStore } from "@/stores/notebooks";
 import { searchApi } from "@/api";
 import type { Entry } from "@/types";
-
-const notebooksStore = useNotebooksStore();
 
 const query = ref("");
 const entryType = ref("");
@@ -21,7 +18,7 @@ const search = async () => {
   searched.value = true;
 
   try {
-    const response = await searchApi.search(notebooksStore.workspacePath, {
+    const response = await searchApi.search({
       query: query.value || undefined,
       entry_type: entryType.value || undefined,
     });

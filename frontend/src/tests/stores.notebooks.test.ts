@@ -29,8 +29,6 @@ describe('useNotebooksStore', () => {
     expect(store.error).toBe(null)
   })
 
-
-
   it('loads notebooks successfully', async () => {
     const mockNotebooks: Notebook[] = [
       { 

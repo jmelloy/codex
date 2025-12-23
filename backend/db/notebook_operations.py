@@ -89,6 +89,9 @@ class NotebookDatabaseManager:
                 PageTag.create(session, page_id=page.id, tag_id=tag.id)
 
             session.commit()
+            # Refresh and expunge so it can be used after session closes
+            session.refresh(page)
+            session.expunge(page)
             return page
         finally:
             session.close()
@@ -97,7 +100,10 @@ class NotebookDatabaseManager:
         """Get a page by ID."""
         session = self.get_session()
         try:
-            return Page.get_by_id(session, page_id)
+            page = Page.get_by_id(session, page_id)
+            if page:
+                session.expunge(page)
+            return page
         finally:
             session.close()
 
@@ -105,7 +111,11 @@ class NotebookDatabaseManager:
         """List all pages in this notebook."""
         session = self.get_session()
         try:
-            return Page.find_by(session, notebook_id=self.notebook_id)
+            pages = Page.find_by(session, notebook_id=self.notebook_id)
+            # Expunge all pages so they can be used after session closes
+            for page in pages:
+                session.expunge(page)
+            return pages
         finally:
             session.close()
 
@@ -127,6 +137,8 @@ class NotebookDatabaseManager:
                 
                 page.update(session, **update_data)
                 session.commit()
+                # Expunge so it can be used after session closes
+                session.expunge(page)
                 return page
             return None
         finally:
@@ -153,7 +165,11 @@ class NotebookDatabaseManager:
         """List all tags in this notebook."""
         session = self.get_session()
         try:
-            return Tag.get_all(session)
+            tags = Tag.get_all(session)
+            # Expunge all tags so they can be used after session closes
+            for tag in tags:
+                session.expunge(tag)
+            return tags
         finally:
             session.close()
 
@@ -178,6 +194,8 @@ class NotebookDatabaseManager:
                     updated_at=_now(),
                 )
                 session.commit()
+                # Expunge so it can be used after session closes
+                session.expunge(existing)
                 return existing
             else:
                 # Create new entry
@@ -195,6 +213,9 @@ class NotebookDatabaseManager:
                     updated_at=_now(),
                 )
                 session.commit()
+                # Expunge so it can be used after session closes
+                session.refresh(markdown_file)
+                session.expunge(markdown_file)
                 return markdown_file
         finally:
             session.close()
@@ -210,7 +231,11 @@ class NotebookDatabaseManager:
                 query_obj = query_obj.filter(MarkdownFile.title.like(f"%{query}%"))
             
             query_obj = query_obj.limit(limit)
-            return query_obj.all()
+            files = query_obj.all()
+            # Expunge all files so they can be used after session closes
+            for file in files:
+                session.expunge(file)
+            return files
         finally:
             session.close()
 

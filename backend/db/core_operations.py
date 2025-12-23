@@ -58,6 +58,10 @@ class CoreDatabaseManager:
                 is_active=True,
             )
             session.commit()
+            # Refresh to load all attributes before detaching
+            session.refresh(user)
+            # Expunge the user from session so it can be used after session closes
+            session.expunge(user)
             return user
         finally:
             session.close()
@@ -66,7 +70,23 @@ class CoreDatabaseManager:
         """Get a user by username."""
         session = self.get_session()
         try:
-            return User.find_one_by(session, username=username)
+            user = User.find_one_by(session, username=username)
+            if user:
+                # Expunge so the user can be used after session closes
+                session.expunge(user)
+            return user
+        finally:
+            session.close()
+
+    def get_user_by_email(self, email: str) -> Optional[User]:
+        """Get a user by email."""
+        session = self.get_session()
+        try:
+            user = User.find_one_by(session, email=email)
+            if user:
+                # Expunge so the user can be used after session closes
+                session.expunge(user)
+            return user
         finally:
             session.close()
 
@@ -74,7 +94,11 @@ class CoreDatabaseManager:
         """Get a user by ID."""
         session = self.get_session()
         try:
-            return User.get_by_id(session, user_id)
+            user = User.get_by_id(session, user_id)
+            if user:
+                # Expunge so the user can be used after session closes
+                session.expunge(user)
+            return user
         finally:
             session.close()
 
@@ -93,6 +117,9 @@ class CoreDatabaseManager:
                 expires_at=expires_at,
             )
             session.commit()
+            # Refresh and expunge so it can be used after session closes
+            session.refresh(refresh_token)
+            session.expunge(refresh_token)
             return refresh_token
         finally:
             session.close()
@@ -101,7 +128,11 @@ class CoreDatabaseManager:
         """Get a refresh token by token string."""
         session = self.get_session()
         try:
-            return RefreshToken.find_one_by(session, token=token)
+            refresh_token = RefreshToken.find_one_by(session, token=token)
+            if refresh_token:
+                # Expunge so it can be used after session closes
+                session.expunge(refresh_token)
+            return refresh_token
         finally:
             session.close()
 

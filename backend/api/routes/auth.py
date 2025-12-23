@@ -17,7 +17,6 @@ from api.auth import (
 from api.utils import DEFAULT_WORKSPACE_PATH, get_core_db_path
 from core.workspace import Workspace
 from db.core_operations import CoreDatabaseManager
-from db.models import User
 
 router = APIRouter()
 
@@ -77,6 +76,14 @@ async def register(request: UserRegisterRequest):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Username already registered",
+        )
+
+    # Check if email already exists
+    existing_email = core_db.get_user_by_email(request.email)
+    if existing_email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered",
         )
 
     # Create user workspace path
@@ -175,33 +182,27 @@ async def login(request: UserLoginRequest):
 @router.get("/me", response_model=UserResponse)
 async def get_current_user_info(current_user: UserInDB = Depends(get_current_user)):
     """Get current user information."""
-    # Get full user data from database
-    db_path = Path(DEFAULT_WORKSPACE_PATH) / ".lab" / "db" / "index.db"
-
-    # Ensure database directory exists
+    # Get full user data from core database
+    db_path = get_core_db_path()
     db_path.parent.mkdir(parents=True, exist_ok=True)
 
-    db_manager = CoreDatabaseManager(db_path)
-    db_manager.initialize()  # Initialize database with migrations
+    core_db = CoreDatabaseManager(db_path)
+    core_db.initialize()
 
-    session = db_manager.get_session()
-    try:
-        user = User.find_one_by(session, username=current_user.username)
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
-            )
-
-        return UserResponse(
-            id=user.id,
-            username=user.username,
-            email=user.email,
-            workspace_path=user.workspace_path,
-            is_active=user.is_active,
-            created_at=user.created_at.isoformat(),
+    user = core_db.get_user_by_username(current_user.username)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
-    finally:
-        session.close()
+
+    return UserResponse(
+        id=user.id,
+        username=user.username,
+        email=user.email,
+        workspace_path=user.workspace_path,
+        is_active=user.is_active,
+        created_at=user.created_at.isoformat(),
+    )
 
 
 class RefreshTokenRequest(BaseModel):
@@ -230,31 +231,27 @@ async def refresh_access_token(request: RefreshTokenRequest):
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Get user from database
-    db_path = Path(DEFAULT_WORKSPACE_PATH) / ".lab" / "db" / "index.db"
+    # Get user from core database
+    db_path = get_core_db_path()
     db_path.parent.mkdir(parents=True, exist_ok=True)
 
-    db_manager = CoreDatabaseManager(db_path)
-    db_manager.initialize()
+    core_db = CoreDatabaseManager(db_path)
+    core_db.initialize()
 
-    session = db_manager.get_session()
-    try:
-        user = User.get_by_id(session, user_id)
-        if user is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="User not found",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+    user = core_db.get_user_by_id(user_id)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
-        if not user.is_active:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user"
-            )
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user"
+        )
 
-        # Create new access token
-        access_token = create_access_token(data={"sub": user.username})
+    # Create new access token
+    access_token = create_access_token(data={"sub": user.username})
 
-        return RefreshTokenResponse(access_token=access_token, token_type="bearer")
-    finally:
-        session.close()
+    return RefreshTokenResponse(access_token=access_token, token_type="bearer")

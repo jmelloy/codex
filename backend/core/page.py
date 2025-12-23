@@ -70,12 +70,14 @@ class Page:
             metadata={},
         )
 
-        # Save to database
-        session = notebook.workspace.workspace_db_manager.get_session()
+        # Save to database (use notebook's database)
+        from db.notebook_models import Page as PageModel
+        notebook_db = notebook.workspace.get_notebook_db_manager(notebook.id)
+        session = notebook_db.get_session()
         try:
             PageModel.create(
                 session,
-                validate_fk=True,
+                validate_fk=False,  # No FK constraints in notebook database
                 id=page_id,
                 notebook_id=notebook.id,
                 title=title,
@@ -305,7 +307,10 @@ class Page:
         self.narrative[field_name] = content
         self.updated_at = _now()
 
-        session = self.notebook.workspace.workspace_db_manager.get_session()
+        # Update in notebook database
+        from db.notebook_models import Page as PageModel
+        notebook_db = self.workspace.get_notebook_db_manager(self.notebook_id)
+        session = notebook_db.get_session()
         try:
             page = PageModel.get_by_id(session, self.id)
             if page:
@@ -348,8 +353,10 @@ class Page:
 
         self.updated_at = _now()
 
-        # Update in database
-        session = self.notebook.workspace.workspace_db_manager.get_session()
+        # Update in notebook database
+        from db.notebook_models import Page as PageModel
+        notebook_db = self.workspace.get_notebook_db_manager(self.notebook_id)
+        session = notebook_db.get_session()
         try:
             page = PageModel.get_by_id(session, self.id)
             if page:
@@ -399,8 +406,10 @@ class Page:
 
             logging.warning(f"Filesystem error while deleting page file: {e}")
 
-        # Delete from database
-        session = self.notebook.workspace.workspace_db_manager.get_session()
+        # Delete from notebook database
+        from db.notebook_models import Page as PageModel
+        notebook_db = self.workspace.get_notebook_db_manager(self.notebook_id)
+        session = notebook_db.get_session()
         try:
             result = PageModel.delete_by_id(session, self.id)
             session.commit()
@@ -415,8 +424,10 @@ class Page:
     def get_notebook(self) -> "Notebook":
         """Get the parent notebook."""
         from core.notebook import Notebook
+        from db.workspace_models import Notebook as NotebookModel
 
-        session = self.notebook.workspace.workspace_db_manager.get_session()
+        # Get notebook from workspace database
+        session = self.workspace.workspace_db_manager.get_session()
         try:
             notebook = NotebookModel.get_by_id(session, self.notebook_id)
             if notebook:
@@ -442,11 +453,7 @@ class Page:
                         "metadata": (
                             json.loads(notebook.metadata_) if notebook.metadata_ else {}
                         ),
-                        "tags": (
-                            [nt.tag.name for nt in notebook.tags]
-                            if notebook.tags
-                            else []
-                        ),
+                        "tags": [],  # Tags are stored in notebook database, not workspace
                     },
                 )
             raise ValueError(f"Notebook {self.notebook_id} not found")

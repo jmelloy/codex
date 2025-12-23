@@ -69,6 +69,9 @@ class WorkspaceDatabaseManager:
                 updated_at=_now(),
             )
             session.commit()
+            # Refresh and expunge so it can be used after session closes
+            session.refresh(notebook)
+            session.expunge(notebook)
             return notebook
         finally:
             session.close()
@@ -77,7 +80,10 @@ class WorkspaceDatabaseManager:
         """Get a notebook by ID."""
         session = self.get_session()
         try:
-            return Notebook.get_by_id(session, notebook_id)
+            notebook = Notebook.get_by_id(session, notebook_id)
+            if notebook:
+                session.expunge(notebook)
+            return notebook
         finally:
             session.close()
 
@@ -85,7 +91,11 @@ class WorkspaceDatabaseManager:
         """List all notebooks in the workspace."""
         session = self.get_session()
         try:
-            return Notebook.get_all(session)
+            notebooks = Notebook.get_all(session)
+            # Expunge all notebooks so they can be used after session closes
+            for notebook in notebooks:
+                session.expunge(notebook)
+            return notebooks
         finally:
             session.close()
 
@@ -114,6 +124,8 @@ class WorkspaceDatabaseManager:
                 
                 notebook.update(session, **update_data)
                 session.commit()
+                # Expunge so it can be used after session closes
+                session.expunge(notebook)
                 return notebook
             return None
         finally:
@@ -123,6 +135,8 @@ class WorkspaceDatabaseManager:
         """Delete a notebook from the registry."""
         session = self.get_session()
         try:
-            return Notebook.delete_by_id(session, notebook_id)
+            result = Notebook.delete_by_id(session, notebook_id)
+            session.commit()
+            return result
         finally:
             session.close()

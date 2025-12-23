@@ -59,15 +59,18 @@ git clone https://github.com/jmelloy/codex
 cd codex
 
 # Install Python dependencies
+cd backend
 pip install -e ".[dev]"
+cd ..
 
 # Initialize a workspace
 codex init ~/my-lab --name "My Laboratory"
 
 # Start the API server
+cd backend
 uvicorn api.main:app --reload --port 8765
 
-# Build and serve the frontend (optional)
+# Build and serve the frontend (optional, in another terminal)
 cd frontend
 npm install
 npm run dev

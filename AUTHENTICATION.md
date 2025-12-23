@@ -112,7 +112,6 @@ Created `backend/tests/test_auth.py` with 12 tests:
     username/
       .lab/
         db/index.db        # User's notebooks/pages/entries
-        storage/blobs/     # User's artifacts
         git/               # User's git repo
       notebooks/           # User's markdown files
       artifacts/           # User's artifact files

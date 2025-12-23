@@ -23,24 +23,6 @@ const router = createRouter({
       meta: { requiresGuest: true },
     },
     {
-      path: "/notebooks",
-      name: "notebooks",
-      component: () => import("@/views/NotebooksView.vue"),
-      meta: { requiresAuth: true },
-    },
-    {
-      path: "/notebooks/:notebookId",
-      name: "notebook-detail",
-      component: () => import("@/views/NotebookDetailView.vue"),
-      meta: { requiresAuth: true },
-    },
-    {
-      path: "/notebooks/:notebookId/pages/:pageId",
-      name: "page-detail",
-      component: () => import("@/views/PageDetailView.vue"),
-      meta: { requiresAuth: true },
-    },
-    {
       path: "/search",
       name: "search",
       component: () => import("@/views/SearchView.vue"),
@@ -65,7 +47,7 @@ router.beforeEach((to, _from, next) => {
   }
   // Check if route requires guest (login/register pages)
   else if (to.meta.requiresGuest && authStore.isAuthenticated) {
-    next("/notebooks");
+    next("/files");
   }
   // Allow navigation
   else {

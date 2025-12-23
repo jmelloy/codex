@@ -382,6 +382,31 @@ class PageTag(Base):
     tag = relationship("Tag")
 
 
+class MarkdownFile(Base):
+    """Indexed markdown file with frontmatter metadata."""
+
+    __tablename__ = "markdown_files"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    path = Column(String, nullable=False)
+    relative_path = Column(String, nullable=False, unique=True)
+    title = Column(String, nullable=True)
+    file_hash = Column(String, nullable=False)
+    frontmatter = Column(Text, nullable=True)
+    file_size = Column(Integer, nullable=True)
+    file_modified = Column(DateTime, nullable=True)
+    indexed_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, nullable=False)
+    updated_at = Column(DateTime, nullable=False)
+
+    __table_args__ = (
+        Index("idx_markdown_files_path", "path"),
+        Index("idx_markdown_files_relative_path", "relative_path", unique=True),
+        Index("idx_markdown_files_title", "title"),
+        Index("idx_markdown_files_file_hash", "file_hash"),
+    )
+
+
 def get_engine(db_path: str):
     """Create a database engine."""
     return create_engine(f"sqlite:///{db_path}", echo=False)

@@ -62,6 +62,39 @@ async def get_workspace(ws: Workspace = Depends(get_current_user_workspace)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/workspace/index")
+async def index_workspace(
+    force: bool = Query(False, description="Force re-indexing all files"),
+    ws: Workspace = Depends(get_current_user_workspace),
+):
+    """Index all markdown files in the workspace."""
+    try:
+        stats = ws.index_markdown_files(force=force)
+        return {
+            "success": True,
+            "stats": stats,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/workspace/search")
+async def search_workspace(
+    query: Optional[str] = Query(None, description="Search query"),
+    limit: int = Query(100, description="Maximum results"),
+    ws: Workspace = Depends(get_current_user_workspace),
+):
+    """Search indexed markdown files."""
+    try:
+        results = ws.search_indexed_files(query=query, limit=limit)
+        return {
+            "results": results,
+            "count": len(results),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/integrations")
 async def list_integrations():
     """List all available integration types."""

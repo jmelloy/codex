@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
 from core.git_manager import GitManager
+from core.markdown_indexer import index_directory, remove_stale_entries, search_markdown_files
 from core.storage import StorageManager
 from db.models import Notebook as NotebookModel
 from db.models import Page as PageModel
@@ -100,6 +101,9 @@ class Workspace:
 
         if not ws.is_initialized():
             raise ValueError(f"No workspace found at {path}")
+        
+        # Auto-index markdown files on load
+        ws.index_markdown_files()
 
         return ws
 
@@ -114,6 +118,53 @@ class Workspace:
             with open(config_path) as f:
                 return json.load(f)
         return {}
+    
+    def index_markdown_files(self, force: bool = False) -> dict:
+        """Index all markdown files in the workspace.
+        
+        Args:
+            force: If True, re-index all files even if unchanged
+            
+        Returns:
+            Dictionary with indexing stats
+        """
+        session = self.db_manager.get_session()
+        try:
+            # Remove stale entries
+            removed = remove_stale_entries(session, self.notebooks_path)
+            
+            # Index notebooks directory
+            indexed = index_directory(
+                session,
+                self.notebooks_path,
+                self.notebooks_path,
+                recursive=True
+            )
+            
+            return {
+                "indexed": indexed,
+                "removed": removed,
+                "total": indexed,
+            }
+        finally:
+            session.close()
+    
+    def search_indexed_files(self, query: Optional[str] = None, limit: int = 100) -> list[dict]:
+        """Search indexed markdown files.
+        
+        Args:
+            query: Search query string
+            limit: Maximum results to return
+            
+        Returns:
+            List of matching file metadata
+        """
+        session = self.db_manager.get_session()
+        try:
+            return search_markdown_files(session, query, limit)
+        finally:
+            session.close()
+
 
     def create_notebook(
         self,

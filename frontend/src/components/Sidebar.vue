@@ -1,55 +1,23 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { useNotebooksStore } from "@/stores/notebooks";
 import { useAuthStore } from "@/stores/auth";
-import { pagesApi, filesApi, type FileTreeItem } from "@/api";
-import type { Page } from "@/types";
+import { filesApi, type FileTreeItem } from "@/api";
 
 const route = useRoute();
 const router = useRouter();
-const notebooksStore = useNotebooksStore();
 const authStore = useAuthStore();
 
-const expandedNotebooks = ref<Set<string>>(new Set());
 const expandedDirs = ref<Set<string>>(new Set());
-const notebookPages = ref<Map<string, Page[]>>(new Map());
 const notebookFiles = ref<FileTreeItem[]>([]);
 const loading = ref(true);
 
-const currentNotebookId = computed(
-  () => route.params.notebookId as string | undefined,
-);
 const currentFilePath = computed(() => route.query.path as string | undefined);
 
 onMounted(async () => {
-  await Promise.all([notebooksStore.loadNotebooks(), loadNotebookFiles()]);
+  await loadNotebookFiles();
   loading.value = false;
-
-  // Auto-expand current notebook
-  if (currentNotebookId.value) {
-    expandedNotebooks.value.add(currentNotebookId.value);
-    await loadPagesForNotebook(currentNotebookId.value);
-  }
 });
-
-watch(currentNotebookId, async (newId) => {
-  if (newId && !expandedNotebooks.value.has(newId)) {
-    expandedNotebooks.value.add(newId);
-    await loadPagesForNotebook(newId);
-  }
-});
-
-async function loadPagesForNotebook(notebookId: string) {
-  if (!notebookPages.value.has(notebookId)) {
-    try {
-      const pages = await pagesApi.list(notebookId);
-      notebookPages.value.set(notebookId, pages);
-    } catch (e) {
-      console.error("Failed to load pages:", e);
-    }
-  }
-}
 
 async function loadNotebookFiles() {
   try {
@@ -249,9 +217,6 @@ function handleLogout() {
         <div class="user-name">👤 {{ authStore.user.username }}</div>
         <button @click="handleLogout" class="logout-btn">Logout</button>
       </div>
-      <RouterLink v-else to="/notebooks" class="footer-link">
-        + New Notebook
-      </RouterLink>
     </div>
   </aside>
 </template>

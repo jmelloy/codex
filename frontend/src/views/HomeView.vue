@@ -8,14 +8,14 @@ const authStore = useAuthStore();
   <div class="home">
     <section class="hero">
       <h1>Welcome to Codex</h1>
-      <p class="subtitle">A hierarchical digital laboratory journal system</p>
+      <p class="subtitle">A markdown-first digital laboratory journal</p>
       <div class="hero-actions">
         <RouterLink
           v-if="authStore.isAuthenticated"
-          to="/notebooks"
+          to="/files"
           class="btn btn-primary"
         >
-          View Notebooks
+          View Files
         </RouterLink>
         <template v-else>
           <RouterLink to="/login" class="btn btn-primary"> Login </RouterLink>
@@ -31,31 +31,31 @@ const authStore = useAuthStore();
 
     <section class="features">
       <div class="feature card">
-        <h3>📓 Notebooks</h3>
+        <h3>📝 Markdown Files</h3>
         <p>
-          Organize your work into notebooks, pages, and entries for structured
-          documentation.
+          All your research stored in human-readable markdown files with YAML
+          frontmatter for metadata.
         </p>
       </div>
       <div class="feature card">
-        <h3>🔗 Lineage Tracking</h3>
+        <h3>🗂️ File Browser</h3>
         <p>
-          Track the evolution of your work with parent-child relationships and
-          variations.
+          Navigate your workspace like a file system with folders, markdown
+          documents, and artifacts.
         </p>
       </div>
       <div class="feature card">
-        <h3>📦 Content-Addressable Storage</h3>
+        <h3>🔍 Indexed Search</h3>
         <p>
-          Deduplicated artifact storage with automatic thumbnails and efficient
-          retrieval.
+          Fast searching across frontmatter metadata stored in SQLite for quick
+          access to any document.
         </p>
       </div>
       <div class="feature card">
-        <h3>🔍 Search</h3>
+        <h3>🔗 Git-Friendly</h3>
         <p>
-          Find any entry, artifact, or content with powerful search
-          capabilities.
+          Clean, readable diffs and easy collaboration with version control
+          systems like Git.
         </p>
       </div>
     </section>

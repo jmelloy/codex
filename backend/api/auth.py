@@ -60,7 +60,13 @@ def get_password_hash(password: str) -> str:
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    """Create a JWT access token."""
+    """Create a JWT access token.
+
+    Note: The 'type' field in the payload is included for future extensibility
+    and to distinguish between different token types (e.g., access vs. other
+    potential token types). While not currently validated, this follows JWT
+    best practices and makes the token type explicit.
+    """
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
@@ -144,7 +150,8 @@ def validate_refresh_token(token: str) -> Optional[int]:
             return None
 
         # Check if token is expired
-        # Make expires_at timezone-aware if it's naive
+        # Note: SQLite stores naive datetimes, so we need to make them timezone-aware
+        # for comparison. This is standard practice when working with SQLite.
         expires_at = refresh_token.expires_at
         if expires_at.tzinfo is None:
             expires_at = expires_at.replace(tzinfo=timezone.utc)

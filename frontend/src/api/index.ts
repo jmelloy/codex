@@ -10,6 +10,9 @@ function getRefreshToken(): string | null {
   return localStorage.getItem("refresh_token");
 }
 
+// Note: This function is intentionally duplicated from auth store to maintain
+// separation of concerns. The API client should not depend on the auth store
+// to avoid circular dependencies and to keep the API layer independent.
 async function refreshAccessToken(): Promise<boolean> {
   const refreshToken = getRefreshToken();
   if (!refreshToken) return false;

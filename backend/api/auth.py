@@ -17,7 +17,8 @@ from db.models import User
 # Security configuration
 SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key-change-in-production")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30 * 24 * 60  # 30 days
+ACCESS_TOKEN_EXPIRE_MINUTES = 15  # 15 minutes for access tokens
+REFRESH_TOKEN_EXPIRE_DAYS = 30  # 30 days for refresh tokens
 
 security = HTTPBearer()
 
@@ -26,6 +27,7 @@ class Token(BaseModel):
     """Token response model."""
 
     access_token: str
+    refresh_token: str
     token_type: str = "bearer"
 
 
@@ -64,9 +66,124 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
         expire = datetime.now(timezone.utc) + expires_delta
     else:
         expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({"exp": expire})
+    to_encode.update({"exp": expire, "type": "access"})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
+
+
+def create_refresh_token(user_id: int, username: str) -> tuple[str, datetime]:
+    """Create a refresh token and return it with its expiration time.
+    
+    Args:
+        user_id: The user's ID
+        username: The user's username
+        
+    Returns:
+        Tuple of (token_string, expiration_datetime)
+    """
+    import secrets
+    from pathlib import Path
+    from db.operations import DatabaseManager
+    from db.models import RefreshToken
+    
+    # Generate a secure random token
+    token = secrets.token_urlsafe(32)
+    expires_at = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    
+    # Store in database
+    db_path = Path(DEFAULT_WORKSPACE_PATH) / ".lab" / "db" / "index.db"
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    db_manager = DatabaseManager(db_path)
+    db_manager.initialize()
+    
+    session = db_manager.get_session()
+    try:
+        RefreshToken.create(
+            session,
+            validate_fk=False,
+            token=token,
+            user_id=user_id,
+            expires_at=expires_at,
+        )
+        session.commit()
+    finally:
+        session.close()
+    
+    return token, expires_at
+
+
+def validate_refresh_token(token: str) -> Optional[int]:
+    """Validate a refresh token and return the user_id if valid.
+    
+    Args:
+        token: The refresh token to validate
+        
+    Returns:
+        The user_id if the token is valid, None otherwise
+    """
+    from pathlib import Path
+    from db.operations import DatabaseManager
+    from db.models import RefreshToken
+    
+    db_path = Path(DEFAULT_WORKSPACE_PATH) / ".lab" / "db" / "index.db"
+    db_manager = DatabaseManager(db_path)
+    db_manager.initialize()
+    
+    session = db_manager.get_session()
+    try:
+        refresh_token = RefreshToken.find_one_by(session, token=token)
+        
+        if refresh_token is None:
+            return None
+            
+        # Check if token is revoked
+        if refresh_token.revoked:
+            return None
+            
+        # Check if token is expired
+        # Make expires_at timezone-aware if it's naive
+        expires_at = refresh_token.expires_at
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        
+        if expires_at < datetime.now(timezone.utc):
+            return None
+            
+        return refresh_token.user_id
+    finally:
+        session.close()
+
+
+def revoke_refresh_token(token: str) -> bool:
+    """Revoke a refresh token.
+    
+    Args:
+        token: The refresh token to revoke
+        
+    Returns:
+        True if token was revoked, False if not found
+    """
+    from pathlib import Path
+    from db.operations import DatabaseManager
+    from db.models import RefreshToken
+    
+    db_path = Path(DEFAULT_WORKSPACE_PATH) / ".lab" / "db" / "index.db"
+    db_manager = DatabaseManager(db_path)
+    db_manager.initialize()
+    
+    session = db_manager.get_session()
+    try:
+        refresh_token = RefreshToken.find_one_by(session, token=token)
+        
+        if refresh_token is None:
+            return False
+            
+        refresh_token.update(session, revoked=True)
+        session.commit()
+        return True
+    finally:
+        session.close()
 
 
 def decode_token(token: str) -> TokenData:

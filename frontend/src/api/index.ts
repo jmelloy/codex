@@ -6,10 +6,37 @@ function getAuthToken(): string | null {
   return localStorage.getItem("auth_token");
 }
 
+function getRefreshToken(): string | null {
+  return localStorage.getItem("refresh_token");
+}
+
+async function refreshAccessToken(): Promise<boolean> {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) return false;
+
+  try {
+    const response = await fetch(`${API_BASE}/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    });
+
+    if (!response.ok) {
+      return false;
+    }
+
+    const data = await response.json();
+    localStorage.setItem("auth_token", data.access_token);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
   const token = getAuthToken();
 
-  const response = await fetch(`${API_BASE}${url}`, {
+  let response = await fetch(`${API_BASE}${url}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
@@ -18,12 +45,30 @@ async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
     },
   });
 
+  // If we get a 401, try to refresh the token and retry the request
   if (response.status === 401) {
-    // Token expired or invalid - clear auth and redirect to login
-    localStorage.removeItem("auth_token");
-    localStorage.removeItem("user");
-    window.location.href = "/login";
-    throw new Error("Unauthorized");
+    const refreshed = await refreshAccessToken();
+    if (refreshed) {
+      // Retry the request with the new token
+      const newToken = getAuthToken();
+      response = await fetch(`${API_BASE}${url}`, {
+        ...options,
+        headers: {
+          "Content-Type": "application/json",
+          ...(newToken && { Authorization: `Bearer ${newToken}` }),
+          ...options?.headers,
+        },
+      });
+    }
+
+    // If still unauthorized after refresh attempt, redirect to login
+    if (response.status === 401) {
+      localStorage.removeItem("auth_token");
+      localStorage.removeItem("refresh_token");
+      localStorage.removeItem("user");
+      window.location.href = "/login";
+      throw new Error("Unauthorized");
+    }
   }
 
   if (!response.ok) {

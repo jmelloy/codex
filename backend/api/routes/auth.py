@@ -9,8 +9,10 @@ from pydantic import BaseModel, EmailStr
 from api.auth import (
     UserInDB,
     create_access_token,
+    create_refresh_token,
     get_current_user,
     get_password_hash,
+    validate_refresh_token,
     verify_password,
 )
 from api.utils import DEFAULT_WORKSPACE_PATH
@@ -51,6 +53,7 @@ class LoginResponse(BaseModel):
     """Response model for login."""
 
     access_token: str
+    refresh_token: str
     token_type: str
     user: UserResponse
 
@@ -113,11 +116,13 @@ async def register(request: UserRegisterRequest):
                 detail=f"Failed to initialize workspace: {str(e)}"
             )
         
-        # Create access token
+        # Create access token and refresh token
         access_token = create_access_token(data={"sub": user.username})
+        refresh_token, _ = create_refresh_token(user.id, user.username)
         
         return LoginResponse(
             access_token=access_token,
+            refresh_token=refresh_token,
             token_type="bearer",
             user=UserResponse(
                 id=user.id,
@@ -170,11 +175,13 @@ async def login(request: UserLoginRequest):
                 detail="Inactive user"
             )
         
-        # Create access token
+        # Create access token and refresh token
         access_token = create_access_token(data={"sub": user.username})
+        refresh_token, _ = create_refresh_token(user.id, user.username)
         
         return LoginResponse(
             access_token=access_token,
+            refresh_token=refresh_token,
             token_type="bearer",
             user=UserResponse(
                 id=user.id,
@@ -220,3 +227,64 @@ async def get_current_user_info(current_user: UserInDB = Depends(get_current_use
         )
     finally:
         session.close()
+
+
+class RefreshTokenRequest(BaseModel):
+    """Request model for token refresh."""
+
+    refresh_token: str
+
+
+class RefreshTokenResponse(BaseModel):
+    """Response model for token refresh."""
+
+    access_token: str
+    token_type: str = "bearer"
+
+
+@router.post("/refresh", response_model=RefreshTokenResponse)
+async def refresh_access_token(request: RefreshTokenRequest):
+    """Refresh an access token using a refresh token."""
+    # Validate refresh token
+    user_id = validate_refresh_token(request.refresh_token)
+    
+    if user_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired refresh token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # Get user from database
+    db_path = Path(DEFAULT_WORKSPACE_PATH) / ".lab" / "db" / "index.db"
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    db_manager = DatabaseManager(db_path)
+    db_manager.initialize()
+    
+    session = db_manager.get_session()
+    try:
+        user = User.get_by_id(session, user_id)
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Inactive user"
+            )
+        
+        # Create new access token
+        access_token = create_access_token(data={"sub": user.username})
+        
+        return RefreshTokenResponse(
+            access_token=access_token,
+            token_type="bearer"
+        )
+    finally:
+        session.close()
+

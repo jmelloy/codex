@@ -65,13 +65,15 @@ def test_register_duplicate_username(client, temp_workspace):
     """Test registering with a duplicate username."""
     import uuid
     username = f"testuser_{uuid.uuid4().hex[:8]}"
+    email1 = f"test1_{uuid.uuid4().hex[:8]}@example.com"
+    email2 = f"test2_{uuid.uuid4().hex[:8]}@example.com"
     
     # Register first user
     client.post(
         "/api/auth/register",
         json={
             "username": username,
-            "email": "test1@example.com",
+            "email": email1,
             "password": "testpassword123"
         }
     )
@@ -81,7 +83,7 @@ def test_register_duplicate_username(client, temp_workspace):
         "/api/auth/register",
         json={
             "username": username,
-            "email": "test2@example.com",
+            "email": email2,
             "password": "testpassword456"
         }
     )
@@ -333,3 +335,170 @@ def test_create_notebook_with_auth(client, temp_workspace):
     assert data["title"] == "Test Notebook"
     assert data["description"] == "A test notebook"
     assert "id" in data
+
+
+def test_register_returns_refresh_token(client, temp_workspace):
+    """Test that registration returns a refresh token."""
+    import uuid
+    username = f"testuser_{uuid.uuid4().hex[:8]}"
+    
+    response = client.post(
+        "/api/auth/register",
+        json={
+            "username": username,
+            "email": f"{username}@example.com",
+            "password": "testpassword123"
+        }
+    )
+    
+    assert response.status_code == 201
+    data = response.json()
+    assert "access_token" in data
+    assert "refresh_token" in data
+    assert data["token_type"] == "bearer"
+    assert len(data["refresh_token"]) > 0
+
+
+def test_login_returns_refresh_token(client, temp_workspace):
+    """Test that login returns a refresh token."""
+    import uuid
+    username = f"testuser_{uuid.uuid4().hex[:8]}"
+    
+    # Register a user
+    client.post(
+        "/api/auth/register",
+        json={
+            "username": username,
+            "email": f"{username}@example.com",
+            "password": "testpassword123"
+        }
+    )
+    
+    # Login
+    response = client.post(
+        "/api/auth/login",
+        json={
+            "username": username,
+            "password": "testpassword123"
+        }
+    )
+    
+    assert response.status_code == 200
+    data = response.json()
+    assert "access_token" in data
+    assert "refresh_token" in data
+    assert data["token_type"] == "bearer"
+
+
+def test_refresh_token_endpoint(client, temp_workspace):
+    """Test the refresh token endpoint."""
+    import uuid
+    username = f"testuser_{uuid.uuid4().hex[:8]}"
+    
+    # Register a user
+    register_response = client.post(
+        "/api/auth/register",
+        json={
+            "username": username,
+            "email": f"{username}@example.com",
+            "password": "testpassword123"
+        }
+    )
+    
+    refresh_token = register_response.json()["refresh_token"]
+    
+    # Use refresh token to get new access token
+    response = client.post(
+        "/api/auth/refresh",
+        json={"refresh_token": refresh_token}
+    )
+    
+    assert response.status_code == 200
+    data = response.json()
+    assert "access_token" in data
+    assert data["token_type"] == "bearer"
+    # Verify the token is a valid JWT by checking it has 3 parts
+    assert len(data["access_token"].split(".")) == 3
+
+
+def test_refresh_token_with_invalid_token(client, temp_workspace):
+    """Test refresh token endpoint with invalid token."""
+    response = client.post(
+        "/api/auth/refresh",
+        json={"refresh_token": "invalid_token_here"}
+    )
+    
+    assert response.status_code == 401
+    assert "Invalid or expired refresh token" in response.json()["detail"]
+
+
+def test_refresh_token_can_access_protected_endpoints(client, temp_workspace):
+    """Test that refreshed access token can access protected endpoints."""
+    import uuid
+    username = f"testuser_{uuid.uuid4().hex[:8]}"
+    
+    # Register a user
+    register_response = client.post(
+        "/api/auth/register",
+        json={
+            "username": username,
+            "email": f"{username}@example.com",
+            "password": "testpassword123"
+        }
+    )
+    
+    refresh_token = register_response.json()["refresh_token"]
+    
+    # Use refresh token to get new access token
+    refresh_response = client.post(
+        "/api/auth/refresh",
+        json={"refresh_token": refresh_token}
+    )
+    
+    new_access_token = refresh_response.json()["access_token"]
+    
+    # Use new access token to access protected endpoint
+    response = client.get(
+        "/api/notebooks",
+        headers={"Authorization": f"Bearer {new_access_token}"}
+    )
+    
+    assert response.status_code == 200
+    assert isinstance(response.json(), list)
+
+
+def test_access_token_has_short_expiry(client, temp_workspace):
+    """Test that access tokens have a short expiry time (15 minutes)."""
+    import uuid
+    from datetime import datetime, timezone
+    from jose import jwt
+    from api.auth import SECRET_KEY, ALGORITHM
+    
+    username = f"testuser_{uuid.uuid4().hex[:8]}"
+    
+    # Register a user
+    response = client.post(
+        "/api/auth/register",
+        json={
+            "username": username,
+            "email": f"{username}@example.com",
+            "password": "testpassword123"
+        }
+    )
+    
+    access_token = response.json()["access_token"]
+    
+    # Decode the token to check expiry
+    payload = jwt.decode(access_token, SECRET_KEY, algorithms=[ALGORITHM])
+    
+    # Check that the token has an expiry
+    assert "exp" in payload
+    
+    # Calculate the difference between expiry and now
+    exp_time = datetime.fromtimestamp(payload["exp"], tz=timezone.utc)
+    now = datetime.now(timezone.utc)
+    time_diff_minutes = (exp_time - now).total_seconds() / 60
+    
+    # Should be approximately 15 minutes (allow some margin)
+    assert 14 < time_diff_minutes < 16, f"Expected ~15 minutes, got {time_diff_minutes}"
+

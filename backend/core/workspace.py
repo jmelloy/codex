@@ -11,8 +11,7 @@ from core.markdown_indexer import (
     remove_stale_entries,
     search_markdown_files,
 )
-from db.workspace_models import Notebook as NotebookRegistryModel
-from db.notebook_models import Page as PageModel
+
 from db.workspace_operations import WorkspaceDatabaseManager
 from db.notebook_operations import NotebookDatabaseManager
 
@@ -38,14 +37,17 @@ class Workspace:
         # Managers
         self._workspace_db_manager: Optional[WorkspaceDatabaseManager] = None
         self._notebook_db_managers: dict[str, NotebookDatabaseManager] = {}
+        self._storage_manager: Optional[StorageManager] = None
         self._git_manager: Optional[GitManager] = None
 
     @property
-    def db_manager(self) -> DatabaseManager:
-        """Get the database manager."""
-        if self._db_manager is None:
-            self._db_manager = DatabaseManager(self.lab_path / "db" / "index.db")
-        return self._db_manager
+    def workspace_db_manager(self) -> WorkspaceDatabaseManager:
+        """Get the workspace database manager (notebook registry)."""
+        if self._workspace_db_manager is None:
+            self._workspace_db_manager = WorkspaceDatabaseManager(
+                self.lab_path / "db" / "workspace.db"
+            )
+        return self._workspace_db_manager
 
     def get_notebook_db_manager(self, notebook_id: str) -> NotebookDatabaseManager:
         """Get the database manager for a specific notebook."""
@@ -64,6 +66,13 @@ class Workspace:
         return self._notebook_db_managers[notebook_id]
 
     @property
+    def storage_manager(self) -> StorageManager:
+        """Get the storage manager."""
+        if self._storage_manager is None:
+            self._storage_manager = StorageManager(self.lab_path / "storage")
+        return self._storage_manager
+
+    @property
     def git_manager(self) -> GitManager:
         """Get the Git manager."""
         if self._git_manager is None:
@@ -79,6 +88,8 @@ class Workspace:
         # Create directory structure
         ws.lab_path.mkdir(parents=True, exist_ok=True)
         (ws.lab_path / "db").mkdir(exist_ok=True)
+        (ws.lab_path / "storage" / "blobs").mkdir(parents=True, exist_ok=True)
+        (ws.lab_path / "storage" / "thumbnails").mkdir(parents=True, exist_ok=True)
         ws.notebooks_path.mkdir(parents=True, exist_ok=True)
         ws.artifacts_path.mkdir(parents=True, exist_ok=True)
 
@@ -135,38 +146,55 @@ class Workspace:
     def index_markdown_files(self, force: bool = False) -> dict:
         """Index all markdown files in the workspace.
 
+        This indexes markdown files in each notebook's database separately.
+
         Args:
             force: If True, re-index all files even if unchanged
 
         Returns:
             Dictionary with indexing stats per notebook
         """
-        session = self.db_manager.get_session()
-        try:
-            # Remove stale entries
-            removed = remove_stale_entries(session, self.notebooks_path)
+        results = {}
+        notebooks = self.workspace_db_manager.list_notebooks()
 
-            # Index notebooks directory
-            indexed = index_directory(
-                session, self.notebooks_path, self.notebooks_path, recursive=True
-            )
+        for nb_entry in notebooks:
+            notebook_path = self.notebooks_path / nb_entry.id
+            if not notebook_path.exists():
+                continue
 
-            return {
-                "indexed": indexed,
-                "removed": removed,
-                "total": indexed,
-            }
-        finally:
-            session.close()
+            notebook_db_manager = self.get_notebook_db_manager(nb_entry.id)
+            session = notebook_db_manager.get_session()
+            try:
+                # Remove stale entries
+                removed = remove_stale_entries(session, notebook_path)
+
+                # Index notebook directory
+                indexed = index_directory(
+                    session, notebook_path, notebook_path, recursive=True
+                )
+
+                results[nb_entry.id] = {
+                    "indexed": indexed,
+                    "removed": removed,
+                    "total": indexed,
+                }
+            finally:
+                session.close()
+
+        return results
 
     def search_indexed_files(
-        self, query: Optional[str] = None, limit: int = 100
+        self,
+        query: Optional[str] = None,
+        limit: int = 100,
+        notebook_id: Optional[str] = None,
     ) -> list[dict]:
         """Search indexed markdown files.
 
         Args:
             query: Search query string
             limit: Maximum results to return
+            notebook_id: If specified, search only in this notebook
 
         Returns:
             List of matching file metadata

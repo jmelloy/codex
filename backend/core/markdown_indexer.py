@@ -2,7 +2,7 @@
 
 import hashlib
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 from pathlib import Path
 from typing import Optional
 
@@ -82,8 +82,20 @@ def index_markdown_file(
         # Parse markdown to extract frontmatter
         doc = parse_markdown_file(str(file_path))
         title = doc.frontmatter.get("title", file_path.stem)
-        # Always store frontmatter as JSON, even if empty
-        frontmatter_json = json.dumps(doc.frontmatter) if doc.frontmatter else json.dumps({})
+        
+        # Convert frontmatter to JSON, handling datetime and date objects
+        def serialize_frontmatter(obj):
+            """Convert datetime, date, and other non-serializable objects to strings."""
+            if isinstance(obj, (datetime, date)):
+                return obj.isoformat()
+            elif hasattr(obj, '__dict__'):
+                return str(obj)
+            raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+        
+        frontmatter_json = json.dumps(
+            doc.frontmatter,
+            default=serialize_frontmatter
+        ) if doc.frontmatter else json.dumps({})
         
         now = _now()
         

@@ -275,7 +275,10 @@ class Notebook:
         """List all pages in this notebook."""
         from core.page import Page
 
-        session = self.workspace.db_manager.get_session()
+        # Get pages from notebook database
+        from db.notebook_models import Page as PageModel
+        notebook_db = self.workspace.get_notebook_db_manager(self.id)
+        session = notebook_db.get_session()
         try:
             pages = PageModel.find_by(session, notebook_id=self.id)
             return [
@@ -306,7 +309,10 @@ class Notebook:
         """Get a page by ID."""
         from core.page import Page
 
-        session = self.workspace.db_manager.get_session()
+        # Get page from notebook database
+        from db.notebook_models import Page as PageModel
+        notebook_db = self.workspace.get_notebook_db_manager(self.id)
+        session = notebook_db.get_session()
         try:
             page = PageModel.get_by_id(session, page_id)
             if page:
@@ -351,23 +357,14 @@ class Notebook:
 
         self.updated_at = _now()
 
-        # Update in database
-        session = self.workspace.db_manager.get_session()
-        try:
-            notebook = NotebookModel.get_by_id(session, self.id)
-            if notebook:
-                notebook.update(
-                    session,
-                    validate_fk=False,
-                    title=self.title,
-                    description=self.description,
-                    updated_at=self.updated_at,
-                    settings=json.dumps(self.settings),
-                    metadata_=json.dumps(self.metadata),
-                )
-                session.commit()
-        finally:
-            session.close()
+        # Update in workspace database
+        self.workspace.workspace_db_manager.update_notebook(
+            self.id,
+            title=self.title,
+            description=self.description,
+            settings=self.settings,
+            metadata=self.metadata,
+        )
 
         # Update in Git
         self.workspace.git_manager.update_notebook(self.id, self.to_dict())
@@ -388,13 +385,8 @@ class Notebook:
         except Exception:
             pass  # Ignore errors when deleting sidecar
 
-        # Delete from database
-        session = self.workspace.db_manager.get_session()
-        try:
-            result = NotebookModel.delete_by_id(session, self.id)
-            session.commit()
-        finally:
-            session.close()
+        # Delete from workspace database
+        result = self.workspace.workspace_db_manager.delete_notebook(self.id)
 
         # Delete from Git
         self.workspace.git_manager.delete_notebook(self.id)

@@ -18,20 +18,12 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import DeclarativeBase, relationship, sessionmaker
 
-from db.models import Base as BaseWithCRUD
+from db.crud_mixin import CRUDMixin
 
 
-class CoreBase(DeclarativeBase):
+class CoreBase(CRUDMixin, DeclarativeBase):
     """Base class for core database models."""
     pass
-
-
-# Add CRUD methods to CoreBase
-for attr_name in dir(BaseWithCRUD):
-    if not attr_name.startswith('_') and attr_name not in ['metadata', 'registry']:
-        attr = getattr(BaseWithCRUD, attr_name)
-        if callable(attr) and not isinstance(attr, type):
-            setattr(CoreBase, attr_name, attr)
 
 
 class User(CoreBase):

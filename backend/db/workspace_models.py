@@ -16,20 +16,12 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
-from db.models import Base as BaseWithCRUD
+from db.crud_mixin import CRUDMixin
 
 
-class WorkspaceBase(DeclarativeBase):
+class WorkspaceBase(CRUDMixin, DeclarativeBase):
     """Base class for workspace database models."""
     pass
-
-
-# Add CRUD methods to WorkspaceBase
-for attr_name in dir(BaseWithCRUD):
-    if not attr_name.startswith('_') and attr_name not in ['metadata', 'registry']:
-        attr = getattr(BaseWithCRUD, attr_name)
-        if callable(attr) and not isinstance(attr, type):
-            setattr(WorkspaceBase, attr_name, attr)
 
 
 class Notebook(WorkspaceBase):

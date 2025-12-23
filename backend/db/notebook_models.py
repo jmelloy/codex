@@ -18,20 +18,12 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import DeclarativeBase, relationship, sessionmaker
 
-from db.models import Base as BaseWithCRUD
+from db.crud_mixin import CRUDMixin
 
 
-class NotebookBase(DeclarativeBase):
+class NotebookBase(CRUDMixin, DeclarativeBase):
     """Base class for notebook database models."""
     pass
-
-
-# Add CRUD methods to NotebookBase
-for attr_name in dir(BaseWithCRUD):
-    if not attr_name.startswith('_') and attr_name not in ['metadata', 'registry']:
-        attr = getattr(BaseWithCRUD, attr_name)
-        if callable(attr) and not isinstance(attr, type):
-            setattr(NotebookBase, attr_name, attr)
 
 
 class Page(NotebookBase):

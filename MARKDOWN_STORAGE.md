@@ -1,8 +1,10 @@
 # Markdown-First Storage System
 
+> **Note**: This document describes an **alternative/experimental storage mode** for Codex. The default and primary storage mode uses SQLite with content-addressable storage (see main [README.md](README.md) for details). The markdown-first approach described here is an alternative that stores all data in plain markdown files.
+
 ## Overview
 
-The Codex system now supports a **markdown-first** storage approach where all data is stored in human-readable markdown files with YAML frontmatter, instead of relying on SQLite databases and JSON metadata files.
+The Codex system supports an alternative **markdown-first** storage approach where all data is stored in human-readable markdown files with YAML frontmatter, instead of relying on SQLite databases and JSON metadata files.
 
 ## Benefits
 

@@ -6,34 +6,7 @@
 
 > A hierarchical digital laboratory journal system for tracking computational experiments, creative iterations, and technical investigations with full provenance and reproducibility.
 
-## ✨ New: Markdown-First Storage
 
-Codex now supports a **simplified markdown-first storage approach** where all data is stored in human-readable markdown files with YAML frontmatter, instead of relying on SQLite databases. This makes your lab notebook:
-
-- 📝 **Human-readable**: All data in plain text markdown
-- 🔀 **Git-friendly**: Clean diffs and easy collaboration
-- 🚀 **Portable**: Copy files anywhere, no database export
-- 🎯 **Simple**: No migrations, just markdown files
-
-See [MARKDOWN_STORAGE.md](MARKDOWN_STORAGE.md) for complete documentation.
-
-### Quick Example
-
-```bash
-# Initialize workspace
-python -m cli.markdown_cli init ~/my-lab --name "My Lab"
-
-# Create notebook
-python -m cli.markdown_cli notebook create "Research" --tags research
-
-# Create page with narrative
-python -m cli.markdown_cli page create "Day 1" --notebook nb-xxx --goals "Test hypothesis"
-
-# Add entry with results
-python -m cli.markdown_cli entry add "Experiment 1" --page page-xxx --notebook nb-xxx --input "param=value"
-```
-
-**Result**: Beautiful markdown files you can read, edit, and version control!
 
 ## Table of Contents
 
@@ -62,7 +35,7 @@ The fastest way to get started is using Docker Compose:
 
 ```bash
 # Clone the repository
-git clone https://github.com/jmelloy/git
+git clone https://github.com/jmelloy/codex
 cd codex
 
 # Start the production environment
@@ -80,7 +53,7 @@ For detailed Docker deployment options, see [DOCKER.md](DOCKER.md).
 
 ```bash
 # Clone the repository
-git clone https://github.com/jmelloy/git
+git clone https://github.com/jmelloy/codex
 cd codex
 
 # Install Python dependencies

@@ -4,6 +4,12 @@
 
 **Codex** is a hierarchical digital laboratory journal system for tracking computational experiments, creative iterations, and technical investigations with full provenance and reproducibility. It's structured as Workspace → Notebook → Page → Entry.
 
+**Important Repository Notes:**
+- The primary storage mode uses SQLite + content-addressable storage (not markdown-first)
+- The `cli.markdown_cli` module provides an alternative markdown-based CLI (experimental)
+- See [AGENT_SYSTEM.md](AGENT_SYSTEM.md) for the implemented task/sandbox system
+- See [agents.md](agents.md) for planned AI agent features (mostly not implemented yet)
+
 **Tech Stack:**
 
 - **Backend**: Python 3.12+ with FastAPI, SQLAlchemy, SQLite, Alembic migrations

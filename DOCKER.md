@@ -14,7 +14,7 @@ This guide explains how to deploy Codex using Docker and Docker Compose for both
 1. **Clone the repository**
 
    ```bash
-   git clone https://github.com/jmelloy/git
+   git clone https://github.com/jmelloy/codex
    cd codex
    ```
 

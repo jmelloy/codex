@@ -1,11 +1,11 @@
 # AI Agents for Codex
 
-**Last Updated**: 2024-12-05  
+**Last Updated**: 2024-12-23  
 **Status**: Planning & Early Development
 
-> **Note**: This document describes planned capabilities and architecture. Most agent features are under development.
+> **Important**: This document describes **planned** AI agent capabilities and integration points. Most features described here are **not yet implemented**. For the implemented agent task system (sandbox, tasks, folder configuration), see [AGENT_SYSTEM.md](AGENT_SYSTEM.md).
 
-This document describes the AI agent architecture and integration points for the Codex digital laboratory journal system.
+This document describes planned AI agent architecture and integration points for the Codex digital laboratory journal system.
 
 ## Table of Contents
 
@@ -573,7 +573,7 @@ We welcome contributions of new agent implementations!
 1. **Fork the Repository**
 
    ```bash
-   git clone https://github.com/jmelloy/git
+   git clone https://github.com/jmelloy/codex
    cd codex
    ```
 

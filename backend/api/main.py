@@ -12,9 +12,11 @@ from backend.api.auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
     create_access_token,
     verify_password,
+    get_password_hash,
     get_current_active_user,
 )
 from backend.db.models import User
+from backend.api.schemas import UserCreate, UserResponse
 from backend.api.routes import workspaces, notebooks, files, search, tasks
 
 
@@ -82,6 +84,46 @@ async def login(
 async def read_users_me(current_user: User = Depends(get_current_active_user)):
     """Get current user information."""
     return current_user
+
+
+@app.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+async def register(
+    user_data: UserCreate,
+    session: AsyncSession = Depends(get_system_session)
+):
+    """Register a new user."""
+    from sqlmodel import select
+    
+    # Check if username already exists
+    result = await session.execute(select(User).where(User.username == user_data.username))
+    if result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username already registered"
+        )
+    
+    # Check if email already exists
+    result = await session.execute(select(User).where(User.email == user_data.email))
+    if result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered"
+        )
+    
+    # Create new user
+    hashed_password = get_password_hash(user_data.password)
+    new_user = User(
+        username=user_data.username,
+        email=user_data.email,
+        hashed_password=hashed_password,
+        is_active=True
+    )
+    
+    session.add(new_user)
+    await session.commit()
+    await session.refresh(new_user)
+    
+    return new_user
 
 
 # Include routers

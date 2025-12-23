@@ -31,6 +31,10 @@
           {{ authStore.loading ? 'Logging in...' : 'Login' }}
         </button>
       </form>
+      <div class="register-link">
+        Don't have an account? 
+        <router-link to="/register">Register here</router-link>
+      </div>
     </div>
   </div>
 </template>
@@ -139,5 +143,22 @@ button:disabled {
   background: #fed7d7;
   border-radius: 4px;
   font-size: 0.9rem;
+}
+
+.register-link {
+  text-align: center;
+  margin-top: 1.5rem;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.register-link a {
+  color: #667eea;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.register-link a:hover {
+  text-decoration: underline;
 }
 </style>

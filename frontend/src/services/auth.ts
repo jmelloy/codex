@@ -12,6 +12,12 @@ export interface LoginCredentials {
   password: string;
 }
 
+export interface RegisterData {
+  username: string;
+  email: string;
+  password: string;
+}
+
 export interface TokenResponse {
   access_token: string;
   token_type: string;
@@ -29,6 +35,11 @@ export const authService = {
 
   async getCurrentUser(): Promise<User> {
     const response = await apiClient.get<User>("/users/me");
+    return response.data;
+  },
+
+  async register(data: RegisterData): Promise<User> {
+    const response = await apiClient.post<User>("/register", data);
     return response.data;
   },
 

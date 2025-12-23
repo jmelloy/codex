@@ -6,34 +6,9 @@
 
 > A hierarchical digital laboratory journal system for tracking computational experiments, creative iterations, and technical investigations with full provenance and reproducibility.
 
-## ✨ New: Markdown-First Storage
+> ⚠️ **Documentation Note**: This README contains detailed **conceptual architecture** sections (Data Model, Backend Architecture, API Endpoints, etc.) that describe the planned/ideal design. The current implementation focuses on the core SQLite+Markdown hybrid system with notebook/page organization. Many advanced features (entry system, integrations, lineage tracking) are planned for future development. See [Implementation Status](#implementation-status) for what's actually built.
 
-Codex now supports a **simplified markdown-first storage approach** where all data is stored in human-readable markdown files with YAML frontmatter, instead of relying on SQLite databases. This makes your lab notebook:
 
-- 📝 **Human-readable**: All data in plain text markdown
-- 🔀 **Git-friendly**: Clean diffs and easy collaboration
-- 🚀 **Portable**: Copy files anywhere, no database export
-- 🎯 **Simple**: No migrations, just markdown files
-
-See [MARKDOWN_STORAGE.md](MARKDOWN_STORAGE.md) for complete documentation.
-
-### Quick Example
-
-```bash
-# Initialize workspace
-python -m cli.markdown_cli init ~/my-lab --name "My Lab"
-
-# Create notebook
-python -m cli.markdown_cli notebook create "Research" --tags research
-
-# Create page with narrative
-python -m cli.markdown_cli page create "Day 1" --notebook nb-xxx --goals "Test hypothesis"
-
-# Add entry with results
-python -m cli.markdown_cli entry add "Experiment 1" --page page-xxx --notebook nb-xxx --input "param=value"
-```
-
-**Result**: Beautiful markdown files you can read, edit, and version control!
 
 ## Table of Contents
 
@@ -62,7 +37,7 @@ The fastest way to get started is using Docker Compose:
 
 ```bash
 # Clone the repository
-git clone https://github.com/jmelloy/git
+git clone https://github.com/jmelloy/codex
 cd codex
 
 # Start the production environment
@@ -80,19 +55,22 @@ For detailed Docker deployment options, see [DOCKER.md](DOCKER.md).
 
 ```bash
 # Clone the repository
-git clone https://github.com/jmelloy/git
+git clone https://github.com/jmelloy/codex
 cd codex
 
 # Install Python dependencies
+cd backend
 pip install -e ".[dev]"
+cd ..
 
 # Initialize a workspace
 codex init ~/my-lab --name "My Laboratory"
 
 # Start the API server
+cd backend
 uvicorn api.main:app --reload --port 8765
 
-# Build and serve the frontend (optional)
+# Build and serve the frontend (optional, in another terminal)
 cd frontend
 npm install
 npm run dev
@@ -125,28 +103,28 @@ codex search --query "experiment"
 | **Lineage Tracking**  | ✅     | Parent-child relationships and variations     |
 | **Tagging System**    | ✅     | Tags for notebooks, pages, and entries        |
 
-### ✅ Integrations (Implemented)
+### 🚧 Integrations (Planned)
 
 | Integration        | Status | Description                                                   |
 | ------------------ | ------ | ------------------------------------------------------------- |
-| **API Call**       | ✅     | Track HTTP requests and responses                             |
-| **Database Query** | ✅     | Execute and log SQL queries                                   |
-| **GraphQL**        | ✅     | GraphQL queries and mutations                                 |
-| **ComfyUI**        | ✅     | UI form and standalone page (backend integration in progress) |
-| **Custom/Text**    | ✅     | Manual text entries                                           |
+| **API Call**       | 📋     | Track HTTP requests and responses (planned)                   |
+| **Database Query** | 📋     | Execute and log SQL queries (planned)                         |
+| **GraphQL**        | 📋     | GraphQL queries and mutations (planned)                       |
+| **ComfyUI**        | 📋     | ComfyUI workflow execution (planned)                          |
+| **Custom/Text**    | ✅     | Manual text entries via notebook/page system                  |
 
 ### 🚧 In Progress
 
 | Feature               | Status | Next Steps                                          |
 | --------------------- | ------ | --------------------------------------------------- |
-| **Frontend**          | 🚧     | Vue.js UI with notebook/page/entry views            |
-| **ComfyUI Execution** | 🚧     | Backend workflow execution integration              |
+| **Frontend**          | 🚧     | Vue.js UI with file browser and markdown viewing    |
 | **Search**            | 🚧     | Basic search works, full-text search (FTS5) pending |
 
 ### 📋 Planned Features
 
 | Feature                 | Priority | Description                                   |
 | ----------------------- | -------- | --------------------------------------------- |
+| **Integration System**  | High     | Plugin architecture for external services     |
 | **Full-Text Search**    | High     | FTS5 implementation for advanced search       |
 | **WebSocket Execution** | High     | Real-time entry execution updates             |
 | **Smart Archival**      | Medium   | Automated retention policies                  |
@@ -160,11 +138,12 @@ codex search --query "experiment"
 
 ### 🎯 Immediate Priorities (Next 1-2 Months)
 
-1. **Complete ComfyUI Integration**
+1. **Integration System Development**
 
-   - Finish backend workflow execution
-   - Add real-time progress tracking
-   - Implement artifact storage for generated images
+   - Create integration plugin architecture
+   - Implement ComfyUI workflow execution
+   - Add API call tracking integration
+   - Implement artifact storage for generated content
 
 2. **Enhance Search Capabilities**
 
@@ -326,6 +305,8 @@ Physical lab notebooks have a proven structure:
 We digitize this with modern affordances: version control, content-addressable storage, AI assistance, and cross-references.
 
 ## 2. Conceptual Model
+
+> ⚠️ **Note**: Sections 2-8 below describe the **planned conceptual architecture** for Codex, including features like the Entry system, integrations, and lineage tracking. The current implementation (v0.2.0) focuses on the Notebook/Page hierarchy with markdown content. The Entry system and related features are planned for future development.
 
 ### Hierarchy
 
@@ -2213,56 +2194,29 @@ print(f"Descendants: {len(lineage['descendants'])}")
 
 ## 9. Key Features Summary
 
-### Hierarchical Organization
+### Implemented Features
 
-- **Notebooks**: Project-level containers
-- **Pages**: Session or topic-level grouping
-- **Entries**: Individual experiments with full provenance
+- **Hierarchical Organization**: Notebooks → Pages (with markdown content)
+- **Narrative Documentation**: Pages with structured narrative fields (goals, hypothesis, observations, conclusions)
+- **Markdown Support**: Rich documentation with YAML frontmatter and content blocks
+- **Git Integration**: Post-commit hooks to log commits to daily notes
+- **Authentication**: JWT-based user authentication with isolated workspaces
+- **Search**: Basic search functionality (full-text search pending)
+- **Web UI**: File browser and markdown viewer (Vue.js + Vite)
+- **CLI Tools**: Command-line interface for workspace management
+- **Agent Task System**: Task management and sandboxing for AI agents
 
-### Narrative Documentation
+### Planned Features (See Architecture Sections)
 
-- Each page has structured narrative fields
-- Markdown support for rich documentation
-- Links thoughts to experimental results
+The detailed architecture sections below (Sections 2-8) describe planned features:
 
-### Lineage Tracking
-
-- Parent-child relationships between entries
-- Variation tracking
-- Full DAG of experimental evolution
-
-### Content-Addressable Storage
-
-- Deduplication of artifacts
-- Efficient storage with hashing
-- Automatic thumbnail generation
-
-### Smart Archival
-
-- Configurable retention policies
-- Compression strategies
-- Keeps metadata while reducing storage
-
-### Multi-Integration Support
-
-- ComfyUI workflows
-- API calls
-- Database queries
-- GraphQL operations
-- Custom integrations via plugin system
-
-### Real-Time Execution (Planned)
-
-- WebSocket-based progress updates
-- Streaming logs
-- Live artifact generation
-
-### AI-Powered Insights (Planned)
-
-- Summarization of pages/notebooks
-- Pattern detection across entries
-- Recommendation of next experiments
-- See [agents.md](agents.md) for details
+- **Entry System**: Individual experiment tracking with inputs/outputs/artifacts
+- **Lineage Tracking**: Parent-child relationships and variation tracking
+- **Integration System**: Plugins for ComfyUI, API calls, database queries, etc.
+- **Content-Addressable Storage**: Deduplication with SHA256 hashing
+- **Smart Archival**: Automated retention policies
+- **Real-Time Execution**: WebSocket-based progress updates
+- **AI Insights**: Automated summarization and pattern detection
 
 ---
 

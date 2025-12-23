@@ -4,6 +4,12 @@
 
 **Codex** is a hierarchical digital laboratory journal system for tracking computational experiments, creative iterations, and technical investigations with full provenance and reproducibility. It's structured as Workspace → Notebook → Page → Entry.
 
+**Important Repository Notes:**
+- The primary storage mode uses SQLite + content-addressable storage (not markdown-first)
+- The `cli.markdown_cli` module provides an alternative markdown-based CLI (experimental)
+- See [AGENT_SYSTEM.md](AGENT_SYSTEM.md) for the implemented task/sandbox system
+- See [agents.md](agents.md) for planned AI agent features (mostly not implemented yet)
+
 **Tech Stack:**
 
 - **Backend**: Python 3.12+ with FastAPI, SQLAlchemy, SQLite, Alembic migrations
@@ -103,30 +109,38 @@ The project uses Alembic for database migrations. The migration system automatic
 ```
 /
 ├── .github/workflows/test.yml    # CI: Python 3.14, pip install, pytest
-├── backend/codex/                # Main Python package
+├── backend/                       # Main Python package directory
 │   ├── api/                      # FastAPI application
 │   │   ├── main.py              # API entry point
-│   │   ├── routes/              # REST endpoints (notebooks, pages, entries, artifacts, search)
-│   │   └── websocket/           # Real-time execution updates (planned)
-│   ├── cli/                     # Click CLI commands
-│   │   ├── main.py              # CLI entry point (codex command)
-│   │   └── commands/            # Subcommands (init, notebook, page, entry, hooks, etc.)
+│   │   ├── auth.py              # Authentication utilities
+│   │   ├── routes/              # REST endpoints (notebooks, pages, search, markdown, auth, workspace)
+│   │   └── websocket/           # WebSocket support (basic)
+│   ├── cli/                     # CLI commands
+│   │   ├── main.py              # Main CLI entry point (codex command)
+│   │   ├── markdown_cli.py      # Alternative markdown-based CLI
+│   │   └── commands/            # CLI subcommands directory
 │   ├── core/                    # Core business logic
 │   │   ├── workspace.py         # Workspace management
 │   │   ├── notebook.py          # Notebook operations
 │   │   ├── page.py              # Page operations
-│   │   ├── entry.py             # Entry CRUD and execution
 │   │   ├── storage.py           # Content-addressable storage
 │   │   ├── git_hooks.py         # Git hook integration
-│   │   └── mac_windows.py       # macOS window tracking
+│   │   ├── git_manager.py       # Git operations
+│   │   ├── mac_windows.py       # macOS window tracking
+│   │   ├── markdown.py          # Markdown parsing utilities
+│   │   ├── markdown_indexer.py  # Markdown file indexing
+│   │   ├── markdown_renderers.py # Frontmatter rendering plugins
+│   │   ├── markdown_storage.py  # Alternative markdown storage
+│   │   ├── folder_config.py     # Folder configuration system
+│   │   ├── sandbox.py           # Agent sandbox for safe file operations
+│   │   └── tasks.py             # Task management system
 │   ├── db/                      # Database layer
 │   │   ├── models.py            # SQLAlchemy ORM models
-│   │   └── operations.py        # Database operations
-│   └── integrations/            # Integration system
-│       ├── base.py              # Base integration class
-│       ├── comfyui.py           # ComfyUI workflow execution
-│       ├── api_call.py          # HTTP API tracking
-│       ├── database.py          # Database query tracking
+│   │   ├── operations.py        # Database operations
+│   │   ├── migrate.py           # Migration utilities
+│   │   └── migrations/          # Alembic migrations
+│   └── tests/                   # Python tests (pytest)
+├── frontend/                    # Vue.js web application
 │       └── custom.py            # Custom text entries
 ├── frontend/                    # Vue.js web application
 │   ├── src/
@@ -179,24 +193,30 @@ The project uses Alembic for database migrations. The migration system automatic
 
 The system stores data in SQLite (`.lab/db/index.db`) with these main tables:
 
+- **users**: User accounts for authentication
+- **refresh_tokens**: JWT refresh tokens
 - **notebooks**: Project-level containers
-- **pages**: Session-level grouping with narrative fields (goals, hypothesis, observations, conclusions)
-- **entries**: Individual experiments with inputs, outputs, execution data
-- **artifacts**: Content-addressable storage for generated files
-- **tags**: Tag system for notebooks, pages, entries
-- **entry_lineage**: Parent-child relationships between entries
+- **pages**: Session-level grouping with narrative fields
+- **markdown_files**: Indexed markdown files with metadata
+- **tags**: Tag system for categorization
+- **notebook_tags**: Many-to-many relationship for notebook tags
+- **page_tags**: Many-to-many relationship for page tags
+
+**Note**: The current implementation uses markdown files for content storage with SQLite indexing. See [MARKDOWN_STORAGE.md](../MARKDOWN_STORAGE.md) for the alternative pure-markdown approach.
 
 ### Important Implementation Details
 
-1. **Content-Addressable Storage**: All artifacts are stored by SHA256 hash in `.lab/storage/blobs/` to avoid duplication.
+1. **Markdown + SQLite Hybrid**: The system uses markdown files for content with SQLite for indexing and metadata (see MarkdownFile model).
 
 2. **Git Integration**: The system optionally integrates with Git via post-commit hooks to log commits to daily notes.
 
-3. **Integration System**: Extensible plugin system for different entry types (ComfyUI, API calls, database queries, GraphQL, custom text).
+3. **Authentication**: JWT-based authentication with bcrypt password hashing. Each user has their own workspace.
 
 4. **Workspace Initialization**: Always use `codex init <path>` to create a workspace before other operations.
 
-5. **Agent System**: New feature for AI agents with task management, sandboxing, and markdown-based configuration.
+5. **Agent System**: Task management, sandboxing, and folder configuration for AI agents (see AGENT_SYSTEM.md).
+
+6. **Content Storage**: Files stored in workspace directories, optionally with content-addressable blob storage.
 
 ## Common Commands
 

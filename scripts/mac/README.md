@@ -2,6 +2,227 @@
 
 This directory contains macOS-specific scripts for enhancing Codex functionality.
 
+## log-calendar-events
+
+Scripts that fetch today's calendar events from iCloud and log them to your daily note.
+
+### Features
+
+- **iCloud Calendar Integration**: Automatically fetches events from all calendars in Calendar.app
+- **Time Formatting**: Displays event times in 24-hour format (HH:MM)
+- **All-Day Events**: Specially formats all-day events
+- **Location Support**: Includes event locations when available
+- **Daily Note Integration**: Seamlessly integrates with Codex daily notes under "## Calendar Events" section
+- **Sorted Events**: Events are sorted chronologically by start time
+
+### Available Scripts
+
+#### 1. Shell Script (`log-calendar-events.sh`)
+
+Simple wrapper that runs the AppleScript.
+
+**Usage:**
+
+```bash
+# Using default workspace ($HOME/codex)
+./scripts/mac/log-calendar-events.sh
+
+# Using custom workspace
+CODEX_WORKSPACE=~/my-workspace ./scripts/mac/log-calendar-events.sh
+```
+
+**Setup:**
+
+```bash
+# Make executable (already done in repo)
+chmod +x scripts/mac/log-calendar-events.sh
+
+# Optional: Add to PATH or create an alias
+alias log-calendar='~/path/to/codex/scripts/mac/log-calendar-events.sh'
+```
+
+#### 2. AppleScript (`log-calendar-events.applescript`)
+
+Standalone AppleScript that directly accesses Calendar.app to fetch events.
+
+**Usage:**
+
+```bash
+# Run directly
+./scripts/mac/log-calendar-events.applescript
+
+# Or with osascript
+osascript scripts/mac/log-calendar-events.applescript
+```
+
+**Setup:**
+
+```bash
+# Make executable (already done in repo)
+chmod +x scripts/mac/log-calendar-events.applescript
+
+# Edit the script to change workspace location (default: ~/codex)
+# Open in Script Editor and modify workspacePath property
+```
+
+**Convert to Application:**
+
+You can convert the AppleScript to a standalone app:
+
+```bash
+# Using Script Editor
+# 1. Open scripts/mac/log-calendar-events.applescript in Script Editor
+# 2. File > Export
+# 3. File Format: Application
+# 4. Save as "Log Calendar Events.app"
+
+# Or use command line
+osacompile -o "Log Calendar Events.app" scripts/mac/log-calendar-events.applescript
+```
+
+### Daily Note Format
+
+Calendar events are logged in this format:
+
+```markdown
+## Calendar Events
+
+- **09:00 - 10:00**: Team Standup @ Zoom
+- **All Day**: Conference Day
+- **14:30 - 15:30**: Client Meeting @ Office Building
+- **16:00 - 17:00**: Code Review
+```
+
+### Automation Ideas
+
+#### Run at Login
+
+Use macOS Automator to create a Login Item:
+
+1. Open Automator
+2. Create new "Application"
+3. Add "Run Shell Script" action
+4. Paste: `~/path/to/codex/scripts/mac/log-calendar-events.sh`
+5. Save as "Log Calendar Events"
+6. Go to System Preferences > Users & Groups > Login Items
+7. Add "Log Calendar Events" to login items
+
+#### Daily Scheduled Run
+
+Use `launchd` to log calendar events at the start of each day:
+
+```bash
+# Create a launchd plist file
+cat > ~/Library/LaunchAgents/com.log-calendar.plist << 'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.log-calendar</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/path/to/codex/scripts/mac/log-calendar-events.sh</string>
+    </array>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>8</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+</dict>
+</plist>
+EOF
+
+# Load the launch agent
+launchctl load ~/Library/LaunchAgents/com.log-calendar.plist
+
+# To unload later
+launchctl unload ~/Library/LaunchAgents/com.log-calendar.plist
+```
+
+#### Keyboard Shortcut
+
+Use macOS Automator or [Keyboard Maestro](https://www.keyboardmaestro.com/) to trigger the script with a keyboard shortcut.
+
+**With Automator:**
+
+1. Open Automator
+2. Create new "Quick Action"
+3. Add "Run Shell Script" action
+4. Paste: `~/path/to/codex/scripts/mac/log-calendar-events.sh`
+5. Save as "Log Calendar Events"
+6. Go to System Preferences > Keyboard > Shortcuts > Services
+7. Assign a keyboard shortcut to "Log Calendar Events"
+
+#### Menu Bar App
+
+Create a menu bar app using tools like:
+
+- [SwiftBar](https://github.com/swiftbar/SwiftBar)
+- [BitBar](https://github.com/matryer/bitbar)
+
+Example SwiftBar script:
+
+```bash
+#!/bin/bash
+# <bitbar.title>Codex Calendar Logger</bitbar.title>
+# <bitbar.version>v1.0</bitbar.version>
+# <bitbar.author>Your Name</bitbar.author>
+# <bitbar.desc>Log calendar events to Codex</bitbar.desc>
+
+echo "📅"
+echo "---"
+echo "Log Calendar Events | bash=/path/to/codex/scripts/mac/log-calendar-events.sh terminal=false"
+```
+
+### Permissions
+
+The script requires Calendar access permissions:
+
+1. System Preferences > Security & Privacy > Privacy > Calendars
+2. Add Terminal (or your terminal app) to the list
+3. If using the AppleScript app, add it to the list as well
+
+### Troubleshooting
+
+#### Permission Denied
+
+If you get permission errors:
+
+```bash
+# Make sure the scripts are executable
+chmod +x scripts/mac/log-calendar-events.sh
+chmod +x scripts/mac/log-calendar-events.applescript
+```
+
+#### No Events Showing
+
+1. **Check Calendar.app:** Make sure you have events in Calendar.app
+2. **Check Date:** The script only fetches today's events
+3. **Test Calendar Access:**
+   ```bash
+   osascript -e 'tell application "Calendar" to get name of every calendar'
+   ```
+
+#### Script Not Working
+
+1. **Check if running on macOS:**
+   ```bash
+   uname  # Should output: Darwin
+   ```
+
+2. **Test AppleScript directly:**
+   ```bash
+   osascript scripts/mac/log-calendar-events.applescript
+   ```
+
+3. **Verify workspace exists:**
+   ```bash
+   ls -la ~/codex/daily-notes
+   ```
+
 ## log-active-window
 
 Scripts that capture information about the currently active application window and log it to your daily note.

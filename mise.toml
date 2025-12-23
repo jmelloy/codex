@@ -1,6 +1,0 @@
-[tools]
-black = "latest"
-python = "3.14"
-
-[env]
-_.python.venv = { path = "backend/.venv", create = true }

@@ -1,11 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useRoute } from "vue-router";
-import { useNotebooksStore } from "@/stores/notebooks";
 import FrontmatterViewer from "@/components/markdown/FrontmatterViewer.vue";
 
 const route = useRoute();
-const notebooksStore = useNotebooksStore();
 
 const filePath = computed(() => {
   const path = route.query.path as string || "";
@@ -71,7 +69,7 @@ async function loadFile() {
     if (fileType.value === "markdown") {
       try {
         const renderedResponse = await fetch(
-          `/api/markdown/frontmatter/rendered?workspace_path=${encodeURIComponent(notebooksStore.workspacePath)}&path=${encodeURIComponent(filePath.value)}`
+          `/api/markdown/frontmatter/rendered?path=${encodeURIComponent(filePath.value)}`
         );
         
         if (renderedResponse.ok) {
@@ -79,7 +77,7 @@ async function loadFile() {
           
           // Also fetch the parsed content
           const parsedResponse = await fetch(
-            `/api/markdown/parse?workspace_path=${encodeURIComponent(notebooksStore.workspacePath)}&path=${encodeURIComponent(filePath.value)}`
+            `/api/markdown/parse?path=${encodeURIComponent(filePath.value)}`
           );
           
           if (parsedResponse.ok) {
@@ -100,7 +98,7 @@ async function loadFile() {
 
     // Load file content (for text/image display or fallback)
     const response = await fetch(
-      `/api/files/notebooks/content?workspace_path=${encodeURIComponent(notebooksStore.workspacePath)}&path=${encodeURIComponent(filePath.value)}`
+      `/api/files/notebooks/content?path=${encodeURIComponent(filePath.value)}`
     );
 
     if (!response.ok) {

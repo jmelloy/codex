@@ -27,15 +27,6 @@ describe('useNotebooksStore', () => {
     expect(store.notebooksList).toEqual([])
     expect(store.loading).toBe(false)
     expect(store.error).toBe(null)
-    expect(store.workspacePath).toBe('.')
-  })
-
-  it('sets workspace path', () => {
-    const store = useNotebooksStore()
-    
-    store.setWorkspacePath('/test/path')
-    
-    expect(store.workspacePath).toBe('/test/path')
   })
 
   it('loads notebooks successfully', async () => {
@@ -69,7 +60,7 @@ describe('useNotebooksStore', () => {
     expect(store.error).toBe(null)
     expect(store.notebooks.size).toBe(2)
     expect(store.notebooksList).toEqual(mockNotebooks)
-    expect(api.notebooksApi.list).toHaveBeenCalledWith('.')
+    expect(api.notebooksApi.list).toHaveBeenCalledWith()
   })
 
   it('handles load notebooks error', async () => {
@@ -102,7 +93,7 @@ describe('useNotebooksStore', () => {
     
     expect(result).toEqual(mockNotebook)
     expect(store.notebooks.get('1')).toEqual(mockNotebook)
-    expect(api.notebooksApi.get).toHaveBeenCalledWith('.', '1')
+    expect(api.notebooksApi.get).toHaveBeenCalledWith('1')
   })
 
   it('handles load notebook error', async () => {
@@ -134,7 +125,7 @@ describe('useNotebooksStore', () => {
     
     expect(result).toEqual(mockNotebook)
     expect(store.notebooks.get('1')).toEqual(mockNotebook)
-    expect(api.notebooksApi.create).toHaveBeenCalledWith('.', {
+    expect(api.notebooksApi.create).toHaveBeenCalledWith({
       title: 'New Notebook',
       description: 'Test description',
       tags: ['test'],

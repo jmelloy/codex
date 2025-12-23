@@ -2,14 +2,29 @@ import type { Notebook, Page, Entry, Artifact } from "@/types";
 
 const API_BASE = "/api";
 
+function getAuthToken(): string | null {
+  return localStorage.getItem("auth_token");
+}
+
 async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
+  const token = getAuthToken();
+
   const response = await fetch(`${API_BASE}${url}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
+      ...(token && { Authorization: `Bearer ${token}` }),
       ...options?.headers,
     },
   });
+
+  if (response.status === 401) {
+    // Token expired or invalid - clear auth and redirect to login
+    localStorage.removeItem("auth_token");
+    localStorage.removeItem("user");
+    window.location.href = "/login";
+    throw new Error("Unauthorized");
+  }
 
   if (!response.ok) {
     throw new Error(`API Error: ${response.status} ${response.statusText}`);
@@ -19,84 +34,51 @@ async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
 }
 
 export const notebooksApi = {
-  list: (workspacePath: string) =>
-    fetchJSON<Notebook[]>(
-      `/notebooks?workspace_path=${encodeURIComponent(workspacePath)}`,
-    ),
+  list: () => fetchJSON<Notebook[]>("/notebooks"),
 
-  get: (workspacePath: string, notebookId: string) =>
-    fetchJSON<Notebook>(
-      `/notebooks/${notebookId}?workspace_path=${encodeURIComponent(
-        workspacePath,
-      )}`,
-    ),
+  get: (notebookId: string) => fetchJSON<Notebook>(`/notebooks/${notebookId}`),
 
-  create: (
-    workspacePath: string,
-    data: { title: string; description?: string; tags?: string[] },
-  ) =>
+  create: (data: { title: string; description?: string; tags?: string[] }) =>
     fetchJSON<Notebook>("/notebooks", {
       method: "POST",
-      body: JSON.stringify({ workspace_path: workspacePath, ...data }),
+      body: JSON.stringify(data),
     }),
 };
 
 export const pagesApi = {
-  list: (workspacePath: string, notebookId: string) =>
-    fetchJSON<Page[]>(
-      `/notebooks/${notebookId}/pages?workspace_path=${encodeURIComponent(
-        workspacePath,
-      )}`,
-    ),
+  list: (notebookId: string) =>
+    fetchJSON<Page[]>(`/notebooks/${notebookId}/pages`),
 
-  get: (workspacePath: string, pageId: string) =>
-    fetchJSON<Page>(
-      `/pages/${pageId}?workspace_path=${encodeURIComponent(workspacePath)}`,
-    ),
+  get: (pageId: string) => fetchJSON<Page>(`/pages/${pageId}`),
 
   create: (
-    workspacePath: string,
     notebookId: string,
     data: { title: string; date?: string; narrative?: Record<string, string> },
   ) =>
     fetchJSON<Page>("/pages", {
       method: "POST",
       body: JSON.stringify({
-        workspace_path: workspacePath,
         notebook_id: notebookId,
         ...data,
       }),
     }),
 
   update: (
-    workspacePath: string,
     pageId: string,
     data: { title?: string; narrative?: Record<string, string>; tags?: string[] },
   ) =>
     fetchJSON<Page>(`/pages/${pageId}`, {
       method: "PATCH",
-      body: JSON.stringify({
-        workspace_path: workspacePath,
-        ...data,
-      }),
+      body: JSON.stringify(data),
     }),
 };
 
 export const entriesApi = {
-  list: (workspacePath: string, pageId: string) =>
-    fetchJSON<Entry[]>(
-      `/pages/${pageId}/entries?workspace_path=${encodeURIComponent(
-        workspacePath,
-      )}`,
-    ),
+  list: (pageId: string) => fetchJSON<Entry[]>(`/pages/${pageId}/entries`),
 
-  get: (workspacePath: string, entryId: string) =>
-    fetchJSON<Entry>(
-      `/entries/${entryId}?workspace_path=${encodeURIComponent(workspacePath)}`,
-    ),
+  get: (entryId: string) => fetchJSON<Entry>(`/entries/${entryId}`),
 
   create: (
-    workspacePath: string,
     pageId: string,
     data: {
       entry_type: string;
@@ -108,61 +90,47 @@ export const entriesApi = {
     fetchJSON<Entry>("/entries", {
       method: "POST",
       body: JSON.stringify({
-        workspace_path: workspacePath,
         page_id: pageId,
         ...data,
       }),
     }),
 
-  execute: (workspacePath: string, entryId: string) =>
+  execute: (entryId: string) =>
     fetchJSON<Entry>(`/entries/${entryId}/execute`, {
       method: "POST",
-      body: JSON.stringify({ workspace_path: workspacePath }),
     }),
 
-  delete: (workspacePath: string, entryId: string) =>
+  delete: (entryId: string) =>
     fetchJSON<{ success: boolean }>(`/entries/${entryId}`, {
       method: "DELETE",
-      body: JSON.stringify({ workspace_path: workspacePath }),
     }),
 
-  getLineage: (workspacePath: string, entryId: string, depth = 3) =>
+  getLineage: (entryId: string, depth = 3) =>
     fetchJSON<{ ancestors: Entry[]; descendants: Entry[]; entry: Entry }>(
-      `/entries/${entryId}/lineage?workspace_path=${encodeURIComponent(
-        workspacePath,
-      )}&depth=${depth}`,
+      `/entries/${entryId}/lineage?depth=${depth}`,
     ),
 
-  getArtifacts: (workspacePath: string, entryId: string) =>
-    fetchJSON<Artifact[]>(
-      `/entries/${entryId}/artifacts?workspace_path=${encodeURIComponent(
-        workspacePath,
-      )}`,
-    ),
+  getArtifacts: (entryId: string) =>
+    fetchJSON<Artifact[]>(`/entries/${entryId}/artifacts`),
 };
 
 export const artifactsApi = {
-  getUrl: (workspacePath: string, artifactHash: string, thumbnail = false) =>
-    `${API_BASE}/artifacts/${artifactHash}?workspace_path=${encodeURIComponent(
-      workspacePath,
-    )}${thumbnail ? "&thumbnail=true" : ""}`,
+  getUrl: (artifactHash: string, thumbnail = false) =>
+    `${API_BASE}/artifacts/${artifactHash}${thumbnail ? "?thumbnail=true" : ""}`,
 
-  getInfo: (workspacePath: string, artifactHash: string) =>
-    fetchJSON<Artifact>(
-      `/artifacts/${artifactHash}/info?workspace_path=${encodeURIComponent(
-        workspacePath,
-      )}`,
-    ),
+  getInfo: (artifactHash: string) =>
+    fetchJSON<Artifact>(`/artifacts/${artifactHash}/info`),
 };
 
 export const searchApi = {
-  search: (
-    workspacePath: string,
-    params: { query?: string; entry_type?: string; tags?: string[] },
-  ) =>
+  search: (params: {
+    query?: string;
+    entry_type?: string;
+    tags?: string[];
+  }) =>
     fetchJSON<{ results: Entry[]; count: number }>("/search", {
       method: "POST",
-      body: JSON.stringify({ workspace_path: workspacePath, ...params }),
+      body: JSON.stringify(params),
     }),
 };
 
@@ -184,13 +152,9 @@ export interface FileTreeItem {
 }
 
 export const filesApi = {
-  listNotebooks: (workspacePath: string) =>
-    fetchJSON<{ path: string; files: FileTreeItem[] }>(
-      `/files/notebooks?workspace_path=${encodeURIComponent(workspacePath)}`,
-    ),
+  listNotebooks: () =>
+    fetchJSON<{ path: string; files: FileTreeItem[] }>("/files/notebooks"),
 
-  listArtifacts: (workspacePath: string) =>
-    fetchJSON<{ path: string; files: FileTreeItem[] }>(
-      `/files/artifacts?workspace_path=${encodeURIComponent(workspacePath)}`,
-    ),
+  listArtifacts: () =>
+    fetchJSON<{ path: string; files: FileTreeItem[] }>("/files/artifacts"),
 };

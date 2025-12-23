@@ -2,10 +2,10 @@
 
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
-from api.utils import get_workspace_path
+from api.auth import UserInDB, get_current_user_workspace
 from core.workspace import Workspace
 
 router = APIRouter()
@@ -14,7 +14,6 @@ router = APIRouter()
 class NotebookCreateRequest(BaseModel):
     """Request model for creating a notebook."""
 
-    workspace_path: Optional[str] = None
     title: str
     description: str = ""
     tags: list[str] = []
@@ -34,10 +33,12 @@ class NotebookResponse(BaseModel):
 
 
 @router.post("", response_model=NotebookResponse)
-async def create_notebook(request: NotebookCreateRequest):
+async def create_notebook(
+    request: NotebookCreateRequest,
+    ws: Workspace = Depends(get_current_user_workspace),
+):
     """Create a new notebook."""
     try:
-        ws = Workspace.load(get_workspace_path(request.workspace_path))
         notebook = ws.create_notebook(
             title=request.title,
             description=request.description,
@@ -60,10 +61,9 @@ async def create_notebook(request: NotebookCreateRequest):
 
 
 @router.get("")
-async def list_notebooks(workspace_path: Optional[str] = Query(None)):
+async def list_notebooks(ws: Workspace = Depends(get_current_user_workspace)):
     """List all notebooks in workspace."""
     try:
-        ws = Workspace.load(get_workspace_path(workspace_path))
         notebooks = ws.list_notebooks()
         return [
             {
@@ -83,10 +83,12 @@ async def list_notebooks(workspace_path: Optional[str] = Query(None)):
 
 
 @router.get("/{notebook_id}", response_model=NotebookResponse)
-async def get_notebook(notebook_id: str, workspace_path: Optional[str] = Query(None)):
+async def get_notebook(
+    notebook_id: str,
+    ws: Workspace = Depends(get_current_user_workspace),
+):
     """Get notebook details."""
     try:
-        ws = Workspace.load(get_workspace_path(workspace_path))
         notebook = ws.get_notebook(notebook_id)
         if not notebook:
             raise HTTPException(status_code=404, detail="Notebook not found")
@@ -111,7 +113,6 @@ async def get_notebook(notebook_id: str, workspace_path: Optional[str] = Query(N
 class NotebookUpdateRequest(BaseModel):
     """Request model for updating a notebook."""
 
-    workspace_path: Optional[str] = None
     title: Optional[str] = None
     description: Optional[str] = None
     tags: Optional[list[str]] = None
@@ -120,10 +121,13 @@ class NotebookUpdateRequest(BaseModel):
 
 
 @router.patch("/{notebook_id}", response_model=NotebookResponse)
-async def update_notebook(notebook_id: str, request: NotebookUpdateRequest):
+async def update_notebook(
+    notebook_id: str,
+    request: NotebookUpdateRequest,
+    ws: Workspace = Depends(get_current_user_workspace),
+):
     """Update a notebook."""
     try:
-        ws = Workspace.load(get_workspace_path(request.workspace_path))
         notebook = ws.get_notebook(notebook_id)
         if not notebook:
             raise HTTPException(status_code=404, detail="Notebook not found")
@@ -162,11 +166,11 @@ async def update_notebook(notebook_id: str, request: NotebookUpdateRequest):
 
 @router.delete("/{notebook_id}")
 async def delete_notebook(
-    notebook_id: str, workspace_path: Optional[str] = Query(None)
+    notebook_id: str,
+    ws: Workspace = Depends(get_current_user_workspace),
 ):
     """Delete a notebook."""
     try:
-        ws = Workspace.load(get_workspace_path(workspace_path))
         notebook = ws.get_notebook(notebook_id)
         if not notebook:
             raise HTTPException(status_code=404, detail="Notebook not found")
@@ -183,11 +187,11 @@ async def delete_notebook(
 
 @router.get("/{notebook_id}/pages")
 async def list_notebook_pages(
-    notebook_id: str, workspace_path: Optional[str] = Query(None)
+    notebook_id: str,
+    ws: Workspace = Depends(get_current_user_workspace),
 ):
     """List pages in a notebook."""
     try:
-        ws = Workspace.load(get_workspace_path(workspace_path))
         notebook = ws.get_notebook(notebook_id)
         if not notebook:
             raise HTTPException(status_code=404, detail="Notebook not found")

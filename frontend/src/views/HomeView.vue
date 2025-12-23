@@ -1,4 +1,8 @@
-<script setup lang="ts"></script>
+<script setup lang="ts">
+import { useAuthStore } from "@/stores/auth";
+
+const authStore = useAuthStore();
+</script>
 
 <template>
   <div class="home">
@@ -6,9 +10,22 @@
       <h1>Welcome to Codex</h1>
       <p class="subtitle">A hierarchical digital laboratory journal system</p>
       <div class="hero-actions">
-        <RouterLink to="/notebooks" class="btn btn-primary">
+        <RouterLink
+          v-if="authStore.isAuthenticated"
+          to="/notebooks"
+          class="btn btn-primary"
+        >
           View Notebooks
         </RouterLink>
+        <template v-else>
+          <RouterLink to="/login" class="btn btn-primary"> Login </RouterLink>
+          <RouterLink to="/register" class="btn btn-secondary">
+            Register
+          </RouterLink>
+        </template>
+      </div>
+      <div v-if="authStore.user" class="user-info">
+        Logged in as <strong>{{ authStore.user.username }}</strong>
       </div>
     </section>
 
@@ -23,8 +40,8 @@
       <div class="feature card">
         <h3>🔗 Lineage Tracking</h3>
         <p>
-          Track the evolution of your work with parent-child
-          relationships and variations.
+          Track the evolution of your work with parent-child relationships and
+          variations.
         </p>
       </div>
       <div class="feature card">
@@ -80,6 +97,20 @@
   gap: 1rem;
 }
 
+.user-info {
+  margin-top: 1.5rem;
+  color: var(--color-text-secondary);
+  font-size: 0.95rem;
+}
+
+.btn-secondary {
+  background-color: #6c757d;
+}
+
+.btn-secondary:hover {
+  background-color: #5a6268;
+}
+
 .features {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -114,7 +145,7 @@
 
 /* Decorative notebook spiral holes using CSS circles */
 .hero::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 1rem;
   left: 50%;

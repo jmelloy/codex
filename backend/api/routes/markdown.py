@@ -3,10 +3,10 @@
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
-from api.utils import get_workspace_path
+from api.auth import get_current_user_workspace
 from core.markdown import parse_markdown_file, MarkdownDocument
 from core.markdown_renderers import get_registry
 from core.workspace import Workspace
@@ -32,7 +32,7 @@ class ParsedMarkdownResponse(BaseModel):
 @router.get("/parse", response_model=ParsedMarkdownResponse)
 async def parse_markdown(
     path: str = Query(..., description="Relative path to the markdown file"),
-    workspace_path: Optional[str] = Query(None),
+    ws: Workspace = Depends(get_current_user_workspace),
 ):
     """Parse a markdown file and return structured data.
 
@@ -43,14 +43,12 @@ async def parse_markdown(
 
     Args:
         path: Relative path to the markdown file
-        workspace_path: Optional workspace path
+        ws: Workspace from authenticated user
 
     Returns:
         Parsed markdown with frontmatter, blocks, and content
     """
     try:
-        ws = Workspace.load(get_workspace_path(workspace_path))
-
         # Sanitize path to prevent directory traversal
         safe_path = Path(path).as_posix()
         if ".." in safe_path or safe_path.startswith("/"):
@@ -100,20 +98,18 @@ async def parse_markdown(
 @router.get("/frontmatter")
 async def get_frontmatter(
     path: str = Query(..., description="Relative path to the markdown file"),
-    workspace_path: Optional[str] = Query(None),
+    ws: Workspace = Depends(get_current_user_workspace),
 ):
     """Get only the frontmatter from a markdown file.
 
     Args:
         path: Relative path to the markdown file
-        workspace_path: Optional workspace path
+        ws: Workspace from authenticated user
 
     Returns:
         Dictionary of frontmatter data
     """
     try:
-        ws = Workspace.load(get_workspace_path(workspace_path))
-
         # Sanitize path to prevent directory traversal
         safe_path = Path(path).as_posix()
         if ".." in safe_path or safe_path.startswith("/"):
@@ -154,7 +150,7 @@ async def get_frontmatter(
 @router.get("/frontmatter/rendered")
 async def get_rendered_frontmatter(
     path: str = Query(..., description="Relative path to the markdown file"),
-    workspace_path: Optional[str] = Query(None),
+    ws: Workspace = Depends(get_current_user_workspace),
 ):
     """Get rendered frontmatter with type information for display.
 
@@ -164,14 +160,12 @@ async def get_rendered_frontmatter(
 
     Args:
         path: Relative path to the markdown file
-        workspace_path: Optional workspace path
+        ws: Workspace from authenticated user
 
     Returns:
         Dictionary of rendered frontmatter fields with type info
     """
     try:
-        ws = Workspace.load(get_workspace_path(workspace_path))
-
         # Sanitize path to prevent directory traversal
         safe_path = Path(path).as_posix()
         if ".." in safe_path or safe_path.startswith("/"):

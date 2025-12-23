@@ -2,12 +2,14 @@
 import { ref, computed, onMounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useNotebooksStore } from "@/stores/notebooks";
+import { useAuthStore } from "@/stores/auth";
 import { pagesApi, filesApi, type FileTreeItem } from "@/api";
-import type {  Page } from "@/types";
+import type { Page } from "@/types";
 
 const route = useRoute();
 const router = useRouter();
 const notebooksStore = useNotebooksStore();
+const authStore = useAuthStore();
 
 const expandedNotebooks = ref<Set<string>>(new Set());
 const expandedDirs = ref<Set<string>>(new Set());
@@ -15,17 +17,15 @@ const notebookPages = ref<Map<string, Page[]>>(new Map());
 const notebookFiles = ref<FileTreeItem[]>([]);
 const loading = ref(true);
 
-
-const currentNotebookId = computed(() => route.params.notebookId as string | undefined);
+const currentNotebookId = computed(
+  () => route.params.notebookId as string | undefined,
+);
 const currentFilePath = computed(() => route.query.path as string | undefined);
 
 onMounted(async () => {
-  await Promise.all([
-    notebooksStore.loadNotebooks(),
-    loadNotebookFiles(),
-  ]);
+  await Promise.all([notebooksStore.loadNotebooks(), loadNotebookFiles()]);
   loading.value = false;
-  
+
   // Auto-expand current notebook
   if (currentNotebookId.value) {
     expandedNotebooks.value.add(currentNotebookId.value);
@@ -43,7 +43,7 @@ watch(currentNotebookId, async (newId) => {
 async function loadPagesForNotebook(notebookId: string) {
   if (!notebookPages.value.has(notebookId)) {
     try {
-      const pages = await pagesApi.list(notebooksStore.workspacePath, notebookId);
+      const pages = await pagesApi.list(notebookId);
       notebookPages.value.set(notebookId, pages);
     } catch (e) {
       console.error("Failed to load pages:", e);
@@ -53,14 +53,12 @@ async function loadPagesForNotebook(notebookId: string) {
 
 async function loadNotebookFiles() {
   try {
-    const result = await filesApi.listNotebooks(notebooksStore.workspacePath);
+    const result = await filesApi.listNotebooks();
     notebookFiles.value = result.files;
   } catch (e) {
     console.error("Failed to load notebook files:", e);
   }
 }
-
-
 
 function toggleDir(path: string) {
   if (expandedDirs.value.has(path)) {
@@ -72,23 +70,23 @@ function toggleDir(path: string) {
 
 function navigateToFile(filePath: string) {
   // Ensure path is properly passed to router - Vue Router will handle encoding
-  router.push({ path: '/files', query: { path: filePath } });
+  router.push({ path: "/files", query: { path: filePath } });
 }
 
 function isFileActive(path: string) {
   // Decode both paths for comparison to handle any encoding differences
   const decodeCurrent = () => {
     try {
-      return decodeURIComponent(currentFilePath.value || '');
+      return decodeURIComponent(currentFilePath.value || "");
     } catch {
-      return currentFilePath.value || '';
+      return currentFilePath.value || "";
     }
   };
   const decodePath = () => {
     try {
-      return decodeURIComponent(path || '');
+      return decodeURIComponent(path || "");
     } catch {
-      return path || '';
+      return path || "";
     }
   };
   return decodeCurrent().trim() === decodePath().trim();
@@ -102,11 +100,11 @@ function getFileIcon(item: FileTreeItem): string {
   if (item.properties?.type === "page") {
     return "📄";
   }
-  
+
   if (item.type === "directory") {
     return "📁";
   }
-  
+
   const ext = item.extension?.toLowerCase() || "";
   const iconMap: Record<string, string> = {
     ".md": "📝",
@@ -124,7 +122,7 @@ function getFileIcon(item: FileTreeItem): string {
     ".svg": "🖼️",
     ".pdf": "📕",
   };
-  
+
   return iconMap[ext] || "📄";
 }
 
@@ -134,6 +132,11 @@ function getDisplayName(item: FileTreeItem): string {
     return item.properties.title;
   }
   return item.name;
+}
+
+function handleLogout() {
+  authStore.logout();
+  router.push("/login");
 }
 </script>
 
@@ -242,7 +245,11 @@ function getDisplayName(item: FileTreeItem): string {
     </nav>
 
     <div class="sidebar-footer">
-      <RouterLink to="/notebooks" class="footer-link">
+      <div v-if="authStore.user" class="user-info">
+        <div class="user-name">👤 {{ authStore.user.username }}</div>
+        <button @click="handleLogout" class="logout-btn">Logout</button>
+      </div>
+      <RouterLink v-else to="/notebooks" class="footer-link">
         + New Notebook
       </RouterLink>
     </div>
@@ -495,6 +502,36 @@ function getDisplayName(item: FileTreeItem): string {
   border-top: 1px solid var(--color-border);
   background: var(--color-surface);
   margin-left: 8px;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.user-name {
+  font-size: 0.875rem;
+  color: var(--color-text);
+  font-weight: 500;
+}
+
+.logout-btn {
+  padding: 0.5rem;
+  background: var(--color-background);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  font-family: var(--font-body);
+  transition: background-color 0.15s;
+}
+
+.logout-btn:hover {
+  background: var(--color-border);
+  color: var(--color-text);
 }
 
 .footer-link {

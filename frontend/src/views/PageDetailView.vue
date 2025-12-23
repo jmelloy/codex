@@ -26,7 +26,7 @@ async function loadPage() {
   loading.value = true;
   await notebooksStore.loadNotebook(notebookId.value);
   try {
-    page.value = await pagesApi.get(notebooksStore.workspacePath, pageId.value);
+    page.value = await pagesApi.get(pageId.value);
   } catch (e) {
     console.error("Failed to load page:", e);
   } finally {
@@ -38,7 +38,7 @@ async function updateNarrative(field: string, content: string) {
   if (!page.value) return;
   try {
     const updatedNarrative = { ...page.value.narrative, [field]: content };
-    await pagesApi.update(notebooksStore.workspacePath, pageId.value, {
+    await pagesApi.update(pageId.value, {
       narrative: updatedNarrative,
     });
     page.value.narrative = updatedNarrative;

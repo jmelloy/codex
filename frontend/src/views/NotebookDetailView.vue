@@ -26,10 +26,7 @@ const notebook = computed(() => notebooksStore.notebooks.get(notebookId.value));
 onMounted(async () => {
   await notebooksStore.loadNotebook(notebookId.value);
   try {
-    pages.value = await pagesApi.list(
-      notebooksStore.workspacePath,
-      notebookId.value,
-    );
+    pages.value = await pagesApi.list(notebookId.value);
   } catch (e) {
     console.error("Failed to load pages:", e);
   } finally {
@@ -43,15 +40,11 @@ async function handleCreatePage() {
   creating.value = true;
 
   try {
-    const page = await pagesApi.create(
-      notebooksStore.workspacePath,
-      notebookId.value,
-      {
-        title: newPage.value.title,
-        date: newPage.value.date || undefined,
-        narrative: newPage.value.goals ? { goals: newPage.value.goals } : undefined,
-      }
-    );
+    const page = await pagesApi.create(notebookId.value, {
+      title: newPage.value.title,
+      date: newPage.value.date || undefined,
+      narrative: newPage.value.goals ? { goals: newPage.value.goals } : undefined,
+    });
 
     showModal.value = false;
     newPage.value = { title: "", date: new Date().toISOString().split("T")[0], goals: "" };

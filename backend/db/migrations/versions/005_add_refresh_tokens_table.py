@@ -1,7 +1,7 @@
 """Add refresh_tokens table for token refresh
 
-Revision ID: 004_add_refresh_tokens_table
-Revises: 003_add_users_table
+Revision ID: 005_add_refresh_tokens_table
+Revises: 004_add_markdown_files_table
 Create Date: 2025-12-23
 
 """
@@ -10,8 +10,8 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = "004_add_refresh_tokens_table"
-down_revision = "003_add_users_table"
+revision = "005_add_refresh_tokens_table"
+down_revision = "004_add_markdown_files_table"
 branch_labels = None
 depends_on = None
 

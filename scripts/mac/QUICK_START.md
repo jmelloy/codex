@@ -18,6 +18,21 @@ Both tools are especially useful for:
 
 ### Quick Start
 
+**Option 1: PyiCloud (Cross-Platform)**
+
+```bash
+# Install pyicloud
+pip install pyicloud
+
+# Run the script
+python scripts/log-calendar-events-pyicloud.py
+
+# With custom workspace
+CODEX_WORKSPACE=~/my-workspace python scripts/log-calendar-events-pyicloud.py
+```
+
+**Option 2: Shell Script (macOS only)**
+
 ```bash
 # Log today's calendar events (default workspace: ~/codex)
 ./scripts/mac/log-calendar-events.sh

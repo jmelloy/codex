@@ -8,16 +8,73 @@ Scripts that fetch today's calendar events from iCloud and log them to your dail
 
 ### Features
 
-- **iCloud Calendar Integration**: Automatically fetches events from all calendars in Calendar.app
+- **iCloud Calendar Integration**: Automatically fetches events from all calendars in Calendar.app or iCloud web services
 - **Time Formatting**: Displays event times in 24-hour format (HH:MM)
 - **All-Day Events**: Specially formats all-day events
 - **Location Support**: Includes event locations when available
 - **Daily Note Integration**: Seamlessly integrates with Codex daily notes under "## Calendar Events" section
 - **Sorted Events**: Events are sorted chronologically by start time
 
+### Which Script Should I Use?
+
+**Choose the PyiCloud Python script if:**
+- You're on Linux or Windows
+- You want to automate without macOS
+- You prefer direct iCloud API access
+- You're comfortable with Python
+
+**Choose the Shell/AppleScript version if:**
+- You're on macOS
+- You want to use the native Calendar.app
+- You prefer not to install Python dependencies
+- You want the simplest setup on macOS
+
 ### Available Scripts
 
-#### 1. Shell Script (`log-calendar-events.sh`)
+#### 1. Python Script with PyiCloud (`log-calendar-events-pyicloud.py`) - **Cross-Platform**
+
+Python script that uses the PyiCloud library to fetch events directly from iCloud web services. Works on any platform (macOS, Linux, Windows).
+
+**Advantages:**
+- Works on any operating system with Python
+- No need for macOS Calendar.app
+- Direct access to iCloud via web API
+- Better for automation in non-macOS environments
+
+**Requirements:**
+
+```bash
+pip install pyicloud
+```
+
+**Usage:**
+
+```bash
+# Run the script
+python scripts/log-calendar-events-pyicloud.py
+
+# With custom workspace
+CODEX_WORKSPACE=~/my-workspace python scripts/log-calendar-events-pyicloud.py
+
+# With credentials via environment variables (for automation)
+ICLOUD_USERNAME=your@email.com ICLOUD_PASSWORD=your-password python scripts/log-calendar-events-pyicloud.py
+```
+
+**First-time Setup:**
+
+On first run, the script will prompt for your Apple ID and password. If you have two-factor authentication (2FA) enabled, it will guide you through the verification process. Credentials are stored securely using your system's keyring.
+
+**Setup:**
+
+```bash
+# Make executable (already done in repo)
+chmod +x scripts/log-calendar-events-pyicloud.py
+
+# Optional: Create an alias
+alias log-calendar-pyicloud='python $HOME/codex/scripts/log-calendar-events-pyicloud.py'
+```
+
+#### 2. Shell Script (`log-calendar-events.sh`) - **macOS Only**
 
 Simple wrapper that runs the AppleScript.
 
@@ -41,7 +98,7 @@ chmod +x scripts/mac/log-calendar-events.sh
 alias log-calendar='$HOME/codex/scripts/mac/log-calendar-events.sh'
 ```
 
-#### 2. AppleScript (`log-calendar-events.applescript`)
+#### 3. AppleScript (`log-calendar-events.applescript`) - **macOS Only**
 
 Standalone AppleScript that directly accesses Calendar.app to fetch events.
 

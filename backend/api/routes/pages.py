@@ -100,7 +100,7 @@ async def get_page(
 ):
     """Get page details."""
     try:
-        session = ws.db_manager.get_session()
+        session = ws.workspace_db_manager.get_session()
         try:
             page = Page.get_by_id(session, page_id)
             if not page:
@@ -145,7 +145,7 @@ async def update_page(
 ):
     """Update a page."""
     try:
-        session = ws.db_manager.get_session()
+        session = ws.workspace_db_manager.get_session()
         try:
             page = Page.get_by_id(session, page_id)
             if not page:
@@ -203,7 +203,7 @@ async def update_narrative(
 ):
     """Update page narrative field."""
     try:
-        session = ws.db_manager.get_session()
+        session = ws.workspace_db_manager.get_session()
         try:
             page = Page.get_by_id(session, page_id)
             if not page:
@@ -240,7 +240,7 @@ async def delete_page(
 ):
     """Delete a page."""
     try:
-        session = ws.db_manager.get_session()
+        session = ws.workspace_db_manager.get_session()
         try:
             page = Page.get_by_id(session, page_id)
             if not page:
@@ -267,7 +267,7 @@ async def list_page_entries(
 ):
     """List entries in a page."""
     try:
-        session = ws.db_manager.get_session()
+        session = ws.workspace_db_manager.get_session()
         try:
             page = Page.get_by_id(session, page_id)
             if not page:

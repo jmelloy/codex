@@ -17,6 +17,7 @@ from api.auth import (
 from api.utils import DEFAULT_WORKSPACE_PATH, get_core_db_path
 from core.workspace import Workspace
 from db.core_operations import CoreDatabaseManager
+from db.models import User
 
 router = APIRouter()
 
@@ -56,7 +57,9 @@ class LoginResponse(BaseModel):
     user: UserResponse
 
 
-@router.post("/register", response_model=LoginResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/register", response_model=LoginResponse, status_code=status.HTTP_201_CREATED
+)
 async def register(request: UserRegisterRequest):
     """Register a new user."""
     # Get core database connection
@@ -73,7 +76,7 @@ async def register(request: UserRegisterRequest):
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username already registered"
+            detail="Username already registered",
         )
 
     # Create user workspace path
@@ -97,7 +100,7 @@ async def register(request: UserRegisterRequest):
         # The user will exist but have no workspace
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to initialize workspace: {str(e)}"
+            detail=f"Failed to initialize workspace: {str(e)}",
         )
 
     # Generate tokens
@@ -115,7 +118,7 @@ async def register(request: UserRegisterRequest):
             workspace_path=user.workspace_path,
             is_active=user.is_active,
             created_at=user.created_at.isoformat(),
-        )
+        ),
     )
 
 
@@ -147,8 +150,7 @@ async def login(request: UserLoginRequest):
     # Check if user is active
     if not user.is_active:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Inactive user"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user"
         )
 
     # Generate tokens
@@ -166,8 +168,9 @@ async def login(request: UserLoginRequest):
             workspace_path=user.workspace_path,
             is_active=user.is_active,
             created_at=user.created_at.isoformat(),
-        )
+        ),
     )
+
 
 @router.get("/me", response_model=UserResponse)
 async def get_current_user_info(current_user: UserInDB = Depends(get_current_user)):
@@ -178,7 +181,7 @@ async def get_current_user_info(current_user: UserInDB = Depends(get_current_use
     # Ensure database directory exists
     db_path.parent.mkdir(parents=True, exist_ok=True)
 
-    db_manager = DatabaseManager(db_path)
+    db_manager = CoreDatabaseManager(db_path)
     db_manager.initialize()  # Initialize database with migrations
 
     session = db_manager.get_session()
@@ -186,8 +189,7 @@ async def get_current_user_info(current_user: UserInDB = Depends(get_current_use
         user = User.find_one_by(session, username=current_user.username)
         if not user:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
             )
 
         return UserResponse(
@@ -232,7 +234,7 @@ async def refresh_access_token(request: RefreshTokenRequest):
     db_path = Path(DEFAULT_WORKSPACE_PATH) / ".lab" / "db" / "index.db"
     db_path.parent.mkdir(parents=True, exist_ok=True)
 
-    db_manager = DatabaseManager(db_path)
+    db_manager = CoreDatabaseManager(db_path)
     db_manager.initialize()
 
     session = db_manager.get_session()
@@ -247,17 +249,12 @@ async def refresh_access_token(request: RefreshTokenRequest):
 
         if not user.is_active:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Inactive user"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user"
             )
 
         # Create new access token
         access_token = create_access_token(data={"sub": user.username})
 
-        return RefreshTokenResponse(
-            access_token=access_token,
-            token_type="bearer"
-        )
+        return RefreshTokenResponse(access_token=access_token, token_type="bearer")
     finally:
         session.close()
-

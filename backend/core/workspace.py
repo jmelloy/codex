@@ -37,7 +37,6 @@ class Workspace:
         # Managers
         self._workspace_db_manager: Optional[WorkspaceDatabaseManager] = None
         self._notebook_db_managers: dict[str, NotebookDatabaseManager] = {}
-        self._storage_manager: Optional[StorageManager] = None
         self._git_manager: Optional[GitManager] = None
 
     @property
@@ -64,13 +63,6 @@ class Workspace:
                 db_path, notebook_id
             )
         return self._notebook_db_managers[notebook_id]
-
-    @property
-    def storage_manager(self) -> StorageManager:
-        """Get the storage manager."""
-        if self._storage_manager is None:
-            self._storage_manager = StorageManager(self.lab_path / "storage")
-        return self._storage_manager
 
     @property
     def git_manager(self) -> GitManager:
@@ -101,10 +93,6 @@ class Workspace:
             ws.lab_path / "db" / "workspace.db"
         )
         ws._workspace_db_manager.initialize()
-
-        # Initialize storage
-        ws._storage_manager = StorageManager(ws.lab_path / "storage")
-        ws._storage_manager.initialize()
 
         # Create config
         config = {

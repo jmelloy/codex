@@ -37,7 +37,7 @@ def db_migrate(revision: str, workspace: str):
     try:
         ws = Workspace.load(Path(workspace).resolve())
         click.echo(f"Running migrations to revision: {revision}")
-        ws.db_manager.run_migrations(revision)
+        ws.workspace_db_manager.run_migrations(revision)
         click.echo("Migrations completed successfully.")
     except Exception as e:
         click.echo(f"Error running migrations: {e}", err=True)
@@ -54,7 +54,7 @@ def db_status(workspace: str):
     """
     try:
         ws = Workspace.load(Path(workspace).resolve())
-        status = ws.db_manager.get_migration_status()
+        status = ws.workspace_db_manager.get_migration_status()
 
         click.echo("Database Migration Status")
         click.echo("-" * 40)
@@ -82,7 +82,7 @@ def db_history(workspace: str):
     """
     try:
         ws = Workspace.load(Path(workspace).resolve())
-        history = ws.db_manager.get_migration_history()
+        history = ws.workspace_db_manager.get_migration_history()
 
         if not history:
             click.echo("No migrations available.")

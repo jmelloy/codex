@@ -70,38 +70,6 @@ def search(query: str, entry_type: str, workspace: str):
 
 
 @cli.command()
-@click.argument("entry_id")
-@click.option("--depth", "-d", default=3, help="Lineage depth")
-@click.option("--workspace", "-w", default=".", help="Workspace path")
-def lineage(entry_id: str, depth: int, workspace: str):
-    """View entry lineage."""
-    try:
-        ws = Workspace.load(Path(workspace).resolve())
-
-        from core.entry import Entry
-
-        entry_data = ws.db_manager.get_entry(entry_id)
-        if not entry_data:
-            click.echo(f"Entry not found: {entry_id}", err=True)
-            raise click.Abort()
-
-        e = Entry.from_dict(ws, entry_data)
-        lineage_data = e.get_lineage(depth)
-
-        click.echo(f"Lineage for: {e.title} ({e.id})")
-        click.echo(f"  Ancestors: {len(lineage_data['ancestors'])}")
-        for a in lineage_data["ancestors"]:
-            click.echo(f"    - {a['id']}: {a['title']}")
-
-        click.echo(f"  Descendants: {len(lineage_data['descendants'])}")
-        for d in lineage_data["descendants"]:
-            click.echo(f"    - {d['id']}: {d['title']}")
-    except Exception as e:
-        click.echo(f"Error: {e}", err=True)
-        raise click.Abort()
-
-
-@cli.command()
 @click.option("--host", "-h", default="127.0.0.1", help="Host to bind to")
 @click.option("--port", "-p", default=8765, help="Port to bind to")
 @click.option("--reload", "-r", is_flag=True, help="Enable auto-reload")

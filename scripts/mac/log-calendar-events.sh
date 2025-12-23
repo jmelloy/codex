@@ -13,8 +13,15 @@ fi
 
 # Get the script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APPLESCRIPT="$SCRIPT_DIR/log-calendar-events.applescript"
+
+# Check if AppleScript exists
+if [[ ! -f "$APPLESCRIPT" ]]; then
+    echo "Error: AppleScript not found at $APPLESCRIPT"
+    exit 1
+fi
 
 # Run the AppleScript
-osascript "$SCRIPT_DIR/log-calendar-events.applescript"
+osascript "$APPLESCRIPT"
 
 exit $?

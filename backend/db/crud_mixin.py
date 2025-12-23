@@ -1,27 +1,19 @@
-"""SQLAlchemy models for Lab Notebook."""
+"""CRUD mixin for SQLAlchemy models.
 
-from datetime import datetime, timezone
+This module provides CRUD operations as a mixin that can be added to any
+DeclarativeBase subclass.
+"""
+
 from typing import Any, ClassVar, Optional, TypeVar
 
-from sqlalchemy import (
-    Boolean,
-    Column,
-    DateTime,
-    ForeignKey,
-    Index,
-    Integer,
-    String,
-    Text,
-    create_engine,
-    inspect,
-)
-from sqlalchemy.orm import DeclarativeBase, Session, relationship, sessionmaker
+from sqlalchemy import inspect
+from sqlalchemy.orm import Session
 
-T = TypeVar("T", bound="Base")
+T = TypeVar("T")
 
 
-class Base(DeclarativeBase):
-    """Base class for all models with CRUD operations that return typed instances."""
+class CRUDMixin:
+    """Mixin class that provides CRUD operations for SQLAlchemy models."""
 
     # Class-level cache for foreign key info
     _fk_cache: ClassVar[dict[str, dict[str, tuple[str, str]]]] = {}
@@ -62,6 +54,9 @@ class Base(DeclarativeBase):
         """
         fk_info = cls.get_foreign_keys()
         fk_status = {}
+
+        # Get the Base class from the same module as cls
+        Base = cls.__mro__[-2]  # Assuming DeclarativeBase is second to last in MRO
 
         for col_name, (target_table, target_column) in fk_info.items():
             if col_name in data and data[col_name] is not None:
@@ -248,215 +243,3 @@ class Base(DeclarativeBase):
             session.flush()
             return True
         return False
-
-
-class User(Base):
-    """User model for authentication."""
-
-    __tablename__ = "users"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    username = Column(String, unique=True, nullable=False, index=True)
-    email = Column(String, unique=True, nullable=False, index=True)
-    hashed_password = Column(String, nullable=False)
-    workspace_path = Column(String, nullable=False)
-    is_active = Column(Boolean, default=True, nullable=False)
-    created_at = Column(
-        DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
-    )
-    updated_at = Column(
-        DateTime,
-        nullable=False,
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
-    )
-
-
-Index("idx_users_username", User.username)
-Index("idx_users_email", User.email)
-
-
-class RefreshToken(Base):
-    """Refresh token model for token refresh mechanism."""
-
-    __tablename__ = "refresh_tokens"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    token = Column(String, unique=True, nullable=False, index=True)
-    user_id = Column(
-        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    expires_at = Column(DateTime, nullable=False)
-    created_at = Column(
-        DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
-    )
-    revoked = Column(Boolean, default=False, nullable=False)
-
-    # Relationship
-    user = relationship("User", backref="refresh_tokens")
-
-
-Index("idx_refresh_tokens_token", RefreshToken.token)
-Index("idx_refresh_tokens_user_id", RefreshToken.user_id)
-
-
-class Notebook(Base):
-    """Notebook model - a collection of related work."""
-
-    __tablename__ = "notebooks"
-
-    id = Column(String, primary_key=True)
-    title = Column(String, nullable=False)
-    description = Column(Text, nullable=True)
-    created_at = Column(
-        DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
-    )
-    updated_at = Column(
-        DateTime,
-        nullable=False,
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
-    )
-    settings = Column(Text, nullable=True)  # JSON string
-    metadata_ = Column("metadata", Text, nullable=True)  # JSON string
-
-    pages = relationship(
-        "Page", back_populates="notebook", cascade="all, delete-orphan"
-    )
-    tags = relationship(
-        "NotebookTag", back_populates="notebook", cascade="all, delete-orphan"
-    )
-
-
-Index("idx_notebooks_created", Notebook.created_at.desc())
-
-
-class Page(Base):
-    """Page model - a focused work session or investigation thread."""
-
-    __tablename__ = "pages"
-
-    id = Column(String, primary_key=True)
-    notebook_id = Column(
-        String, ForeignKey("notebooks.id", ondelete="CASCADE"), nullable=False
-    )
-    title = Column(String, nullable=False)
-    date = Column(DateTime, nullable=True)
-    created_at = Column(
-        DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
-    )
-    updated_at = Column(
-        DateTime,
-        nullable=False,
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
-    )
-    narrative = Column(Text, nullable=True)  # JSON string
-    metadata_ = Column("metadata", Text, nullable=True)  # JSON string
-
-    notebook = relationship("Notebook", back_populates="pages")
-    tags = relationship("PageTag", back_populates="page", cascade="all, delete-orphan")
-
-
-Index("idx_pages_notebook", Page.notebook_id)
-Index("idx_pages_date", Page.date.desc())
-
-
-class Tag(Base):
-    """Tag model."""
-
-    __tablename__ = "tags"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String, unique=True, nullable=False)
-    color = Column(String, nullable=True)
-    created_at = Column(
-        DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
-    )
-
-
-class NotebookTag(Base):
-    """Notebook-tag relationship."""
-
-    __tablename__ = "notebook_tags"
-
-    notebook_id = Column(
-        String, ForeignKey("notebooks.id", ondelete="CASCADE"), primary_key=True
-    )
-    tag_id = Column(Integer, ForeignKey("tags.id"), primary_key=True)
-
-    notebook = relationship("Notebook", back_populates="tags")
-    tag = relationship("Tag")
-
-
-class PageTag(Base):
-    """Page-tag relationship."""
-
-    __tablename__ = "page_tags"
-
-    page_id = Column(
-        String, ForeignKey("pages.id", ondelete="CASCADE"), primary_key=True
-    )
-    tag_id = Column(Integer, ForeignKey("tags.id"), primary_key=True)
-
-    page = relationship("Page", back_populates="tags")
-    tag = relationship("Tag")
-
-
-class MarkdownFile(Base):
-    """Indexed markdown file with frontmatter metadata."""
-
-    __tablename__ = "markdown_files"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    path = Column(String, nullable=False)
-    relative_path = Column(String, nullable=False, unique=True)
-    title = Column(String, nullable=True)
-    file_hash = Column(String, nullable=False)
-    frontmatter = Column(Text, nullable=True)
-    file_size = Column(Integer, nullable=True)
-    file_modified = Column(DateTime, nullable=True)
-    indexed_at = Column(DateTime, nullable=False)
-    created_at = Column(DateTime, nullable=False)
-    updated_at = Column(DateTime, nullable=False)
-
-    __table_args__ = (
-        Index("idx_markdown_files_path", "path"),
-        Index("idx_markdown_files_relative_path", "relative_path", unique=True),
-        Index("idx_markdown_files_title", "title"),
-        Index("idx_markdown_files_file_hash", "file_hash"),
-    )
-
-
-def get_engine(db_path: str):
-    """Create a database engine."""
-    return create_engine(f"sqlite:///{db_path}", echo=False)
-
-
-def get_session(engine):
-    """Create a session factory."""
-    Session = sessionmaker(bind=engine)
-    return Session()
-
-
-def init_db(db_path: str, use_migrations: bool = True):
-    """Initialize the database schema.
-
-    Args:
-        db_path: Path to the SQLite database file.
-        use_migrations: If True, use Alembic migrations. If False, use create_all().
-                       Defaults to True.
-
-    Returns:
-        SQLAlchemy engine instance.
-    """
-    engine = get_engine(db_path)
-
-    if use_migrations:
-        from db.migrate import initialize_migrations
-
-        initialize_migrations(db_path)
-    else:
-        Base.metadata.create_all(engine)
-
-    return engine

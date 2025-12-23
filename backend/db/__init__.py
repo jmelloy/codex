@@ -14,6 +14,11 @@ from db.migrate import (
 from db.models import Base, get_engine, get_session, init_db
 from db.operations import DatabaseManager
 
+# New split database managers
+from db.core_operations import CoreDatabaseManager
+from db.workspace_operations import WorkspaceDatabaseManager
+from db.notebook_operations import NotebookDatabaseManager
+
 __all__ = [
     "Base",
     "DatabaseManager",
@@ -29,4 +34,8 @@ __all__ = [
     "needs_migration",
     "run_migrations",
     "stamp_revision",
+    # New split database managers
+    "CoreDatabaseManager",
+    "WorkspaceDatabaseManager",
+    "NotebookDatabaseManager",
 ]

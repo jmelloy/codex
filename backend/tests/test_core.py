@@ -19,7 +19,7 @@ class TestWorkspace:
         assert ws.path == tmp_path
         assert ws.is_initialized()
         assert (ws.lab_path / "config.json").exists()
-        assert (ws.lab_path / "db" / "index.db").exists()
+        assert (ws.lab_path / "db" / "workspace.db").exists()
         assert (ws.notebooks_path).exists()
         assert (ws.artifacts_path).exists()
 

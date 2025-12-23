@@ -64,33 +64,40 @@ class Notebook:
             metadata={},
         )
 
-        # Create in database
-        session = workspace.db_manager.get_session()
-        try:
-            NotebookModel.create(
-                session,
-                validate_fk=False,
-                id=notebook_id,
-                title=title,
-                description=description,
-                created_at=now,
-                updated_at=now,
-                settings=json.dumps(notebook.settings),
-                metadata_=json.dumps(notebook.metadata),
-            )
-            session.commit()
-        finally:
-            session.close()
+        # Create notebook directory
+        notebook_dir = workspace.notebooks_path / notebook_id
+        notebook_dir.mkdir(exist_ok=True)
+        
+        # Create notebook's .lab directory for its database
+        notebook_lab_dir = notebook_dir / ".lab"
+        notebook_lab_dir.mkdir(exist_ok=True)
+        
+        # Path to notebook's database
+        notebook_db_path = notebook_lab_dir / "notebook.db"
+
+        # Register in workspace database (notebook registry)
+        workspace.workspace_db_manager.register_notebook(
+            notebook_id=notebook_id,
+            title=title,
+            description=description,
+            db_path=str(notebook_db_path),
+            settings=notebook.settings,
+            metadata=notebook.metadata,
+        )
+
+        # Initialize notebook's own database
+        notebook_db_manager = workspace.get_notebook_db_manager(notebook_id)
+        notebook_db_manager.initialize()
 
         # Create Git structure
         workspace.git_manager.create_notebook(notebook_id, notebook.to_dict())
 
         # Create user-facing directory
-        notebook_dir = workspace.notebooks_path / slugify(title)
-        notebook_dir.mkdir(exist_ok=True)
+        user_notebook_dir = workspace.notebooks_path / slugify(title)
+        user_notebook_dir.mkdir(exist_ok=True)
 
         # Create README
-        readme_path = notebook_dir / "README.md"
+        readme_path = user_notebook_dir / "README.md"
         with open(readme_path, "w") as f:
             f.write(
                 f"# {title}\n\n{description}\n\nCreated: {notebook.created_at.isoformat()}\n"
@@ -268,7 +275,10 @@ class Notebook:
         """List all pages in this notebook."""
         from core.page import Page
 
-        session = self.workspace.db_manager.get_session()
+        # Get pages from notebook database
+        from db.notebook_models import Page as PageModel
+        notebook_db = self.workspace.get_notebook_db_manager(self.id)
+        session = notebook_db.get_session()
         try:
             pages = PageModel.find_by(session, notebook_id=self.id)
             return [
@@ -299,7 +309,10 @@ class Notebook:
         """Get a page by ID."""
         from core.page import Page
 
-        session = self.workspace.db_manager.get_session()
+        # Get page from notebook database
+        from db.notebook_models import Page as PageModel
+        notebook_db = self.workspace.get_notebook_db_manager(self.id)
+        session = notebook_db.get_session()
         try:
             page = PageModel.get_by_id(session, page_id)
             if page:
@@ -344,23 +357,14 @@ class Notebook:
 
         self.updated_at = _now()
 
-        # Update in database
-        session = self.workspace.db_manager.get_session()
-        try:
-            notebook = NotebookModel.get_by_id(session, self.id)
-            if notebook:
-                notebook.update(
-                    session,
-                    validate_fk=False,
-                    title=self.title,
-                    description=self.description,
-                    updated_at=self.updated_at,
-                    settings=json.dumps(self.settings),
-                    metadata_=json.dumps(self.metadata),
-                )
-                session.commit()
-        finally:
-            session.close()
+        # Update in workspace database
+        self.workspace.workspace_db_manager.update_notebook(
+            self.id,
+            title=self.title,
+            description=self.description,
+            settings=self.settings,
+            metadata=self.metadata,
+        )
 
         # Update in Git
         self.workspace.git_manager.update_notebook(self.id, self.to_dict())
@@ -381,13 +385,8 @@ class Notebook:
         except Exception:
             pass  # Ignore errors when deleting sidecar
 
-        # Delete from database
-        session = self.workspace.db_manager.get_session()
-        try:
-            result = NotebookModel.delete_by_id(session, self.id)
-            session.commit()
-        finally:
-            session.close()
+        # Delete from workspace database
+        result = self.workspace.workspace_db_manager.delete_notebook(self.id)
 
         # Delete from Git
         self.workspace.git_manager.delete_notebook(self.id)

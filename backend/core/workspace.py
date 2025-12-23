@@ -6,9 +6,14 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
 from core.git_manager import GitManager
-from core.markdown_indexer import index_directory, remove_stale_entries, search_markdown_files
-from db.models import Notebook as NotebookModel
-from db.operations import DatabaseManager
+from core.markdown_indexer import (
+    index_directory,
+    remove_stale_entries,
+    search_markdown_files,
+)
+
+from db.workspace_operations import WorkspaceDatabaseManager
+from db.notebook_operations import NotebookDatabaseManager
 
 if TYPE_CHECKING:
     from core.notebook import Notebook
@@ -30,15 +35,34 @@ class Workspace:
         self.artifacts_path = self.path / "artifacts"
 
         # Managers
-        self._db_manager: Optional[DatabaseManager] = None
+        self._workspace_db_manager: Optional[WorkspaceDatabaseManager] = None
+        self._notebook_db_managers: dict[str, NotebookDatabaseManager] = {}
         self._git_manager: Optional[GitManager] = None
 
     @property
-    def db_manager(self) -> DatabaseManager:
-        """Get the database manager."""
-        if self._db_manager is None:
-            self._db_manager = DatabaseManager(self.lab_path / "db" / "index.db")
-        return self._db_manager
+    def workspace_db_manager(self) -> WorkspaceDatabaseManager:
+        """Get the workspace database manager (notebook registry)."""
+        if self._workspace_db_manager is None:
+            self._workspace_db_manager = WorkspaceDatabaseManager(
+                self.lab_path / "db" / "workspace.db"
+            )
+        return self._workspace_db_manager
+
+    def get_notebook_db_manager(self, notebook_id: str) -> NotebookDatabaseManager:
+        """Get the database manager for a specific notebook."""
+        if notebook_id not in self._notebook_db_managers:
+            # Get notebook info from registry to find its database path
+            notebook_entry = self.workspace_db_manager.get_notebook(notebook_id)
+            if notebook_entry:
+                db_path = Path(notebook_entry.db_path)
+            else:
+                # Default path if not found in registry
+                db_path = self.notebooks_path / notebook_id / ".lab" / "notebook.db"
+
+            self._notebook_db_managers[notebook_id] = NotebookDatabaseManager(
+                db_path, notebook_id
+            )
+        return self._notebook_db_managers[notebook_id]
 
     @property
     def git_manager(self) -> GitManager:
@@ -56,15 +80,19 @@ class Workspace:
         # Create directory structure
         ws.lab_path.mkdir(parents=True, exist_ok=True)
         (ws.lab_path / "db").mkdir(exist_ok=True)
+        (ws.lab_path / "storage" / "blobs").mkdir(parents=True, exist_ok=True)
+        (ws.lab_path / "storage" / "thumbnails").mkdir(parents=True, exist_ok=True)
         ws.notebooks_path.mkdir(parents=True, exist_ok=True)
         ws.artifacts_path.mkdir(parents=True, exist_ok=True)
 
         # Initialize Git
         ws._git_manager = GitManager.initialize(ws.lab_path / "git")
 
-        # Initialize database
-        ws._db_manager = DatabaseManager(ws.lab_path / "db" / "index.db")
-        ws._db_manager.initialize()
+        # Initialize workspace database (notebook registry)
+        ws._workspace_db_manager = WorkspaceDatabaseManager(
+            ws.lab_path / "db" / "workspace.db"
+        )
+        ws._workspace_db_manager.initialize()
 
         # Create config
         config = {
@@ -106,49 +134,90 @@ class Workspace:
     def index_markdown_files(self, force: bool = False) -> dict:
         """Index all markdown files in the workspace.
 
+        This indexes markdown files in each notebook's database separately.
+
         Args:
             force: If True, re-index all files even if unchanged
 
         Returns:
-            Dictionary with indexing stats
+            Dictionary with indexing stats per notebook
         """
-        session = self.db_manager.get_session()
-        try:
-            # Remove stale entries
-            removed = remove_stale_entries(session, self.notebooks_path)
+        results = {}
+        notebooks = self.workspace_db_manager.list_notebooks()
 
-            # Index notebooks directory
-            indexed = index_directory(
-                session,
-                self.notebooks_path,
-                self.notebooks_path,
-                recursive=True
-            )
+        for nb_entry in notebooks:
+            notebook_path = self.notebooks_path / nb_entry.id
+            if not notebook_path.exists():
+                continue
 
-            return {
-                "indexed": indexed,
-                "removed": removed,
-                "total": indexed,
-            }
-        finally:
-            session.close()
+            notebook_db_manager = self.get_notebook_db_manager(nb_entry.id)
+            session = notebook_db_manager.get_session()
+            try:
+                # Remove stale entries
+                removed = remove_stale_entries(session, notebook_path)
 
-    def search_indexed_files(self, query: Optional[str] = None, limit: int = 100) -> list[dict]:
+                # Index notebook directory
+                indexed = index_directory(
+                    session, notebook_path, notebook_path, recursive=True
+                )
+
+                results[nb_entry.id] = {
+                    "indexed": indexed,
+                    "removed": removed,
+                    "total": indexed,
+                }
+            finally:
+                session.close()
+
+        return results
+
+    def search_indexed_files(
+        self,
+        query: Optional[str] = None,
+        limit: int = 100,
+        notebook_id: Optional[str] = None,
+    ) -> list[dict]:
         """Search indexed markdown files.
 
         Args:
             query: Search query string
             limit: Maximum results to return
+            notebook_id: If specified, search only in this notebook
 
         Returns:
             List of matching file metadata
         """
-        session = self.db_manager.get_session()
-        try:
-            return search_markdown_files(session, query, limit)
-        finally:
-            session.close()
+        results = []
 
+        if notebook_id:
+            # Search in specific notebook
+            notebook_db_manager = self.get_notebook_db_manager(notebook_id)
+            session = notebook_db_manager.get_session()
+            try:
+                notebook_results = search_markdown_files(session, query, limit)
+                results.extend(notebook_results)
+            finally:
+                session.close()
+        else:
+            # Search across all notebooks
+            notebooks = self.workspace_db_manager.list_notebooks()
+            per_notebook_limit = max(1, limit // len(notebooks)) if notebooks else limit
+
+            for nb_entry in notebooks:
+                notebook_db_manager = self.get_notebook_db_manager(nb_entry.id)
+                session = notebook_db_manager.get_session()
+                try:
+                    notebook_results = search_markdown_files(
+                        session, query, per_notebook_limit
+                    )
+                    results.extend(notebook_results)
+                    if len(results) >= limit:
+                        results = results[:limit]
+                        break
+                finally:
+                    session.close()
+
+        return results
 
     def create_notebook(
         self,
@@ -165,72 +234,64 @@ class Workspace:
         """List all notebooks."""
         from core.notebook import Notebook
 
-        session = self.db_manager.get_session()
-        try:
-            notebooks = NotebookModel.get_all(session)
-            return [
-                Notebook.from_dict(
-                    self,
-                    {
-                        "id": nb.id,
-                        "title": nb.title,
-                        "description": nb.description,
-                        "created_at": (
-                            nb.created_at.isoformat() if nb.created_at else None
-                        ),
-                        "updated_at": (
-                            nb.updated_at.isoformat() if nb.updated_at else None
-                        ),
-                        "settings": json.loads(nb.settings) if nb.settings else {},
-                        "metadata": json.loads(nb.metadata_) if nb.metadata_ else {},
-                        "tags": [nt.tag.name for nt in nb.tags] if nb.tags else [],
-                    },
-                )
-                for nb in notebooks
-            ]
-        finally:
-            session.close()
+        notebooks = self.workspace_db_manager.list_notebooks()
+        return [
+            Notebook.from_dict(
+                self,
+                {
+                    "id": nb.id,
+                    "title": nb.title,
+                    "description": nb.description,
+                    "created_at": (
+                        nb.created_at.isoformat() if nb.created_at else None
+                    ),
+                    "updated_at": (
+                        nb.updated_at.isoformat() if nb.updated_at else None
+                    ),
+                    "settings": json.loads(nb.settings) if nb.settings else {},
+                    "metadata": json.loads(nb.metadata_) if nb.metadata_ else {},
+                    "tags": [],  # Tags moved to notebook-specific databases
+                },
+            )
+            for nb in notebooks
+        ]
 
     def get_notebook(self, notebook_id: str) -> Optional["Notebook"]:
         """Get a notebook by ID."""
         from core.notebook import Notebook
 
-        session = self.db_manager.get_session()
-        try:
-            notebook = NotebookModel.get_by_id(session, notebook_id)
-            if notebook:
-                return Notebook.from_dict(
-                    self,
-                    {
-                        "id": notebook.id,
-                        "title": notebook.title,
-                        "description": notebook.description,
-                        "created_at": (
-                            notebook.created_at.isoformat()
-                            if notebook.created_at
-                            else None
-                        ),
-                        "updated_at": (
-                            notebook.updated_at.isoformat()
-                            if notebook.updated_at
-                            else None
-                        ),
-                        "settings": (
-                            json.loads(notebook.settings) if notebook.settings else {}
-                        ),
-                        "metadata": (
-                            json.loads(notebook.metadata_) if notebook.metadata_ else {}
-                        ),
-                        "tags": (
-                            [nt.tag.name for nt in notebook.tags]
-                            if notebook.tags
-                            else []
-                        ),
-                    },
-                )
-            return None
-        finally:
-            session.close()
+        notebook_entry = self.workspace_db_manager.get_notebook(notebook_id)
+        if notebook_entry:
+            return Notebook.from_dict(
+                self,
+                {
+                    "id": notebook_entry.id,
+                    "title": notebook_entry.title,
+                    "description": notebook_entry.description,
+                    "created_at": (
+                        notebook_entry.created_at.isoformat()
+                        if notebook_entry.created_at
+                        else None
+                    ),
+                    "updated_at": (
+                        notebook_entry.updated_at.isoformat()
+                        if notebook_entry.updated_at
+                        else None
+                    ),
+                    "settings": (
+                        json.loads(notebook_entry.settings)
+                        if notebook_entry.settings
+                        else {}
+                    ),
+                    "metadata": (
+                        json.loads(notebook_entry.metadata_)
+                        if notebook_entry.metadata_
+                        else {}
+                    ),
+                    "tags": [],  # Tags moved to notebook-specific databases
+                },
+            )
+        return None
 
     def search_entries(
         self,
@@ -244,9 +305,9 @@ class Workspace:
     ) -> list[dict]:
         """Search entries across the workspace.
 
-        Note: Entry functionality has been removed. This method returns an empty list
-        for backward compatibility with existing API routes.
+        Note: Entry system is not yet implemented. Returns empty list.
         """
+        # TODO: Implement entry search across notebook databases
         return []
 
     def _read_sidecar(self, file_path: Path) -> Optional[dict]:

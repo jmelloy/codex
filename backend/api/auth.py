@@ -88,34 +88,21 @@ def create_refresh_token(user_id: int, username: str) -> tuple[str, datetime]:
         Tuple of (token_string, expiration_datetime)
     """
     import secrets
-    from pathlib import Path
 
-    from db.models import RefreshToken
-    from db.operations import DatabaseManager
+    from api.utils import get_core_db_path
+    from db.core_operations import CoreDatabaseManager
 
     # Generate a secure random token
     token = secrets.token_urlsafe(32)
     expires_at = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
 
-    # Store in database
-    db_path = Path(DEFAULT_WORKSPACE_PATH) / ".lab" / "db" / "index.db"
+    # Store in core database
+    db_path = get_core_db_path()
     db_path.parent.mkdir(parents=True, exist_ok=True)
 
-    db_manager = DatabaseManager(db_path)
-    db_manager.initialize()
-
-    session = db_manager.get_session()
-    try:
-        RefreshToken.create(
-            session,
-            validate_fk=False,
-            token=token,
-            user_id=user_id,
-            expires_at=expires_at,
-        )
-        session.commit()
-    finally:
-        session.close()
+    core_db = CoreDatabaseManager(db_path)
+    core_db.initialize()
+    core_db.create_refresh_token(token, user_id, expires_at)
 
     return token, expires_at
 
@@ -129,40 +116,33 @@ def validate_refresh_token(token: str) -> Optional[int]:
     Returns:
         The user_id if the token is valid, None otherwise
     """
-    from pathlib import Path
+    from api.utils import get_core_db_path
+    from db.core_operations import CoreDatabaseManager
 
-    from db.models import RefreshToken
-    from db.operations import DatabaseManager
+    db_path = get_core_db_path()
+    core_db = CoreDatabaseManager(db_path)
+    core_db.initialize()
 
-    db_path = Path(DEFAULT_WORKSPACE_PATH) / ".lab" / "db" / "index.db"
-    db_manager = DatabaseManager(db_path)
-    db_manager.initialize()
+    refresh_token = core_db.get_refresh_token(token)
 
-    session = db_manager.get_session()
-    try:
-        refresh_token = RefreshToken.find_one_by(session, token=token)
+    if refresh_token is None:
+        return None
 
-        if refresh_token is None:
-            return None
+    # Check if token is revoked
+    if refresh_token.revoked:
+        return None
 
-        # Check if token is revoked
-        if refresh_token.revoked:
-            return None
+    # Check if token is expired
+    # Note: SQLite stores naive datetimes, so we need to make them timezone-aware
+    # for comparison. This is standard practice when working with SQLite.
+    expires_at = refresh_token.expires_at
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
 
-        # Check if token is expired
-        # Note: SQLite stores naive datetimes, so we need to make them timezone-aware
-        # for comparison. This is standard practice when working with SQLite.
-        expires_at = refresh_token.expires_at
-        if expires_at.tzinfo is None:
-            expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if expires_at < datetime.now(timezone.utc):
+        return None
 
-        if expires_at < datetime.now(timezone.utc):
-            return None
-
-        return refresh_token.user_id
-    finally:
-        session.close()
-
+    return refresh_token.user_id
 
 def revoke_refresh_token(token: str) -> bool:
     """Revoke a refresh token.
@@ -173,28 +153,14 @@ def revoke_refresh_token(token: str) -> bool:
     Returns:
         True if token was revoked, False if not found
     """
-    from pathlib import Path
+    from api.utils import get_core_db_path
+    from db.core_operations import CoreDatabaseManager
 
-    from db.models import RefreshToken
-    from db.operations import DatabaseManager
+    db_path = get_core_db_path()
+    core_db = CoreDatabaseManager(db_path)
+    core_db.initialize()
 
-    db_path = Path(DEFAULT_WORKSPACE_PATH) / ".lab" / "db" / "index.db"
-    db_manager = DatabaseManager(db_path)
-    db_manager.initialize()
-
-    session = db_manager.get_session()
-    try:
-        refresh_token = RefreshToken.find_one_by(session, token=token)
-
-        if refresh_token is None:
-            return False
-
-        refresh_token.update(session, revoked=True)
-        session.commit()
-        return True
-    finally:
-        session.close()
-
+    return core_db.revoke_refresh_token(token)
 
 def decode_token(token: str) -> TokenData:
     """Decode and verify a JWT token."""
@@ -223,46 +189,40 @@ async def get_current_user(
     token = credentials.credentials
     token_data = decode_token(token)
 
-    # Get user from database
-    from pathlib import Path
+    # Get user from core database
+    from api.utils import get_core_db_path
+    from db.core_operations import CoreDatabaseManager
 
-    from db.operations import DatabaseManager
-
-    # Use the default workspace database to store users
-    db_path = Path(DEFAULT_WORKSPACE_PATH) / ".lab" / "db" / "index.db"
+    # Use the core database to lookup users
+    db_path = get_core_db_path()
 
     # Ensure database directory exists
     db_path.parent.mkdir(parents=True, exist_ok=True)
 
-    db_manager = DatabaseManager(db_path)
-    db_manager.initialize()  # Initialize database with migrations
+    core_db = CoreDatabaseManager(db_path)
+    core_db.initialize()  # Initialize database
 
-    session = db_manager.get_session()
-    try:
-        user = User.find_one_by(session, username=token_data.username)
-        if user is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="User not found",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-
-        if not user.is_active:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Inactive user"
-            )
-
-        return UserInDB(
-            id=user.id,
-            username=user.username,
-            email=user.email,
-            workspace_path=user.workspace_path,
-            is_active=user.is_active,
+    user = core_db.get_user_by_username(token_data.username)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+            headers={"WWW-Authenticate": "Bearer"},
         )
-    finally:
-        session.close()
 
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Inactive user"
+        )
+
+    return UserInDB(
+        id=user.id,
+        username=user.username,
+        email=user.email,
+        workspace_path=user.workspace_path,
+        is_active=user.is_active,
+    )
 
 async def get_current_user_workspace(
     current_user: UserInDB = Depends(get_current_user),

@@ -1,0 +1,77 @@
+name: Version Bump
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  bump-version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Set up Python 3.14
+      uses: actions/setup-python@v6
+      with:
+        python-version: '3.14'
+    
+    - name: Configure Git
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+    
+    - name: Generate Version Number
+      id: version
+      run: |
+        # Generate version in format YYYY.MM.DD.{short-hash}
+        DATE_VERSION=$(date +%Y.%m.%d)
+        GIT_HASH=$(git rev-parse --short HEAD)
+        NEW_VERSION="${DATE_VERSION}.${GIT_HASH}"
+        echo "new_version=${NEW_VERSION}" >> $GITHUB_OUTPUT
+        echo "Generated version: ${NEW_VERSION}"
+    
+    - name: Update pyproject.toml
+      run: |
+        NEW_VERSION="${{ steps.version.outputs.new_version }}"
+        sed -i "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" backend/pyproject.toml
+        echo "Updated backend/pyproject.toml to version ${NEW_VERSION}"
+    
+    - name: Update package.json
+      run: |
+        NEW_VERSION="${{ steps.version.outputs.new_version }}"
+        # Update frontend package.json if it exists
+        if [ -f frontend/package.json ]; then
+          python3 << EOF
+import json
+with open('frontend/package.json', 'r') as f:
+    data = json.load(f)
+data['version'] = '${NEW_VERSION}'
+with open('frontend/package.json', 'w') as f:
+    json.dump(data, f, indent=2)
+    f.write('\n')
+EOF
+          echo "Updated frontend/package.json to version ${NEW_VERSION}"
+        fi
+    
+    - name: Commit and Push Changes
+      run: |
+        NEW_VERSION="${{ steps.version.outputs.new_version }}"
+        git add backend/pyproject.toml
+        if [ -f frontend/package.json ]; then
+          git add frontend/package.json
+        fi
+        
+        # Check if there are changes to commit
+        if git diff --staged --quiet; then
+          echo "No version changes to commit"
+        else
+          git commit -m "chore: bump version to ${NEW_VERSION} [skip ci]"
+          git push
+          echo "Version bumped to ${NEW_VERSION}"
+        fi

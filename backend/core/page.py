@@ -70,12 +70,14 @@ class Page:
             metadata={},
         )
 
-        # Save to database
-        session = notebook.workspace.db_manager.get_session()
+        # Save to database (use notebook's database)
+        from db.notebook_models import Page as PageModel
+        notebook_db = notebook.workspace.get_notebook_db_manager(notebook.id)
+        session = notebook_db.get_session()
         try:
             PageModel.create(
                 session,
-                validate_fk=True,
+                validate_fk=False,  # No FK constraints in notebook database
                 id=page_id,
                 notebook_id=notebook.id,
                 title=title,
@@ -104,10 +106,7 @@ class Page:
         page._write_markdown_file(page_file)
 
         # Commit to notebook git
-        notebook.commit_file_changes(
-            [page_file],
-            f"Create page: {title}"
-        )
+        notebook.commit_file_changes([page_file], f"Create page: {title}")
 
         return page
 
@@ -308,7 +307,10 @@ class Page:
         self.narrative[field_name] = content
         self.updated_at = _now()
 
-        session = self.workspace.db_manager.get_session()
+        # Update in notebook database
+        from db.notebook_models import Page as PageModel
+        notebook_db = self.workspace.get_notebook_db_manager(self.notebook_id)
+        session = notebook_db.get_session()
         try:
             page = PageModel.get_by_id(session, self.id)
             if page:
@@ -333,8 +335,7 @@ class Page:
         # Commit to notebook git
         notebook = self.get_notebook()
         notebook.commit_file_changes(
-            [file_path],
-            f"Update {field_name} in page: {self.title}"
+            [file_path], f"Update {field_name} in page: {self.title}"
         )
 
     def update(self, **kwargs) -> "Page":
@@ -352,8 +353,10 @@ class Page:
 
         self.updated_at = _now()
 
-        # Update in database
-        session = self.workspace.db_manager.get_session()
+        # Update in notebook database
+        from db.notebook_models import Page as PageModel
+        notebook_db = self.workspace.get_notebook_db_manager(self.notebook_id)
+        session = notebook_db.get_session()
         try:
             page = PageModel.get_by_id(session, self.id)
             if page:
@@ -381,10 +384,7 @@ class Page:
 
         # Commit to notebook git
         notebook = self.get_notebook()
-        notebook.commit_file_changes(
-            [file_path],
-            f"Update page: {self.title}"
-        )
+        notebook.commit_file_changes([file_path], f"Update page: {self.title}")
 
         return self
 
@@ -398,14 +398,18 @@ class Page:
         except (FileNotFoundError, PermissionError) as e:
             # Log specific file operation errors
             import logging
+
             logging.warning(f"Failed to delete page file {file_path}: {e}")
         except OSError as e:
             # Catch other filesystem errors
             import logging
+
             logging.warning(f"Filesystem error while deleting page file: {e}")
 
-        # Delete from database
-        session = self.workspace.db_manager.get_session()
+        # Delete from notebook database
+        from db.notebook_models import Page as PageModel
+        notebook_db = self.workspace.get_notebook_db_manager(self.notebook_id)
+        session = notebook_db.get_session()
         try:
             result = PageModel.delete_by_id(session, self.id)
             session.commit()
@@ -420,8 +424,10 @@ class Page:
     def get_notebook(self) -> "Notebook":
         """Get the parent notebook."""
         from core.notebook import Notebook
+        from db.workspace_models import Notebook as NotebookModel
 
-        session = self.workspace.db_manager.get_session()
+        # Get notebook from workspace database
+        session = self.workspace.workspace_db_manager.get_session()
         try:
             notebook = NotebookModel.get_by_id(session, self.notebook_id)
             if notebook:
@@ -447,11 +453,7 @@ class Page:
                         "metadata": (
                             json.loads(notebook.metadata_) if notebook.metadata_ else {}
                         ),
-                        "tags": (
-                            [nt.tag.name for nt in notebook.tags]
-                            if notebook.tags
-                            else []
-                        ),
+                        "tags": [],  # Tags are stored in notebook database, not workspace
                     },
                 )
             raise ValueError(f"Notebook {self.notebook_id} not found")

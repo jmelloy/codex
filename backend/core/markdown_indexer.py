@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import logging
 from datetime import datetime, timezone, date
 from pathlib import Path
 from typing import Optional
@@ -9,6 +10,9 @@ from typing import Optional
 from core.markdown import parse_markdown_file
 from db.models import MarkdownFile
 from sqlalchemy.orm import Session
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 
 def _now() -> datetime:
@@ -130,7 +134,7 @@ def index_markdown_file(
             return markdown_file
             
     except Exception as e:
-        print(f"Failed to index {file_path}: {e}")
+        logger.error(f"Failed to index {file_path}: {e}", exc_info=True)
         return None
 
 
@@ -171,8 +175,9 @@ def index_directory(
                 result = index_markdown_file(session, item, base_path)
                 if result:
                     indexed_count += 1
-    except PermissionError:
-        pass
+    except PermissionError as e:
+        # Log permission errors but continue scanning other files
+        logger.warning(f"Permission denied accessing {directory}: {e}")
     
     return indexed_count
 

@@ -221,6 +221,7 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 frontend/tsconfig.node.tsbuildinfo
+frontend/tsconfig.tsbuildinfo
 
 # Lab workspace data (auto-generated)
 .lab/

@@ -1,6 +1,5 @@
 """Authentication API routes."""
 
-import os
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -9,8 +8,10 @@ from pydantic import BaseModel, EmailStr
 from api.auth import (
     UserInDB,
     create_access_token,
+    create_refresh_token,
     get_current_user,
     get_password_hash,
+    validate_refresh_token,
     verify_password,
 )
 from api.utils import DEFAULT_WORKSPACE_PATH
@@ -51,6 +52,7 @@ class LoginResponse(BaseModel):
     """Response model for login."""
 
     access_token: str
+    refresh_token: str
     token_type: str
     user: UserResponse
 
@@ -60,13 +62,13 @@ async def register(request: UserRegisterRequest):
     """Register a new user."""
     # Get database connection from default workspace
     db_path = Path(DEFAULT_WORKSPACE_PATH) / ".lab" / "db" / "index.db"
-    
+
     # Ensure database directory exists
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    
+
     db_manager = DatabaseManager(db_path)
     db_manager.initialize()  # Initialize database with migrations
-    
+
     session = db_manager.get_session()
     try:
         # Check if username already exists
@@ -76,7 +78,7 @@ async def register(request: UserRegisterRequest):
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Username already registered"
             )
-        
+
         # Check if email already exists
         existing_email = User.find_one_by(session, email=request.email)
         if existing_email:
@@ -84,11 +86,11 @@ async def register(request: UserRegisterRequest):
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Email already registered"
             )
-        
+
         # Create user workspace path
         workspaces_dir = Path(DEFAULT_WORKSPACE_PATH).parent / "workspaces"
         user_workspace_path = workspaces_dir / request.username
-        
+
         # Create the user
         hashed_password = get_password_hash(request.password)
         user = User.create(
@@ -101,7 +103,7 @@ async def register(request: UserRegisterRequest):
             is_active=True,
         )
         session.commit()
-        
+
         # Initialize user's workspace
         try:
             Workspace.initialize(user_workspace_path, f"{request.username}'s Workspace")
@@ -112,12 +114,14 @@ async def register(request: UserRegisterRequest):
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to initialize workspace: {str(e)}"
             )
-        
-        # Create access token
+
+        # Create access token and refresh token
         access_token = create_access_token(data={"sub": user.username})
-        
+        refresh_token, _ = create_refresh_token(user.id, user.username)
+
         return LoginResponse(
             access_token=access_token,
+            refresh_token=refresh_token,
             token_type="bearer",
             user=UserResponse(
                 id=user.id,
@@ -137,13 +141,13 @@ async def login(request: UserLoginRequest):
     """Login a user."""
     # Get database connection from default workspace
     db_path = Path(DEFAULT_WORKSPACE_PATH) / ".lab" / "db" / "index.db"
-    
+
     # Ensure database directory exists
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    
+
     db_manager = DatabaseManager(db_path)
     db_manager.initialize()  # Initialize database with migrations
-    
+
     session = db_manager.get_session()
     try:
         # Find user by username
@@ -154,7 +158,7 @@ async def login(request: UserLoginRequest):
                 detail="Incorrect username or password",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        
+
         # Verify password
         if not verify_password(request.password, user.hashed_password):
             raise HTTPException(
@@ -162,19 +166,21 @@ async def login(request: UserLoginRequest):
                 detail="Incorrect username or password",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        
+
         # Check if user is active
         if not user.is_active:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Inactive user"
             )
-        
-        # Create access token
+
+        # Create access token and refresh token
         access_token = create_access_token(data={"sub": user.username})
-        
+        refresh_token, _ = create_refresh_token(user.id, user.username)
+
         return LoginResponse(
             access_token=access_token,
+            refresh_token=refresh_token,
             token_type="bearer",
             user=UserResponse(
                 id=user.id,
@@ -194,13 +200,13 @@ async def get_current_user_info(current_user: UserInDB = Depends(get_current_use
     """Get current user information."""
     # Get full user data from database
     db_path = Path(DEFAULT_WORKSPACE_PATH) / ".lab" / "db" / "index.db"
-    
+
     # Ensure database directory exists
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    
+
     db_manager = DatabaseManager(db_path)
     db_manager.initialize()  # Initialize database with migrations
-    
+
     session = db_manager.get_session()
     try:
         user = User.find_one_by(session, username=current_user.username)
@@ -209,7 +215,7 @@ async def get_current_user_info(current_user: UserInDB = Depends(get_current_use
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="User not found"
             )
-        
+
         return UserResponse(
             id=user.id,
             username=user.username,
@@ -220,3 +226,64 @@ async def get_current_user_info(current_user: UserInDB = Depends(get_current_use
         )
     finally:
         session.close()
+
+
+class RefreshTokenRequest(BaseModel):
+    """Request model for token refresh."""
+
+    refresh_token: str
+
+
+class RefreshTokenResponse(BaseModel):
+    """Response model for token refresh."""
+
+    access_token: str
+    token_type: str = "bearer"
+
+
+@router.post("/refresh", response_model=RefreshTokenResponse)
+async def refresh_access_token(request: RefreshTokenRequest):
+    """Refresh an access token using a refresh token."""
+    # Validate refresh token
+    user_id = validate_refresh_token(request.refresh_token)
+
+    if user_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired refresh token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Get user from database
+    db_path = Path(DEFAULT_WORKSPACE_PATH) / ".lab" / "db" / "index.db"
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+
+    db_manager = DatabaseManager(db_path)
+    db_manager.initialize()
+
+    session = db_manager.get_session()
+    try:
+        user = User.get_by_id(session, user_id)
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Inactive user"
+            )
+
+        # Create new access token
+        access_token = create_access_token(data={"sub": user.username})
+
+        return RefreshTokenResponse(
+            access_token=access_token,
+            token_type="bearer"
+        )
+    finally:
+        session.close()
+

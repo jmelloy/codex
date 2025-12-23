@@ -271,6 +271,26 @@ Index("idx_users_username", User.username)
 Index("idx_users_email", User.email)
 
 
+class RefreshToken(Base):
+    """Refresh token model for token refresh mechanism."""
+
+    __tablename__ = "refresh_tokens"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    token = Column(String, unique=True, nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    revoked = Column(Boolean, default=False, nullable=False)
+
+    # Relationship
+    user = relationship("User", backref="refresh_tokens")
+
+
+Index("idx_refresh_tokens_token", RefreshToken.token)
+Index("idx_refresh_tokens_user_id", RefreshToken.user_id)
+
+
 class Notebook(Base):
     """Notebook model - a collection of related work."""
 

@@ -12,6 +12,7 @@ export interface User {
 
 export interface LoginResponse {
   access_token: string;
+  refresh_token: string;
   token_type: string;
   user: User;
 }
@@ -20,6 +21,7 @@ const API_BASE = "/api";
 
 export const useAuthStore = defineStore("auth", () => {
   const token = ref<string | null>(localStorage.getItem("auth_token"));
+  const refreshToken = ref<string | null>(localStorage.getItem("refresh_token"));
   const user = ref<User | null>(
     localStorage.getItem("user")
       ? JSON.parse(localStorage.getItem("user")!)
@@ -115,16 +117,20 @@ export const useAuthStore = defineStore("auth", () => {
 
   function setAuth(data: LoginResponse) {
     token.value = data.access_token;
+    refreshToken.value = data.refresh_token;
     user.value = data.user;
     localStorage.setItem("auth_token", data.access_token);
+    localStorage.setItem("refresh_token", data.refresh_token);
     localStorage.setItem("user", JSON.stringify(data.user));
     error.value = null;
   }
 
   function logout() {
     token.value = null;
+    refreshToken.value = null;
     user.value = null;
     localStorage.removeItem("auth_token");
+    localStorage.removeItem("refresh_token");
     localStorage.removeItem("user");
     error.value = null;
   }
@@ -133,8 +139,34 @@ export const useAuthStore = defineStore("auth", () => {
     error.value = null;
   }
 
+  async function refreshAccessToken(): Promise<boolean> {
+    if (!refreshToken.value) return false;
+
+    try {
+      const response = await fetch(`${API_BASE}/auth/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: refreshToken.value }),
+      });
+
+      if (!response.ok) {
+        logout();
+        return false;
+      }
+
+      const data = await response.json();
+      token.value = data.access_token;
+      localStorage.setItem("auth_token", data.access_token);
+      return true;
+    } catch (e) {
+      logout();
+      return false;
+    }
+  }
+
   return {
     token,
+    refreshToken,
     user,
     loading,
     error,
@@ -143,6 +175,7 @@ export const useAuthStore = defineStore("auth", () => {
     login,
     logout,
     fetchCurrentUser,
+    refreshAccessToken,
     clearError,
   };
 });

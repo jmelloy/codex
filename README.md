@@ -95,11 +95,11 @@ codex search --query "experiment"
 
 | Component             | Status | Description                                   |
 | --------------------- | ------ | --------------------------------------------- |
-| **Core Architecture** | ✅     | Workspace → Notebook → Page → Entry hierarchy |
+| **Core Architecture** | ✅     | Workspace → Notebook → Page hierarchy         |
 | **SQLite Database**   | ✅     | SQLAlchemy ORM with Alembic migrations        |
 | **REST API**          | ✅     | FastAPI with endpoints for all entities       |
 | **CLI**               | ✅     | Command-line interface for management         |
-| **Content Storage**   | ✅     | SHA256-based content-addressable storage      |
+| **File Management**   | ✅     | Git-backed file tracking for artifacts        |
 | **Lineage Tracking**  | ✅     | Parent-child relationships and variations     |
 | **Tagging System**    | ✅     | Tags for notebooks, pages, and entries        |
 
@@ -302,7 +302,7 @@ Physical lab notebooks have a proven structure:
 - **Page**: A day's work or a focused investigation session
 - **Entry**: Individual experiments, observations, or results
 
-We digitize this with modern affordances: version control, content-addressable storage, AI assistance, and cross-references.
+We digitize this with modern affordances: version control, Git-backed file tracking, AI assistance, and cross-references.
 
 ## 2. Conceptual Model
 
@@ -1119,15 +1119,12 @@ class Entry:
     ) -> "Artifact":
         """Add artifact to this entry"""
 
-        # Store in content-addressable storage
-        artifact_hash = StorageManager.store(
-            workspace=self.workspace,
-            data=data,
-            artifact_type=artifact_type
-        )
-
+        # Store artifact in workspace artifacts directory
+        artifact_path = self.workspace.artifacts_path / f"{artifact_type.replace('/', '_')}"
+        artifact_path.mkdir(parents=True, exist_ok=True)
+        
         artifact = Artifact(
-            id=f"art-{hashlib.sha256(artifact_hash.encode()).hexdigest()[:12]}",
+            id=f"art-{hashlib.sha256(data).hexdigest()[:12]}",
             entry_id=self.id,
             type=artifact_type,
             hash=artifact_hash,
@@ -1505,27 +1502,22 @@ async def upload_artifact(
 
     return artifact_to_dict(artifact)
 
-@app.get("/api/artifacts/{artifact_hash}")
+@app.get("/api/artifacts/{artifact_id}")
 async def get_artifact(
     workspace_path: str,
-    artifact_hash: str,
-    thumbnail: bool = False
+    artifact_id: str
 ):
-    """Retrieve artifact by hash"""
+    """Retrieve artifact by ID from artifacts directory"""
     ws = Workspace(Path(workspace_path))
-
-    if thumbnail:
-        data = StorageManager.get_thumbnail(ws, artifact_hash)
-        media_type = "image/jpeg"
-    else:
-        data = StorageManager.retrieve(ws, artifact_hash)
-        artifact = DatabaseManager.get_artifact_by_hash(ws, artifact_hash)
-        media_type = artifact.type
-
-    return StreamingResponse(
-        io.BytesIO(data),
-        media_type=media_type
-    )
+    
+    # Artifacts are stored in the workspace artifacts directory
+    # This example shows the conceptual approach
+    artifact_file = ws.artifacts_path / artifact_id
+    
+    if not artifact_file.exists():
+        raise HTTPException(status_code=404, detail="Artifact not found")
+    
+    return FileResponse(artifact_file)
 
 # Search
 @app.post("/api/search")

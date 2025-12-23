@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING, Optional
 
 from core.git_manager import GitManager
 from core.markdown_indexer import index_directory, remove_stale_entries, search_markdown_files
-from core.storage import StorageManager
 from db.models import Notebook as NotebookModel
 from db.models import Page as PageModel
 from db.operations import DatabaseManager
@@ -33,7 +32,6 @@ class Workspace:
 
         # Managers
         self._db_manager: Optional[DatabaseManager] = None
-        self._storage_manager: Optional[StorageManager] = None
         self._git_manager: Optional[GitManager] = None
 
     @property
@@ -42,13 +40,6 @@ class Workspace:
         if self._db_manager is None:
             self._db_manager = DatabaseManager(self.lab_path / "db" / "index.db")
         return self._db_manager
-
-    @property
-    def storage_manager(self) -> StorageManager:
-        """Get the storage manager."""
-        if self._storage_manager is None:
-            self._storage_manager = StorageManager(self.lab_path / "storage")
-        return self._storage_manager
 
     @property
     def git_manager(self) -> GitManager:
@@ -66,8 +57,6 @@ class Workspace:
         # Create directory structure
         ws.lab_path.mkdir(parents=True, exist_ok=True)
         (ws.lab_path / "db").mkdir(exist_ok=True)
-        (ws.lab_path / "storage" / "blobs").mkdir(parents=True, exist_ok=True)
-        (ws.lab_path / "storage" / "thumbnails").mkdir(parents=True, exist_ok=True)
         ws.notebooks_path.mkdir(parents=True, exist_ok=True)
         ws.artifacts_path.mkdir(parents=True, exist_ok=True)
 
@@ -77,10 +66,6 @@ class Workspace:
         # Initialize database
         ws._db_manager = DatabaseManager(ws.lab_path / "db" / "index.db")
         ws._db_manager.initialize()
-
-        # Initialize storage
-        ws._storage_manager = StorageManager(ws.lab_path / "storage")
-        ws._storage_manager.initialize()
 
         # Create config
         config = {

@@ -5,7 +5,6 @@ from datetime import datetime
 
 import pytest
 
-from core.storage import StorageManager
 from core.utils import format_table
 from core.workspace import Workspace
 
@@ -287,56 +286,6 @@ class TestPage:
 
         retrieved = nb.get_page(page.id)
         assert retrieved.narrative["goals"] == "New goals"
-
-
-class TestStorageManager:
-    """Tests for StorageManager class."""
-
-    def test_store_and_retrieve(self, tmp_path):
-        """Test storing and retrieving data."""
-        storage = StorageManager(tmp_path)
-        storage.initialize()
-
-        data = b"Hello, World!"
-        hash_value = storage.store(data, "text/plain")
-
-        assert hash_value.startswith("sha256:")
-
-        retrieved = storage.retrieve(hash_value)
-        assert retrieved == data
-
-    def test_exists(self, tmp_path):
-        """Test checking if data exists."""
-        storage = StorageManager(tmp_path)
-        storage.initialize()
-
-        data = b"Test data"
-        hash_value = storage.store(data, "text/plain")
-
-        assert storage.exists(hash_value)
-        assert not storage.exists("sha256:nonexistent")
-
-    def test_delete(self, tmp_path):
-        """Test deleting data."""
-        storage = StorageManager(tmp_path)
-        storage.initialize()
-
-        data = b"Test data"
-        hash_value = storage.store(data, "text/plain")
-
-        assert storage.delete(hash_value)
-        assert not storage.exists(hash_value)
-
-    def test_get_size(self, tmp_path):
-        """Test getting data size."""
-        storage = StorageManager(tmp_path)
-        storage.initialize()
-
-        data = b"Hello, World!"
-        hash_value = storage.store(data, "text/plain")
-
-        size = storage.get_size(hash_value)
-        assert size == len(data)
 
 
 class TestFormatTable:

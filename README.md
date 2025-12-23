@@ -98,28 +98,28 @@ codex search --query "experiment"
 | **Lineage Tracking**  | ✅     | Parent-child relationships and variations     |
 | **Tagging System**    | ✅     | Tags for notebooks, pages, and entries        |
 
-### ✅ Integrations (Implemented)
+### 🚧 Integrations (Planned)
 
 | Integration        | Status | Description                                                   |
 | ------------------ | ------ | ------------------------------------------------------------- |
-| **API Call**       | ✅     | Track HTTP requests and responses                             |
-| **Database Query** | ✅     | Execute and log SQL queries                                   |
-| **GraphQL**        | ✅     | GraphQL queries and mutations                                 |
-| **ComfyUI**        | ✅     | UI form and standalone page (backend integration in progress) |
-| **Custom/Text**    | ✅     | Manual text entries                                           |
+| **API Call**       | 📋     | Track HTTP requests and responses (planned)                   |
+| **Database Query** | 📋     | Execute and log SQL queries (planned)                         |
+| **GraphQL**        | 📋     | GraphQL queries and mutations (planned)                       |
+| **ComfyUI**        | 📋     | ComfyUI workflow execution (planned)                          |
+| **Custom/Text**    | ✅     | Manual text entries via notebook/page system                  |
 
 ### 🚧 In Progress
 
 | Feature               | Status | Next Steps                                          |
 | --------------------- | ------ | --------------------------------------------------- |
-| **Frontend**          | 🚧     | Vue.js UI with notebook/page/entry views            |
-| **ComfyUI Execution** | 🚧     | Backend workflow execution integration              |
+| **Frontend**          | 🚧     | Vue.js UI with file browser and markdown viewing    |
 | **Search**            | 🚧     | Basic search works, full-text search (FTS5) pending |
 
 ### 📋 Planned Features
 
 | Feature                 | Priority | Description                                   |
 | ----------------------- | -------- | --------------------------------------------- |
+| **Integration System**  | High     | Plugin architecture for external services     |
 | **Full-Text Search**    | High     | FTS5 implementation for advanced search       |
 | **WebSocket Execution** | High     | Real-time entry execution updates             |
 | **Smart Archival**      | Medium   | Automated retention policies                  |
@@ -133,11 +133,12 @@ codex search --query "experiment"
 
 ### 🎯 Immediate Priorities (Next 1-2 Months)
 
-1. **Complete ComfyUI Integration**
+1. **Integration System Development**
 
-   - Finish backend workflow execution
-   - Add real-time progress tracking
-   - Implement artifact storage for generated images
+   - Create integration plugin architecture
+   - Implement ComfyUI workflow execution
+   - Add API call tracking integration
+   - Implement artifact storage for generated content
 
 2. **Enhance Search Capabilities**
 

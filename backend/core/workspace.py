@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING, Optional
 from core.git_manager import GitManager
 from core.markdown_indexer import index_directory, remove_stale_entries, search_markdown_files
 from db.models import Notebook as NotebookModel
-from db.models import Page as PageModel
 from db.operations import DatabaseManager
 
 if TYPE_CHECKING:
@@ -86,7 +85,7 @@ class Workspace:
 
         if not ws.is_initialized():
             raise ValueError(f"No workspace found at {path}")
-        
+
         # Auto-index markdown files on load
         ws.index_markdown_files()
 
@@ -103,13 +102,13 @@ class Workspace:
             with open(config_path) as f:
                 return json.load(f)
         return {}
-    
+
     def index_markdown_files(self, force: bool = False) -> dict:
         """Index all markdown files in the workspace.
-        
+
         Args:
             force: If True, re-index all files even if unchanged
-            
+
         Returns:
             Dictionary with indexing stats
         """
@@ -117,7 +116,7 @@ class Workspace:
         try:
             # Remove stale entries
             removed = remove_stale_entries(session, self.notebooks_path)
-            
+
             # Index notebooks directory
             indexed = index_directory(
                 session,
@@ -125,7 +124,7 @@ class Workspace:
                 self.notebooks_path,
                 recursive=True
             )
-            
+
             return {
                 "indexed": indexed,
                 "removed": removed,
@@ -133,14 +132,14 @@ class Workspace:
             }
         finally:
             session.close()
-    
+
     def search_indexed_files(self, query: Optional[str] = None, limit: int = 100) -> list[dict]:
         """Search indexed markdown files.
-        
+
         Args:
             query: Search query string
             limit: Maximum results to return
-            
+
         Returns:
             List of matching file metadata
         """
@@ -243,49 +242,12 @@ class Workspace:
         notebook_id: Optional[str] = None,
         page_id: Optional[str] = None,
     ) -> list[dict]:
-        """Search entries across the workspace."""
-        session = self.db_manager.get_session()
-        try:
-            query_obj = session.query(EntryModel)
+        """Search entries across the workspace.
 
-            if notebook_id:
-                query_obj = query_obj.join(PageModel).filter(
-                    PageModel.notebook_id == notebook_id
-                )
-
-            if page_id:
-                query_obj = query_obj.filter(EntryModel.page_id == page_id)
-
-            if entry_type:
-                query_obj = query_obj.filter(EntryModel.entry_type == entry_type)
-
-            if date_from:
-                query_obj = query_obj.filter(EntryModel.created_at >= date_from)
-
-            if date_to:
-                query_obj = query_obj.filter(EntryModel.created_at <= date_to)
-
-            entries = query_obj.order_by(EntryModel.created_at.desc()).all()
-            return [
-                {
-                    "id": e.id,
-                    "page_id": e.page_id,
-                    "entry_type": e.entry_type,
-                    "title": e.title,
-                    "created_at": e.created_at.isoformat() if e.created_at else None,
-                    "status": e.status,
-                    "parent_id": e.parent_id,
-                    "inputs": json.loads(e.inputs) if e.inputs else {},
-                    "outputs": json.loads(e.outputs) if e.outputs else {},
-                    "execution": json.loads(e.execution) if e.execution else {},
-                    "metrics": json.loads(e.metrics) if e.metrics else {},
-                    "metadata": json.loads(e.metadata_) if e.metadata_ else {},
-                    "tags": [et.tag.name for et in e.tags] if e.tags else [],
-                }
-                for e in entries
-            ]
-        finally:
-            session.close()
+        Note: Entry functionality has been removed. This method returns an empty list
+        for backward compatibility with existing API routes.
+        """
+        return []
 
     def _read_sidecar(self, file_path: Path) -> Optional[dict]:
         """

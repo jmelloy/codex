@@ -64,33 +64,40 @@ class Notebook:
             metadata={},
         )
 
-        # Create in database
-        session = workspace.db_manager.get_session()
-        try:
-            NotebookModel.create(
-                session,
-                validate_fk=False,
-                id=notebook_id,
-                title=title,
-                description=description,
-                created_at=now,
-                updated_at=now,
-                settings=json.dumps(notebook.settings),
-                metadata_=json.dumps(notebook.metadata),
-            )
-            session.commit()
-        finally:
-            session.close()
+        # Create notebook directory
+        notebook_dir = workspace.notebooks_path / notebook_id
+        notebook_dir.mkdir(exist_ok=True)
+        
+        # Create notebook's .lab directory for its database
+        notebook_lab_dir = notebook_dir / ".lab"
+        notebook_lab_dir.mkdir(exist_ok=True)
+        
+        # Path to notebook's database
+        notebook_db_path = notebook_lab_dir / "notebook.db"
+
+        # Register in workspace database (notebook registry)
+        workspace.workspace_db_manager.register_notebook(
+            notebook_id=notebook_id,
+            title=title,
+            description=description,
+            db_path=str(notebook_db_path),
+            settings=notebook.settings,
+            metadata=notebook.metadata,
+        )
+
+        # Initialize notebook's own database
+        notebook_db_manager = workspace.get_notebook_db_manager(notebook_id)
+        notebook_db_manager.initialize()
 
         # Create Git structure
         workspace.git_manager.create_notebook(notebook_id, notebook.to_dict())
 
         # Create user-facing directory
-        notebook_dir = workspace.notebooks_path / slugify(title)
-        notebook_dir.mkdir(exist_ok=True)
+        user_notebook_dir = workspace.notebooks_path / slugify(title)
+        user_notebook_dir.mkdir(exist_ok=True)
 
         # Create README
-        readme_path = notebook_dir / "README.md"
+        readme_path = user_notebook_dir / "README.md"
         with open(readme_path, "w") as f:
             f.write(
                 f"# {title}\n\n{description}\n\nCreated: {notebook.created_at.isoformat()}\n"

@@ -6,6 +6,8 @@
 
 > A hierarchical digital laboratory journal system for tracking computational experiments, creative iterations, and technical investigations with full provenance and reproducibility.
 
+> ⚠️ **Documentation Note**: This README contains detailed **conceptual architecture** sections (Data Model, Backend Architecture, API Endpoints, etc.) that describe the planned/ideal design. The current implementation focuses on the core SQLite+Markdown hybrid system with notebook/page organization. Many advanced features (entry system, integrations, lineage tracking) are planned for future development. See [Implementation Status](#implementation-status) for what's actually built.
+
 
 
 ## Table of Contents
@@ -300,6 +302,8 @@ Physical lab notebooks have a proven structure:
 We digitize this with modern affordances: version control, content-addressable storage, AI assistance, and cross-references.
 
 ## 2. Conceptual Model
+
+> ⚠️ **Note**: Sections 2-8 below describe the **planned conceptual architecture** for Codex, including features like the Entry system, integrations, and lineage tracking. The current implementation (v0.2.0) focuses on the Notebook/Page hierarchy with markdown content. The Entry system and related features are planned for future development.
 
 ### Hierarchy
 
@@ -2187,56 +2191,29 @@ print(f"Descendants: {len(lineage['descendants'])}")
 
 ## 9. Key Features Summary
 
-### Hierarchical Organization
+### Implemented Features
 
-- **Notebooks**: Project-level containers
-- **Pages**: Session or topic-level grouping
-- **Entries**: Individual experiments with full provenance
+- **Hierarchical Organization**: Notebooks → Pages (with markdown content)
+- **Narrative Documentation**: Pages with structured narrative fields (goals, hypothesis, observations, conclusions)
+- **Markdown Support**: Rich documentation with YAML frontmatter and content blocks
+- **Git Integration**: Post-commit hooks to log commits to daily notes
+- **Authentication**: JWT-based user authentication with isolated workspaces
+- **Search**: Basic search functionality (full-text search pending)
+- **Web UI**: File browser and markdown viewer (Vue.js + Vite)
+- **CLI Tools**: Command-line interface for workspace management
+- **Agent Task System**: Task management and sandboxing for AI agents
 
-### Narrative Documentation
+### Planned Features (See Architecture Sections)
 
-- Each page has structured narrative fields
-- Markdown support for rich documentation
-- Links thoughts to experimental results
+The detailed architecture sections below (Sections 2-8) describe planned features:
 
-### Lineage Tracking
-
-- Parent-child relationships between entries
-- Variation tracking
-- Full DAG of experimental evolution
-
-### Content-Addressable Storage
-
-- Deduplication of artifacts
-- Efficient storage with hashing
-- Automatic thumbnail generation
-
-### Smart Archival
-
-- Configurable retention policies
-- Compression strategies
-- Keeps metadata while reducing storage
-
-### Multi-Integration Support
-
-- ComfyUI workflows
-- API calls
-- Database queries
-- GraphQL operations
-- Custom integrations via plugin system
-
-### Real-Time Execution (Planned)
-
-- WebSocket-based progress updates
-- Streaming logs
-- Live artifact generation
-
-### AI-Powered Insights (Planned)
-
-- Summarization of pages/notebooks
-- Pattern detection across entries
-- Recommendation of next experiments
-- See [agents.md](agents.md) for details
+- **Entry System**: Individual experiment tracking with inputs/outputs/artifacts
+- **Lineage Tracking**: Parent-child relationships and variation tracking
+- **Integration System**: Plugins for ComfyUI, API calls, database queries, etc.
+- **Content-Addressable Storage**: Deduplication with SHA256 hashing
+- **Smart Archival**: Automated retention policies
+- **Real-Time Execution**: WebSocket-based progress updates
+- **AI Insights**: Automated summarization and pattern detection
 
 ---
 

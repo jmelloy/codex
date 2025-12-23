@@ -38,7 +38,7 @@ CODEX_WORKSPACE=~/my-workspace ./scripts/mac/log-calendar-events.sh
 chmod +x scripts/mac/log-calendar-events.sh
 
 # Optional: Add to PATH or create an alias
-alias log-calendar='~/path/to/codex/scripts/mac/log-calendar-events.sh'
+alias log-calendar='$HOME/codex/scripts/mac/log-calendar-events.sh'
 ```
 
 #### 2. AppleScript (`log-calendar-events.applescript`)
@@ -102,7 +102,7 @@ Use macOS Automator to create a Login Item:
 1. Open Automator
 2. Create new "Application"
 3. Add "Run Shell Script" action
-4. Paste: `~/path/to/codex/scripts/mac/log-calendar-events.sh`
+4. Paste: `$HOME/codex/scripts/mac/log-calendar-events.sh`
 5. Save as "Log Calendar Events"
 6. Go to System Preferences > Users & Groups > Login Items
 7. Add "Log Calendar Events" to login items
@@ -122,7 +122,7 @@ cat > ~/Library/LaunchAgents/com.log-calendar.plist << 'EOF'
     <string>com.log-calendar</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/path/to/codex/scripts/mac/log-calendar-events.sh</string>
+        <string>/Users/YOUR_USERNAME/codex/scripts/mac/log-calendar-events.sh</string>
     </array>
     <key>StartCalendarInterval</key>
     <dict>
@@ -151,7 +151,7 @@ Use macOS Automator or [Keyboard Maestro](https://www.keyboardmaestro.com/) to t
 1. Open Automator
 2. Create new "Quick Action"
 3. Add "Run Shell Script" action
-4. Paste: `~/path/to/codex/scripts/mac/log-calendar-events.sh`
+4. Paste: `$HOME/codex/scripts/mac/log-calendar-events.sh`
 5. Save as "Log Calendar Events"
 6. Go to System Preferences > Keyboard > Shortcuts > Services
 7. Assign a keyboard shortcut to "Log Calendar Events"
@@ -174,7 +174,7 @@ Example SwiftBar script:
 
 echo "📅"
 echo "---"
-echo "Log Calendar Events | bash=/path/to/codex/scripts/mac/log-calendar-events.sh terminal=false"
+echo "Log Calendar Events | bash=$HOME/codex/scripts/mac/log-calendar-events.sh terminal=false"
 ```
 
 ### Permissions

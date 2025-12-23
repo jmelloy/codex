@@ -22,15 +22,17 @@ tell application "Calendar"
 	repeat with aCalendar in allCalendars
 		try
 			set calendarEvents to (every event of aCalendar whose start date ≥ todayStart and start date < todayEnd)
+			-- Date format for parsing AppleScript dates
+			set dateFormatString to "%A, %B %e, %Y at %I:%M:%S %p"
 			repeat with anEvent in calendarEvents
 				set eventTitle to summary of anEvent
 				set eventStart to start date of anEvent
 				set eventEnd to end date of anEvent
 				set eventLocation to location of anEvent
 				
-				-- Format time
-				set startTime to do shell script "date -j -f '%A, %B %e, %Y at %I:%M:%S %p' " & quoted form of ((eventStart as string)) & " '+%H:%M' 2>/dev/null || echo '00:00'"
-				set endTime to do shell script "date -j -f '%A, %B %e, %Y at %I:%M:%S %p' " & quoted form of ((eventEnd as string)) & " '+%H:%M' 2>/dev/null || echo '00:00'"
+				-- Format time using the date format string
+				set startTime to do shell script "date -j -f " & quoted form of dateFormatString & " " & quoted form of ((eventStart as string)) & " '+%H:%M' 2>/dev/null || echo '00:00'"
+				set endTime to do shell script "date -j -f " & quoted form of dateFormatString & " " & quoted form of ((eventEnd as string)) & " '+%H:%M' 2>/dev/null || echo '00:00'"
 				
 				-- Check if it's an all-day event
 				set isAllDay to allday event of anEvent

@@ -58,7 +58,7 @@ Use launchd to automatically log calendar events at 8 AM:
     <string>com.log-calendar</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/path/to/codex/scripts/mac/log-calendar-events.sh</string>
+        <string>/Users/YOUR_USERNAME/codex/scripts/mac/log-calendar-events.sh</string>
     </array>
     <key>StartCalendarInterval</key>
     <dict>
@@ -80,7 +80,7 @@ Create an Automator Quick Action:
 
 1. Open Automator → New → Quick Action
 2. Add "Run Shell Script" action
-3. Script: `/path/to/codex/scripts/mac/log-calendar-events.sh`
+3. Script: `$HOME/codex/scripts/mac/log-calendar-events.sh`
 4. Save as "Log Calendar Events"
 5. System Preferences → Keyboard → Shortcuts → Services
 6. Assign a shortcut (e.g., ⌘⌥C)

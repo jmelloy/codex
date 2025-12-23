@@ -14,9 +14,6 @@ fi
 # Get the script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Export workspace path for AppleScript
-export HOME
-
 # Run the AppleScript
 osascript "$SCRIPT_DIR/log-calendar-events.applescript"
 

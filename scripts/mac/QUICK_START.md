@@ -1,15 +1,124 @@
-# Mac Active Window Logger - Quick Reference
+# Mac Scripts - Quick Reference
 
 ## Overview
 
-The Mac Active Window Logger helps you automatically track which applications and windows you're working in throughout the day. This is especially useful for:
+The Mac scripts help you automatically track your work throughout the day:
+
+- **Calendar Events Logger**: Fetch today's events from iCloud Calendar and add them to your daily note
+- **Active Window Logger**: Track which applications and windows you're working in
+
+Both tools are especially useful for:
 
 - Time tracking and productivity analysis
 - Context switching awareness
 - Creating a detailed work log
-- Debugging "what was I doing when X happened?"
+- Planning and reviewing your day
 
-## Quick Start
+## Calendar Events Logger
+
+### Quick Start
+
+**Option 1: PyiCloud (Cross-Platform)**
+
+```bash
+# Install pyicloud
+pip install pyicloud
+
+# Run the script
+python scripts/log-calendar-events-pyicloud.py
+
+# With custom workspace
+CODEX_WORKSPACE=~/my-workspace python scripts/log-calendar-events-pyicloud.py
+```
+
+**Option 2: Shell Script (macOS only)**
+
+```bash
+# Log today's calendar events (default workspace: ~/codex)
+./scripts/mac/log-calendar-events.sh
+
+# Or run AppleScript directly
+osascript scripts/mac/log-calendar-events.applescript
+
+# With custom workspace
+CODEX_WORKSPACE=~/my-workspace ./scripts/mac/log-calendar-events.sh
+```
+
+### Output Format
+
+Calendar events appear in your daily note like this:
+
+```markdown
+## Calendar Events
+
+- **09:00 - 10:00**: Team Standup @ Zoom
+- **All Day**: Conference Day
+- **14:30 - 15:30**: Client Meeting @ Office Building
+- **16:00 - 17:00**: Code Review
+```
+
+### Automation Setup
+
+#### Daily Morning Run
+
+Use launchd to automatically log calendar events at 8 AM:
+
+```bash
+# Create ~/Library/LaunchAgents/com.log-calendar.plist
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.log-calendar</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/YOUR_USERNAME/codex/scripts/mac/log-calendar-events.sh</string>
+    </array>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>8</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+</dict>
+</plist>
+
+# Load it
+launchctl load ~/Library/LaunchAgents/com.log-calendar.plist
+```
+
+#### Keyboard Shortcut
+
+Create an Automator Quick Action:
+
+1. Open Automator → New → Quick Action
+2. Add "Run Shell Script" action
+3. Script: `$HOME/codex/scripts/mac/log-calendar-events.sh`
+4. Save as "Log Calendar Events"
+5. System Preferences → Keyboard → Shortcuts → Services
+6. Assign a shortcut (e.g., ⌘⌥C)
+
+#### Login Item
+
+Run automatically when you log in:
+
+1. Convert AppleScript to Application:
+   ```bash
+   osacompile -o "Log Calendar Events.app" scripts/mac/log-calendar-events.applescript
+   ```
+2. System Preferences → Users & Groups → Login Items
+3. Add "Log Calendar Events.app"
+
+### Permissions
+
+The script requires Calendar access:
+
+1. System Preferences → Security & Privacy → Privacy → Calendars
+2. Add Terminal (or your terminal app) to the list
+
+## Active Window Logger
 
 ### Basic Usage
 

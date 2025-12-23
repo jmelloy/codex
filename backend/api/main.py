@@ -1,0 +1,97 @@
+"""Main FastAPI application."""
+
+from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.middleware.cors import CORSMiddleware
+from datetime import timedelta
+from contextlib import asynccontextmanager
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from backend.db.database import init_system_db, get_system_session
+from backend.api.auth import (
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+    create_access_token,
+    verify_password,
+    get_current_active_user,
+)
+from backend.db.models import User
+from backend.api.routes import workspaces, notebooks, files, search, tasks
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Initialize database on startup."""
+    await init_system_db()
+    yield
+
+
+app = FastAPI(
+    title="Codex API",
+    description="A hierarchical digital laboratory journal system",
+    version="0.1.0",
+    lifespan=lifespan,
+)
+
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Configure appropriately for production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.get("/")
+async def root():
+    """Root endpoint."""
+    return {
+        "message": "Codex API",
+        "version": "0.1.0",
+        "docs": "/docs"
+    }
+
+
+@app.post("/token")
+async def login(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    session: AsyncSession = Depends(get_system_session)
+):
+    """Login endpoint to get access token."""
+    from sqlmodel import select
+    
+    result = await session.execute(select(User).where(User.username == form_data.username))
+    user = result.scalar_one_or_none()
+    
+    if not user or not verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.username}, expires_delta=access_token_expires
+    )
+    
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
+@app.get("/users/me")
+async def read_users_me(current_user: User = Depends(get_current_active_user)):
+    """Get current user information."""
+    return current_user
+
+
+# Include routers
+app.include_router(workspaces.router, prefix="/api/v1/workspaces", tags=["workspaces"])
+app.include_router(notebooks.router, prefix="/api/v1/notebooks", tags=["notebooks"])
+app.include_router(files.router, prefix="/api/v1/files", tags=["files"])
+app.include_router(search.router, prefix="/api/v1/search", tags=["search"])
+app.include_router(tasks.router, prefix="/api/v1/tasks", tags=["tasks"])
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

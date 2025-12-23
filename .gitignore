@@ -48,6 +48,46 @@ coverage.xml
 *.cover
 *.py.cover
 .hypothesis/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+data/
+
+# Codex metadata
+.codex/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.env.local
+frontend/.env.*.local
+
+# Logs
+*.log
+logs/
+
+# Environment
+.env
+.env.local
 .pytest_cache/
 cover/
 

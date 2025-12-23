@@ -61,8 +61,11 @@ osascript scripts/mac/log-calendar-events.applescript
 # Make executable (already done in repo)
 chmod +x scripts/mac/log-calendar-events.applescript
 
-# Edit the script to change workspace location (default: ~/codex)
-# Open in Script Editor and modify workspacePath property
+# Use with custom workspace via environment variable
+CODEX_WORKSPACE=~/my-workspace osascript scripts/mac/log-calendar-events.applescript
+
+# Or edit the script to change default workspace location (default: ~/codex)
+# Open in Script Editor and modify workspacePath variable
 ```
 
 **Convert to Application:**

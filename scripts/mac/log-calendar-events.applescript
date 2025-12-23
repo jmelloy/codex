@@ -2,9 +2,12 @@
 -- Log Calendar Events to Daily Note
 -- This AppleScript fetches today's calendar events from iCloud and logs them to a daily note
 
--- Configuration
-property workspacePath : (system attribute "HOME") & "/codex"
-property dailyNotesPath : workspacePath & "/daily-notes"
+-- Configuration - try to get workspace from environment, otherwise use default
+set workspacePath to (system attribute "HOME") & "/codex"
+try
+	set workspacePath to system attribute "CODEX_WORKSPACE"
+end try
+set dailyNotesPath to workspacePath & "/daily-notes"
 
 -- Get today's date in YYYY-MM-DD format
 set currentDate to do shell script "date '+%Y-%m-%d'"
@@ -15,6 +18,9 @@ set todayStart to current date
 set time of todayStart to 0 -- midnight
 set todayEnd to todayStart + (24 * hours) - 1
 
+-- Date format for parsing AppleScript dates (defined once outside loops)
+set dateFormatString to "%A, %B %e, %Y at %I:%M:%S %p"
+
 -- Fetch calendar events
 set eventsList to {}
 tell application "Calendar"
@@ -22,17 +28,20 @@ tell application "Calendar"
 	repeat with aCalendar in allCalendars
 		try
 			set calendarEvents to (every event of aCalendar whose start date ≥ todayStart and start date < todayEnd)
-			-- Date format for parsing AppleScript dates
-			set dateFormatString to "%A, %B %e, %Y at %I:%M:%S %p"
 			repeat with anEvent in calendarEvents
 				set eventTitle to summary of anEvent
 				set eventStart to start date of anEvent
 				set eventEnd to end date of anEvent
 				set eventLocation to location of anEvent
 				
-				-- Format time using the date format string
-				set startTime to do shell script "date -j -f " & quoted form of dateFormatString & " " & quoted form of ((eventStart as string)) & " '+%H:%M' 2>/dev/null || echo '00:00'"
-				set endTime to do shell script "date -j -f " & quoted form of dateFormatString & " " & quoted form of ((eventEnd as string)) & " '+%H:%M' 2>/dev/null || echo '00:00'"
+				-- Format both times in a single shell call to reduce overhead
+				set startTimeStr to eventStart as string
+				set endTimeStr to eventEnd as string
+				set timeFormattingCmd to "date -j -f " & quoted form of dateFormatString & " " & quoted form of startTimeStr & " '+%H:%M' 2>/dev/null || echo '00:00'; " & ¬
+					"date -j -f " & quoted form of dateFormatString & " " & quoted form of endTimeStr & " '+%H:%M' 2>/dev/null || echo '00:00'"
+				set timeResults to paragraphs of (do shell script timeFormattingCmd)
+				set startTime to item 1 of timeResults
+				set endTime to item 2 of timeResults
 				
 				-- Check if it's an all-day event
 				set isAllDay to allday event of anEvent

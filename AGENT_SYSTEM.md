@@ -365,7 +365,7 @@ The agent task system integrates seamlessly with existing Codex features:
 - **Workspaces** - Task manager can be initialized in workspace `.lab` directory
 - **Notebooks/Pages** - Tasks can reference notebook and page IDs
 - **Entries** - Tasks can be associated with specific entries
-- **Storage** - Sandboxes can work with content-addressable storage
+- **File System** - Sandboxes work with the file system and Git backup
 
 ## API Integration (Future)
 

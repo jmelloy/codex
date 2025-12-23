@@ -5,6 +5,23 @@ from typing import Optional, List
 from sqlmodel import Field, SQLModel, Relationship
 
 
+# Link tables (must be defined before they are referenced)
+class NotebookTag(SQLModel, table=True):
+    """Link table for notebook tags."""
+    __tablename__ = "notebook_tags"
+    
+    notebook_id: int = Field(foreign_key="notebooks.id", primary_key=True)
+    tag_id: int = Field(foreign_key="tags.id", primary_key=True)
+
+
+class FileTag(SQLModel, table=True):
+    """Link table for file tags."""
+    __tablename__ = "file_tags"
+    
+    file_id: int = Field(foreign_key="file_metadata.id", primary_key=True)
+    tag_id: int = Field(foreign_key="tags.id", primary_key=True)
+
+
 # System-level models (main database)
 class User(SQLModel, table=True):
     """User accounts for authentication."""
@@ -81,7 +98,7 @@ class Notebook(SQLModel, table=True):
     
     # Relationships
     files: List["FileMetadata"] = Relationship(back_populates="notebook")
-    tags: List["Tag"] = Relationship(back_populates="notebook", link_model="NotebookTag")
+    tags: List["Tag"] = Relationship(back_populates="notebooks", link_model=NotebookTag)
 
 
 class FileMetadata(SQLModel, table=True):
@@ -114,7 +131,7 @@ class FileMetadata(SQLModel, table=True):
     
     # Relationships
     notebook: Notebook = Relationship(back_populates="files")
-    tags: List["Tag"] = Relationship(back_populates="files", link_model="FileTag")
+    tags: List["Tag"] = Relationship(back_populates="files", link_model=FileTag)
 
 
 class Tag(SQLModel, table=True):
@@ -128,24 +145,8 @@ class Tag(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     
     # Relationships
-    notebook: Notebook = Relationship(back_populates="tags")
-    files: List["FileMetadata"] = Relationship(back_populates="tags", link_model="FileTag")
-
-
-class NotebookTag(SQLModel, table=True):
-    """Link table for notebook tags."""
-    __tablename__ = "notebook_tags"
-    
-    notebook_id: int = Field(foreign_key="notebooks.id", primary_key=True)
-    tag_id: int = Field(foreign_key="tags.id", primary_key=True)
-
-
-class FileTag(SQLModel, table=True):
-    """Link table for file tags."""
-    __tablename__ = "file_tags"
-    
-    file_id: int = Field(foreign_key="file_metadata.id", primary_key=True)
-    tag_id: int = Field(foreign_key="tags.id", primary_key=True)
+    notebooks: List["Notebook"] = Relationship(back_populates="tags", link_model=NotebookTag)
+    files: List["FileMetadata"] = Relationship(back_populates="tags", link_model=FileTag)
 
 
 class SearchIndex(SQLModel, table=True):

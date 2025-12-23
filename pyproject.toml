@@ -23,6 +23,7 @@ dependencies = [
     "passlib[bcrypt]>=1.7.4",
     "python-dotenv>=1.0.1",
     "aiosqlite>=0.20.0",
+    "greenlet>=3.0.0",
 ]
 
 [project.optional-dependencies]

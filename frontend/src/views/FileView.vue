@@ -226,7 +226,8 @@ onUnmounted(() => {
         <div class="markdown-editor-wrapper">
           <MarkdownEditor
             v-if="isEditingMarkdown"
-            v-model="editableContent"
+            :model-value="editableContent"
+            @update:model-value="editableContent = $event"
             :editable="true"
             :show-preview="true"
             min-height="400px"

@@ -25,7 +25,9 @@ const emit = defineEmits<{
   (e: "update:modelValue", value: string): void;
 }>();
 
-const mode = ref<"edit" | "preview" | "split">("split");
+const mode = ref<"edit" | "preview" | "split">(
+  props.showPreview ? "split" : "edit"
+);
 const localContent = ref(props.modelValue);
 const textareaRef = ref<HTMLTextAreaElement | null>(null);
 
@@ -45,9 +47,11 @@ function handleInput(event: Event) {
 function autoResize() {
   if (textareaRef.value) {
     textareaRef.value.style.height = "auto";
+    const minHeightValue = parseFloat(props.minHeight) || 200;
+    const maxHeightValue = parseFloat(props.maxHeight) || 600;
     const newHeight = Math.min(
-      Math.max(textareaRef.value.scrollHeight, parseInt(props.minHeight)),
-      parseInt(props.maxHeight)
+      Math.max(textareaRef.value.scrollHeight, minHeightValue),
+      maxHeightValue
     );
     textareaRef.value.style.height = `${newHeight}px`;
   }

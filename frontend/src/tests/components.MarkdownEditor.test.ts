@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
 import MarkdownEditor from '@/components/markdown/MarkdownEditor.vue'
 import MarkdownViewer from '@/components/markdown/MarkdownViewer.vue'

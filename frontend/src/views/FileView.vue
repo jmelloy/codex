@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useRoute } from "vue-router";
 import FrontmatterViewer from "@/components/markdown/FrontmatterViewer.vue";
+import MarkdownEditor from "@/components/markdown/MarkdownEditor.vue";
 
 const route = useRoute();
 
@@ -26,6 +27,8 @@ const markdownData = ref<{
   content: string;
   blocks: any[];
 } | null>(null);
+const isEditingMarkdown = ref(false);
+const editableContent = ref<string>("");
 
 // Track the current object URL to clean up on changes
 let currentObjectUrl: string | null = null;
@@ -107,6 +110,9 @@ async function loadFile() {
 
     if (fileType.value === "text" || fileType.value === "markdown") {
       fileContent.value = await response.text();
+      if (fileType.value === "markdown") {
+        editableContent.value = fileContent.value;
+      }
     } else if (fileType.value === "image") {
       const blob = await response.blob();
       currentObjectUrl = URL.createObjectURL(blob);
@@ -121,6 +127,46 @@ async function loadFile() {
   }
 }
 
+async function saveMarkdownFile() {
+  if (!filePath.value || fileType.value !== "markdown") return;
+  
+  try {
+    const response = await fetch(
+      `/api/files/notebooks/content?path=${encodeURIComponent(filePath.value)}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "text/plain",
+        },
+        body: editableContent.value,
+      }
+    );
+    
+    if (!response.ok) {
+      throw new Error(`Failed to save file: ${response.statusText}`);
+    }
+    
+    fileContent.value = editableContent.value;
+    isEditingMarkdown.value = false;
+    // Reload to update markdown data
+    await loadFile();
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : "Failed to save file";
+  }
+}
+
+function startEditingMarkdown() {
+  if (fileContent.value) {
+    editableContent.value = fileContent.value;
+    isEditingMarkdown.value = true;
+  }
+}
+
+function cancelEditingMarkdown() {
+  editableContent.value = fileContent.value || "";
+  isEditingMarkdown.value = false;
+}
+
 onMounted(loadFile);
 watch(filePath, loadFile);
 
@@ -133,7 +179,26 @@ onUnmounted(() => {
 <template>
   <div class="file-view">
     <div class="file-header">
-      <h1>{{ filePath || "Select a file" }}</h1>
+      <div class="header-content">
+        <h1>{{ filePath || "Select a file" }}</h1>
+        <div v-if="fileType === 'markdown' && fileContent && !loading" class="header-actions">
+          <button
+            v-if="!isEditingMarkdown"
+            @click="startEditingMarkdown"
+            class="btn btn-primary"
+          >
+            ✏️ Edit
+          </button>
+          <template v-else>
+            <button @click="saveMarkdownFile" class="btn btn-success">
+              💾 Save
+            </button>
+            <button @click="cancelEditingMarkdown" class="btn btn-secondary">
+              ❌ Cancel
+            </button>
+          </template>
+        </div>
+      </div>
     </div>
 
     <div v-if="loading" class="loading">
@@ -149,38 +214,37 @@ onUnmounted(() => {
     </div>
 
     <div v-else class="file-content">
-      <!-- Markdown with frontmatter -->
-      <div v-if="fileType === 'markdown' && markdownData" class="markdown-view">
-        <!-- Display rendered frontmatter -->
+      <!-- Markdown files with editor -->
+      <div v-if="fileType === 'markdown'" class="markdown-view">
+        <!-- Display rendered frontmatter if available -->
         <FrontmatterViewer
-          v-if="Object.keys(markdownData.rendered).length > 0"
+          v-if="markdownData && Object.keys(markdownData.rendered).length > 0"
           :rendered="markdownData.rendered"
         />
-
-        <!-- Display content blocks -->
-        <div v-if="markdownData.blocks.length > 0" class="content-blocks">
-          <h3>Content Blocks</h3>
-          <div
-            v-for="(block, index) in markdownData.blocks"
-            :key="index"
-            class="content-block"
-          >
-            <div class="block-header">
-              <span class="block-type">{{ block.type }}</span>
-            </div>
-            <pre class="block-content">{{ block.content }}</pre>
-          </div>
-        </div>
-
-        <!-- Display main markdown content -->
-        <div v-if="markdownData.content" class="markdown-content">
-          <h3>Content</h3>
-          <pre class="text-content">{{ markdownData.content }}</pre>
+        
+        <!-- Markdown editor/viewer -->
+        <div class="markdown-editor-wrapper">
+          <MarkdownEditor
+            v-if="isEditingMarkdown"
+            v-model="editableContent"
+            :editable="true"
+            :show-preview="true"
+            min-height="400px"
+            max-height="800px"
+          />
+          <MarkdownEditor
+            v-else
+            :model-value="fileContent || ''"
+            :editable="false"
+            :show-preview="false"
+            min-height="400px"
+            max-height="none"
+          />
         </div>
       </div>
 
-      <!-- Plain text content (including markdown fallback) -->
-      <pre v-else-if="fileType === 'text' || fileType === 'markdown'" class="text-content">{{ fileContent }}</pre>
+      <!-- Plain text content -->
+      <pre v-else-if="fileType === 'text'" class="text-content">{{ fileContent }}</pre>
 
       <!-- Image content -->
       <div v-else-if="fileType === 'image'" class="image-content">
@@ -209,10 +273,71 @@ onUnmounted(() => {
   border-bottom: 1px solid var(--color-border);
 }
 
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.btn:hover {
+  background: var(--color-background);
+}
+
+.btn-primary {
+  background: var(--color-primary, #4f46e5);
+  color: white;
+  border-color: var(--color-primary, #4f46e5);
+}
+
+.btn-primary:hover {
+  background: #4338ca;
+  border-color: #4338ca;
+}
+
+.btn-success {
+  background: #10b981;
+  color: white;
+  border-color: #10b981;
+}
+
+.btn-success:hover {
+  background: #059669;
+  border-color: #059669;
+}
+
+.btn-secondary {
+  background: var(--color-background);
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+
+.btn-secondary:hover {
+  background: #e5e7eb;
+}
+
 .file-header h1 {
   font-size: 1.5rem;
   font-family: var(--font-mono);
   word-break: break-all;
+  margin: 0;
 }
 
 .loading,
@@ -275,69 +400,9 @@ onUnmounted(() => {
   gap: 1.5rem;
 }
 
-.content-blocks {
-  background: var(--color-background);
-  border: 1px solid var(--color-border);
+.markdown-editor-wrapper {
+  background: var(--color-surface);
   border-radius: var(--radius-md);
-  padding: 1.5rem;
-}
-
-.content-blocks h3 {
-  margin: 0 0 1rem 0;
-  font-size: 1rem;
-  font-weight: 600;
-}
-
-.content-block {
-  margin-bottom: 1.5rem;
-}
-
-.content-block:last-child {
-  margin-bottom: 0;
-}
-
-.block-header {
-  display: flex;
-  align-items: center;
-  margin-bottom: 0.5rem;
-}
-
-.block-type {
-  display: inline-block;
-  padding: 0.125rem 0.625rem;
-  background: #3b82f6;
-  color: white;
-  border-radius: var(--radius-sm);
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.block-content {
-  padding: 1rem;
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: 0.875rem;
-  line-height: 1.6;
-  background: var(--color-background-soft);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  overflow-x: auto;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-}
-
-.markdown-content {
-  background: var(--color-background);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: 1.5rem;
-}
-
-.markdown-content h3 {
-  margin: 0 0 1rem 0;
-  font-size: 1rem;
-  font-weight: 600;
+  overflow: hidden;
 }
 </style>

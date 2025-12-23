@@ -4,6 +4,7 @@ import { useRoute } from "vue-router";
 import { useNotebooksStore } from "@/stores/notebooks";
 import { pagesApi } from "@/api";
 import type { Page } from "@/types";
+import MarkdownEditor from "@/components/markdown/MarkdownEditor.vue";
 
 const route = useRoute();
 const notebooksStore = useNotebooksStore();
@@ -68,42 +69,54 @@ const formattedDate = computed(() => {
         
         <div class="narrative-field">
           <h3>Goals</h3>
-          <textarea
-            :value="page.narrative?.goals || ''"
-            @input="updateNarrative('goals', ($event.target as HTMLTextAreaElement).value)"
+          <MarkdownEditor
+            :model-value="page.narrative?.goals || ''"
+            @update:model-value="updateNarrative('goals', $event)"
             placeholder="What are you trying to achieve?"
-            rows="3"
-          ></textarea>
+            :editable="true"
+            :show-preview="true"
+            min-height="150px"
+            max-height="400px"
+          />
         </div>
 
         <div class="narrative-field">
           <h3>Hypothesis</h3>
-          <textarea
-            :value="page.narrative?.hypothesis || ''"
-            @input="updateNarrative('hypothesis', ($event.target as HTMLTextAreaElement).value)"
+          <MarkdownEditor
+            :model-value="page.narrative?.hypothesis || ''"
+            @update:model-value="updateNarrative('hypothesis', $event)"
             placeholder="What do you expect to happen?"
-            rows="3"
-          ></textarea>
+            :editable="true"
+            :show-preview="true"
+            min-height="150px"
+            max-height="400px"
+          />
         </div>
 
         <div class="narrative-field">
           <h3>Observations</h3>
-          <textarea
-            :value="page.narrative?.observations || ''"
-            @input="updateNarrative('observations', ($event.target as HTMLTextAreaElement).value)"
+          <MarkdownEditor
+            :model-value="page.narrative?.observations || ''"
+            @update:model-value="updateNarrative('observations', $event)"
             placeholder="What did you observe?"
-            rows="4"
-          ></textarea>
+            :editable="true"
+            :show-preview="true"
+            min-height="200px"
+            max-height="500px"
+          />
         </div>
 
         <div class="narrative-field">
           <h3>Conclusions</h3>
-          <textarea
-            :value="page.narrative?.conclusions || ''"
-            @input="updateNarrative('conclusions', ($event.target as HTMLTextAreaElement).value)"
+          <MarkdownEditor
+            :model-value="page.narrative?.conclusions || ''"
+            @update:model-value="updateNarrative('conclusions', $event)"
             placeholder="What did you learn?"
-            rows="4"
-          ></textarea>
+            :editable="true"
+            :show-preview="true"
+            min-height="200px"
+            max-height="500px"
+          />
         </div>
       </div>
     </div>
@@ -157,20 +170,5 @@ const formattedDate = computed(() => {
   font-size: 1rem;
   font-weight: 600;
   margin-bottom: 0.5rem;
-}
-
-.narrative-field textarea {
-  width: 100%;
-  padding: 0.75rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  font-family: inherit;
-  font-size: 0.875rem;
-  resize: vertical;
-}
-
-.narrative-field textarea:focus {
-  outline: none;
-  border-color: var(--color-primary, #4f46e5);
 }
 </style>

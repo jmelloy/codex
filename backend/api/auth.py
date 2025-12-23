@@ -73,30 +73,31 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 
 def create_refresh_token(user_id: int, username: str) -> tuple[str, datetime]:
     """Create a refresh token and return it with its expiration time.
-    
+
     Args:
         user_id: The user's ID
         username: The user's username
-        
+
     Returns:
         Tuple of (token_string, expiration_datetime)
     """
     import secrets
     from pathlib import Path
-    from db.operations import DatabaseManager
+
     from db.models import RefreshToken
-    
+    from db.operations import DatabaseManager
+
     # Generate a secure random token
     token = secrets.token_urlsafe(32)
     expires_at = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
-    
+
     # Store in database
     db_path = Path(DEFAULT_WORKSPACE_PATH) / ".lab" / "db" / "index.db"
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    
+
     db_manager = DatabaseManager(db_path)
     db_manager.initialize()
-    
+
     session = db_manager.get_session()
     try:
         RefreshToken.create(
@@ -109,47 +110,48 @@ def create_refresh_token(user_id: int, username: str) -> tuple[str, datetime]:
         session.commit()
     finally:
         session.close()
-    
+
     return token, expires_at
 
 
 def validate_refresh_token(token: str) -> Optional[int]:
     """Validate a refresh token and return the user_id if valid.
-    
+
     Args:
         token: The refresh token to validate
-        
+
     Returns:
         The user_id if the token is valid, None otherwise
     """
     from pathlib import Path
-    from db.operations import DatabaseManager
+
     from db.models import RefreshToken
-    
+    from db.operations import DatabaseManager
+
     db_path = Path(DEFAULT_WORKSPACE_PATH) / ".lab" / "db" / "index.db"
     db_manager = DatabaseManager(db_path)
     db_manager.initialize()
-    
+
     session = db_manager.get_session()
     try:
         refresh_token = RefreshToken.find_one_by(session, token=token)
-        
+
         if refresh_token is None:
             return None
-            
+
         # Check if token is revoked
         if refresh_token.revoked:
             return None
-            
+
         # Check if token is expired
         # Make expires_at timezone-aware if it's naive
         expires_at = refresh_token.expires_at
         if expires_at.tzinfo is None:
             expires_at = expires_at.replace(tzinfo=timezone.utc)
-        
+
         if expires_at < datetime.now(timezone.utc):
             return None
-            
+
         return refresh_token.user_id
     finally:
         session.close()
@@ -157,28 +159,29 @@ def validate_refresh_token(token: str) -> Optional[int]:
 
 def revoke_refresh_token(token: str) -> bool:
     """Revoke a refresh token.
-    
+
     Args:
         token: The refresh token to revoke
-        
+
     Returns:
         True if token was revoked, False if not found
     """
     from pathlib import Path
-    from db.operations import DatabaseManager
+
     from db.models import RefreshToken
-    
+    from db.operations import DatabaseManager
+
     db_path = Path(DEFAULT_WORKSPACE_PATH) / ".lab" / "db" / "index.db"
     db_manager = DatabaseManager(db_path)
     db_manager.initialize()
-    
+
     session = db_manager.get_session()
     try:
         refresh_token = RefreshToken.find_one_by(session, token=token)
-        
+
         if refresh_token is None:
             return False
-            
+
         refresh_token.update(session, revoked=True)
         session.commit()
         return True
@@ -212,20 +215,21 @@ async def get_current_user(
     """Get the current authenticated user from JWT token."""
     token = credentials.credentials
     token_data = decode_token(token)
-    
+
     # Get user from database
     from pathlib import Path
+
     from db.operations import DatabaseManager
-    
+
     # Use the default workspace database to store users
     db_path = Path(DEFAULT_WORKSPACE_PATH) / ".lab" / "db" / "index.db"
-    
+
     # Ensure database directory exists
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    
+
     db_manager = DatabaseManager(db_path)
     db_manager.initialize()  # Initialize database with migrations
-    
+
     session = db_manager.get_session()
     try:
         user = User.find_one_by(session, username=token_data.username)
@@ -235,13 +239,13 @@ async def get_current_user(
                 detail="User not found",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        
+
         if not user.is_active:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Inactive user"
             )
-        
+
         return UserInDB(
             id=user.id,
             username=user.username,
@@ -258,7 +262,7 @@ async def get_current_user_workspace(
 ) -> Workspace:
     """Get the workspace for the current authenticated user."""
     from pathlib import Path
-    
+
     workspace_path = Path(current_user.workspace_path)
     try:
         return Workspace.load(workspace_path)

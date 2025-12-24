@@ -128,7 +128,7 @@ const handleRegister = async () => {
     });
 
     localStorage.setItem('access_token', tokenResponse.access_token);
-    await authStore.fetchUser();
+    await authStore.fetchCurrentUser();
 
     // Redirect to home
     router.push('/');

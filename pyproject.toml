@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 license = {text = "MIT"}
 authors = [
-    {name = "James Melloy", email = "jmelloy@example.com"}
+    {name = "Jeffrey Melloy", email = "jmelloy@example.com"}
 ]
 dependencies = [
     "fastapi>=0.115.0",
@@ -14,8 +14,8 @@ dependencies = [
     "uvicorn[standard]>=0.32.0",
     "python-multipart>=0.0.12",
     "pydantic>=2.9.0",
-    "pydantic[email]>=2.9.0",
     "pydantic-settings>=2.6.0",
+    "pydantic[email]>=2.9.0",
     "alembic>=1.13.0",
     "watchdog>=5.0.0",
     "gitpython>=3.1.43",

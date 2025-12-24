@@ -17,7 +17,7 @@ from backend.api.auth import (
 )
 from backend.db.models import User
 from backend.api.schemas import UserCreate, UserResponse
-from backend.api.routes import workspaces, notebooks, files, search, tasks
+from backend.api.routes import workspaces, notebooks, files, search, tasks, markdown
 
 
 @asynccontextmanager
@@ -132,6 +132,7 @@ app.include_router(notebooks.router, prefix="/api/v1/notebooks", tags=["notebook
 app.include_router(files.router, prefix="/api/v1/files", tags=["files"])
 app.include_router(search.router, prefix="/api/v1/search", tags=["search"])
 app.include_router(tasks.router, prefix="/api/v1/tasks", tags=["tasks"])
+app.include_router(markdown.router, prefix="/api/v1/markdown", tags=["markdown"])
 
 
 if __name__ == "__main__":

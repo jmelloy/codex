@@ -3,6 +3,7 @@
     <nav class="navbar">
       <h1>Codex</h1>
       <div class="user-info">
+        <router-link to="/markdown" class="nav-link">Markdown Editor</router-link>
         <span>{{ authStore.user?.username }}</span>
         <button @click="handleLogout">Logout</button>
       </div>
@@ -175,6 +176,19 @@ async function handleCreateNotebook() {
   display: flex;
   align-items: center;
   gap: 1rem;
+}
+
+.nav-link {
+  color: white;
+  text-decoration: none;
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.nav-link:hover {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 .user-info button {

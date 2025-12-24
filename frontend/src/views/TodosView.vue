@@ -124,7 +124,7 @@
                   {{ task.description }}
                 </p>
                 <div class="task-meta">
-                  <span>Completed: {{ formatDate(task.completed_at || task.updated_at) }}</span>
+                  <span>Completed: {{ task.completed_at ? formatDate(task.completed_at) : formatDate(task.updated_at) }}</span>
                 </div>
               </div>
               <div v-if="completedTasks.length === 0" class="empty-state">
@@ -226,15 +226,21 @@ async function handleCreateTask() {
 
 async function updateStatus(taskId: number, status: string) {
   try {
-    await taskStore.updateTaskStatus(taskId, status)
+    await taskStore.updateTask(taskId, status)
   } catch (e) {
     // Error handled in store
   }
 }
 
 function formatDate(dateStr: string): string {
-  const date = new Date(dateStr)
-  return date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
+  if (!dateStr) return 'N/A'
+  try {
+    const date = new Date(dateStr)
+    if (isNaN(date.getTime())) return 'N/A'
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
+  } catch {
+    return 'N/A'
+  }
 }
 </script>
 

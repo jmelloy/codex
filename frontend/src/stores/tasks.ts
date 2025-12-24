@@ -39,11 +39,11 @@ export const useTaskStore = defineStore("tasks", () => {
     }
   }
 
-  async function updateTaskStatus(id: number, status: string) {
+  async function updateTask(id: number, status?: string, assigned_to?: string) {
     loading.value = true;
     error.value = null;
     try {
-      const updatedTask = await taskService.update(id, status);
+      const updatedTask = await taskService.update(id, status, assigned_to);
       const index = tasks.value.findIndex((t) => t.id === id);
       if (index !== -1) {
         tasks.value[index] = updatedTask;
@@ -63,6 +63,6 @@ export const useTaskStore = defineStore("tasks", () => {
     error,
     fetchTasks,
     createTask,
-    updateTaskStatus,
+    updateTask,
   };
 });

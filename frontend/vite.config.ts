@@ -1,3 +1,4 @@
+/// <reference types="vitest" />
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 import path from "path";
@@ -16,6 +17,21 @@ export default defineConfig({
     strictPort: true,
     watch: {
       usePolling: true, // Needed for Docker on some systems
+    },
+  },
+  // @ts-ignore - Vitest config
+  test: {
+    globals: true,
+    environment: "happy-dom",
+    setupFiles: [],
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "json", "html"],
+      exclude: [
+        "node_modules/",
+        "src/**/*.spec.ts",
+        "src/**/*.test.ts",
+      ],
     },
   },
 });

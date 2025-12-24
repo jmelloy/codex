@@ -74,8 +74,8 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { authService } from '@/services/auth';
-import { useAuthStore } from '@/stores/auth';
+import { authService } from '../services/auth';
+import { useAuthStore } from '../stores/auth';
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -128,7 +128,7 @@ const handleRegister = async () => {
     });
 
     localStorage.setItem('access_token', tokenResponse.access_token);
-    await authStore.fetchUser();
+    await authStore.fetchCurrentUser();
 
     // Redirect to home
     router.push('/');

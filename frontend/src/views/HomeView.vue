@@ -3,6 +3,7 @@
     <nav class="navbar">
       <h1>Codex</h1>
       <div class="user-info">
+        <router-link to="/todos" class="nav-link">Todos</router-link>
         <router-link to="/markdown" class="nav-link">Markdown Editor</router-link>
         <span>{{ authStore.user?.username }}</span>
         <button @click="handleLogout">Logout</button>

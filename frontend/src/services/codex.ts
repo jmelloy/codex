@@ -31,6 +31,18 @@ export interface FileMetadata {
   updated_at: string;
 }
 
+export interface Task {
+  id: number;
+  workspace_id: number;
+  title: string;
+  description?: string;
+  status: string;
+  assigned_to?: string;
+  created_at: string;
+  updated_at: string;
+  completed_at?: string;
+}
+
 export const workspaceService = {
   async list(): Promise<Workspace[]> {
     const response = await apiClient.get<Workspace[]>("/api/v1/workspaces/");
@@ -124,6 +136,45 @@ export const searchService = {
     const response = await apiClient.get(
       `/api/v1/search/tags?workspace_id=${workspaceId}&tags=${tags.join(",")}`
     );
+    return response.data;
+  },
+};
+
+export const taskService = {
+  async list(workspaceId: number): Promise<Task[]> {
+    const response = await apiClient.get<Task[]>(
+      `/api/v1/tasks/?workspace_id=${workspaceId}`
+    );
+    return response.data;
+  },
+
+  async get(id: number): Promise<Task> {
+    const response = await apiClient.get<Task>(`/api/v1/tasks/${id}`);
+    return response.data;
+  },
+
+  async create(
+    workspaceId: number,
+    title: string,
+    description?: string
+  ): Promise<Task> {
+    const response = await apiClient.post<Task>("/api/v1/tasks/", null, {
+      params: {
+        workspace_id: workspaceId,
+        title,
+        description,
+      },
+    });
+    return response.data;
+  },
+
+  async update(id: number, status?: string, assigned_to?: string): Promise<Task> {
+    const response = await apiClient.put<Task>(`/api/v1/tasks/${id}`, null, {
+      params: {
+        status,
+        assigned_to,
+      },
+    });
     return response.data;
   },
 };

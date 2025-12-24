@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { useAuthStore } from "../stores/auth";
+import { authService } from "../services/auth";
 import HomeView from "../views/HomeView.vue";
 import LoginView from "../views/LoginView.vue";
 import RegisterView from "../views/RegisterView.vue";
@@ -42,6 +43,11 @@ const router = createRouter({
 
 router.beforeEach(async (to, _from, next) => {
   const authStore = useAuthStore();
+
+  // Wait for auth initialization if not done yet
+  if (!authStore.user && authService.isAuthenticated()) {
+    await authStore.initialize();
+  }
 
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     next("/login");

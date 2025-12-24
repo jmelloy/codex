@@ -189,6 +189,14 @@ const completedTasks = computed(() =>
 )
 
 onMounted(async () => {
+  // If no workspace is selected, try to load the first available workspace
+  if (!workspaceStore.currentWorkspace) {
+    await workspaceStore.fetchWorkspaces()
+    if (workspaceStore.workspaces.length > 0) {
+      workspaceStore.setCurrentWorkspace(workspaceStore.workspaces[0])
+    }
+  }
+  
   if (workspaceStore.currentWorkspace) {
     await taskStore.fetchTasks(workspaceStore.currentWorkspace.id)
   }

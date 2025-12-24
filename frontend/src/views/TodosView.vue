@@ -124,6 +124,7 @@
                   {{ task.description }}
                 </p>
                 <div class="task-meta">
+                  <!-- Show completed_at if available, otherwise fall back to updated_at -->
                   <span>Completed: {{ task.completed_at ? formatDate(task.completed_at) : formatDate(task.updated_at) }}</span>
                 </div>
               </div>
@@ -193,6 +194,7 @@ onMounted(async () => {
   if (!workspaceStore.currentWorkspace) {
     await workspaceStore.fetchWorkspaces()
     if (workspaceStore.workspaces.length > 0) {
+      // Safe to access index 0 since we just checked length
       workspaceStore.setCurrentWorkspace(workspaceStore.workspaces[0]!)
     }
   }

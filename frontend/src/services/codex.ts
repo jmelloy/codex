@@ -158,6 +158,7 @@ export const taskService = {
     title: string,
     description?: string
   ): Promise<Task> {
+    // Backend API expects query parameters, not request body
     const response = await apiClient.post<Task>("/api/v1/tasks/", null, {
       params: {
         workspace_id: workspaceId,
@@ -169,6 +170,7 @@ export const taskService = {
   },
 
   async update(id: number, status?: string, assigned_to?: string): Promise<Task> {
+    // Backend API expects query parameters, not request body
     const response = await apiClient.put<Task>(`/api/v1/tasks/${id}`, null, {
       params: {
         status,

@@ -3,7 +3,7 @@ name = "codex"
 version = "0.1.0"
 description = "A hierarchical digital laboratory journal system for tracking experiments, iterations, and investigations"
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.12"
 license = {text = "MIT"}
 authors = [
     {name = "James Melloy", email = "jmelloy@example.com"}
@@ -24,6 +24,8 @@ dependencies = [
     "python-dotenv>=1.0.1",
     "aiosqlite>=0.20.0",
     "greenlet>=3.0.0",
+    "mcp>=1.0.0",
+    "playwright>=1.40.0",
 ]
 
 [project.optional-dependencies]

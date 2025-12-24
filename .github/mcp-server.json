@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "codex": {
+      "command": "python",
+      "args": ["-m", "backend.mcp_server"],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      },
+      "metadata": {
+        "name": "Codex MCP Server",
+        "description": "MCP server for interacting with Codex lab notebook system, including frontend screenshot capabilities",
+        "version": "1.0.0"
+      }
+    }
+  }
+}

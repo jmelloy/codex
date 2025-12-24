@@ -250,8 +250,27 @@ const saveFrontmatter = () => {
 }
 
 const handleCopy = () => {
-  // Handle copy notification
-  alert('Content copied to clipboard!')
+  // Content is already copied by the viewer component
+  // Show a brief success indicator
+  const message = document.createElement('div')
+  message.textContent = 'Content copied to clipboard!'
+  message.style.cssText = `
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: #48bb78;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 6px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    animation: slideIn 0.3s ease-out;
+  `
+  document.body.appendChild(message)
+  setTimeout(() => {
+    message.style.animation = 'slideOut 0.3s ease-out'
+    setTimeout(() => document.body.removeChild(message), 300)
+  }, 2000)
 }
 
 const formatDate = (date: Date) => {

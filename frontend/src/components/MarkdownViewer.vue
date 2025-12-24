@@ -87,14 +87,20 @@ const renderedHtml = computed(() => {
   
   try {
     const html = marked(props.content) as string
-    // Apply syntax highlighting to code blocks
+    // Apply syntax highlighting to code blocks safely
     const parser = new DOMParser()
     const doc = parser.parseFromString(html, 'text/html')
     const codeBlocks = doc.querySelectorAll('pre code')
     codeBlocks.forEach((block) => {
       const code = block.textContent || ''
       const highlighted = hljs.highlightAuto(code)
-      block.innerHTML = highlighted.value
+      // Create a new element to safely set the highlighted HTML
+      const highlightedElement = document.createElement('code')
+      highlightedElement.innerHTML = highlighted.value
+      // Copy classes
+      highlightedElement.className = block.className
+      // Replace the code block
+      block.parentNode?.replaceChild(highlightedElement, block)
     })
     return doc.body.innerHTML
   } catch (e) {

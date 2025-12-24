@@ -99,9 +99,22 @@ def test_list_markdown_files_empty():
     token = login_response.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
     
+    # Create a workspace first
+    import tempfile
+    import os
+    temp_dir = tempfile.mkdtemp()
+    
+    workspace_response = client.post(
+        "/api/v1/workspaces/",
+        params={"name": "Test Workspace", "path": temp_dir},
+        headers=headers
+    )
+    assert workspace_response.status_code == 200
+    workspace_id = workspace_response.json()["id"]
+    
     # Test listing files
     response = client.get(
-        "/api/v1/markdown/1/files",
+        f"/api/v1/markdown/{workspace_id}/files",
         headers=headers
     )
     
@@ -109,6 +122,10 @@ def test_list_markdown_files_empty():
     data = response.json()
     assert isinstance(data, list)
     assert len(data) == 0
+    
+    # Cleanup
+    import shutil
+    shutil.rmtree(temp_dir, ignore_errors=True)
 
 
 def test_markdown_endpoints_require_auth():

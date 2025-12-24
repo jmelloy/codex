@@ -279,3 +279,65 @@ codex <command> --help
 - **Frontend entry**: `frontend/src/main.ts`, routing in `frontend/src/router/`
 - **Tests are comprehensive**: Check `tests/` for examples of how to use the system
 - **README.md has detailed architecture**: Refer to it for conceptual understanding
+
+## MCP Server Configuration
+
+The Codex repository includes an MCP (Model Context Protocol) server that enables AI assistants like GitHub Copilot to interact with the application, including the ability to screenshot the frontend.
+
+### Setup
+
+1. **Install dependencies** (includes MCP SDK and Playwright):
+   ```bash
+   pip install -e ".[dev]"
+   playwright install chromium  # Install browser for screenshots
+   ```
+
+2. **Configure MCP client** (e.g., in GitHub Copilot settings):
+   - Point to the configuration file: `.github/mcp-server.json`
+   - The MCP server will be available as "codex"
+
+### Available MCP Tools
+
+- **start_frontend**: Start the frontend dev server on port 5173
+- **start_backend**: Start the backend API server on port 8000
+- **take_screenshot**: Take a screenshot of the frontend (default) or any URL
+  - Parameters: `url` (default: http://localhost:5173), `path` (default: screenshot.png)
+- **navigate_and_screenshot**: Navigate to a URL and screenshot, optionally waiting for a CSS selector
+  - Parameters: `url` (required), `selector` (optional), `path` (default: screenshot.png)
+- **cleanup**: Stop all servers and clean up resources
+
+### Example Usage
+
+```python
+# Using the MCP tools via an MCP client:
+# 1. Start the frontend
+await call_tool("start_frontend", {})
+
+# 2. Take a screenshot
+await call_tool("take_screenshot", {
+    "url": "http://localhost:5173",
+    "path": "frontend-screenshot.png"
+})
+
+# 3. Navigate to a specific page and screenshot
+await call_tool("navigate_and_screenshot", {
+    "url": "http://localhost:5173/notebooks",
+    "selector": ".notebook-list",
+    "path": "notebooks-page.png"
+})
+
+# 4. Clean up when done
+await call_tool("cleanup", {})
+```
+
+### Manual Testing
+
+To test the MCP server manually:
+
+```bash
+# Run the MCP server
+python -m backend.mcp_server
+
+# The server will communicate via stdio (standard input/output)
+# You can send MCP protocol messages to interact with it
+```

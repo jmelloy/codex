@@ -37,6 +37,14 @@ A hierarchical digital laboratory journal system for tracking computational expe
 - Tag-based organization
 - Full-text search capabilities
 
+### MCP Server
+
+- Model Context Protocol server for AI assistant integration
+- Start/stop development servers
+- Take screenshots of the frontend
+- Browser automation with Playwright
+- Compatible with GitHub Copilot and other MCP clients
+
 ## Quick Start
 
 ### Prerequisites
@@ -218,6 +226,39 @@ mypy backend/
 ### Environment Variables
 
 See `.env.example` for all available configuration options.
+
+### MCP Server Setup
+
+The Codex MCP server allows AI assistants like GitHub Copilot to interact with the application. To set it up:
+
+1. **Install dependencies**:
+   ```bash
+   pip install -e ".[dev]"
+   playwright install chromium
+   ```
+
+2. **Configure your MCP client** (e.g., GitHub Copilot):
+   Point to `.github/mcp-server.json` or add to your settings:
+   ```json
+   {
+     "github.copilot.mcp": {
+       "codex": {
+         "command": "python",
+         "args": ["-m", "backend.mcp_server"],
+         "cwd": "${workspaceFolder}"
+       }
+     }
+   }
+   ```
+
+3. **Available tools**:
+   - `start_frontend` - Start the frontend dev server
+   - `start_backend` - Start the backend API server
+   - `take_screenshot` - Take a screenshot of the frontend
+   - `navigate_and_screenshot` - Navigate and screenshot a specific page
+   - `cleanup` - Stop servers and clean up resources
+
+See `backend/mcp_server/README.md` for detailed documentation.
 
 ### Metadata Formats
 

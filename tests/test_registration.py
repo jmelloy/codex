@@ -3,15 +3,11 @@
 import pytest
 from httpx import AsyncClient, ASGITransport
 from backend.api.main import app
-from backend.db.database import init_system_db
 
 
 @pytest.mark.asyncio
 async def test_user_registration():
     """Test user registration endpoint."""
-    # Initialize the database
-    await init_system_db()
-    
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # Test successful registration
@@ -34,8 +30,6 @@ async def test_user_registration():
 @pytest.mark.asyncio
 async def test_duplicate_username():
     """Test registration with duplicate username."""
-    await init_system_db()
-    
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # Register first user
@@ -64,8 +58,6 @@ async def test_duplicate_username():
 @pytest.mark.asyncio
 async def test_duplicate_email():
     """Test registration with duplicate email."""
-    await init_system_db()
-    
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # Register first user
@@ -94,8 +86,6 @@ async def test_duplicate_email():
 @pytest.mark.asyncio
 async def test_invalid_email():
     """Test registration with invalid email."""
-    await init_system_db()
-    
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post(
@@ -112,8 +102,6 @@ async def test_invalid_email():
 @pytest.mark.asyncio
 async def test_short_password():
     """Test registration with short password."""
-    await init_system_db()
-    
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post(
@@ -130,8 +118,6 @@ async def test_short_password():
 @pytest.mark.asyncio
 async def test_short_username():
     """Test registration with short username."""
-    await init_system_db()
-    
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post(
@@ -148,8 +134,6 @@ async def test_short_username():
 @pytest.mark.asyncio
 async def test_login_after_registration():
     """Test that a registered user can login."""
-    await init_system_db()
-    
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # Register user

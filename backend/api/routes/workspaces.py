@@ -1,14 +1,13 @@
 """Workspace routes."""
 
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
-from typing import List
 
-from backend.db.database import get_system_session
-from backend.db.models import Workspace, User
 from backend.api.auth import get_current_active_user
-
+from backend.db.database import get_system_session
+from backend.db.models import User, Workspace
 
 router = APIRouter()
 
@@ -17,7 +16,7 @@ router = APIRouter()
 async def list_workspaces(
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_system_session)
-) -> List[Workspace]:
+) -> list[Workspace]:
     """List all workspaces for the current user."""
     result = await session.execute(
         select(Workspace).where(Workspace.owner_id == current_user.id)

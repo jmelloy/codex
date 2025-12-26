@@ -23,6 +23,7 @@ A hierarchical digital laboratory journal system for tracking computational expe
 - SQLite database for metadata and search indexing
 - Automatic filesystem watcher for change detection
 - Git integration with automatic versioning (excludes binary files)
+- **iCloud integration for downloading shared photo albums**
 - Support for multiple metadata formats:
   - Markdown frontmatter
   - JSON sidecar files
@@ -259,6 +260,16 @@ The Codex MCP server allows AI assistants like GitHub Copilot to interact with t
    - `cleanup` - Stop servers and clean up resources
 
 See `backend/mcp_server/README.md` for detailed documentation.
+
+### iCloud Integration
+
+The system can download shared photo albums from iCloud, which aren't necessarily part of your main photo library. This is useful for archiving shared family photos, vacation albums, etc.
+
+See `docs/ICLOUD_INTEGRATION.md` for detailed documentation on:
+- Authenticating with iCloud
+- Listing shared albums
+- Downloading photos
+- Integration with Codex notebooks
 
 ### Metadata Formats
 

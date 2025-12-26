@@ -1,11 +1,9 @@
 """API routes for iCloud integration."""
 
-from typing import List, Optional
-from fastapi import APIRouter, HTTPException, status, Query
+from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
 from backend.core.icloud_manager import ICloudManager
-
 
 router = APIRouter(prefix="/api/v1/icloud", tags=["icloud"])
 
@@ -27,11 +25,11 @@ class AlbumInfo(BaseModel):
 class PhotoInfo(BaseModel):
     """Photo information."""
     id: str
-    filename: Optional[str]
-    size: Optional[int]
-    asset_date: Optional[str]
-    dimensions: Optional[tuple]
-    item_type: Optional[str]
+    filename: str | None
+    size: int | None
+    asset_date: str | None
+    dimensions: tuple | None
+    item_type: str | None
     is_live_photo: bool
 
 
@@ -41,7 +39,7 @@ class DetailedAlbumInfo(BaseModel):
     name: str
     title: str
     photo_count: int
-    photos: List[PhotoInfo]
+    photos: list[PhotoInfo]
 
 
 class AlbumInfoRequest(BaseModel):
@@ -64,16 +62,16 @@ class DownloadResponse(BaseModel):
     filepath: str
     photo_id: str
     size: int
-    asset_date: Optional[str]
-    dimensions: Optional[tuple]
+    asset_date: str | None
+    dimensions: tuple | None
     is_live_photo: bool
 
 
-@router.post("/albums/list", response_model=List[AlbumInfo])
+@router.post("/albums/list", response_model=list[AlbumInfo])
 async def list_shared_albums(credentials: ICloudCredentials):
     """List all shared photo albums from iCloud.
-    
-    This endpoint retrieves shared photo streams that aren't necessarily 
+
+    This endpoint retrieves shared photo streams that aren't necessarily
     part of the main photo library.
     """
     try:
@@ -90,7 +88,7 @@ async def list_shared_albums(credentials: ICloudCredentials):
         )
 
 
-@router.post("/albums/info", response_model=Optional[DetailedAlbumInfo])
+@router.post("/albums/info", response_model=DetailedAlbumInfo | None)
 async def get_album_info(request: AlbumInfoRequest):
     """Get detailed information about a specific shared album."""
     try:
@@ -99,13 +97,13 @@ async def get_album_info(request: AlbumInfoRequest):
             password=request.credentials.password
         )
         album_info = manager.get_album_info(request.album_name)
-        
+
         if not album_info:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Album '{request.album_name}' not found"
             )
-        
+
         return album_info
     except HTTPException:
         raise
@@ -116,10 +114,10 @@ async def get_album_info(request: AlbumInfoRequest):
         )
 
 
-@router.post("/albums/download", response_model=List[DownloadResponse])
+@router.post("/albums/download", response_model=list[DownloadResponse])
 async def download_album(request: DownloadRequest):
     """Download all photos from a shared album.
-    
+
     Downloads photos from an iCloud shared album to the specified directory.
     The photos are not necessarily part of the main photo library.
     """
@@ -128,13 +126,13 @@ async def download_album(request: DownloadRequest):
             apple_id=request.credentials.apple_id,
             password=request.credentials.password
         )
-        
+
         downloaded_files = manager.download_album_photos(
             album_name=request.album_name,
             destination_path=request.destination_path,
             version=request.version
         )
-        
+
         return downloaded_files
     except Exception as e:
         raise HTTPException(

@@ -1,17 +1,22 @@
 <template>
   <div class="form-group">
     <label v-if="label" :for="id">{{ label }}</label>
-    <slot></slot>
+    <slot :inputId="id"></slot>
   </div>
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
+
 interface Props {
   label?: string
   id?: string
 }
 
-defineProps<Props>()
+const props = defineProps<Props>()
+
+// Generate a unique ID if not provided
+const id = computed(() => props.id || `input-${Math.random().toString(36).substr(2, 9)}`)
 </script>
 
 <style scoped>

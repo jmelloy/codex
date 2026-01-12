@@ -32,17 +32,16 @@ export function showToast(options: ToastOptions) {
     border-radius: 6px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     z-index: 1000;
-    animation: slideIn 0.3s ease-out;
+    transition: opacity 0.3s ease-out;
   `
   
   document.body.appendChild(toast)
   
   setTimeout(() => {
-    toast.style.animation = 'slideOut 0.3s ease-out'
+    toast.style.opacity = '0'
+    toast.style.transition = 'opacity 0.3s ease-out'
     setTimeout(() => {
-      if (toast.parentNode) {
-        document.body.removeChild(toast)
-      }
+      toast.remove()
     }, 300)
   }, duration)
 }

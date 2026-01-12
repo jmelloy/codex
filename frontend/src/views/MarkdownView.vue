@@ -81,27 +81,26 @@
     </div>
 
     <!-- Frontmatter Editor Modal -->
-    <div v-if="showFrontmatterEditor" class="modal" @click.self="showFrontmatterEditor = false">
-      <div class="modal-content">
-        <h3>Edit Metadata</h3>
-        <div class="form-group">
-          <label>Title</label>
-          <input v-model="frontmatterEdit.title" />
-        </div>
-        <div class="form-group">
-          <label>Tags (comma-separated)</label>
-          <input v-model="frontmatterEdit.tags" />
-        </div>
-        <div class="form-group">
-          <label>Author</label>
-          <input v-model="frontmatterEdit.author" />
-        </div>
-        <div class="modal-actions">
-          <button type="button" @click="showFrontmatterEditor = false">Cancel</button>
-          <button type="button" @click="saveFrontmatter" class="btn-primary">Save</button>
-        </div>
+    <Modal
+      v-model="showFrontmatterEditor"
+      title="Edit Metadata"
+      confirm-text="Save"
+      hide-actions
+    >
+      <FormGroup label="Title">
+        <input v-model="frontmatterEdit.title" />
+      </FormGroup>
+      <FormGroup label="Tags (comma-separated)">
+        <input v-model="frontmatterEdit.tags" />
+      </FormGroup>
+      <FormGroup label="Author">
+        <input v-model="frontmatterEdit.author" />
+      </FormGroup>
+      <div class="modal-actions">
+        <button type="button" @click="showFrontmatterEditor = false">Cancel</button>
+        <button type="button" @click="saveFrontmatter" class="btn-primary">Save</button>
       </div>
-    </div>
+    </Modal>
   </div>
 </template>
 
@@ -109,6 +108,10 @@
 import { ref, onMounted } from 'vue'
 import MarkdownEditor from '../components/MarkdownEditor.vue'
 import MarkdownViewer, { type MarkdownExtension } from '../components/MarkdownViewer.vue'
+import { formatRelativeDate } from '../utils/date'
+import { showToast } from '../utils/toast'
+import Modal from '../components/Modal.vue'
+import FormGroup from '../components/FormGroup.vue'
 
 // Types
 interface Document {
@@ -251,38 +254,10 @@ const saveFrontmatter = () => {
 
 const handleCopy = () => {
   // Content is already copied by the viewer component
-  // Show a brief success indicator
-  const message = document.createElement('div')
-  message.textContent = 'Content copied to clipboard!'
-  message.style.cssText = `
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    background: #48bb78;
-    color: white;
-    padding: 12px 24px;
-    border-radius: 6px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    z-index: 1000;
-    animation: slideIn 0.3s ease-out;
-  `
-  document.body.appendChild(message)
-  setTimeout(() => {
-    message.style.animation = 'slideOut 0.3s ease-out'
-    setTimeout(() => document.body.removeChild(message), 300)
-  }, 2000)
+  showToast({ message: 'Content copied to clipboard!' })
 }
 
-const formatDate = (date: Date) => {
-  const now = new Date()
-  const diff = now.getTime() - date.getTime()
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
-  
-  if (days === 0) return 'Today'
-  if (days === 1) return 'Yesterday'
-  if (days < 7) return `${days} days ago`
-  return date.toLocaleDateString()
-}
+const formatDate = formatRelativeDate
 
 // Lifecycle
 onMounted(() => {
@@ -498,59 +473,6 @@ onMounted(() => {
 .btn-delete:hover {
   background: #f56565;
   color: white;
-}
-
-.modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal-content {
-  background: white;
-  padding: 2rem;
-  border-radius: 8px;
-  width: 100%;
-  max-width: 500px;
-}
-
-.modal-content h3 {
-  margin: 0 0 1.5rem;
-  color: #2d3748;
-}
-
-.form-group {
-  margin-bottom: 1rem;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 500;
-  color: #4a5568;
-  font-size: 0.875rem;
-}
-
-.form-group input {
-  width: 100%;
-  padding: 0.5rem;
-  border: 1px solid #cbd5e0;
-  border-radius: 4px;
-  box-sizing: border-box;
-  font-size: 0.875rem;
-}
-
-.form-group input:focus {
-  outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
 .modal-actions {

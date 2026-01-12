@@ -52,46 +52,46 @@
     </div>
 
     <!-- Create Workspace Modal -->
-    <div v-if="showCreateWorkspace" class="modal" @click.self="showCreateWorkspace = false">
-      <div class="modal-content">
-        <h3>Create Workspace</h3>
-        <form @submit.prevent="handleCreateWorkspace">
-          <div class="form-group">
-            <label>Name</label>
-            <input v-model="newWorkspace.name" required />
-          </div>
-          <div class="form-group">
-            <label>Path</label>
-            <input v-model="newWorkspace.path" required />
-          </div>
-          <div class="modal-actions">
-            <button type="button" @click="showCreateWorkspace = false">Cancel</button>
-            <button type="submit">Create</button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal 
+      v-model="showCreateWorkspace"
+      title="Create Workspace"
+      confirm-text="Create"
+      hide-actions
+    >
+      <form @submit.prevent="handleCreateWorkspace">
+        <FormGroup label="Name">
+          <input v-model="newWorkspace.name" required />
+        </FormGroup>
+        <FormGroup label="Path">
+          <input v-model="newWorkspace.path" required />
+        </FormGroup>
+        <div class="modal-actions">
+          <button type="button" @click="showCreateWorkspace = false">Cancel</button>
+          <button type="submit">Create</button>
+        </div>
+      </form>
+    </Modal>
 
     <!-- Create Notebook Modal -->
-    <div v-if="showCreateNotebook" class="modal" @click.self="showCreateNotebook = false">
-      <div class="modal-content">
-        <h3>Create Notebook</h3>
-        <form @submit.prevent="handleCreateNotebook">
-          <div class="form-group">
-            <label>Name</label>
-            <input v-model="newNotebook.name" required />
-          </div>
-          <div class="form-group">
-            <label>Path</label>
-            <input v-model="newNotebook.path" required />
-          </div>
-          <div class="modal-actions">
-            <button type="button" @click="showCreateNotebook = false">Cancel</button>
-            <button type="submit">Create</button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal 
+      v-model="showCreateNotebook"
+      title="Create Notebook"
+      confirm-text="Create"
+      hide-actions
+    >
+      <form @submit.prevent="handleCreateNotebook">
+        <FormGroup label="Name">
+          <input v-model="newNotebook.name" required />
+        </FormGroup>
+        <FormGroup label="Path">
+          <input v-model="newNotebook.path" required />
+        </FormGroup>
+        <div class="modal-actions">
+          <button type="button" @click="showCreateNotebook = false">Cancel</button>
+          <button type="submit">Create</button>
+        </div>
+      </form>
+    </Modal>
   </div>
 </template>
 
@@ -101,6 +101,8 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useWorkspaceStore } from '../stores/workspace'
 import type { Workspace } from '../services/codex'
+import Modal from '../components/Modal.vue'
+import FormGroup from '../components/FormGroup.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -285,49 +287,6 @@ async function handleCreateNotebook() {
 
 .welcome p {
   color: #666;
-}
-
-.modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal-content {
-  background: white;
-  padding: 2rem;
-  border-radius: 8px;
-  width: 100%;
-  max-width: 400px;
-}
-
-.modal-content h3 {
-  margin: 0 0 1rem;
-}
-
-.form-group {
-  margin-bottom: 1rem;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 500;
-}
-
-.form-group input {
-  width: 100%;
-  padding: 0.5rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  box-sizing: border-box;
 }
 
 .modal-actions {

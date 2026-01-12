@@ -16,7 +16,9 @@ interface Props {
 const props = defineProps<Props>()
 
 // Generate a unique ID if not provided
-const id = computed(() => props.id || `input-${Math.random().toString(36).substring(2, 11)}`)
+// Using timestamp + random for uniqueness across component instances
+let idCounter = 0
+const id = computed(() => props.id || `input-${Date.now()}-${++idCounter}`)
 </script>
 
 <style scoped>

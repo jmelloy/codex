@@ -59,11 +59,11 @@
       hide-actions
     >
       <form @submit.prevent="handleCreateWorkspace">
-        <FormGroup label="Name">
-          <input v-model="newWorkspace.name" required />
+        <FormGroup label="Name" v-slot="{ inputId }">
+          <input :id="inputId" v-model="newWorkspace.name" required />
         </FormGroup>
-        <FormGroup label="Path">
-          <input v-model="newWorkspace.path" required />
+        <FormGroup label="Path" v-slot="{ inputId }">
+          <input :id="inputId" v-model="newWorkspace.path" required />
         </FormGroup>
         <div class="modal-actions">
           <button type="button" @click="showCreateWorkspace = false">Cancel</button>
@@ -80,11 +80,11 @@
       hide-actions
     >
       <form @submit.prevent="handleCreateNotebook">
-        <FormGroup label="Name">
-          <input v-model="newNotebook.name" required />
+        <FormGroup label="Name" v-slot="{ inputId }">
+          <input :id="inputId" v-model="newNotebook.name" required />
         </FormGroup>
-        <FormGroup label="Path">
-          <input v-model="newNotebook.path" required />
+        <FormGroup label="Path" v-slot="{ inputId }">
+          <input :id="inputId" v-model="newNotebook.path" required />
         </FormGroup>
         <div class="modal-actions">
           <button type="button" @click="showCreateNotebook = false">Cancel</button>

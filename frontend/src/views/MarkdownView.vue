@@ -87,14 +87,14 @@
       confirm-text="Save"
       hide-actions
     >
-      <FormGroup label="Title">
-        <input v-model="frontmatterEdit.title" />
+      <FormGroup label="Title" v-slot="{ inputId }">
+        <input :id="inputId" v-model="frontmatterEdit.title" />
       </FormGroup>
-      <FormGroup label="Tags (comma-separated)">
-        <input v-model="frontmatterEdit.tags" />
+      <FormGroup label="Tags (comma-separated)" v-slot="{ inputId }">
+        <input :id="inputId" v-model="frontmatterEdit.tags" />
       </FormGroup>
-      <FormGroup label="Author">
-        <input v-model="frontmatterEdit.author" />
+      <FormGroup label="Author" v-slot="{ inputId }">
+        <input :id="inputId" v-model="frontmatterEdit.author" />
       </FormGroup>
       <div class="modal-actions">
         <button type="button" @click="showFrontmatterEditor = false">Cancel</button>

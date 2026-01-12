@@ -16,7 +16,7 @@ interface Props {
 const props = defineProps<Props>()
 
 // Generate a unique ID if not provided
-const id = computed(() => props.id || `input-${Math.random().toString(36).substr(2, 9)}`)
+const id = computed(() => props.id || `input-${Math.random().toString(36).substring(2, 11)}`)
 </script>
 
 <style scoped>

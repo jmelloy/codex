@@ -39,7 +39,6 @@ export function showToast(options: ToastOptions) {
   
   setTimeout(() => {
     toast.style.opacity = '0'
-    toast.style.transition = 'opacity 0.3s ease-out'
     setTimeout(() => {
       toast.remove()
     }, 300)

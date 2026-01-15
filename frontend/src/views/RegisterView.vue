@@ -76,6 +76,7 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { authService } from '../services/auth';
 import { useAuthStore } from '../stores/auth';
+import { validatePassword, validateUsername, validatePasswordsMatch } from '../utils/validation';
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -93,21 +94,24 @@ const error = ref('');
 const handleRegister = async () => {
   error.value = '';
 
+  // Validate username
+  const usernameValidation = validateUsername(form.value.username);
+  if (!usernameValidation.valid) {
+    error.value = usernameValidation.error || 'Invalid username';
+    return;
+  }
+
+  // Validate password
+  const passwordValidation = validatePassword(form.value.password);
+  if (!passwordValidation.valid) {
+    error.value = passwordValidation.error || 'Invalid password';
+    return;
+  }
+
   // Validate passwords match
-  if (form.value.password !== form.value.confirmPassword) {
-    error.value = 'Passwords do not match';
-    return;
-  }
-
-  // Validate password length
-  if (form.value.password.length < 8) {
-    error.value = 'Password must be at least 8 characters';
-    return;
-  }
-
-  // Validate username length
-  if (form.value.username.length < 3) {
-    error.value = 'Username must be at least 3 characters';
+  const passwordsMatchValidation = validatePasswordsMatch(form.value.password, form.value.confirmPassword);
+  if (!passwordsMatchValidation.valid) {
+    error.value = passwordsMatchValidation.error || 'Passwords do not match';
     return;
   }
 

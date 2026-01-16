@@ -1,39 +1,41 @@
 <template>
-  <div class="login-page">
-    <div class="login-container">
-      <h1>Codex</h1>
-      <p class="subtitle">Laboratory Journal System</p>
+  <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary to-purple-600 w-full">
+    <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
+      <h1 class="m-0 mb-2 text-gray-800 text-center text-3xl">Codex</h1>
+      <p class="text-center text-gray-600 mb-8 text-sm">Laboratory Journal System</p>
       <form @submit.prevent="handleLogin">
-        <div class="form-group">
-          <label for="username">Username</label>
+        <div class="mb-4">
+          <label for="username" class="block mb-2 text-gray-800 font-medium">Username</label>
           <input
             id="username"
             v-model="username"
             type="text"
             placeholder="Enter username"
             required
+            class="w-full px-3 py-2 border border-gray-300 rounded text-base focus:outline-none focus:border-primary"
           />
         </div>
-        <div class="form-group">
-          <label for="password">Password</label>
+        <div class="mb-4">
+          <label for="password" class="block mb-2 text-gray-800 font-medium">Password</label>
           <input
             id="password"
             v-model="password"
             type="password"
             placeholder="Enter password"
             required
+            class="w-full px-3 py-2 border border-gray-300 rounded text-base focus:outline-none focus:border-primary"
           />
         </div>
-        <div v-if="authStore.error" class="error">
+        <div v-if="authStore.error" class="text-red-600 mb-4 p-2 bg-red-100 rounded text-sm">
           {{ authStore.error }}
         </div>
-        <button type="submit" :disabled="authStore.loading">
+        <button type="submit" :disabled="authStore.loading" class="w-full px-3 py-2 bg-primary text-white border-none rounded text-base cursor-pointer transition hover:bg-primary-hover disabled:bg-gray-400 disabled:cursor-not-allowed">
           {{ authStore.loading ? 'Logging in...' : 'Login' }}
         </button>
       </form>
-      <div class="register-link">
+      <div class="text-center mt-6 text-gray-600 text-sm">
         Don't have an account? 
-        <router-link to="/register">Register here</router-link>
+        <router-link to="/register" class="text-primary no-underline font-medium hover:underline">Register here</router-link>
       </div>
     </div>
   </div>
@@ -60,105 +62,5 @@ async function handleLogin() {
 </script>
 
 <style scoped>
-.login-page {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
-
-.login-container {
-  background: white;
-  padding: 2rem;
-  border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  width: 100%;
-  max-width: 400px;
-}
-
-h1 {
-  margin: 0 0 0.5rem;
-  color: #333;
-  text-align: center;
-}
-
-.subtitle {
-  text-align: center;
-  color: #666;
-  margin: 0 0 2rem;
-  font-size: 0.9rem;
-}
-
-.form-group {
-  margin-bottom: 1rem;
-}
-
-label {
-  display: block;
-  margin-bottom: 0.5rem;
-  color: #333;
-  font-weight: 500;
-}
-
-input {
-  width: 100%;
-  padding: 0.75rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 1rem;
-  box-sizing: border-box;
-}
-
-input:focus {
-  outline: none;
-  border-color: #667eea;
-}
-
-button {
-  width: 100%;
-  padding: 0.75rem;
-  background: #667eea;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: background 0.3s;
-}
-
-button:hover:not(:disabled) {
-  background: #5568d3;
-}
-
-button:disabled {
-  background: #ccc;
-  cursor: not-allowed;
-}
-
-.error {
-  color: #e53e3e;
-  margin-bottom: 1rem;
-  padding: 0.5rem;
-  background: #fed7d7;
-  border-radius: 4px;
-  font-size: 0.9rem;
-}
-
-.register-link {
-  text-align: center;
-  margin-top: 1.5rem;
-  color: #666;
-  font-size: 0.9rem;
-}
-
-.register-link a {
-  color: #667eea;
-  text-decoration: none;
-  font-weight: 500;
-}
-
-.register-link a:hover {
-  text-decoration: underline;
-}
+/* Tailwind classes used, minimal custom styles needed */
 </style>

@@ -1,6 +1,7 @@
 """Tests for user registration."""
 
 import pytest
+import time
 from httpx import AsyncClient, ASGITransport
 from backend.api.main import app
 
@@ -8,7 +9,6 @@ from backend.api.main import app
 @pytest.mark.asyncio
 async def test_user_registration():
     """Test user registration endpoint."""
-    import time
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # Test successful registration with unique username
@@ -165,7 +165,6 @@ async def test_login_after_registration():
 @pytest.mark.asyncio
 async def test_default_workspace_creation():
     """Test that a default workspace is created on user registration."""
-    import time
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # Register a new user with a unique username

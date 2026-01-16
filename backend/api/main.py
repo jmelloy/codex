@@ -1,14 +1,16 @@
 """Main FastAPI application."""
 
 import os
+from pathlib import Path
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import timedelta
 from contextlib import asynccontextmanager
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
 
-from backend.db.database import init_system_db, get_system_session
+from backend.db.database import init_system_db, get_system_session, DATA_DIRECTORY
 from backend.api.auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
     create_access_token,
@@ -16,9 +18,10 @@ from backend.api.auth import (
     get_password_hash,
     get_current_active_user,
 )
-from backend.db.models import User
+from backend.db.models import User, Workspace
 from backend.api.schemas import UserCreate, UserResponse
 from backend.api.routes import workspaces, notebooks, files, search, tasks, markdown
+from backend.api.routes.workspaces import slugify
 
 
 @asynccontextmanager
@@ -81,12 +84,6 @@ async def read_users_me(current_user: User = Depends(get_current_active_user)):
 @app.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register(user_data: UserCreate, session: AsyncSession = Depends(get_system_session)):
     """Register a new user."""
-    from sqlmodel import select
-    from pathlib import Path
-    from backend.db.database import DATA_DIRECTORY
-    from backend.db.models import Workspace
-    from backend.api.routes.workspaces import slugify
-
     # Check if username already exists
     result = await session.execute(select(User).where(User.username == user_data.username))
     if result.scalar_one_or_none():

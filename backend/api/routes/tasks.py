@@ -1,6 +1,5 @@
 """Task routes."""
 
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
@@ -16,12 +15,10 @@ router = APIRouter()
 async def list_tasks(
     workspace_id: int,
     current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_system_session)
+    session: AsyncSession = Depends(get_system_session),
 ) -> list[Task]:
     """List all tasks for a workspace."""
-    result = await session.execute(
-        select(Task).where(Task.workspace_id == workspace_id)
-    )
+    result = await session.execute(select(Task).where(Task.workspace_id == workspace_id))
     return result.scalars().all()
 
 
@@ -29,12 +26,10 @@ async def list_tasks(
 async def get_task(
     task_id: int,
     current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_system_session)
+    session: AsyncSession = Depends(get_system_session),
 ) -> Task:
     """Get a specific task."""
-    result = await session.execute(
-        select(Task).where(Task.id == task_id)
-    )
+    result = await session.execute(select(Task).where(Task.id == task_id))
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -47,14 +42,10 @@ async def create_task(
     title: str,
     description: str = None,
     current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_system_session)
+    session: AsyncSession = Depends(get_system_session),
 ) -> Task:
     """Create a new task."""
-    task = Task(
-        workspace_id=workspace_id,
-        title=title,
-        description=description
-    )
+    task = Task(workspace_id=workspace_id, title=title, description=description)
     session.add(task)
     await session.commit()
     await session.refresh(task)
@@ -67,12 +58,10 @@ async def update_task(
     status: str = None,
     assigned_to: str = None,
     current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_system_session)
+    session: AsyncSession = Depends(get_system_session),
 ) -> Task:
     """Update a task."""
-    result = await session.execute(
-        select(Task).where(Task.id == task_id)
-    )
+    result = await session.execute(select(Task).where(Task.id == task_id))
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -82,11 +71,12 @@ async def update_task(
     if assigned_to:
         task.assigned_to = assigned_to
 
-    from datetime import datetime
-    task.updated_at = datetime.utcnow()
+    from datetime import datetime, timezone
+
+    task.updated_at = datetime.now(timezone.utc)
 
     if status == "completed":
-        task.completed_at = datetime.utcnow()
+        task.completed_at = datetime.now(timezone.utc)
 
     await session.commit()
     await session.refresh(task)

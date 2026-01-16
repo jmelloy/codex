@@ -19,15 +19,12 @@ async def list_files(
     notebook_id: int,
     workspace_id: int,
     current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_system_session)
+    session: AsyncSession = Depends(get_system_session),
 ):
     """List all files in a notebook."""
     # Verify workspace access
     result = await session.execute(
-        select(Workspace).where(
-            Workspace.id == workspace_id,
-            Workspace.owner_id == current_user.id
-        )
+        select(Workspace).where(Workspace.id == workspace_id, Workspace.owner_id == current_user.id)
     )
     workspace = result.scalar_one_or_none()
     if not workspace:
@@ -48,9 +45,8 @@ async def list_files(
                     nb_session = get_notebook_session(str(item))
                     # Check if this notebook has the requested ID
                     from backend.db.models import Notebook
-                    nb_result = nb_session.execute(
-                        select(Notebook).where(Notebook.id == notebook_id)
-                    )
+
+                    nb_result = nb_session.execute(select(Notebook).where(Notebook.id == notebook_id))
                     notebook = nb_result.scalar_one_or_none()
 
                     if notebook:
@@ -60,20 +56,23 @@ async def list_files(
                         )
                         files = files_result.scalars().all()
 
-                        file_list = [{
-                            "id": f.id,
-                            "notebook_id": f.notebook_id,
-                            "path": f.path,
-                            "filename": f.filename,
-                            "file_type": f.file_type,
-                            "size": f.size,
-                            "hash": f.hash,
-                            "title": f.title,
-                            "description": f.description,
-                            "created_at": f.created_at.isoformat() if f.created_at else None,
-                            "updated_at": f.updated_at.isoformat() if f.updated_at else None,
-                            "file_modified_at": f.file_modified_at.isoformat() if f.file_modified_at else None
-                        } for f in files]
+                        file_list = [
+                            {
+                                "id": f.id,
+                                "notebook_id": f.notebook_id,
+                                "path": f.path,
+                                "filename": f.filename,
+                                "file_type": f.file_type,
+                                "size": f.size,
+                                "hash": f.hash,
+                                "title": f.title,
+                                "description": f.description,
+                                "created_at": f.created_at.isoformat() if f.created_at else None,
+                                "updated_at": f.updated_at.isoformat() if f.updated_at else None,
+                                "file_modified_at": f.file_modified_at.isoformat() if f.file_modified_at else None,
+                            }
+                            for f in files
+                        ]
 
                         nb_session.close()
                         return file_list
@@ -90,15 +89,12 @@ async def get_file(
     file_id: int,
     workspace_id: int,
     current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_system_session)
+    session: AsyncSession = Depends(get_system_session),
 ):
     """Get a specific file."""
     # Verify workspace access
     result = await session.execute(
-        select(Workspace).where(
-            Workspace.id == workspace_id,
-            Workspace.owner_id == current_user.id
-        )
+        select(Workspace).where(Workspace.id == workspace_id, Workspace.owner_id == current_user.id)
     )
     workspace = result.scalar_one_or_none()
     if not workspace:
@@ -116,9 +112,7 @@ async def get_file(
             if notebook_db_path.exists():
                 try:
                     nb_session = get_notebook_session(str(item))
-                    file_result = nb_session.execute(
-                        select(FileMetadata).where(FileMetadata.id == file_id)
-                    )
+                    file_result = nb_session.execute(select(FileMetadata).where(FileMetadata.id == file_id))
                     file_meta = file_result.scalar_one_or_none()
 
                     if file_meta:
@@ -146,7 +140,9 @@ async def get_file(
                             "content": content,
                             "created_at": file_meta.created_at.isoformat() if file_meta.created_at else None,
                             "updated_at": file_meta.updated_at.isoformat() if file_meta.updated_at else None,
-                            "file_modified_at": file_meta.file_modified_at.isoformat() if file_meta.file_modified_at else None
+                            "file_modified_at": (
+                                file_meta.file_modified_at.isoformat() if file_meta.file_modified_at else None
+                            ),
                         }
 
                         nb_session.close()
@@ -166,15 +162,12 @@ async def create_file(
     path: str,
     content: str,
     current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_system_session)
+    session: AsyncSession = Depends(get_system_session),
 ):
     """Create a new file."""
     # Verify workspace access
     result = await session.execute(
-        select(Workspace).where(
-            Workspace.id == workspace_id,
-            Workspace.owner_id == current_user.id
-        )
+        select(Workspace).where(Workspace.id == workspace_id, Workspace.owner_id == current_user.id)
     )
     workspace = result.scalar_one_or_none()
     if not workspace:
@@ -193,9 +186,8 @@ async def create_file(
                 try:
                     nb_session = get_notebook_session(str(item))
                     from backend.db.models import Notebook
-                    nb_result = nb_session.execute(
-                        select(Notebook).where(Notebook.id == notebook_id)
-                    )
+
+                    nb_result = nb_session.execute(select(Notebook).where(Notebook.id == notebook_id))
                     notebook = nb_result.scalar_one_or_none()
 
                     if notebook:
@@ -211,23 +203,25 @@ async def create_file(
                         file_path.parent.mkdir(parents=True, exist_ok=True)
 
                         # Write content
-                        with open(file_path, 'w') as f:
+                        with open(file_path, "w") as f:
                             f.write(content)
 
                         # Create metadata record
                         import hashlib
+
                         file_hash = hashlib.sha256(content.encode()).hexdigest()
                         file_stats = os.stat(file_path)
 
                         file_type = "text"
-                        if path.endswith('.md'):
+                        if path.endswith(".md"):
                             file_type = "markdown"
-                        elif path.endswith('.json'):
+                        elif path.endswith(".json"):
                             file_type = "json"
-                        elif path.endswith('.xml'):
+                        elif path.endswith(".xml"):
                             file_type = "xml"
 
                         from datetime import datetime
+
                         file_meta = FileMetadata(
                             notebook_id=notebook_id,
                             path=path,
@@ -236,7 +230,7 @@ async def create_file(
                             size=file_stats.st_size,
                             hash=file_hash,
                             file_created_at=datetime.fromtimestamp(file_stats.st_ctime),
-                            file_modified_at=datetime.fromtimestamp(file_stats.st_mtime)
+                            file_modified_at=datetime.fromtimestamp(file_stats.st_mtime),
                         )
 
                         nb_session.add(file_meta)
@@ -250,7 +244,7 @@ async def create_file(
                             "filename": file_meta.filename,
                             "file_type": file_meta.file_type,
                             "size": file_meta.size,
-                            "message": "File created successfully"
+                            "message": "File created successfully",
                         }
 
                         nb_session.close()
@@ -270,15 +264,12 @@ async def update_file(
     workspace_id: int,
     content: str,
     current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_system_session)
+    session: AsyncSession = Depends(get_system_session),
 ):
     """Update a file."""
     # Verify workspace access
     result = await session.execute(
-        select(Workspace).where(
-            Workspace.id == workspace_id,
-            Workspace.owner_id == current_user.id
-        )
+        select(Workspace).where(Workspace.id == workspace_id, Workspace.owner_id == current_user.id)
     )
     workspace = result.scalar_one_or_none()
     if not workspace:
@@ -296,9 +287,7 @@ async def update_file(
             if notebook_db_path.exists():
                 try:
                     nb_session = get_notebook_session(str(item))
-                    file_result = nb_session.execute(
-                        select(FileMetadata).where(FileMetadata.id == file_id)
-                    )
+                    file_result = nb_session.execute(select(FileMetadata).where(FileMetadata.id == file_id))
                     file_meta = file_result.scalar_one_or_none()
 
                     if file_meta:
@@ -310,18 +299,19 @@ async def update_file(
                             raise HTTPException(status_code=404, detail="File not found on disk")
 
                         # Write new content
-                        with open(file_path, 'w') as f:
+                        with open(file_path, "w") as f:
                             f.write(content)
 
                         # Update metadata
                         import hashlib
-                        from datetime import datetime
+                        from datetime import datetime, timezone
+
                         file_hash = hashlib.sha256(content.encode()).hexdigest()
                         file_stats = os.stat(file_path)
 
                         file_meta.size = file_stats.st_size
                         file_meta.hash = file_hash
-                        file_meta.updated_at = datetime.utcnow()
+                        file_meta.updated_at = datetime.now(timezone.utc)
                         file_meta.file_modified_at = datetime.fromtimestamp(file_stats.st_mtime)
 
                         nb_session.commit()
@@ -336,7 +326,7 @@ async def update_file(
                             "size": file_meta.size,
                             "hash": file_meta.hash,
                             "updated_at": file_meta.updated_at.isoformat() if file_meta.updated_at else None,
-                            "message": "File updated successfully"
+                            "message": "File updated successfully",
                         }
 
                         nb_session.close()

@@ -1,10 +1,13 @@
 # Codex - Copilot Agent Instructions
 
+> **Note**: A `CLAUDE.md` file also exists in the repository root with similar instructions for Claude Code.
+
 ## Repository Overview
 
 **Codex** is a hierarchical digital laboratory journal system for tracking computational experiments, creative iterations, and technical investigations with full provenance and reproducibility. It's structured as Workspace → Notebook → Page → Entry.
 
 **Important Repository Notes:**
+
 - The primary storage mode uses SQLite + content-addressable storage (not markdown-first)
 - The `cli.markdown_cli` module provides an alternative markdown-based CLI (experimental)
 - See [AGENT_SYSTEM.md](AGENT_SYSTEM.md) for the implemented task/sandbox system
@@ -32,18 +35,12 @@
 # 1. Install dependencies (ALWAYS run before testing or building)
 pip install -e ".[dev]"
 
-# 2. Run tests (expected: 251 passed, 63 warnings about deprecated utcnow)
+# 2. Run tests (expected: 251 passed)
 pytest tests/ -v
 
 # 3. Lint code (will show some existing issues - only fix what you change)
 ruff check backend/
 ```
-
-**Known Linting Issues** (Do NOT fix unless you're changing those files):
-
-- `backend/codex/cli/main.py:1020` - Import sorting issue
-- `backend/codex/core/git_hooks.py` - Whitespace on blank lines (lines 306, 309, 326)
-- `backend/codex/core/mac_windows.py:3` - Import sorting issue
 
 ### Frontend
 
@@ -247,13 +244,11 @@ codex <command> --help
 
 1. **Frontend ESLint**: No ESLint config file exists. Skip `npm run lint` or add configuration first.
 
-2. **Deprecation Warnings in Tests**: 63 warnings about `datetime.utcnow()` are expected - do NOT fix these unless specifically asked.
+2. **Python 3.12 vs 3.14**: Local development may use Python 3.12, but CI uses 3.14. Both work fine.
 
-3. **Python 3.12 vs 3.14**: Local development may use Python 3.12, but CI uses 3.14. Both work fine.
+3. **Docker Build Context**: When building, the frontend must be built separately inside its Dockerfile (see Dockerfile.dev.frontend).
 
-4. **Docker Build Context**: When building, the frontend must be built separately inside its Dockerfile (see Dockerfile.dev.frontend).
-
-5. **Ruff Linting**: Some existing linting issues in `git_hooks.py` and `mac_windows.py`. Only fix issues in code you're modifying.
+4. **Ruff Linting**: Some existing linting issues in `git_hooks.py` and `mac_windows.py`. Only fix issues in code you're modifying.
 
 ## Best Practices for Agents
 
@@ -287,6 +282,7 @@ The Codex repository includes an MCP (Model Context Protocol) server that enable
 ### Setup
 
 1. **Install dependencies** (includes MCP SDK and Playwright):
+
    ```bash
    pip install -e ".[dev]"
    playwright install chromium  # Install browser for screenshots

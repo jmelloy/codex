@@ -270,4 +270,3 @@ onMounted(() => {
 <style scoped>
 /* Tailwind classes used, minimal custom styles needed */
 </style>
-</style>

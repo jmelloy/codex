@@ -1,14 +1,33 @@
 """Notebook routes."""
 
+import re
 from pathlib import Path
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from backend.api.auth import get_current_active_user
 from backend.db.database import get_notebook_session, get_system_session, init_notebook_db
 from backend.db.models import Notebook, User, Workspace
+
+
+class NotebookCreate(BaseModel):
+    """Request body for creating a notebook."""
+
+    workspace_id: int
+    name: str
+    description: Optional[str] = None
+
+
+def slugify(name: str) -> str:
+    """Convert a name to a filesystem-safe slug."""
+    slug = re.sub(r"[^\w\s-]", "", name.lower())
+    slug = re.sub(r"[-\s]+", "-", slug).strip("-")
+    return slug or "notebook"
+
 
 router = APIRouter()
 
@@ -115,28 +134,31 @@ async def get_notebook(
 
 @router.post("/")
 async def create_notebook(
-    workspace_id: int,
-    name: str,
-    path: str,
-    description: str = None,
+    body: NotebookCreate,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_system_session),
 ):
     """Create a new notebook."""
     # Verify workspace access
     result = await session.execute(
-        select(Workspace).where(Workspace.id == workspace_id, Workspace.owner_id == current_user.id)
+        select(Workspace).where(Workspace.id == body.workspace_id, Workspace.owner_id == current_user.id)
     )
     workspace = result.scalar_one_or_none()
     if not workspace:
         raise HTTPException(status_code=404, detail="Workspace not found")
 
-    # Create notebook directory
+    # Generate path from name
     workspace_path = Path(workspace.path)
-    notebook_path = workspace_path / path
+    slug = slugify(body.name)
+    notebook_path = workspace_path / slug
 
-    if notebook_path.exists():
-        raise HTTPException(status_code=400, detail="Notebook path already exists")
+    # Handle name collisions by appending a number
+    counter = 1
+    original_slug = slug
+    while notebook_path.exists():
+        slug = f"{original_slug}-{counter}"
+        notebook_path = workspace_path / slug
+        counter += 1
 
     try:
         notebook_path.mkdir(parents=True, exist_ok=False)
@@ -146,7 +168,7 @@ async def create_notebook(
 
         # Create notebook record in the database
         nb_session = get_notebook_session(str(notebook_path))
-        notebook = Notebook(name=name, path=path, description=description)
+        notebook = Notebook(name=body.name, path=slug, description=body.description)
         nb_session.add(notebook)
         nb_session.commit()
         nb_session.refresh(notebook)

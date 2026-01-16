@@ -9,6 +9,10 @@ import os
 
 # System database (users, workspaces, permissions, tasks)
 SYSTEM_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./codex_system.db")
+
+# Data directory for workspaces (derived from database path or env var)
+_default_data_dir = os.path.dirname(SYSTEM_DATABASE_URL.replace("sqlite:///", "")) or "./data"
+DATA_DIRECTORY = os.getenv("DATA_DIRECTORY", _default_data_dir)
 SYSTEM_DATABASE_URL_ASYNC = SYSTEM_DATABASE_URL.replace("sqlite:///", "sqlite+aiosqlite:///")
 
 system_engine = create_async_engine(SYSTEM_DATABASE_URL_ASYNC, echo=True, connect_args={"check_same_thread": False})

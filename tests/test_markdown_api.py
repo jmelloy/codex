@@ -106,7 +106,7 @@ def test_list_markdown_files_empty():
     
     workspace_response = client.post(
         "/api/v1/workspaces/",
-        params={"name": "Test Workspace", "path": temp_dir},
+        json={"name": "Test Workspace", "path": temp_dir},
         headers=headers
     )
     assert workspace_response.status_code == 200

@@ -41,7 +41,7 @@ def test_search_endpoints():
     temp_dir = tempfile.mkdtemp()
     workspace_response = client.post(
         "/api/v1/workspaces/",
-        params={"name": "Search Test", "path": temp_dir},
+        json={"name": "Search Test", "path": temp_dir},
         headers=headers
     )
     assert workspace_response.status_code == 200
@@ -82,7 +82,7 @@ def test_notebook_endpoints():
     temp_dir = tempfile.mkdtemp()
     workspace_response = client.post(
         "/api/v1/workspaces/",
-        params={"name": "Notebook Test", "path": temp_dir},
+        json={"name": "Notebook Test", "path": temp_dir},
         headers=headers
     )
     assert workspace_response.status_code == 200
@@ -100,10 +100,9 @@ def test_notebook_endpoints():
     # Create a notebook
     response = client.post(
         "/api/v1/notebooks/",
-        params={
+        json={
             "workspace_id": workspace_id,
             "name": "Test Notebook",
-            "path": "test-notebook",
             "description": "A test notebook"
         },
         headers=headers
@@ -147,17 +146,16 @@ def test_file_endpoints():
     temp_dir = tempfile.mkdtemp()
     workspace_response = client.post(
         "/api/v1/workspaces/",
-        params={"name": "File Test", "path": temp_dir},
+        json={"name": "File Test", "path": temp_dir},
         headers=headers
     )
     workspace_id = workspace_response.json()["id"]
     
     notebook_response = client.post(
         "/api/v1/notebooks/",
-        params={
+        json={
             "workspace_id": workspace_id,
-            "name": "File Notebook",
-            "path": "file-notebook"
+            "name": "File Notebook"
         },
         headers=headers
     )
@@ -175,7 +173,7 @@ def test_file_endpoints():
     # Create a file
     response = client.post(
         "/api/v1/files/",
-        params={
+        json={
             "notebook_id": notebook_id,
             "workspace_id": workspace_id,
             "path": "test.md",
@@ -212,10 +210,8 @@ def test_file_endpoints():
     # Update file
     response = client.put(
         f"/api/v1/files/{file_id}",
-        params={
-            "workspace_id": workspace_id,
-            "content": "# Updated Test File\n\nThis is updated."
-        },
+        params={"workspace_id": workspace_id},
+        json={"content": "# Updated Test File\n\nThis is updated."},
         headers=headers
     )
     assert response.status_code == 200
@@ -242,7 +238,7 @@ def test_markdown_file_operations():
     temp_dir = tempfile.mkdtemp()
     workspace_response = client.post(
         "/api/v1/workspaces/",
-        params={"name": "Markdown Test", "path": temp_dir},
+        json={"name": "Markdown Test", "path": temp_dir},
         headers=headers
     )
     workspace_id = workspace_response.json()["id"]

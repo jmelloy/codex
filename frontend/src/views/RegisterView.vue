@@ -67,7 +67,7 @@
         </button>
       </form>
 
-      <div class="text-center mt-5 text-gray-600">
+      <div class="login-link text-center mt-5 text-gray-600">
         Already have an account? 
         <router-link to="/login" class="text-primary no-underline hover:underline">Login here</router-link>
       </div>

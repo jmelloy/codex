@@ -1,5 +1,6 @@
 """Main FastAPI application."""
 
+import os
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
@@ -115,4 +116,7 @@ app.include_router(markdown.router, prefix="/api/v1/markdown", tags=["markdown"]
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    debug = os.getenv("DEBUG", "false").lower() == "true"
+    log_level = "debug" if debug else "info"
+    
+    uvicorn.run(app, host="0.0.0.0", port=8000, log_level=log_level, reload=debug)

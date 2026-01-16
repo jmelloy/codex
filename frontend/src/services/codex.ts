@@ -31,6 +31,11 @@ export interface FileMetadata {
   updated_at: string;
 }
 
+export interface FileWithContent extends FileMetadata {
+  content: string;
+  frontmatter?: Record<string, any>;
+}
+
 export const workspaceService = {
   async list(): Promise<Workspace[]> {
     const response = await apiClient.get<Workspace[]>("/api/v1/workspaces/");
@@ -42,10 +47,9 @@ export const workspaceService = {
     return response.data;
   },
 
-  async create(name: string, path: string): Promise<Workspace> {
+  async create(name: string): Promise<Workspace> {
     const response = await apiClient.post<Workspace>("/api/v1/workspaces/", {
       name,
-      path,
     });
     return response.data;
   },
@@ -64,51 +68,70 @@ export const notebookService = {
     return response.data;
   },
 
-  async create(
-    workspaceId: number,
-    name: string,
-    path: string
-  ): Promise<Notebook> {
+  async create(workspaceId: number, name: string): Promise<Notebook> {
     const response = await apiClient.post<Notebook>("/api/v1/notebooks/", {
       workspace_id: workspaceId,
       name,
-      path,
     });
     return response.data;
   },
 };
 
 export const fileService = {
-  async list(notebookId: number): Promise<FileMetadata[]> {
+  async list(
+    notebookId: number,
+    workspaceId: number
+  ): Promise<FileMetadata[]> {
     const response = await apiClient.get<FileMetadata[]>(
-      `/api/v1/files/?notebook_id=${notebookId}`
+      `/api/v1/files/?notebook_id=${notebookId}&workspace_id=${workspaceId}`
     );
     return response.data;
   },
 
-  async get(id: number): Promise<FileMetadata> {
-    const response = await apiClient.get<FileMetadata>(`/api/v1/files/${id}`);
+  async get(id: number, workspaceId: number): Promise<FileWithContent> {
+    const response = await apiClient.get<FileWithContent>(
+      `/api/v1/files/${id}?workspace_id=${workspaceId}`
+    );
     return response.data;
   },
 
   async create(
     notebookId: number,
+    workspaceId: number,
     path: string,
     content: string
   ): Promise<FileMetadata> {
     const response = await apiClient.post<FileMetadata>("/api/v1/files/", {
       notebook_id: notebookId,
+      workspace_id: workspaceId,
       path,
       content,
     });
     return response.data;
   },
 
-  async update(id: number, content: string): Promise<FileMetadata> {
-    const response = await apiClient.put<FileMetadata>(`/api/v1/files/${id}`, {
-      content,
-    });
+  async update(
+    id: number,
+    workspaceId: number,
+    content: string,
+    title?: string,
+    description?: string
+  ): Promise<FileMetadata> {
+    const response = await apiClient.put<FileMetadata>(
+      `/api/v1/files/${id}?workspace_id=${workspaceId}`,
+      {
+        content,
+        title,
+        description,
+      }
+    );
     return response.data;
+  },
+
+  async delete(id: number, workspaceId: number): Promise<void> {
+    await apiClient.delete(
+      `/api/v1/files/${id}?workspace_id=${workspaceId}`
+    );
   },
 };
 

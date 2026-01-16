@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -12,6 +13,23 @@ from backend.db.database import get_notebook_session, get_system_session
 from backend.db.models import FileMetadata, User, Workspace
 
 router = APIRouter()
+
+
+class CreateFileRequest(BaseModel):
+    """Request model for creating a file."""
+
+    notebook_id: int
+    workspace_id: int
+    path: str
+    content: str
+
+
+class UpdateFileRequest(BaseModel):
+    """Request model for updating a file."""
+
+    content: str
+    title: str | None = None
+    description: str | None = None
 
 
 @router.get("/")
@@ -157,14 +175,16 @@ async def get_file(
 
 @router.post("/")
 async def create_file(
-    notebook_id: int,
-    workspace_id: int,
-    path: str,
-    content: str,
+    request: CreateFileRequest,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_system_session),
 ):
     """Create a new file."""
+    notebook_id = request.notebook_id
+    workspace_id = request.workspace_id
+    path = request.path
+    content = request.content
+
     # Verify workspace access
     result = await session.execute(
         select(Workspace).where(Workspace.id == workspace_id, Workspace.owner_id == current_user.id)
@@ -262,11 +282,13 @@ async def create_file(
 async def update_file(
     file_id: int,
     workspace_id: int,
-    content: str,
+    request: UpdateFileRequest,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_system_session),
 ):
     """Update a file."""
+    content = request.content
+
     # Verify workspace access
     result = await session.execute(
         select(Workspace).where(Workspace.id == workspace_id, Workspace.owner_id == current_user.id)
@@ -314,6 +336,12 @@ async def update_file(
                         file_meta.updated_at = datetime.now(timezone.utc)
                         file_meta.file_modified_at = datetime.fromtimestamp(file_stats.st_mtime)
 
+                        # Update optional metadata fields
+                        if request.title is not None:
+                            file_meta.title = request.title
+                        if request.description is not None:
+                            file_meta.description = request.description
+
                         nb_session.commit()
                         nb_session.refresh(file_meta)
 
@@ -325,6 +353,8 @@ async def update_file(
                             "file_type": file_meta.file_type,
                             "size": file_meta.size,
                             "hash": file_meta.hash,
+                            "title": file_meta.title,
+                            "description": file_meta.description,
                             "updated_at": file_meta.updated_at.isoformat() if file_meta.updated_at else None,
                             "message": "File updated successfully",
                         }

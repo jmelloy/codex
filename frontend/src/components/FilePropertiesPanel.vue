@@ -1,0 +1,333 @@
+<template>
+  <div class="properties-panel">
+    <div class="panel-header">
+      <h3>Properties</h3>
+      <button @click="$emit('close')" class="btn-close" title="Close">×</button>
+    </div>
+
+    <div v-if="file" class="panel-content">
+      <!-- Title (editable) -->
+      <div class="property-group">
+        <label>Title</label>
+        <input
+          v-model="editableTitle"
+          @blur="updateTitle"
+          @keyup.enter="updateTitle"
+          class="property-input"
+          placeholder="Untitled"
+        />
+      </div>
+
+      <!-- Description (editable) -->
+      <div class="property-group">
+        <label>Description</label>
+        <textarea
+          v-model="editableDescription"
+          @blur="updateDescription"
+          class="property-textarea"
+          placeholder="Add a description..."
+          rows="3"
+        ></textarea>
+      </div>
+
+      <!-- File Info (read-only) -->
+      <div class="property-section">
+        <h4>File Info</h4>
+        <div class="property-row">
+          <span class="property-label">Path</span>
+          <span class="property-value">{{ file.path }}</span>
+        </div>
+        <div class="property-row">
+          <span class="property-label">Filename</span>
+          <span class="property-value">{{ file.filename }}</span>
+        </div>
+        <div class="property-row">
+          <span class="property-label">Type</span>
+          <span class="property-value">{{ file.file_type }}</span>
+        </div>
+        <div class="property-row">
+          <span class="property-label">Size</span>
+          <span class="property-value">{{ formatSize(file.size) }}</span>
+        </div>
+      </div>
+
+      <!-- Dates -->
+      <div class="property-section">
+        <h4>Dates</h4>
+        <div class="property-row">
+          <span class="property-label">Created</span>
+          <span class="property-value">{{ formatDate(file.created_at) }}</span>
+        </div>
+        <div class="property-row">
+          <span class="property-label">Modified</span>
+          <span class="property-value">{{ formatDate(file.updated_at) }}</span>
+        </div>
+      </div>
+
+      <!-- Tags from frontmatter -->
+      <div v-if="tags.length > 0" class="property-section">
+        <h4>Tags</h4>
+        <div class="tags-list">
+          <span v-for="tag in tags" :key="tag" class="tag">{{ tag }}</span>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="property-actions">
+        <button @click="confirmDelete" class="btn-delete">
+          Delete File
+        </button>
+      </div>
+    </div>
+
+    <div v-else class="empty-state">
+      <p>No file selected</p>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, watch } from 'vue'
+import type { FileWithContent } from '../services/codex'
+
+interface Props {
+  file: FileWithContent | null
+}
+
+const props = defineProps<Props>()
+
+const emit = defineEmits<{
+  close: []
+  updateTitle: [title: string]
+  updateDescription: [description: string]
+  delete: []
+}>()
+
+const editableTitle = ref('')
+const editableDescription = ref('')
+
+// Sync with prop changes
+watch(
+  () => props.file,
+  (newFile) => {
+    if (newFile) {
+      editableTitle.value = newFile.title || ''
+      editableDescription.value = newFile.description || ''
+    }
+  },
+  { immediate: true }
+)
+
+const tags = computed(() => {
+  if (props.file?.frontmatter?.tags) {
+    return Array.isArray(props.file.frontmatter.tags)
+      ? props.file.frontmatter.tags
+      : []
+  }
+  return []
+})
+
+function formatDate(dateStr: string): string {
+  try {
+    const date = new Date(dateStr)
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  } catch {
+    return dateStr
+  }
+}
+
+function formatSize(bytes: number): string {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
+}
+
+function updateTitle() {
+  if (props.file && editableTitle.value !== props.file.title) {
+    emit('updateTitle', editableTitle.value)
+  }
+}
+
+function updateDescription() {
+  if (props.file && editableDescription.value !== props.file.description) {
+    emit('updateDescription', editableDescription.value)
+  }
+}
+
+function confirmDelete() {
+  if (confirm(`Are you sure you want to delete "${props.file?.title || props.file?.filename}"?`)) {
+    emit('delete')
+  }
+}
+</script>
+
+<style scoped>
+.properties-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: white;
+  border-left: 1px solid #e2e8f0;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f7fafc;
+}
+
+.panel-header h3 {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #2d3748;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.btn-close {
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  color: #718096;
+  cursor: pointer;
+  padding: 0.25rem;
+  line-height: 1;
+}
+
+.btn-close:hover {
+  color: #2d3748;
+}
+
+.panel-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+}
+
+.property-group {
+  margin-bottom: 1rem;
+}
+
+.property-group label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #718096;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+}
+
+.property-input,
+.property-textarea {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  color: #2d3748;
+}
+
+.property-input:focus,
+.property-textarea:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
+.property-textarea {
+  resize: vertical;
+  font-family: inherit;
+}
+
+.property-section {
+  margin-bottom: 1.5rem;
+}
+
+.property-section h4 {
+  margin: 0 0 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #718096;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.property-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.375rem 0;
+  border-bottom: 1px solid #f7fafc;
+}
+
+.property-label {
+  font-size: 0.8125rem;
+  color: #718096;
+}
+
+.property-value {
+  font-size: 0.8125rem;
+  color: #2d3748;
+  text-align: right;
+  max-width: 60%;
+  word-break: break-all;
+}
+
+.tags-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.tag {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  background: #edf2f7;
+  color: #4a5568;
+  border-radius: 4px;
+  font-size: 0.75rem;
+}
+
+.property-actions {
+  margin-top: auto;
+  padding-top: 1rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.btn-delete {
+  width: 100%;
+  padding: 0.625rem 1rem;
+  background: white;
+  color: #e53e3e;
+  border: 1px solid #e53e3e;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-delete:hover {
+  background: #e53e3e;
+  color: white;
+}
+
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #a0aec0;
+  font-size: 0.875rem;
+}
+</style>

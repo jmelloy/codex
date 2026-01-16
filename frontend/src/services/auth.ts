@@ -25,11 +25,15 @@ export interface TokenResponse {
 
 export const authService = {
   async login(credentials: LoginCredentials): Promise<TokenResponse> {
-    const formData = new FormData();
-    formData.append("username", credentials.username);
-    formData.append("password", credentials.password);
+    const params = new URLSearchParams();
+    params.append("username", credentials.username);
+    params.append("password", credentials.password);
 
-    const response = await apiClient.post<TokenResponse>("/token", formData);
+    const response = await apiClient.post<TokenResponse>("/token", params, {
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+    });
     return response.data;
   },
 

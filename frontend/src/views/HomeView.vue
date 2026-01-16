@@ -51,18 +51,51 @@
                 >+</button>
               </div>
 
-              <!-- File List -->
+              <!-- File Tree -->
               <ul v-if="workspaceStore.expandedNotebooks.has(notebook.id)" class="list-none p-0 m-0 bg-white">
-                <li
-                  v-for="file in workspaceStore.getFilesForNotebook(notebook.id)"
-                  :key="file.id"
-                  :class="['flex items-center py-2 px-4 pl-8 cursor-pointer text-[13px] text-gray-600 transition hover:bg-gray-50', { 'bg-gray-100 text-primary font-medium': workspaceStore.currentFile?.id === file.id }]"
-                  @click="selectFile(file)"
-                >
-                  <span class="mr-2 text-sm">📄</span>
-                  <span class="overflow-hidden text-ellipsis whitespace-nowrap">{{ file.title || file.filename }}</span>
-                </li>
-                <li v-if="workspaceStore.getFilesForNotebook(notebook.id).length === 0" class="py-2 px-4 pl-8 text-xs text-gray-400 italic">
+                <template v-if="notebookFileTrees.get(notebook.id)?.length">
+                  <template v-for="node in notebookFileTrees.get(notebook.id)" :key="node.path">
+                    <!-- Render folder or file -->
+                    <li v-if="node.type === 'folder'">
+                      <!-- Folder -->
+                      <div
+                        :class="['flex items-center py-2 px-4 pl-8 cursor-pointer text-[13px] text-gray-600 transition hover:bg-gray-50']"
+                        @click="toggleFolder(notebook.id, node.path)"
+                      >
+                        <span class="text-[10px] mr-2 text-gray-500 w-3">{{ isFolderExpanded(notebook.id, node.path) ? '▼' : '▶' }}</span>
+                        <span class="mr-2 text-sm">📁</span>
+                        <span class="overflow-hidden text-ellipsis whitespace-nowrap">{{ node.name }}</span>
+                      </div>
+                      
+                      <!-- Folder contents -->
+                      <ul v-if="isFolderExpanded(notebook.id, node.path) && node.children" class="list-none p-0 m-0">
+                        <FileTreeItem
+                          v-for="child in node.children"
+                          :key="child.path"
+                          :node="child"
+                          :notebook-id="notebook.id"
+                          :depth="1"
+                          :expanded-folders="expandedFolders"
+                          :current-file-id="workspaceStore.currentFile?.id"
+                          @toggle-folder="toggleFolder"
+                          @select-file="selectFile"
+                        />
+                      </ul>
+                    </li>
+                    
+                    <!-- Root level file -->
+                    <li v-else>
+                      <div
+                        :class="['flex items-center py-2 px-4 pl-8 cursor-pointer text-[13px] text-gray-600 transition hover:bg-gray-50', { 'bg-gray-100 text-primary font-medium': workspaceStore.currentFile?.id === node.file?.id }]"
+                        @click="node.file && selectFile(node.file)"
+                      >
+                        <span class="mr-2 text-sm">📄</span>
+                        <span class="overflow-hidden text-ellipsis whitespace-nowrap">{{ node.file?.title || node.name }}</span>
+                      </div>
+                    </li>
+                  </template>
+                </template>
+                <li v-else class="py-2 px-4 pl-8 text-xs text-gray-400 italic">
                   No files yet
                 </li>
               </ul>
@@ -195,7 +228,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useWorkspaceStore } from '../stores/workspace'
@@ -205,7 +238,9 @@ import FormGroup from '../components/FormGroup.vue'
 import MarkdownViewer from '../components/MarkdownViewer.vue'
 import MarkdownEditor from '../components/MarkdownEditor.vue'
 import FilePropertiesPanel from '../components/FilePropertiesPanel.vue'
+import FileTreeItem from '../components/FileTreeItem.vue'
 import { showToast } from '../utils/toast'
+import { buildFileTree, type FileTreeNode } from '../utils/fileTree'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -226,6 +261,19 @@ const createFileNotebook = ref<Notebook | null>(null)
 const showFrontmatter = ref(false)
 const showPropertiesPanel = ref(false)
 const editContent = ref('')
+
+// Folder expansion state - tracks which folder paths are expanded
+const expandedFolders = ref<Map<number, Set<string>>>(new Map())
+
+// Build file trees for each notebook
+const notebookFileTrees = computed(() => {
+  const trees = new Map<number, FileTreeNode[]>()
+  workspaceStore.notebooks.forEach(notebook => {
+    const files = workspaceStore.getFilesForNotebook(notebook.id)
+    trees.set(notebook.id, buildFileTree(files))
+  })
+  return trees
+})
 
 // Sync edit content when file changes
 watch(
@@ -254,6 +302,22 @@ function selectWorkspace(workspace: Workspace) {
 
 function toggleNotebook(notebook: Notebook) {
   workspaceStore.toggleNotebookExpansion(notebook)
+}
+
+function toggleFolder(notebookId: number, folderPath: string) {
+  if (!expandedFolders.value.has(notebookId)) {
+    expandedFolders.value.set(notebookId, new Set())
+  }
+  const folders = expandedFolders.value.get(notebookId)!
+  if (folders.has(folderPath)) {
+    folders.delete(folderPath)
+  } else {
+    folders.add(folderPath)
+  }
+}
+
+function isFolderExpanded(notebookId: number, folderPath: string): boolean {
+  return expandedFolders.value.get(notebookId)?.has(folderPath) || false
 }
 
 function selectFile(file: FileMetadata) {

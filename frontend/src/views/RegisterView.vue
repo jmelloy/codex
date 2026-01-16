@@ -1,10 +1,10 @@
 <template>
-  <div class="register-container">
-    <div class="register-card">
-      <h1>Register</h1>
+  <div class="flex justify-center items-center min-h-screen bg-gray-100 p-5 w-full">
+    <div class="bg-white p-10 rounded-lg shadow-lg w-full max-w-md">
+      <h1 class="mb-8 text-center text-gray-800 text-2xl font-semibold">Register</h1>
       <form @submit.prevent="handleRegister">
-        <div class="form-group">
-          <label for="username">Username</label>
+        <div class="mb-5">
+          <label for="username" class="block mb-1.5 text-gray-700 font-medium">Username</label>
           <input
             id="username"
             v-model="form.username"
@@ -14,11 +14,12 @@
             maxlength="50"
             placeholder="Enter username"
             :disabled="loading"
+            class="w-full px-2.5 py-2.5 border border-gray-300 rounded text-sm disabled:bg-gray-100 disabled:cursor-not-allowed focus:outline-none focus:border-green-500"
           />
         </div>
 
-        <div class="form-group">
-          <label for="email">Email</label>
+        <div class="mb-5">
+          <label for="email" class="block mb-1.5 text-gray-700 font-medium">Email</label>
           <input
             id="email"
             v-model="form.email"
@@ -26,11 +27,12 @@
             required
             placeholder="Enter email"
             :disabled="loading"
+            class="w-full px-2.5 py-2.5 border border-gray-300 rounded text-sm disabled:bg-gray-100 disabled:cursor-not-allowed focus:outline-none focus:border-green-500"
           />
         </div>
 
-        <div class="form-group">
-          <label for="password">Password</label>
+        <div class="mb-5">
+          <label for="password" class="block mb-1.5 text-gray-700 font-medium">Password</label>
           <input
             id="password"
             v-model="form.password"
@@ -39,11 +41,12 @@
             minlength="8"
             placeholder="Enter password (min 8 characters)"
             :disabled="loading"
+            class="w-full px-2.5 py-2.5 border border-gray-300 rounded text-sm disabled:bg-gray-100 disabled:cursor-not-allowed focus:outline-none focus:border-green-500"
           />
         </div>
 
-        <div class="form-group">
-          <label for="confirmPassword">Confirm Password</label>
+        <div class="mb-5">
+          <label for="confirmPassword" class="block mb-1.5 text-gray-700 font-medium">Confirm Password</label>
           <input
             id="confirmPassword"
             v-model="form.confirmPassword"
@@ -51,21 +54,22 @@
             required
             placeholder="Confirm password"
             :disabled="loading"
+            class="w-full px-2.5 py-2.5 border border-gray-300 rounded text-sm disabled:bg-gray-100 disabled:cursor-not-allowed focus:outline-none focus:border-green-500"
           />
         </div>
 
-        <div v-if="error" class="error-message">
+        <div v-if="error" class="text-red-700 bg-red-50 p-2.5 rounded mb-5 text-sm">
           {{ error }}
         </div>
 
-        <button type="submit" class="btn-primary" :disabled="loading">
+        <button type="submit" :disabled="loading" class="w-full px-3 py-3 bg-green-600 text-white border-none rounded text-base cursor-pointer transition hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed">
           {{ loading ? 'Registering...' : 'Register' }}
         </button>
       </form>
 
-      <div class="login-link">
+      <div class="text-center mt-5 text-gray-600">
         Already have an account? 
-        <router-link to="/login">Login here</router-link>
+        <router-link to="/login" class="text-green-600 no-underline hover:underline">Login here</router-link>
       </div>
     </div>
   </div>
@@ -146,102 +150,5 @@ const handleRegister = async () => {
 </script>
 
 <style scoped>
-.register-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
-  background-color: #f5f5f5;
-  padding: 20px;
-}
-
-.register-card {
-  background: white;
-  padding: 40px;
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  width: 100%;
-  max-width: 400px;
-}
-
-h1 {
-  margin-bottom: 30px;
-  text-align: center;
-  color: #333;
-}
-
-.form-group {
-  margin-bottom: 20px;
-}
-
-label {
-  display: block;
-  margin-bottom: 5px;
-  color: #555;
-  font-weight: 500;
-}
-
-input {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 14px;
-  box-sizing: border-box;
-}
-
-input:focus {
-  outline: none;
-  border-color: #4CAF50;
-}
-
-input:disabled {
-  background-color: #f5f5f5;
-  cursor: not-allowed;
-}
-
-.error-message {
-  color: #d32f2f;
-  background-color: #ffebee;
-  padding: 10px;
-  border-radius: 4px;
-  margin-bottom: 20px;
-  font-size: 14px;
-}
-
-.btn-primary {
-  width: 100%;
-  padding: 12px;
-  background-color: #4CAF50;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  font-size: 16px;
-  cursor: pointer;
-  transition: background-color 0.3s;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background-color: #45a049;
-}
-
-.btn-primary:disabled {
-  background-color: #ccc;
-  cursor: not-allowed;
-}
-
-.login-link {
-  text-align: center;
-  margin-top: 20px;
-  color: #666;
-}
-
-.login-link a {
-  color: #4CAF50;
-  text-decoration: none;
-}
-
-.login-link a:hover {
-  text-decoration: underline;
-}
+/* Tailwind classes used, minimal custom styles needed */
 </style>

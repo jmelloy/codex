@@ -1,6 +1,6 @@
 <template>
-  <div class="form-group">
-    <label v-if="label" :for="id">{{ label }}</label>
+  <div class="mb-4">
+    <label v-if="label" :for="id" class="block mb-2 font-medium">{{ label }}</label>
     <slot :inputId="id"></slot>
   </div>
 </template>
@@ -21,20 +21,11 @@ let idCounter = 0
 const id = computed(() => props.id || `input-${Date.now()}-${++idCounter}`)
 </script>
 
-<style scoped>
-.form-group {
-  margin-bottom: 1rem;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 500;
-}
-
-.form-group input,
-.form-group textarea,
-.form-group select {
+<style>
+/* Global styles for form inputs used in FormGroup slots */
+.mb-4 input,
+.mb-4 textarea,
+.mb-4 select {
   width: 100%;
   padding: 0.5rem;
   border: 1px solid #ddd;
@@ -42,9 +33,9 @@ const id = computed(() => props.id || `input-${Date.now()}-${++idCounter}`)
   box-sizing: border-box;
 }
 
-.form-group input:focus,
-.form-group textarea:focus,
-.form-group select:focus {
+.mb-4 input:focus,
+.mb-4 textarea:focus,
+.mb-4 select:focus {
   outline: none;
   border-color: #667eea;
 }

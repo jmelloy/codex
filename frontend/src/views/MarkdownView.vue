@@ -1,36 +1,36 @@
 <template>
-  <div class="markdown-page">
-    <nav class="navbar">
-      <h1>Markdown Editor</h1>
-      <div class="nav-actions">
-        <router-link to="/" class="btn-back">← Back to Home</router-link>
+  <div class="min-h-screen flex flex-col bg-gray-50 w-full">
+    <nav class="bg-primary text-white px-8 py-4 flex justify-between items-center shadow-md">
+      <h1 class="m-0 text-2xl">Markdown Editor</h1>
+      <div>
+        <router-link to="/" class="text-white no-underline px-4 py-2 bg-white/20 rounded transition hover:bg-white/30">← Back to Home</router-link>
       </div>
     </nav>
 
-    <div class="main-content">
-      <aside class="sidebar">
-        <div class="sidebar-header">
-          <h2>Documents</h2>
-          <button @click="createNew" class="btn-new">+</button>
+    <div class="flex flex-1 overflow-hidden">
+      <aside class="w-[280px] bg-white border-r border-gray-200 flex flex-col">
+        <div class="flex justify-between items-center px-4 py-4 border-b border-gray-200">
+          <h2 class="m-0 text-base text-gray-700">Documents</h2>
+          <button @click="createNew" class="bg-primary text-white border-none w-7 h-7 rounded-full cursor-pointer text-lg flex items-center justify-center transition hover:bg-primary-hover">+</button>
         </div>
-        <div class="document-list">
+        <div class="flex-1 overflow-y-auto">
           <div
             v-for="doc in documents"
             :key="doc.id"
-            :class="['document-item', { active: currentDocument?.id === doc.id }]"
+            :class="['py-3 px-4 cursor-pointer border-b border-gray-50 transition hover:bg-gray-50', { 'bg-gray-100 border-l-4 border-l-primary': currentDocument?.id === doc.id }]"
             @click="selectDocument(doc)"
           >
-            <div class="doc-title">{{ doc.title || 'Untitled' }}</div>
-            <div class="doc-meta">{{ formatDate(doc.updatedAt) }}</div>
+            <div class="font-medium text-gray-700 mb-1 whitespace-nowrap overflow-hidden text-ellipsis">{{ doc.title || 'Untitled' }}</div>
+            <div class="text-xs text-gray-400">{{ formatDate(doc.updatedAt) }}</div>
           </div>
-          <div v-if="documents.length === 0" class="empty-state">
+          <div v-if="documents.length === 0" class="py-8 px-4 text-center text-gray-400 text-sm">
             No documents yet. Create one to get started!
           </div>
         </div>
       </aside>
 
-      <main class="content">
-        <div v-if="isEditing && currentDocument" class="editor-container">
+      <main class="flex-1 flex flex-col overflow-hidden">
+        <div v-if="isEditing && currentDocument" class="flex-1 p-4 flex overflow-hidden">
           <MarkdownEditor
             v-model="currentDocument.content"
             :frontmatter="currentDocument.frontmatter"
@@ -39,10 +39,11 @@
             :extensions="markdownExtensions"
             @save="saveDocument"
             @cancel="cancelEdit"
+            class="flex-1"
           >
             <template #toolbar-actions>
-              <div class="custom-toolbar-actions">
-                <button @click="toggleFrontmatterEditor" class="btn-metadata">
+              <div class="flex gap-2">
+                <button @click="toggleFrontmatterEditor" class="px-4 py-2 border border-gray-300 bg-white rounded cursor-pointer text-sm transition hover:bg-gray-50">
                   📋 Metadata
                 </button>
               </div>
@@ -50,7 +51,7 @@
           </MarkdownEditor>
         </div>
 
-        <div v-else-if="currentDocument" class="viewer-container">
+        <div v-else-if="currentDocument" class="flex-1 p-4 flex overflow-hidden">
           <MarkdownViewer
             :content="currentDocument.content"
             :frontmatter="currentDocument.frontmatter"
@@ -58,22 +59,23 @@
             :extensions="markdownExtensions"
             @edit="startEdit"
             @copy="handleCopy"
+            class="flex-1"
           >
             <template #toolbar-actions>
-              <button @click="toggleFrontmatter" class="btn-metadata">
+              <button @click="toggleFrontmatter" class="px-4 py-2 border border-gray-300 bg-white rounded cursor-pointer text-sm transition hover:bg-gray-50">
                 {{ showFrontmatter ? 'Hide' : 'Show' }} Metadata
               </button>
-              <button @click="deleteDocument" class="btn-delete">
+              <button @click="deleteDocument" class="px-4 py-2 text-red-600 border border-red-600 bg-white rounded cursor-pointer text-sm transition hover:bg-red-600 hover:text-white">
                 Delete
               </button>
             </template>
           </MarkdownViewer>
         </div>
 
-        <div v-else class="welcome">
-          <h2>Welcome to Markdown Editor</h2>
-          <p>Select a document from the sidebar or create a new one to get started.</p>
-          <button @click="createNew" class="btn-create-large">
+        <div v-else class="flex flex-col items-center justify-center h-full py-8 text-center">
+          <h2 class="text-gray-700 mb-2">Welcome to Markdown Editor</h2>
+          <p class="text-gray-500 mb-8">Select a document from the sidebar or create a new one to get started.</p>
+          <button @click="createNew" class="px-6 py-3 bg-primary text-white border-none rounded-md text-base cursor-pointer transition hover:bg-primary-hover">
             Create New Document
           </button>
         </div>
@@ -96,9 +98,9 @@
       <FormGroup label="Author" v-slot="{ inputId }">
         <input :id="inputId" v-model="frontmatterEdit.author" />
       </FormGroup>
-      <div class="modal-actions">
-        <button type="button" @click="showFrontmatterEditor = false">Cancel</button>
-        <button type="button" @click="saveFrontmatter" class="btn-primary">Save</button>
+      <div class="flex gap-2 justify-end mt-6">
+        <button type="button" @click="showFrontmatterEditor = false" class="px-4 py-2 bg-gray-200 text-gray-700 border-none rounded cursor-pointer text-sm transition hover:bg-gray-300">Cancel</button>
+        <button type="button" @click="saveFrontmatter" class="px-4 py-2 bg-primary text-white border-none rounded cursor-pointer text-sm transition hover:bg-primary-hover">Save</button>
       </div>
     </Modal>
   </div>
@@ -266,246 +268,6 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.markdown-page {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  background: #f7fafc;
-}
-
-.navbar {
-  background: #667eea;
-  color: white;
-  padding: 1rem 2rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.navbar h1 {
-  margin: 0;
-  font-size: 1.5rem;
-}
-
-.btn-back {
-  color: white;
-  text-decoration: none;
-  padding: 0.5rem 1rem;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
-  transition: background 0.2s;
-}
-
-.btn-back:hover {
-  background: rgba(255, 255, 255, 0.3);
-}
-
-.main-content {
-  display: flex;
-  flex: 1;
-  overflow: hidden;
-}
-
-.sidebar {
-  width: 280px;
-  background: white;
-  border-right: 1px solid #e2e8f0;
-  display: flex;
-  flex-direction: column;
-}
-
-.sidebar-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.sidebar-header h2 {
-  margin: 0;
-  font-size: 1rem;
-  color: #2d3748;
-}
-
-.btn-new {
-  background: #667eea;
-  color: white;
-  border: none;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  cursor: pointer;
-  font-size: 1.2rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.2s;
-}
-
-.btn-new:hover {
-  background: #5a67d8;
-}
-
-.document-list {
-  flex: 1;
-  overflow-y: auto;
-}
-
-.document-item {
-  padding: 0.75rem 1rem;
-  cursor: pointer;
-  border-bottom: 1px solid #f7fafc;
-  transition: background 0.2s;
-}
-
-.document-item:hover {
-  background: #f7fafc;
-}
-
-.document-item.active {
-  background: #edf2f7;
-  border-left: 3px solid #667eea;
-}
-
-.doc-title {
-  font-weight: 500;
-  color: #2d3748;
-  margin-bottom: 0.25rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.doc-meta {
-  font-size: 0.75rem;
-  color: #a0aec0;
-}
-
-.empty-state {
-  padding: 2rem 1rem;
-  text-align: center;
-  color: #a0aec0;
-  font-size: 0.875rem;
-}
-
-.content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.editor-container,
-.viewer-container {
-  flex: 1;
-  padding: 1rem;
-  display: flex;
-  overflow: hidden;
-}
-
-.editor-container > *,
-.viewer-container > * {
-  flex: 1;
-}
-
-.welcome {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  padding: 2rem;
-  text-align: center;
-}
-
-.welcome h2 {
-  color: #2d3748;
-  margin-bottom: 0.5rem;
-}
-
-.welcome p {
-  color: #718096;
-  margin-bottom: 2rem;
-}
-
-.btn-create-large {
-  padding: 0.75rem 1.5rem;
-  background: #667eea;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.btn-create-large:hover {
-  background: #5a67d8;
-}
-
-.custom-toolbar-actions {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.btn-metadata,
-.btn-delete {
-  padding: 0.5rem 1rem;
-  border: 1px solid #cbd5e0;
-  background: white;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.875rem;
-  transition: all 0.2s;
-}
-
-.btn-metadata:hover {
-  background: #edf2f7;
-}
-
-.btn-delete {
-  color: #f56565;
-  border-color: #f56565;
-}
-
-.btn-delete:hover {
-  background: #f56565;
-  color: white;
-}
-
-.modal-actions {
-  display: flex;
-  gap: 0.5rem;
-  justify-content: flex-end;
-  margin-top: 1.5rem;
-}
-
-.modal-actions button {
-  padding: 0.5rem 1rem;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.875rem;
-  transition: all 0.2s;
-}
-
-.modal-actions button[type='button'] {
-  background: #e2e8f0;
-  color: #2d3748;
-}
-
-.modal-actions button[type='button']:hover {
-  background: #cbd5e0;
-}
-
-.modal-actions .btn-primary {
-  background: #667eea;
-  color: white;
-}
-
-.modal-actions .btn-primary:hover {
-  background: #5a67d8;
-}
+/* Tailwind classes used, minimal custom styles needed */
+</style>
 </style>

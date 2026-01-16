@@ -2,7 +2,9 @@
 </script>
 
 <template>
-  <router-view />
+  <div class="w-full h-screen">
+    <router-view />
+  </div>
 </template>
 
 <style>
@@ -17,9 +19,5 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-}
-
-#app {
-  min-height: 100vh;
 }
 </style>

@@ -35,55 +35,48 @@ def get_project_root() -> Path:
 async def start_frontend() -> dict[str, Any]:
     """Start the frontend development server."""
     global _frontend_process
-    
+
     if _frontend_process and _frontend_process.poll() is None:
         return {
             "status": "already_running",
             "message": "Frontend server is already running",
-            "url": "http://localhost:5173"
+            "url": "http://localhost:5173",
         }
-    
+
     frontend_dir = get_project_root() / "frontend"
-    
+
     try:
         # Start the frontend dev server
         _frontend_process = subprocess.Popen(
-            ["npm", "run", "dev"],
-            cwd=frontend_dir,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
+            ["npm", "run", "dev"], cwd=frontend_dir, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
         )
-        
+
         # Wait a bit for the server to start
         await asyncio.sleep(3)
-        
+
         return {
             "status": "started",
             "message": "Frontend server started successfully",
             "url": "http://localhost:5173",
-            "pid": _frontend_process.pid
+            "pid": _frontend_process.pid,
         }
     except Exception as e:
-        return {
-            "status": "error",
-            "message": f"Failed to start frontend server: {str(e)}"
-        }
+        return {"status": "error", "message": f"Failed to start frontend server: {str(e)}"}
 
 
 async def start_backend() -> dict[str, Any]:
     """Start the backend API server."""
     global _backend_process
-    
+
     if _backend_process and _backend_process.poll() is None:
         return {
             "status": "already_running",
             "message": "Backend server is already running",
-            "url": "http://localhost:8000"
+            "url": "http://localhost:8000",
         }
-    
+
     project_root = get_project_root()
-    
+
     try:
         # Start the backend server
         _backend_process = subprocess.Popen(
@@ -91,138 +84,122 @@ async def start_backend() -> dict[str, Any]:
             cwd=project_root,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True
+            text=True,
         )
-        
+
         # Wait a bit for the server to start
         await asyncio.sleep(3)
-        
+
         return {
             "status": "started",
             "message": "Backend server started successfully",
             "url": "http://localhost:8000",
             "api_docs": "http://localhost:8000/docs",
-            "pid": _backend_process.pid
+            "pid": _backend_process.pid,
         }
     except Exception as e:
-        return {
-            "status": "error",
-            "message": f"Failed to start backend server: {str(e)}"
-        }
+        return {"status": "error", "message": f"Failed to start backend server: {str(e)}"}
 
 
 async def initialize_browser() -> dict[str, Any]:
     """Initialize the Playwright browser."""
     global _browser, _page
-    
+
     if _browser and _page:
-        return {
-            "status": "already_initialized",
-            "message": "Browser is already initialized"
-        }
-    
+        return {"status": "already_initialized", "message": "Browser is already initialized"}
+
     try:
         playwright = await async_playwright().start()
         _browser = await playwright.chromium.launch(headless=True)
         _page = await _browser.new_page()
-        
-        return {
-            "status": "initialized",
-            "message": "Browser initialized successfully"
-        }
+
+        return {"status": "initialized", "message": "Browser initialized successfully"}
     except Exception as e:
-        return {
-            "status": "error",
-            "message": f"Failed to initialize browser: {str(e)}"
-        }
+        return {"status": "error", "message": f"Failed to initialize browser: {str(e)}"}
 
 
 async def take_screenshot(url: str = "http://localhost:5173", path: str = "screenshot.png") -> dict[str, Any]:
     """
     Take a screenshot of the frontend.
-    
+
     Args:
         url: The URL to screenshot (default: frontend dev server)
         path: Path to save the screenshot (default: screenshot.png)
     """
     global _browser, _page
-    
+
     # Initialize browser if needed
     if not _browser or not _page:
         init_result = await initialize_browser()
         if init_result["status"] == "error":
             return init_result
-    
+
     try:
         # Navigate to the URL
         await _page.goto(url, wait_until="networkidle")
-        
+
         # Take screenshot
         screenshot_path = get_project_root() / path
         await _page.screenshot(path=str(screenshot_path), full_page=True)
-        
+
         return {
             "status": "success",
             "message": f"Screenshot saved successfully",
             "path": str(screenshot_path),
-            "url": url
+            "url": url,
         }
     except Exception as e:
-        return {
-            "status": "error",
-            "message": f"Failed to take screenshot: {str(e)}"
-        }
+        return {"status": "error", "message": f"Failed to take screenshot: {str(e)}"}
 
 
-async def navigate_and_screenshot(url: str, selector: str | None = None, path: str = "screenshot.png") -> dict[str, Any]:
+async def navigate_and_screenshot(
+    url: str, selector: str | None = None, path: str = "screenshot.png"
+) -> dict[str, Any]:
     """
     Navigate to a URL and take a screenshot, optionally waiting for a selector.
-    
+
     Args:
         url: The URL to navigate to
         selector: Optional CSS selector to wait for before taking screenshot
         path: Path to save the screenshot
     """
     global _browser, _page
-    
+
     # Initialize browser if needed
     if not _browser or not _page:
         init_result = await initialize_browser()
         if init_result["status"] == "error":
             return init_result
-    
+
     try:
         # Navigate to the URL
         await _page.goto(url, wait_until="networkidle")
-        
+
         # Wait for selector if provided
         if selector:
             await _page.wait_for_selector(selector, timeout=10000)
-        
+
         # Take screenshot
         screenshot_path = get_project_root() / path
         await _page.screenshot(path=str(screenshot_path), full_page=True)
-        
+
         return {
             "status": "success",
             "message": f"Screenshot saved successfully",
             "path": str(screenshot_path),
             "url": url,
-            "selector": selector
+            "selector": selector,
         }
     except Exception as e:
-        return {
-            "status": "error",
-            "message": f"Failed to navigate and screenshot: {str(e)}"
-        }
+        return {"status": "error", "message": f"Failed to navigate and screenshot: {str(e)}"}
 
 
 async def cleanup() -> dict[str, Any]:
     """Clean up processes and browser."""
     global _frontend_process, _backend_process, _browser, _page
-    
+
     messages = []
-    
+
     # Close browser
     if _browser:
         try:
@@ -232,7 +209,7 @@ async def cleanup() -> dict[str, Any]:
             messages.append("Browser closed")
         except Exception as e:
             messages.append(f"Error closing browser: {str(e)}")
-    
+
     # Stop frontend
     if _frontend_process and _frontend_process.poll() is None:
         try:
@@ -242,7 +219,7 @@ async def cleanup() -> dict[str, Any]:
             messages.append("Frontend server stopped")
         except Exception as e:
             messages.append(f"Error stopping frontend: {str(e)}")
-    
+
     # Stop backend
     if _backend_process and _backend_process.poll() is None:
         try:
@@ -252,12 +229,8 @@ async def cleanup() -> dict[str, Any]:
             messages.append("Backend server stopped")
         except Exception as e:
             messages.append(f"Error stopping backend: {str(e)}")
-    
-    return {
-        "status": "success",
-        "message": "Cleanup completed",
-        "details": messages
-    }
+
+    return {"status": "success", "message": "Cleanup completed", "details": messages}
 
 
 # Create the MCP server
@@ -293,13 +266,13 @@ async def list_tools() -> list[Tool]:
                     "url": {
                         "type": "string",
                         "description": "URL to screenshot (default: http://localhost:5173)",
-                        "default": "http://localhost:5173"
+                        "default": "http://localhost:5173",
                     },
                     "path": {
                         "type": "string",
                         "description": "Path to save screenshot (default: screenshot.png)",
-                        "default": "screenshot.png"
-                    }
+                        "default": "screenshot.png",
+                    },
                 },
             },
         ),
@@ -320,10 +293,10 @@ async def list_tools() -> list[Tool]:
                     "path": {
                         "type": "string",
                         "description": "Path to save screenshot (default: screenshot.png)",
-                        "default": "screenshot.png"
-                    }
+                        "default": "screenshot.png",
+                    },
                 },
-                "required": ["url"]
+                "required": ["url"],
             },
         ),
         Tool(
@@ -347,23 +320,17 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
             result = await start_backend()
         elif name == "take_screenshot":
             result = await take_screenshot(
-                url=arguments.get("url", "http://localhost:5173"),
-                path=arguments.get("path", "screenshot.png")
+                url=arguments.get("url", "http://localhost:5173"), path=arguments.get("path", "screenshot.png")
             )
         elif name == "navigate_and_screenshot":
             result = await navigate_and_screenshot(
-                url=arguments["url"],
-                selector=arguments.get("selector"),
-                path=arguments.get("path", "screenshot.png")
+                url=arguments["url"], selector=arguments.get("selector"), path=arguments.get("path", "screenshot.png")
             )
         elif name == "cleanup":
             result = await cleanup()
         else:
-            result = {
-                "status": "error",
-                "message": f"Unknown tool: {name}"
-            }
-        
+            result = {"status": "error", "message": f"Unknown tool: {name}"}
+
         return [TextContent(type="text", text=str(result))]
     except Exception as e:
         return [TextContent(type="text", text=f"Error: {str(e)}")]

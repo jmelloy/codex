@@ -17,6 +17,7 @@ router = APIRouter()
 # Schemas
 class MarkdownContentRequest(BaseModel):
     """Request schema for creating/updating markdown content."""
+
     path: str
     content: str
     frontmatter: dict[str, Any] | None = None
@@ -24,6 +25,7 @@ class MarkdownContentRequest(BaseModel):
 
 class MarkdownContentResponse(BaseModel):
     """Response schema for markdown content."""
+
     path: str
     content: str
     frontmatter: dict[str, Any] | None = None
@@ -32,20 +34,19 @@ class MarkdownContentResponse(BaseModel):
 
 class MarkdownRenderRequest(BaseModel):
     """Request schema for rendering markdown."""
+
     content: str
 
 
 class MarkdownRenderResponse(BaseModel):
     """Response schema for rendered markdown."""
+
     html: str
     frontmatter: dict[str, Any] | None = None
 
 
 @router.post("/render", response_model=MarkdownRenderResponse)
-async def render_markdown(
-    request: MarkdownRenderRequest,
-    current_user: User = Depends(get_current_active_user)
-):
+async def render_markdown(request: MarkdownRenderRequest, current_user: User = Depends(get_current_active_user)):
     """
     Render markdown content to HTML.
     This is an extensible endpoint that can be enhanced with custom renderers.
@@ -56,14 +57,10 @@ async def render_markdown(
 
         # For now, return the raw content (can be extended with markdown-to-html library)
         # This is intentionally minimal to allow frontend flexibility
-        return MarkdownRenderResponse(
-            html=content,
-            frontmatter=frontmatter_data if frontmatter_data else None
-        )
+        return MarkdownRenderResponse(html=content, frontmatter=frontmatter_data if frontmatter_data else None)
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error rendering markdown: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error rendering markdown: {str(e)}"
         )
 
 
@@ -72,7 +69,7 @@ async def list_markdown_files(
     workspace_id: int,
     notebook_path: str | None = None,
     current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_system_session)
+    session: AsyncSession = Depends(get_system_session),
 ):
     """
     List all markdown files in a workspace or specific notebook.
@@ -83,17 +80,11 @@ async def list_markdown_files(
 
     # Verify workspace access
     result = await session.execute(
-        select(Workspace).where(
-            Workspace.id == workspace_id,
-            Workspace.owner_id == current_user.id
-        )
+        select(Workspace).where(Workspace.id == workspace_id, Workspace.owner_id == current_user.id)
     )
     workspace = result.scalar_one_or_none()
     if not workspace:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Workspace not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
 
     workspace_path = PathLib(workspace.path)
     if not workspace_path.exists():
@@ -124,7 +115,7 @@ async def get_markdown_file(
     workspace_id: int,
     file_path: str,
     current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_system_session)
+    session: AsyncSession = Depends(get_system_session),
 ):
     """
     Get markdown file content with parsed frontmatter.
@@ -135,17 +126,11 @@ async def get_markdown_file(
 
     # Verify workspace access
     result = await session.execute(
-        select(Workspace).where(
-            Workspace.id == workspace_id,
-            Workspace.owner_id == current_user.id
-        )
+        select(Workspace).where(Workspace.id == workspace_id, Workspace.owner_id == current_user.id)
     )
     workspace = result.scalar_one_or_none()
     if not workspace:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Workspace not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
 
     # Construct full file path
     workspace_path = PathLib(workspace.path)
@@ -157,31 +142,21 @@ async def get_markdown_file(
         workspace_path = workspace_path.resolve()
         if not str(full_file_path).startswith(str(workspace_path)):
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access denied: file is outside workspace"
+                status_code=status.HTTP_403_FORBIDDEN, detail="Access denied: file is outside workspace"
             )
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid file path: {str(e)}"
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid file path: {str(e)}")
 
     # Check if file exists
     if not full_file_path.exists() or not full_file_path.is_file():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="File not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
 
     # Read file content
     try:
-        with open(full_file_path, encoding='utf-8') as f:
+        with open(full_file_path, encoding="utf-8") as f:
             content = f.read()
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error reading file: {str(e)}"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error reading file: {str(e)}")
 
     # Parse frontmatter if present
     frontmatter_data, content_without_frontmatter = MetadataParser.parse_frontmatter(content)
@@ -190,7 +165,7 @@ async def get_markdown_file(
         path=file_path,
         content=content_without_frontmatter,
         frontmatter=frontmatter_data if frontmatter_data else None,
-        html=content_without_frontmatter  # Basic pass-through, can be enhanced
+        html=content_without_frontmatter,  # Basic pass-through, can be enhanced
     )
 
 
@@ -199,7 +174,7 @@ async def create_markdown_file(
     workspace_id: int,
     request: MarkdownContentRequest,
     current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_system_session)
+    session: AsyncSession = Depends(get_system_session),
 ):
     """
     Create a new markdown file with optional frontmatter.
@@ -211,17 +186,11 @@ async def create_markdown_file(
 
     # Verify workspace access
     result = await session.execute(
-        select(Workspace).where(
-            Workspace.id == workspace_id,
-            Workspace.owner_id == current_user.id
-        )
+        select(Workspace).where(Workspace.id == workspace_id, Workspace.owner_id == current_user.id)
     )
     workspace = result.scalar_one_or_none()
     if not workspace:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Workspace not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
 
     # Construct full file path
     workspace_path = PathLib(workspace.path)
@@ -233,21 +202,14 @@ async def create_markdown_file(
         workspace_path = workspace_path.resolve()
         if not str(full_file_path).startswith(str(workspace_path)):
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access denied: file path is outside workspace"
+                status_code=status.HTTP_403_FORBIDDEN, detail="Access denied: file path is outside workspace"
             )
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid file path: {str(e)}"
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid file path: {str(e)}")
 
     # Check if file already exists
     if full_file_path.exists():
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="File already exists"
-        )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="File already exists")
 
     # Create parent directories if needed
     full_file_path.parent.mkdir(parents=True, exist_ok=True)
@@ -261,20 +223,14 @@ async def create_markdown_file(
             file_content = request.content
 
         # Write file
-        with open(full_file_path, 'w', encoding='utf-8') as f:
+        with open(full_file_path, "w", encoding="utf-8") as f:
             f.write(file_content)
 
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error creating file: {str(e)}"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error creating file: {str(e)}")
 
     return MarkdownContentResponse(
-        path=request.path,
-        content=request.content,
-        frontmatter=request.frontmatter,
-        html=request.content
+        path=request.path, content=request.content, frontmatter=request.frontmatter, html=request.content
     )
 
 
@@ -283,7 +239,7 @@ async def update_markdown_file(
     workspace_id: int,
     request: MarkdownContentRequest,
     current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_system_session)
+    session: AsyncSession = Depends(get_system_session),
 ):
     """
     Update an existing markdown file.
@@ -295,17 +251,11 @@ async def update_markdown_file(
 
     # Verify workspace access
     result = await session.execute(
-        select(Workspace).where(
-            Workspace.id == workspace_id,
-            Workspace.owner_id == current_user.id
-        )
+        select(Workspace).where(Workspace.id == workspace_id, Workspace.owner_id == current_user.id)
     )
     workspace = result.scalar_one_or_none()
     if not workspace:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Workspace not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
 
     # Construct full file path
     workspace_path = PathLib(workspace.path)
@@ -317,21 +267,14 @@ async def update_markdown_file(
         workspace_path = workspace_path.resolve()
         if not str(full_file_path).startswith(str(workspace_path)):
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access denied: file path is outside workspace"
+                status_code=status.HTTP_403_FORBIDDEN, detail="Access denied: file path is outside workspace"
             )
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid file path: {str(e)}"
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid file path: {str(e)}")
 
     # Check if file exists
     if not full_file_path.exists() or not full_file_path.is_file():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="File not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
 
     # Prepare content with frontmatter
     try:
@@ -342,20 +285,14 @@ async def update_markdown_file(
             file_content = request.content
 
         # Write file
-        with open(full_file_path, 'w', encoding='utf-8') as f:
+        with open(full_file_path, "w", encoding="utf-8") as f:
             f.write(file_content)
 
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error updating file: {str(e)}"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error updating file: {str(e)}")
 
     return MarkdownContentResponse(
-        path=request.path,
-        content=request.content,
-        frontmatter=request.frontmatter,
-        html=request.content
+        path=request.path, content=request.content, frontmatter=request.frontmatter, html=request.content
     )
 
 
@@ -364,7 +301,7 @@ async def delete_markdown_file(
     workspace_id: int,
     file_path: str,
     current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_system_session)
+    session: AsyncSession = Depends(get_system_session),
 ):
     """
     Delete a markdown file.
@@ -376,17 +313,11 @@ async def delete_markdown_file(
 
     # Verify workspace access
     result = await session.execute(
-        select(Workspace).where(
-            Workspace.id == workspace_id,
-            Workspace.owner_id == current_user.id
-        )
+        select(Workspace).where(Workspace.id == workspace_id, Workspace.owner_id == current_user.id)
     )
     workspace = result.scalar_one_or_none()
     if not workspace:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Workspace not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
 
     # Construct full file path
     workspace_path = PathLib(workspace.path)
@@ -398,31 +329,18 @@ async def delete_markdown_file(
         workspace_path = workspace_path.resolve()
         if not str(full_file_path).startswith(str(workspace_path)):
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access denied: file path is outside workspace"
+                status_code=status.HTTP_403_FORBIDDEN, detail="Access denied: file path is outside workspace"
             )
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid file path: {str(e)}"
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid file path: {str(e)}")
 
     # Check if file exists
     if not full_file_path.exists() or not full_file_path.is_file():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="File not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
 
     # Delete file
     try:
         os.remove(full_file_path)
-        return {
-            "message": "File deleted successfully",
-            "path": file_path
-        }
+        return {"message": "File deleted successfully", "path": file_path}
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error deleting file: {str(e)}"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error deleting file: {str(e)}")

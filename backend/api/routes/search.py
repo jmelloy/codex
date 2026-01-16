@@ -1,6 +1,5 @@
 """Search routes."""
 
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
@@ -17,15 +16,12 @@ async def search(
     q: str,
     workspace_id: int,
     current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_system_session)
+    session: AsyncSession = Depends(get_system_session),
 ):
     """Search files and content in a workspace."""
     # Verify workspace access
     result = await session.execute(
-        select(Workspace).where(
-            Workspace.id == workspace_id,
-            Workspace.owner_id == current_user.id
-        )
+        select(Workspace).where(Workspace.id == workspace_id, Workspace.owner_id == current_user.id)
     )
     workspace = result.scalar_one_or_none()
     if not workspace:
@@ -38,7 +34,7 @@ async def search(
         "query": q,
         "workspace_id": workspace_id,
         "results": [],
-        "message": "Full-text search requires search index population"
+        "message": "Full-text search requires search index population",
     }
 
 
@@ -47,15 +43,12 @@ async def search_by_tags(
     tags: str,
     workspace_id: int,
     current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_system_session)
+    session: AsyncSession = Depends(get_system_session),
 ):
     """Search files by tags."""
     # Verify workspace access
     result = await session.execute(
-        select(Workspace).where(
-            Workspace.id == workspace_id,
-            Workspace.owner_id == current_user.id
-        )
+        select(Workspace).where(Workspace.id == workspace_id, Workspace.owner_id == current_user.id)
     )
     workspace = result.scalar_one_or_none()
     if not workspace:
@@ -69,5 +62,5 @@ async def search_by_tags(
         "tags": tag_list,
         "workspace_id": workspace_id,
         "results": [],
-        "message": "Tag search requires notebook-level database queries"
+        "message": "Tag search requires notebook-level database queries",
     }

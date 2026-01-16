@@ -11,15 +11,9 @@ import os
 SYSTEM_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./codex_system.db")
 SYSTEM_DATABASE_URL_ASYNC = SYSTEM_DATABASE_URL.replace("sqlite:///", "sqlite+aiosqlite:///")
 
-system_engine = create_async_engine(
-    SYSTEM_DATABASE_URL_ASYNC,
-    echo=True,
-    connect_args={"check_same_thread": False}
-)
+system_engine = create_async_engine(SYSTEM_DATABASE_URL_ASYNC, echo=True, connect_args={"check_same_thread": False})
 
-async_session_maker = sessionmaker(
-    system_engine, class_=AsyncSession, expire_on_commit=False
-)
+async_session_maker = sessionmaker(system_engine, class_=AsyncSession, expire_on_commit=False)
 
 
 async def get_system_session() -> AsyncGenerator[AsyncSession, None]:

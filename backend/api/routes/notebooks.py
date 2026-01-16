@@ -17,15 +17,12 @@ router = APIRouter()
 async def list_notebooks(
     workspace_id: int,
     current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_system_session)
+    session: AsyncSession = Depends(get_system_session),
 ):
     """List all notebooks in a workspace."""
     # Verify workspace access
     result = await session.execute(
-        select(Workspace).where(
-            Workspace.id == workspace_id,
-            Workspace.owner_id == current_user.id
-        )
+        select(Workspace).where(Workspace.id == workspace_id, Workspace.owner_id == current_user.id)
     )
     workspace = result.scalar_one_or_none()
     if not workspace:
@@ -52,14 +49,16 @@ async def list_notebooks(
                         result = nb_session.execute(select(Notebook))
                         notebook_records = result.scalars().all()
                         for nb in notebook_records:
-                            notebooks.append({
-                                "id": nb.id,
-                                "name": nb.name,
-                                "path": nb.path,
-                                "description": nb.description,
-                                "created_at": nb.created_at.isoformat() if nb.created_at else None,
-                                "updated_at": nb.updated_at.isoformat() if nb.updated_at else None
-                            })
+                            notebooks.append(
+                                {
+                                    "id": nb.id,
+                                    "name": nb.name,
+                                    "path": nb.path,
+                                    "description": nb.description,
+                                    "created_at": nb.created_at.isoformat() if nb.created_at else None,
+                                    "updated_at": nb.updated_at.isoformat() if nb.updated_at else None,
+                                }
+                            )
                         nb_session.close()
                     except Exception as e:
                         print(f"Error reading notebook {item}: {e}")
@@ -72,15 +71,12 @@ async def get_notebook(
     notebook_id: int,
     workspace_id: int,
     current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_system_session)
+    session: AsyncSession = Depends(get_system_session),
 ):
     """Get a specific notebook."""
     # Verify workspace access
     result = await session.execute(
-        select(Workspace).where(
-            Workspace.id == workspace_id,
-            Workspace.owner_id == current_user.id
-        )
+        select(Workspace).where(Workspace.id == workspace_id, Workspace.owner_id == current_user.id)
     )
     workspace = result.scalar_one_or_none()
     if not workspace:
@@ -98,9 +94,7 @@ async def get_notebook(
             if notebook_db_path.exists():
                 try:
                     nb_session = get_notebook_session(str(item))
-                    result = nb_session.execute(
-                        select(Notebook).where(Notebook.id == notebook_id)
-                    )
+                    result = nb_session.execute(select(Notebook).where(Notebook.id == notebook_id))
                     notebook = result.scalar_one_or_none()
                     nb_session.close()
 
@@ -111,7 +105,7 @@ async def get_notebook(
                             "path": notebook.path,
                             "description": notebook.description,
                             "created_at": notebook.created_at.isoformat() if notebook.created_at else None,
-                            "updated_at": notebook.updated_at.isoformat() if notebook.updated_at else None
+                            "updated_at": notebook.updated_at.isoformat() if notebook.updated_at else None,
                         }
                 except Exception as e:
                     print(f"Error reading notebook {item}: {e}")
@@ -126,15 +120,12 @@ async def create_notebook(
     path: str,
     description: str = None,
     current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_system_session)
+    session: AsyncSession = Depends(get_system_session),
 ):
     """Create a new notebook."""
     # Verify workspace access
     result = await session.execute(
-        select(Workspace).where(
-            Workspace.id == workspace_id,
-            Workspace.owner_id == current_user.id
-        )
+        select(Workspace).where(Workspace.id == workspace_id, Workspace.owner_id == current_user.id)
     )
     workspace = result.scalar_one_or_none()
     if not workspace:
@@ -155,11 +146,7 @@ async def create_notebook(
 
         # Create notebook record in the database
         nb_session = get_notebook_session(str(notebook_path))
-        notebook = Notebook(
-            name=name,
-            path=path,
-            description=description
-        )
+        notebook = Notebook(name=name, path=path, description=description)
         nb_session.add(notebook)
         nb_session.commit()
         nb_session.refresh(notebook)
@@ -170,7 +157,7 @@ async def create_notebook(
             "path": notebook.path,
             "description": notebook.description,
             "created_at": notebook.created_at.isoformat() if notebook.created_at else None,
-            "updated_at": notebook.updated_at.isoformat() if notebook.updated_at else None
+            "updated_at": notebook.updated_at.isoformat() if notebook.updated_at else None,
         }
 
         nb_session.close()
@@ -180,5 +167,6 @@ async def create_notebook(
         # Clean up on error
         if notebook_path.exists():
             import shutil
+
             shutil.rmtree(notebook_path)
         raise HTTPException(status_code=500, detail=f"Error creating notebook: {str(e)}")

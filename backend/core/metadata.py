@@ -9,7 +9,7 @@ import frontmatter
 
 class MetadataParser:
     """Base class for metadata parsers."""
-    
+
     @staticmethod
     def parse_frontmatter(content: str) -> tuple[Dict[str, Any], str]:
         """Parse markdown frontmatter."""
@@ -19,7 +19,7 @@ class MetadataParser:
         except Exception as e:
             print(f"Error parsing frontmatter: {e}")
             return {}, content
-    
+
     @staticmethod
     def parse_json_sidecar(filepath: str) -> Optional[Dict[str, Any]]:
         """Parse JSON sidecar file."""
@@ -29,14 +29,14 @@ class MetadataParser:
             sidecar_path = str(Path(filepath).parent / f".{Path(filepath).name}.json")
             if not Path(sidecar_path).exists():
                 return None
-        
+
         try:
-            with open(sidecar_path, 'r') as f:
+            with open(sidecar_path, "r") as f:
                 return json.load(f)
         except Exception as e:
             print(f"Error parsing JSON sidecar: {e}")
             return None
-    
+
     @staticmethod
     def parse_xml_sidecar(filepath: str) -> Optional[Dict[str, Any]]:
         """Parse XML sidecar file."""
@@ -46,7 +46,7 @@ class MetadataParser:
             sidecar_path = str(Path(filepath).parent / f".{Path(filepath).name}.xml")
             if not Path(sidecar_path).exists():
                 return None
-        
+
         try:
             tree = ET.parse(sidecar_path)
             root = tree.getroot()
@@ -54,16 +54,16 @@ class MetadataParser:
         except Exception as e:
             print(f"Error parsing XML sidecar: {e}")
             return None
-    
+
     @staticmethod
     def _xml_to_dict(element: ET.Element) -> Dict[str, Any]:
         """Convert XML element to dictionary."""
         result: Dict[str, Any] = {}
-        
+
         # Add attributes
         if element.attrib:
             result.update(element.attrib)
-        
+
         # Add children
         for child in element:
             child_data = MetadataParser._xml_to_dict(child)
@@ -74,16 +74,16 @@ class MetadataParser:
                 result[child.tag].append(child_data)
             else:
                 result[child.tag] = child_data
-        
+
         # Add text content
         if element.text and element.text.strip():
             if result:
-                result['_text'] = element.text.strip()
+                result["_text"] = element.text.strip()
             else:
                 return element.text.strip()
-        
+
         return result if result else {}
-    
+
     @staticmethod
     def parse_markdown_sidecar(filepath: str) -> Optional[Dict[str, Any]]:
         """Parse markdown sidecar file."""
@@ -93,41 +93,41 @@ class MetadataParser:
             sidecar_path = str(Path(filepath).parent / f".{Path(filepath).name}.md")
             if not Path(sidecar_path).exists():
                 return None
-        
+
         try:
-            with open(sidecar_path, 'r') as f:
+            with open(sidecar_path, "r") as f:
                 content = f.read()
             metadata, _ = MetadataParser.parse_frontmatter(content)
             return metadata
         except Exception as e:
             print(f"Error parsing markdown sidecar: {e}")
             return None
-    
+
     @staticmethod
     def extract_all_metadata(filepath: str, content: Optional[str] = None) -> Dict[str, Any]:
         """Extract all available metadata from a file."""
         metadata: Dict[str, Any] = {}
-        
+
         # Try frontmatter if content provided and file is markdown
-        if content and filepath.endswith('.md'):
+        if content and filepath.endswith(".md"):
             fm_metadata, _ = MetadataParser.parse_frontmatter(content)
             metadata.update(fm_metadata)
-        
+
         # Try sidecar files
         json_metadata = MetadataParser.parse_json_sidecar(filepath)
         if json_metadata:
             metadata.update(json_metadata)
-        
+
         xml_metadata = MetadataParser.parse_xml_sidecar(filepath)
         if xml_metadata:
             metadata.update(xml_metadata)
-        
+
         markdown_metadata = MetadataParser.parse_markdown_sidecar(filepath)
         if markdown_metadata:
             metadata.update(markdown_metadata)
-        
+
         return metadata
-    
+
     @staticmethod
     def write_json_sidecar(filepath: str, metadata: Dict[str, Any], use_dot_prefix: bool = True):
         """Write metadata to JSON sidecar file."""
@@ -135,13 +135,13 @@ class MetadataParser:
             sidecar_path = str(Path(filepath).parent / f".{Path(filepath).name}.json")
         else:
             sidecar_path = f"{filepath}.json"
-        
+
         try:
-            with open(sidecar_path, 'w') as f:
+            with open(sidecar_path, "w") as f:
                 json.dump(metadata, f, indent=2)
         except Exception as e:
             print(f"Error writing JSON sidecar: {e}")
-    
+
     @staticmethod
     def write_markdown_sidecar(filepath: str, metadata: Dict[str, Any], content: str = "", use_dot_prefix: bool = True):
         """Write metadata to markdown sidecar file with frontmatter."""
@@ -149,10 +149,10 @@ class MetadataParser:
             sidecar_path = str(Path(filepath).parent / f".{Path(filepath).name}.md")
         else:
             sidecar_path = f"{filepath}.md"
-        
+
         try:
             post = frontmatter.Post(content, **metadata)
-            with open(sidecar_path, 'w') as f:
+            with open(sidecar_path, "w") as f:
                 f.write(frontmatter.dumps(post))
         except Exception as e:
             print(f"Error writing markdown sidecar: {e}")

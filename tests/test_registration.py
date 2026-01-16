@@ -8,21 +8,23 @@ from backend.api.main import app
 @pytest.mark.asyncio
 async def test_user_registration():
     """Test user registration endpoint."""
+    import time
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        # Test successful registration
+        # Test successful registration with unique username
+        username = f"testuser_{int(time.time() * 1000)}"
         response = await client.post(
             "/register",
             json={
-                "username": "testuser",
-                "email": "test@example.com",
+                "username": username,
+                "email": f"{username}@example.com",
                 "password": "testpassword123"
             }
         )
         assert response.status_code == 201
         data = response.json()
-        assert data["username"] == "testuser"
-        assert data["email"] == "test@example.com"
+        assert data["username"] == username
+        assert data["email"] == f"{username}@example.com"
         assert data["is_active"] is True
         assert "id" in data
 
@@ -158,3 +160,52 @@ async def test_login_after_registration():
         data = response.json()
         assert "access_token" in data
         assert data["token_type"] == "bearer"
+
+
+@pytest.mark.asyncio
+async def test_default_workspace_creation():
+    """Test that a default workspace is created on user registration."""
+    import time
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # Register a new user with a unique username
+        username = f"workspace_test_user_{int(time.time() * 1000)}"
+        register_response = await client.post(
+            "/register",
+            json={
+                "username": username,
+                "email": f"{username}@example.com",
+                "password": "testpass123"
+            }
+        )
+        assert register_response.status_code == 201
+        user_data = register_response.json()
+        user_id = user_data["id"]
+        
+        # Login to get access token
+        login_response = await client.post(
+            "/token",
+            data={
+                "username": username,
+                "password": "testpass123"
+            }
+        )
+        assert login_response.status_code == 200
+        token = login_response.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+        
+        # Check that a workspace was created
+        workspaces_response = await client.get(
+            "/api/v1/workspaces/",
+            headers=headers
+        )
+        assert workspaces_response.status_code == 200
+        workspaces = workspaces_response.json()
+        
+        # Should have exactly one workspace
+        assert len(workspaces) == 1
+        
+        # The workspace should be named after the username
+        default_workspace = workspaces[0]
+        assert default_workspace["name"] == username
+        assert default_workspace["owner_id"] == user_id

@@ -82,6 +82,10 @@ async def read_users_me(current_user: User = Depends(get_current_active_user)):
 async def register(user_data: UserCreate, session: AsyncSession = Depends(get_system_session)):
     """Register a new user."""
     from sqlmodel import select
+    from pathlib import Path
+    from backend.db.database import DATA_DIRECTORY
+    from backend.db.models import Workspace
+    from backend.api.routes.workspaces import slugify
 
     # Check if username already exists
     result = await session.execute(select(User).where(User.username == user_data.username))
@@ -100,6 +104,31 @@ async def register(user_data: UserCreate, session: AsyncSession = Depends(get_sy
     session.add(new_user)
     await session.commit()
     await session.refresh(new_user)
+
+    # Create default workspace using username
+    base_path = Path(DATA_DIRECTORY)
+    slug = slugify(user_data.username)
+    workspace_path = base_path / slug
+    
+    # Handle name collisions by appending a number
+    counter = 1
+    original_slug = slug
+    while workspace_path.exists():
+        slug = f"{original_slug}-{counter}"
+        workspace_path = base_path / slug
+        counter += 1
+    
+    # Create the workspace directory
+    workspace_path.mkdir(parents=True, exist_ok=True)
+    
+    # Create default workspace
+    default_workspace = Workspace(
+        name=user_data.username,
+        path=str(workspace_path),
+        owner_id=new_user.id
+    )
+    session.add(default_workspace)
+    await session.commit()
 
     return new_user
 

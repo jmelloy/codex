@@ -1,14 +1,16 @@
 """Main FastAPI application."""
 
 import os
+from pathlib import Path
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import timedelta
 from contextlib import asynccontextmanager
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
 
-from backend.db.database import init_system_db, get_system_session
+from backend.db.database import init_system_db, get_system_session, DATA_DIRECTORY
 from backend.api.auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
     create_access_token,
@@ -16,9 +18,10 @@ from backend.api.auth import (
     get_password_hash,
     get_current_active_user,
 )
-from backend.db.models import User
+from backend.db.models import User, Workspace
 from backend.api.schemas import UserCreate, UserResponse
 from backend.api.routes import workspaces, notebooks, files, search, tasks, markdown
+from backend.api.routes.workspaces import slugify
 
 
 @asynccontextmanager
@@ -81,8 +84,6 @@ async def read_users_me(current_user: User = Depends(get_current_active_user)):
 @app.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register(user_data: UserCreate, session: AsyncSession = Depends(get_system_session)):
     """Register a new user."""
-    from sqlmodel import select
-
     # Check if username already exists
     result = await session.execute(select(User).where(User.username == user_data.username))
     if result.scalar_one_or_none():
@@ -100,6 +101,33 @@ async def register(user_data: UserCreate, session: AsyncSession = Depends(get_sy
     session.add(new_user)
     await session.commit()
     await session.refresh(new_user)
+
+    # Create default workspace using username
+    base_path = Path(DATA_DIRECTORY)
+    slug = slugify(user_data.username)
+    workspace_path = base_path / slug
+    
+    # Handle name collisions by appending a number (check both filesystem and database)
+    counter = 1
+    original_slug = slug
+    while workspace_path.exists() or (await session.execute(
+        select(Workspace).where(Workspace.path == str(workspace_path))
+    )).scalar_one_or_none() is not None:
+        slug = f"{original_slug}-{counter}"
+        workspace_path = base_path / slug
+        counter += 1
+    
+    # Create the workspace directory
+    workspace_path.mkdir(parents=True, exist_ok=True)
+    
+    # Create default workspace
+    default_workspace = Workspace(
+        name=user_data.username,
+        path=str(workspace_path),
+        owner_id=new_user.id
+    )
+    session.add(default_workspace)
+    await session.commit()
 
     return new_user
 

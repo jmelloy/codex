@@ -53,15 +53,13 @@ export function buildFileTree(files: FileMetadata[]): FileTreeNode[] {
     }
     
     // Add the file itself
-    const filename = pathParts[pathParts.length - 1]
-    if (filename) {
-      currentLevel.push({
-        name: filename,
-        path: file.path,
-        type: 'file',
-        file: file
-      })
-    }
+    const filename = pathParts[pathParts.length - 1]!  // Safe because pathParts.length > 0
+    currentLevel.push({
+      name: filename,
+      path: file.path,
+      type: 'file',
+      file: file
+    })
   }
   
   // Sort each level: folders first, then files, both alphabetically

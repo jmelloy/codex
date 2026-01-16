@@ -30,7 +30,8 @@ describe('buildFileTree', () => {
     const tree = buildFileTree(files)
     
     expect(tree).toHaveLength(2)
-    // Files are sorted alphabetically
+    // Files are sorted alphabetically using localeCompare (case-insensitive)
+    // 'notes' comes before 'README'
     expect(tree[0].type).toBe('file')
     expect(tree[0].name).toBe('notes.md')
     expect(tree[1].type).toBe('file')

@@ -21,15 +21,15 @@ export function buildFileTree(files: FileMetadata[]): FileTreeNode[] {
   const sortedFiles = [...files].sort((a, b) => a.path.localeCompare(b.path))
   
   for (const file of sortedFiles) {
-    const pathParts = file.path.split('/').filter(Boolean)
+    const pathParts = file.path.split('/').filter(part => part !== '')
+    if (pathParts.length === 0) continue
+    
     let currentLevel = root
     let currentPath = ''
     
     // Process each part of the path except the last (which is the filename)
     for (let i = 0; i < pathParts.length - 1; i++) {
-      const part = pathParts[i]
-      if (!part) continue
-      
+      const part = pathParts[i]!  // Safe because we're iterating within bounds
       currentPath = currentPath ? `${currentPath}/${part}` : part
       
       // Check if this folder already exists at current level

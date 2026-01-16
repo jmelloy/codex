@@ -14,7 +14,7 @@
             maxlength="50"
             placeholder="Enter username"
             :disabled="loading"
-            class="w-full px-2.5 py-2.5 border border-gray-300 rounded text-sm disabled:bg-gray-100 disabled:cursor-not-allowed focus:outline-none focus:border-green-500"
+            class="w-full px-2.5 py-2.5 border border-gray-300 rounded text-sm disabled:bg-gray-100 disabled:cursor-not-allowed focus:outline-none focus:border-primary"
           />
         </div>
 
@@ -27,7 +27,7 @@
             required
             placeholder="Enter email"
             :disabled="loading"
-            class="w-full px-2.5 py-2.5 border border-gray-300 rounded text-sm disabled:bg-gray-100 disabled:cursor-not-allowed focus:outline-none focus:border-green-500"
+            class="w-full px-2.5 py-2.5 border border-gray-300 rounded text-sm disabled:bg-gray-100 disabled:cursor-not-allowed focus:outline-none focus:border-primary"
           />
         </div>
 
@@ -41,7 +41,7 @@
             minlength="8"
             placeholder="Enter password (min 8 characters)"
             :disabled="loading"
-            class="w-full px-2.5 py-2.5 border border-gray-300 rounded text-sm disabled:bg-gray-100 disabled:cursor-not-allowed focus:outline-none focus:border-green-500"
+            class="w-full px-2.5 py-2.5 border border-gray-300 rounded text-sm disabled:bg-gray-100 disabled:cursor-not-allowed focus:outline-none focus:border-primary"
           />
         </div>
 
@@ -54,7 +54,7 @@
             required
             placeholder="Confirm password"
             :disabled="loading"
-            class="w-full px-2.5 py-2.5 border border-gray-300 rounded text-sm disabled:bg-gray-100 disabled:cursor-not-allowed focus:outline-none focus:border-green-500"
+            class="w-full px-2.5 py-2.5 border border-gray-300 rounded text-sm disabled:bg-gray-100 disabled:cursor-not-allowed focus:outline-none focus:border-primary"
           />
         </div>
 
@@ -62,14 +62,14 @@
           {{ error }}
         </div>
 
-        <button type="submit" :disabled="loading" class="w-full px-3 py-3 bg-green-600 text-white border-none rounded text-base cursor-pointer transition hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed">
+        <button type="submit" :disabled="loading" class="w-full px-3 py-3 bg-primary text-white border-none rounded text-base cursor-pointer transition hover:bg-primary-hover disabled:bg-gray-400 disabled:cursor-not-allowed">
           {{ loading ? 'Registering...' : 'Register' }}
         </button>
       </form>
 
       <div class="text-center mt-5 text-gray-600">
         Already have an account? 
-        <router-link to="/login" class="text-green-600 no-underline hover:underline">Login here</router-link>
+        <router-link to="/login" class="text-primary no-underline hover:underline">Login here</router-link>
       </div>
     </div>
   </div>

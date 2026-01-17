@@ -166,6 +166,10 @@ async def create_notebook(
         # Initialize notebook database
         init_notebook_db(str(notebook_path))
 
+        # Initialize Git repository for the notebook
+        from backend.core.git_manager import GitManager
+        git_manager = GitManager(str(notebook_path))
+
         # Create notebook record in the database
         nb_session = get_notebook_session(str(notebook_path))
         notebook = Notebook(name=body.name, path=slug, description=body.description)

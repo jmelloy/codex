@@ -1,5 +1,5 @@
 <template>
-  <div class="markdown-viewer">
+  <div class="markdown-viewer notebook-page theme-cream">
     <div class="markdown-toolbar" v-if="showToolbar">
       <button @click="$emit('edit')" v-if="editable" class="btn-edit">
         Edit
@@ -9,8 +9,8 @@
       </button>
       <slot name="toolbar-actions"></slot>
     </div>
-    <div 
-      class="markdown-content" 
+    <div
+      class="markdown-content notebook-content"
       v-html="renderedHtml"
       :class="{ 'loading': isLoading }"
     ></div>
@@ -135,18 +135,19 @@ watch(() => props.extensions, () => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: white;
   border-radius: 8px;
   overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .markdown-toolbar {
   display: flex;
   gap: 0.5rem;
   padding: 0.75rem;
-  background: #f7fafc;
-  border-bottom: 1px solid #e2e8f0;
+  background: rgba(255, 255, 255, 0.5);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
   align-items: center;
+  backdrop-filter: blur(10px);
 }
 
 .markdown-toolbar button {
@@ -176,9 +177,9 @@ watch(() => props.extensions, () => {
 
 .markdown-content {
   flex: 1;
-  padding: 2rem;
+  padding: 3rem 4rem;
   overflow-y: auto;
-  line-height: 1.6;
+  line-height: 1.7;
 }
 
 .markdown-content.loading {

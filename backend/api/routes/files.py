@@ -253,6 +253,13 @@ async def create_file(
                             file_modified_at=datetime.fromtimestamp(file_stats.st_mtime),
                         )
 
+                        # Commit file to git
+                        from backend.core.git_manager import GitManager
+                        git_manager = GitManager(str(item))
+                        commit_hash = git_manager.commit(f"Create {os.path.basename(path)}", [str(file_path)])
+                        if commit_hash:
+                            file_meta.last_commit_hash = commit_hash
+
                         nb_session.add(file_meta)
                         nb_session.commit()
                         nb_session.refresh(file_meta)
@@ -341,6 +348,13 @@ async def update_file(
                             file_meta.title = request.title
                         if request.description is not None:
                             file_meta.description = request.description
+
+                        # Commit file changes to git
+                        from backend.core.git_manager import GitManager
+                        git_manager = GitManager(str(item))
+                        commit_hash = git_manager.commit(f"Update {file_meta.filename}", [str(file_path)])
+                        if commit_hash:
+                            file_meta.last_commit_hash = commit_hash
 
                         nb_session.commit()
                         nb_session.refresh(file_meta)

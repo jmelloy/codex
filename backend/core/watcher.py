@@ -106,6 +106,17 @@ class NotebookFileHandler(FileSystemEventHandler):
                         )
                         session.add(file_meta)
 
+                    # Auto-commit to git if file should be tracked
+                    if not is_binary:
+                        try:
+                            from backend.core.git_manager import GitManager
+                            git_manager = GitManager(self.notebook_path)
+                            commit_hash = git_manager.auto_commit_on_change(filepath)
+                            if commit_hash:
+                                file_meta.last_commit_hash = commit_hash
+                        except Exception as e:
+                            print(f"Warning: Could not commit file to git: {e}")
+
                     session.commit()
 
             if self.callback:

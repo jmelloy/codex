@@ -226,6 +226,22 @@ async def create_markdown_file(
         with open(full_file_path, "w", encoding="utf-8") as f:
             f.write(file_content)
 
+        # Commit to git if file is in a notebook
+        try:
+            # Find which notebook this file belongs to
+            from backend.core.git_manager import GitManager
+            current_path = full_file_path.parent
+            while current_path != workspace_path and current_path != current_path.parent:
+                codex_dir = current_path / ".codex"
+                if codex_dir.exists():
+                    # Found the notebook directory, commit to git
+                    git_manager = GitManager(str(current_path))
+                    git_manager.commit(f"Create {full_file_path.name}", [str(full_file_path)])
+                    break
+                current_path = current_path.parent
+        except Exception as e:
+            print(f"Warning: Could not commit file to git: {e}")
+
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error creating file: {str(e)}")
 
@@ -287,6 +303,22 @@ async def update_markdown_file(
         # Write file
         with open(full_file_path, "w", encoding="utf-8") as f:
             f.write(file_content)
+
+        # Commit to git if file is in a notebook
+        try:
+            # Find which notebook this file belongs to
+            from backend.core.git_manager import GitManager
+            current_path = full_file_path.parent
+            while current_path != workspace_path and current_path != current_path.parent:
+                codex_dir = current_path / ".codex"
+                if codex_dir.exists():
+                    # Found the notebook directory, commit to git
+                    git_manager = GitManager(str(current_path))
+                    git_manager.commit(f"Update {full_file_path.name}", [str(full_file_path)])
+                    break
+                current_path = current_path.parent
+        except Exception as e:
+            print(f"Warning: Could not commit file to git: {e}")
 
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error updating file: {str(e)}")

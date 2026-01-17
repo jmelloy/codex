@@ -1,5 +1,5 @@
 <template>
-  <div class="markdown-viewer notebook-page theme-cream">
+  <div class="markdown-viewer notebook-page" :class="themeStore.theme.className">
     <div class="markdown-toolbar" v-if="showToolbar">
       <button @click="$emit('edit')" v-if="editable" class="btn-edit">
         Edit
@@ -26,6 +26,9 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { marked } from 'marked'
 import hljs from 'highlight.js'
 import 'highlight.js/styles/github.css'
+import { useThemeStore } from '../stores/theme'
+
+const themeStore = useThemeStore()
 
 // Props
 interface Props {

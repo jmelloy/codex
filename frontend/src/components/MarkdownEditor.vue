@@ -1,5 +1,5 @@
 <template>
-  <div class="markdown-editor notebook-page ruled-paper theme-cream">
+  <div class="markdown-editor notebook-page ruled-paper" :class="themeStore.theme.className">
     <div class="editor-toolbar">
       <div class="toolbar-group">
         <button @click="insertBold" title="Bold">
@@ -91,6 +91,9 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue'
 import MarkdownViewer, { type MarkdownExtension } from './MarkdownViewer.vue'
+import { useThemeStore } from '../stores/theme'
+
+const themeStore = useThemeStore()
 
 // Props
 interface Props {

@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen flex flex-col bg-gray-50 w-full">
+  <div class="min-h-screen flex flex-col bg-notebook-page-cream notebook-texture w-full">
     <nav class="bg-primary text-white px-8 py-4 flex justify-between items-center shadow-md">
       <h1 class="m-0 text-2xl">Markdown Editor</h1>
       <div>
@@ -8,7 +8,7 @@
     </nav>
 
     <div class="flex flex-1 overflow-hidden">
-      <aside class="w-[280px] bg-white border-r border-gray-200 flex flex-col">
+      <aside class="w-[280px] notebook-sidebar flex flex-col">
         <div class="flex justify-between items-center px-4 py-4 border-b border-gray-200">
           <h2 class="m-0 text-base text-gray-700">Documents</h2>
           <button @click="createNew" class="bg-primary text-white border-none w-7 h-7 rounded-full cursor-pointer text-lg flex items-center justify-center transition hover:bg-primary-hover">+</button>
@@ -30,7 +30,7 @@
       </aside>
 
       <main class="flex-1 flex flex-col overflow-hidden">
-        <div v-if="isEditing && currentDocument" class="flex-1 p-4 flex overflow-hidden">
+        <div v-if="isEditing && currentDocument" class="flex-1 p-8 flex overflow-hidden">
           <MarkdownEditor
             v-model="currentDocument.content"
             :frontmatter="currentDocument.frontmatter"
@@ -51,7 +51,7 @@
           </MarkdownEditor>
         </div>
 
-        <div v-else-if="currentDocument" class="flex-1 p-4 flex overflow-hidden">
+        <div v-else-if="currentDocument" class="flex-1 p-8 flex overflow-hidden max-w-5xl mx-auto w-full">
           <MarkdownViewer
             :content="currentDocument.content"
             :frontmatter="currentDocument.frontmatter"

@@ -1,5 +1,5 @@
 <template>
-  <div class="markdown-editor">
+  <div class="markdown-editor notebook-page ruled-paper theme-cream">
     <div class="editor-toolbar">
       <div class="toolbar-group">
         <button @click="insertBold" title="Bold">
@@ -282,9 +282,10 @@ defineExpose({
   display: flex;
   gap: 0.5rem;
   padding: 0.75rem;
-  background: #f7fafc;
-  border-bottom: 1px solid #e2e8f0;
+  background: rgba(255, 255, 255, 0.5);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
   flex-wrap: wrap;
+  backdrop-filter: blur(10px);
 }
 
 .toolbar-group {
@@ -347,14 +348,15 @@ defineExpose({
 .markdown-textarea {
   width: 100%;
   height: 100%;
-  padding: 1.5rem;
+  padding: 1.5rem 1.5rem 1.5rem 80px;
   border: none;
   outline: none;
-  font-family: 'Monaco', 'Courier New', monospace;
-  font-size: 0.9375rem;
-  line-height: 1.6;
+  font-family: Georgia, Palatino, 'Times New Roman', serif;
+  font-size: 1rem;
+  line-height: 24px;
   resize: none;
-  background: white;
+  background: transparent;
+  color: var(--notebook-text);
 }
 
 .markdown-textarea::placeholder {
@@ -366,8 +368,9 @@ defineExpose({
   justify-content: space-between;
   align-items: center;
   padding: 0.75rem;
-  background: #f7fafc;
-  border-top: 1px solid #e2e8f0;
+  background: rgba(255, 255, 255, 0.5);
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
 }
 
 .editor-stats {

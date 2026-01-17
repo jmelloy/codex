@@ -1,0 +1,316 @@
+/* ============================================
+   Codex Notebook Theme
+   Inspired by Obsidian Notebook Themes
+   ============================================ */
+
+:root {
+  /* ========== Color Variables ========== */
+
+  /* Pen Colors - Text colors that mimic writing instruments */
+  --pen-black: #1a1a1a;
+  --pen-gray: #4a5568;
+  --pen-blue: #2563eb;
+  --pen-red: #dc2626;
+  --pen-green: #16a34a;
+  --pen-purple: #9333ea;
+
+  /* Page Background Colors - Notebook paper colors */
+  --page-white: #ffffff;
+  --page-cream: #fef9f3;
+  --page-manila: #f4e8d0;
+  --page-blueprint: #1e3a5f;
+
+  /* Grid and Line Colors */
+  --grid-color: rgba(0, 0, 0, 0.08);
+  --grid-size: 24px;
+  --ruled-line-color: rgba(100, 149, 237, 0.2);
+  --margin-line-color: rgba(220, 38, 38, 0.3);
+
+  /* Shadow and Border Colors */
+  --page-shadow: rgba(0, 0, 0, 0.1);
+  --page-border: rgba(0, 0, 0, 0.15);
+
+  /* Default Theme Colors */
+  --notebook-bg: var(--page-cream);
+  --notebook-text: var(--pen-black);
+  --notebook-accent: #667eea;
+}
+
+/* ========== Paper Texture Background ========== */
+.notebook-texture {
+  position: relative;
+  background-color: var(--notebook-bg);
+}
+
+.notebook-texture::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  opacity: 0.03;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' /%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.4'/%3E%3C/svg%3E");
+}
+
+/* ========== Ruled Paper Pattern ========== */
+.ruled-paper {
+  background-color: var(--page-white);
+  background-image:
+    /* Red margin line */
+    linear-gradient(
+      to right,
+      transparent 0,
+      transparent 60px,
+      var(--margin-line-color) 60px,
+      var(--margin-line-color) 61px,
+      transparent 61px
+    ),
+    /* Horizontal ruled lines */
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent calc(var(--grid-size) - 1px),
+      var(--ruled-line-color) calc(var(--grid-size) - 1px),
+      var(--ruled-line-color) var(--grid-size)
+    );
+  background-size: 100% var(--grid-size);
+  background-position: 0 0;
+  line-height: var(--grid-size);
+  padding-top: calc(var(--grid-size) / 2);
+}
+
+/* ========== Graph Paper Pattern ========== */
+.graph-paper {
+  background-color: var(--page-white);
+  background-image:
+    /* Vertical lines */
+    repeating-linear-gradient(
+      to right,
+      transparent 0,
+      transparent calc(var(--grid-size) - 1px),
+      var(--grid-color) calc(var(--grid-size) - 1px),
+      var(--grid-color) var(--grid-size)
+    ),
+    /* Horizontal lines */
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent calc(var(--grid-size) - 1px),
+      var(--grid-color) calc(var(--grid-size) - 1px),
+      var(--grid-color) var(--grid-size)
+    );
+  background-size: var(--grid-size) var(--grid-size);
+}
+
+/* ========== Dotted Paper Pattern ========== */
+.dotted-paper {
+  background-color: var(--page-white);
+  background-image: radial-gradient(circle, var(--grid-color) 1px, transparent 1px);
+  background-size: var(--grid-size) var(--grid-size);
+}
+
+/* ========== Page Theme Classes ========== */
+
+/* Cream Notebook (Default) */
+.theme-cream {
+  --notebook-bg: var(--page-cream);
+  --notebook-text: var(--pen-black);
+  background-color: var(--notebook-bg);
+  color: var(--notebook-text);
+}
+
+/* Manila/Tan Notebook */
+.theme-manila {
+  --notebook-bg: var(--page-manila);
+  --notebook-text: var(--pen-black);
+  background-color: var(--notebook-bg);
+  color: var(--notebook-text);
+}
+
+/* White Notebook */
+.theme-white {
+  --notebook-bg: var(--page-white);
+  --notebook-text: var(--pen-black);
+  background-color: var(--notebook-bg);
+  color: var(--notebook-text);
+}
+
+/* Blueprint/Dark Notebook */
+.theme-blueprint {
+  --notebook-bg: var(--page-blueprint);
+  --notebook-text: #e0e7ff;
+  --grid-color: rgba(255, 255, 255, 0.1);
+  --ruled-line-color: rgba(255, 255, 255, 0.15);
+  background-color: var(--notebook-bg);
+  color: var(--notebook-text);
+}
+
+/* ========== Pen Color Classes ========== */
+.pen-black { color: var(--pen-black) !important; }
+.pen-gray { color: var(--pen-gray) !important; }
+.pen-blue { color: var(--pen-blue) !important; }
+.pen-red { color: var(--pen-red) !important; }
+.pen-green { color: var(--pen-green) !important; }
+.pen-purple { color: var(--pen-purple) !important; }
+
+/* ========== Notebook Page Container ========== */
+.notebook-page {
+  background: var(--notebook-bg);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.05),
+    0 4px 12px var(--page-shadow);
+  border: 1px solid var(--page-border);
+  border-radius: 4px;
+  position: relative;
+}
+
+/* Spiral binding holes effect (optional) */
+.notebook-page.spiral-binding::before {
+  content: '';
+  position: absolute;
+  left: 40px;
+  top: 20px;
+  bottom: 20px;
+  width: 8px;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent 20px,
+    rgba(0, 0, 0, 0.1) 20px,
+    rgba(0, 0, 0, 0.1) 28px
+  );
+  border-radius: 4px;
+}
+
+/* ========== Markdown Content Styling ========== */
+.notebook-content {
+  font-family: 'Georgia', 'Palatino', 'Times New Roman', serif;
+  line-height: 1.7;
+  color: var(--notebook-text);
+}
+
+.notebook-content h1,
+.notebook-content h2,
+.notebook-content h3,
+.notebook-content h4,
+.notebook-content h5,
+.notebook-content h6 {
+  font-family: 'Georgia', 'Palatino', serif;
+  font-weight: 600;
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+  color: var(--notebook-text);
+  border-bottom: 2px solid color-mix(in srgb, var(--notebook-text) 20%, transparent);
+  padding-bottom: 0.3em;
+}
+
+.notebook-content a {
+  color: var(--pen-blue);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.notebook-content a:hover {
+  text-decoration-style: solid;
+}
+
+.notebook-content code {
+  background: color-mix(in srgb, var(--notebook-text) 8%, transparent);
+  padding: 0.2em 0.4em;
+  border-radius: 3px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9em;
+}
+
+.notebook-content pre {
+  background: color-mix(in srgb, var(--notebook-text) 5%, transparent);
+  padding: 1em;
+  border-radius: 4px;
+  border-left: 3px solid var(--notebook-accent);
+  overflow-x: auto;
+}
+
+.notebook-content blockquote {
+  border-left: 4px solid var(--notebook-accent);
+  padding-left: 1em;
+  margin-left: 0;
+  font-style: italic;
+  color: color-mix(in srgb, var(--notebook-text) 80%, transparent);
+}
+
+.notebook-content ul,
+.notebook-content ol {
+  padding-left: 2em;
+}
+
+.notebook-content li {
+  margin: 0.3em 0;
+}
+
+/* Handwriting-style for emphasis (optional enhancement) */
+.notebook-content em {
+  font-style: italic;
+  color: var(--pen-blue);
+}
+
+.notebook-content strong {
+  font-weight: 700;
+  color: var(--pen-black);
+}
+
+/* ========== Editor Specific Styles ========== */
+.notebook-editor {
+  background: transparent;
+  color: var(--notebook-text);
+  font-family: 'Georgia', 'Palatino', serif;
+  line-height: var(--grid-size);
+  padding: 2rem;
+}
+
+.notebook-editor::placeholder {
+  color: color-mix(in srgb, var(--notebook-text) 40%, transparent);
+  font-style: italic;
+}
+
+/* ========== Sidebar and UI Elements ========== */
+.notebook-sidebar {
+  background: linear-gradient(
+    to bottom,
+    #f8fafc 0%,
+    #f1f5f9 100%
+  );
+  border-right: 1px solid #e2e8f0;
+}
+
+.notebook-toolbar {
+  background: var(--page-cream);
+  border-bottom: 1px solid var(--page-border);
+}
+
+/* ========== Responsive Adjustments ========== */
+@media (max-width: 768px) {
+  :root {
+    --grid-size: 20px;
+  }
+
+  .ruled-paper,
+  .notebook-editor {
+    line-height: var(--grid-size);
+  }
+}
+
+/* ========== Print Styles ========== */
+@media print {
+  .notebook-page {
+    box-shadow: none;
+    border: none;
+  }
+
+  .notebook-texture::before {
+    opacity: 0.02;
+  }
+}

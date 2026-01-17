@@ -2,3 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Notebook Theme */
+@import './notebook-theme.css';
+

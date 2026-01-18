@@ -21,6 +21,12 @@ class WorkspaceCreate(BaseModel):
     path: Optional[str] = None
 
 
+class ThemeUpdate(BaseModel):
+    """Request body for updating theme setting."""
+
+    theme: str
+
+
 def slugify(name: str) -> str:
     """Convert a name to a filesystem-safe slug."""
     # Convert to lowercase, replace spaces and special chars with hyphens
@@ -91,6 +97,28 @@ async def create_workspace(
     workspace_dir.mkdir(parents=True, exist_ok=True)
 
     workspace = Workspace(name=name, path=path, owner_id=current_user.id)
+    session.add(workspace)
+    await session.commit()
+    await session.refresh(workspace)
+    return workspace
+
+
+@router.patch("/{workspace_id}/theme")
+async def update_workspace_theme(
+    workspace_id: int,
+    body: ThemeUpdate,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+) -> Workspace:
+    """Update the theme setting for a workspace."""
+    result = await session.execute(
+        select(Workspace).where(Workspace.id == workspace_id, Workspace.owner_id == current_user.id)
+    )
+    workspace = result.scalar_one_or_none()
+    if not workspace:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+
+    workspace.theme_setting = body.theme
     session.add(workspace)
     await session.commit()
     await session.refresh(workspace)

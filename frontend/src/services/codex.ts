@@ -5,6 +5,7 @@ export interface Workspace {
   name: string;
   path: string;
   owner_id: number;
+  theme_setting?: string;
   created_at: string;
   updated_at: string;
 }
@@ -51,6 +52,14 @@ export const workspaceService = {
     const response = await apiClient.post<Workspace>("/api/v1/workspaces/", {
       name,
     });
+    return response.data;
+  },
+
+  async updateTheme(id: number, theme: string): Promise<Workspace> {
+    const response = await apiClient.patch<Workspace>(
+      `/api/v1/workspaces/${id}/theme`,
+      { theme }
+    );
     return response.data;
   },
 };

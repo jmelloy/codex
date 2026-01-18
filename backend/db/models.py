@@ -56,6 +56,7 @@ class Workspace(SQLModel, table=True):
     name: str = Field(index=True)
     path: str = Field(unique=True)  # Filesystem path
     owner_id: int = Field(foreign_key="users.id")
+    theme_setting: Optional[str] = Field(default="cream")  # User's preferred theme
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
 

@@ -1,5 +1,6 @@
 import { defineStore } from "pinia"
 import { ref, computed } from "vue"
+import { workspaceService } from "../services/codex"
 
 export type ThemeName = "cream" | "manila" | "white" | "blueprint"
 
@@ -42,6 +43,7 @@ const DEFAULT_THEME: ThemeName = "cream"
 
 export const useThemeStore = defineStore("theme", () => {
   const currentTheme = ref<ThemeName>(DEFAULT_THEME)
+  const currentWorkspaceId = ref<number | null>(null)
 
   const theme = computed((): Theme => {
     const found = THEMES.find((t) => t.name === currentTheme.value)
@@ -50,9 +52,22 @@ export const useThemeStore = defineStore("theme", () => {
 
   const availableThemes = computed(() => THEMES)
 
-  function setTheme(themeName: ThemeName) {
+  async function setTheme(themeName: ThemeName) {
     currentTheme.value = themeName
-    saveToLocalStorage(themeName)
+
+    // Save to workspace if available
+    if (currentWorkspaceId.value) {
+      try {
+        await workspaceService.updateTheme(currentWorkspaceId.value, themeName)
+      } catch (error) {
+        console.error("Failed to save theme to workspace:", error)
+        // Fallback to localStorage on error
+        saveToLocalStorage(themeName)
+      }
+    } else {
+      // No workspace, use localStorage
+      saveToLocalStorage(themeName)
+    }
   }
 
   function saveToLocalStorage(themeName: ThemeName) {
@@ -75,6 +90,17 @@ export const useThemeStore = defineStore("theme", () => {
     return DEFAULT_THEME
   }
 
+  function loadFromWorkspace(workspaceId: number, themeSetting?: string) {
+    currentWorkspaceId.value = workspaceId
+
+    if (themeSetting && THEMES.some((t) => t.name === themeSetting)) {
+      currentTheme.value = themeSetting as ThemeName
+    } else {
+      // Fallback to localStorage if workspace doesn't have a theme
+      currentTheme.value = loadFromLocalStorage()
+    }
+  }
+
   function initialize() {
     currentTheme.value = loadFromLocalStorage()
   }
@@ -85,5 +111,6 @@ export const useThemeStore = defineStore("theme", () => {
     availableThemes,
     setTheme,
     initialize,
+    loadFromWorkspace,
   }
 })

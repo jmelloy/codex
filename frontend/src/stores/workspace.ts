@@ -9,6 +9,7 @@ import {
   type FileMetadata,
   type FileWithContent,
 } from "../services/codex";
+import { useThemeStore } from "./theme";
 
 export const useWorkspaceStore = defineStore("workspace", () => {
   const workspaces = ref<Workspace[]>([]);
@@ -83,6 +84,9 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     currentWorkspace.value = workspace;
     if (workspace) {
       fetchNotebooks(workspace.id);
+      // Load theme from workspace
+      const themeStore = useThemeStore();
+      themeStore.loadFromWorkspace(workspace.id, workspace.theme_setting);
     }
     // Clear file state when switching workspaces
     currentNotebook.value = null;

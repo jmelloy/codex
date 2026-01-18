@@ -3,7 +3,6 @@ import { createPinia } from "pinia";
 import "./style.css";
 import App from "./App.vue";
 import router from "./router";
-import { useAuthStore } from "./stores/auth";
 
 const app = createApp(App);
 const pinia = createPinia();
@@ -11,8 +10,14 @@ const pinia = createPinia();
 app.use(pinia);
 app.use(router);
 
-// Initialize auth state
+app.mount("#app");
+
+// Initialize stores after app is mounted
+import { useAuthStore } from "./stores/auth";
+import { useThemeStore } from "./stores/theme";
+
 const authStore = useAuthStore();
 authStore.initialize();
 
-app.mount("#app");
+const themeStore = useThemeStore();
+themeStore.initialize();

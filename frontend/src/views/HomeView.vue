@@ -3,6 +3,7 @@
     <nav class="bg-primary text-white px-8 py-4 flex justify-between items-center">
       <h1 class="text-2xl font-semibold m-0">Codex</h1>
       <div class="flex items-center gap-4">
+        <ThemeSwitcher />
         <span>{{ authStore.user?.username }}</span>
         <button @click="handleLogout" class="bg-white/20 text-white border-none px-4 py-2 rounded cursor-pointer hover:bg-white/30 transition">Logout</button>
       </div>
@@ -239,6 +240,7 @@ import MarkdownViewer from '../components/MarkdownViewer.vue'
 import MarkdownEditor from '../components/MarkdownEditor.vue'
 import FilePropertiesPanel from '../components/FilePropertiesPanel.vue'
 import FileTreeItem from '../components/FileTreeItem.vue'
+import ThemeSwitcher from '../components/ThemeSwitcher.vue'
 import { showToast } from '../utils/toast'
 import { buildFileTree, type FileTreeNode } from '../utils/fileTree'
 

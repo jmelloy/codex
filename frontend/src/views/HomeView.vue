@@ -122,7 +122,7 @@
         <div v-else-if="workspaceStore.isEditing && workspaceStore.currentFile" class="flex-1 flex overflow-hidden p-4">
           <MarkdownEditor
             v-model="editContent"
-            :frontmatter="workspaceStore.currentFile.frontmatter"
+            :frontmatter="workspaceStore.currentFile.properties"
             :autosave="false"
             @save="handleSaveFile"
             @cancel="handleCancelEdit"
@@ -134,7 +134,7 @@
         <div v-else-if="workspaceStore.currentFile" class="flex-1 flex overflow-hidden p-4">
           <MarkdownViewer
             :content="workspaceStore.currentFile.content"
-            :frontmatter="workspaceStore.currentFile.frontmatter"
+            :frontmatter="workspaceStore.currentFile.properties"
             :show-frontmatter="showFrontmatter"
             @edit="startEdit"
             @copy="handleCopy"
@@ -166,8 +166,7 @@
         :file="workspaceStore.currentFile"
         class="w-[300px] min-w-[300px]"
         @close="showPropertiesPanel = false"
-        @update-title="handleUpdateTitle"
-        @update-description="handleUpdateDescription"
+        @update-properties="handleUpdateProperties"
         @delete="handleDeleteFile"
       />
     </div>
@@ -361,27 +360,12 @@ function toggleProperties() {
   showPropertiesPanel.value = !showPropertiesPanel.value
 }
 
-async function handleUpdateTitle(title: string) {
+async function handleUpdateProperties(properties: Record<string, any>) {
   if (workspaceStore.currentFile) {
     try {
       await workspaceStore.saveFile(
         workspaceStore.currentFile.content,
-        title,
-        workspaceStore.currentFile.description
-      )
-    } catch {
-      // Error handled in store
-    }
-  }
-}
-
-async function handleUpdateDescription(description: string) {
-  if (workspaceStore.currentFile) {
-    try {
-      await workspaceStore.saveFile(
-        workspaceStore.currentFile.content,
-        workspaceStore.currentFile.title,
-        description
+        properties
       )
     } catch {
       // Error handled in store

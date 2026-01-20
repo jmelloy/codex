@@ -13,10 +13,13 @@ const mockFile = {
   size: 1024,
   created_at: '2024-01-15T12:00:00Z',
   updated_at: '2024-01-16T12:00:00Z',
-  frontmatter: {
+  properties: {
+    title: 'Test File',
+    description: 'Test description',
     tags: ['test', 'example']
   },
-  content: '# Test Content'
+  content: '# Test Content',
+  notebook_id: 1
 }
 
 describe('FilePropertiesPanel', () => {
@@ -171,13 +174,13 @@ describe('FilePropertiesPanel', () => {
   })
 
   it('does not display tags section when no tags', () => {
-    const fileWithoutTags = { ...mockFile, frontmatter: {} }
+    const fileWithoutTags = { ...mockFile, properties: { title: 'Test File', description: 'Test description' } }
     const wrapper = mount(FilePropertiesPanel, {
       props: {
         file: fileWithoutTags
       }
     })
-    
+
     expect(wrapper.findAll('.tag').length).toBe(0)
   })
 
@@ -194,64 +197,67 @@ describe('FilePropertiesPanel', () => {
     expect(wrapper.emitted('close')).toBeTruthy()
   })
 
-  it('emits updateTitle when title is changed and blurred', async () => {
+  it('emits updateProperties when title is changed and blurred', async () => {
     const wrapper = mount(FilePropertiesPanel, {
       props: {
         file: mockFile
       }
     })
-    
+
     const titleInput = wrapper.find('.property-input')
     await titleInput.setValue('New Title')
     await titleInput.trigger('blur')
-    
-    expect(wrapper.emitted('updateTitle')).toBeTruthy()
-    expect(wrapper.emitted('updateTitle')![0]).toEqual(['New Title'])
+
+    expect(wrapper.emitted('updateProperties')).toBeTruthy()
+    const emittedProps = wrapper.emitted('updateProperties')![0][0] as Record<string, any>
+    expect(emittedProps.title).toBe('New Title')
   })
 
-  it('emits updateTitle when title is changed and enter is pressed', async () => {
+  it('emits updateProperties when title is changed and enter is pressed', async () => {
     const wrapper = mount(FilePropertiesPanel, {
       props: {
         file: mockFile
       }
     })
-    
+
     const titleInput = wrapper.find('.property-input')
     await titleInput.setValue('New Title')
     await titleInput.trigger('keyup.enter')
-    
-    expect(wrapper.emitted('updateTitle')).toBeTruthy()
-    expect(wrapper.emitted('updateTitle')![0]).toEqual(['New Title'])
+
+    expect(wrapper.emitted('updateProperties')).toBeTruthy()
+    const emittedProps = wrapper.emitted('updateProperties')![0][0] as Record<string, any>
+    expect(emittedProps.title).toBe('New Title')
   })
 
-  it('emits updateDescription when description is changed and blurred', async () => {
+  it('emits updateProperties when description is changed and blurred', async () => {
     const wrapper = mount(FilePropertiesPanel, {
       props: {
         file: mockFile
       }
     })
-    
+
     const descriptionTextarea = wrapper.find('.property-textarea')
     await descriptionTextarea.setValue('New description')
     await descriptionTextarea.trigger('blur')
-    
-    expect(wrapper.emitted('updateDescription')).toBeTruthy()
-    expect(wrapper.emitted('updateDescription')![0]).toEqual(['New description'])
+
+    expect(wrapper.emitted('updateProperties')).toBeTruthy()
+    const emittedProps = wrapper.emitted('updateProperties')![0][0] as Record<string, any>
+    expect(emittedProps.description).toBe('New description')
   })
 
-  it('does not emit updateTitle if value unchanged', async () => {
+  it('does not emit updateProperties if title value unchanged', async () => {
     const wrapper = mount(FilePropertiesPanel, {
       props: {
         file: mockFile
       }
     })
-    
+
     const titleInput = wrapper.find('.property-input')
     // Keep the same value
     await titleInput.setValue('Test File')
     await titleInput.trigger('blur')
-    
-    expect(wrapper.emitted('updateTitle')).toBeFalsy()
+
+    expect(wrapper.emitted('updateProperties')).toBeFalsy()
   })
 
   it('displays delete button', () => {
@@ -306,37 +312,54 @@ describe('FilePropertiesPanel', () => {
         file: mockFile
       }
     })
-    
-    const newFile = { ...mockFile, title: 'Updated Title', description: 'Updated description' }
+
+    const newFile = {
+      ...mockFile,
+      title: 'Updated Title',
+      description: 'Updated description',
+      properties: {
+        title: 'Updated Title',
+        description: 'Updated description',
+        tags: ['test', 'example']
+      }
+    }
     await wrapper.setProps({ file: newFile })
-    
+
     const titleInput = wrapper.find('.property-input')
     const descriptionTextarea = wrapper.find('.property-textarea')
-    
+
     expect(titleInput.element.value).toBe('Updated Title')
     expect(descriptionTextarea.element.value).toBe('Updated description')
   })
 
   it('handles file with no title gracefully', () => {
-    const fileWithoutTitle = { ...mockFile, title: null }
+    const fileWithoutTitle = {
+      ...mockFile,
+      title: null,
+      properties: { description: 'Test description', tags: [] }
+    }
     const wrapper = mount(FilePropertiesPanel, {
       props: {
         file: fileWithoutTitle
       }
     })
-    
+
     const titleInput = wrapper.find('.property-input')
     expect(titleInput.element.value).toBe('')
   })
 
   it('handles file with no description gracefully', () => {
-    const fileWithoutDescription = { ...mockFile, description: null }
+    const fileWithoutDescription = {
+      ...mockFile,
+      description: null,
+      properties: { title: 'Test File', tags: [] }
+    }
     const wrapper = mount(FilePropertiesPanel, {
       props: {
         file: fileWithoutDescription
       }
     })
-    
+
     const descriptionTextarea = wrapper.find('.property-textarea')
     expect(descriptionTextarea.element.value).toBe('')
   })

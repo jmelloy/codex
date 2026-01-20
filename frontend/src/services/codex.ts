@@ -28,13 +28,13 @@ export interface FileMetadata {
   size: number;
   title?: string;
   description?: string;
+  properties?: Record<string, any>;  // Unified properties from frontmatter
   created_at: string;
   updated_at: string;
 }
 
 export interface FileWithContent extends FileMetadata {
   content: string;
-  frontmatter?: Record<string, any>;
 }
 
 export const workspaceService = {
@@ -123,15 +123,13 @@ export const fileService = {
     id: number,
     workspaceId: number,
     content: string,
-    title?: string,
-    description?: string
+    properties?: Record<string, any>
   ): Promise<FileMetadata> {
     const response = await apiClient.put<FileMetadata>(
       `/api/v1/files/${id}?workspace_id=${workspaceId}`,
       {
         content,
-        title,
-        description,
+        properties,
       }
     );
     return response.data;

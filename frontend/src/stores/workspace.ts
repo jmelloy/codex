@@ -134,7 +134,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     }
   }
 
-  async function saveFile(content: string, title?: string, description?: string) {
+  async function saveFile(content: string, properties?: Record<string, any>) {
     if (!currentWorkspace.value || !currentFile.value) return;
 
     fileLoading.value = true;
@@ -144,10 +144,9 @@ export const useWorkspaceStore = defineStore("workspace", () => {
         currentFile.value.id,
         currentWorkspace.value.id,
         content,
-        title,
-        description
+        properties
       );
-      // Update currentFile with new content
+      // Update currentFile with new content and properties
       currentFile.value = { ...currentFile.value, ...updated, content };
       isEditing.value = false;
 

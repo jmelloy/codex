@@ -21,6 +21,24 @@ class MetadataParser:
             return {}, content
 
     @staticmethod
+    def write_frontmatter(content: str, properties: Dict[str, Any]) -> str:
+        """Combine content with frontmatter properties.
+
+        Args:
+            content: The main content (without frontmatter)
+            properties: Dictionary of properties to write as frontmatter
+
+        Returns:
+            The content with frontmatter prepended
+        """
+        try:
+            post = frontmatter.Post(content, **properties)
+            return frontmatter.dumps(post)
+        except Exception as e:
+            print(f"Error writing frontmatter: {e}")
+            return content
+
+    @staticmethod
     def parse_json_sidecar(filepath: str) -> Optional[Dict[str, Any]]:
         """Parse JSON sidecar file."""
         sidecar_path = f"{filepath}.json"

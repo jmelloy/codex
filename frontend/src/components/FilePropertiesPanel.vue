@@ -64,11 +64,23 @@
         </div>
       </div>
 
-      <!-- Tags from frontmatter -->
-      <div v-if="tags.length > 0" class="property-section">
+      <!-- Tags (editable) -->
+      <div class="property-section">
         <h4>Tags</h4>
         <div class="tags-list">
-          <span v-for="tag in tags" :key="tag" class="tag">{{ tag }}</span>
+          <span v-for="tag in tags" :key="tag" class="tag">
+            {{ tag }}
+            <button @click="removeTag(tag)" class="tag-remove" title="Remove tag">×</button>
+          </span>
+        </div>
+        <div class="tag-input-wrapper">
+          <input
+            v-model="newTag"
+            @keyup.enter="addTag"
+            class="tag-input"
+            placeholder="Add a tag..."
+          />
+          <button @click="addTag" class="tag-add-btn" :disabled="!newTag.trim()">Add</button>
         </div>
       </div>
 
@@ -98,30 +110,36 @@ const props = defineProps<Props>()
 
 const emit = defineEmits<{
   close: []
-  updateTitle: [title: string]
-  updateDescription: [description: string]
+  updateProperties: [properties: Record<string, any>]
   delete: []
 }>()
 
 const editableTitle = ref('')
 const editableDescription = ref('')
+const newTag = ref('')
+
+// Get current properties or empty object
+const currentProperties = computed(() => {
+  return props.file?.properties || {}
+})
 
 // Sync with prop changes
 watch(
   () => props.file,
   (newFile) => {
     if (newFile) {
-      editableTitle.value = newFile.title || ''
-      editableDescription.value = newFile.description || ''
+      // Read from properties first, fall back to direct fields
+      editableTitle.value = newFile.properties?.title || newFile.title || ''
+      editableDescription.value = newFile.properties?.description || newFile.description || ''
     }
   },
   { immediate: true }
 )
 
 const tags = computed(() => {
-  if (props.file?.frontmatter?.tags) {
-    return Array.isArray(props.file.frontmatter.tags)
-      ? props.file.frontmatter.tags
+  if (props.file?.properties?.tags) {
+    return Array.isArray(props.file.properties.tags)
+      ? props.file.properties.tags
       : []
   }
   return []
@@ -150,20 +168,47 @@ function formatSize(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
 }
 
+function emitPropertiesUpdate(updates: Record<string, any>) {
+  const newProperties = {
+    ...currentProperties.value,
+    ...updates
+  }
+  emit('updateProperties', newProperties)
+}
+
 function updateTitle() {
-  if (props.file && editableTitle.value !== props.file.title) {
-    emit('updateTitle', editableTitle.value)
+  const currentTitle = props.file?.properties?.title || props.file?.title || ''
+  if (props.file && editableTitle.value !== currentTitle) {
+    emitPropertiesUpdate({ title: editableTitle.value })
   }
 }
 
 function updateDescription() {
-  if (props.file && editableDescription.value !== props.file.description) {
-    emit('updateDescription', editableDescription.value)
+  const currentDescription = props.file?.properties?.description || props.file?.description || ''
+  if (props.file && editableDescription.value !== currentDescription) {
+    emitPropertiesUpdate({ description: editableDescription.value })
   }
 }
 
+function addTag() {
+  const tagToAdd = newTag.value.trim()
+  if (!tagToAdd) return
+
+  const currentTags = tags.value
+  if (!currentTags.includes(tagToAdd)) {
+    emitPropertiesUpdate({ tags: [...currentTags, tagToAdd] })
+  }
+  newTag.value = ''
+}
+
+function removeTag(tagToRemove: string) {
+  const currentTags = tags.value
+  emitPropertiesUpdate({ tags: currentTags.filter(t => t !== tagToRemove) })
+}
+
 function confirmDelete() {
-  if (confirm(`Are you sure you want to delete "${props.file?.title || props.file?.filename}"?`)) {
+  const displayName = props.file?.properties?.title || props.file?.title || props.file?.filename
+  if (confirm(`Are you sure you want to delete "${displayName}"?`)) {
     emit('delete')
   }
 }
@@ -291,12 +336,66 @@ function confirmDelete() {
 }
 
 .tag {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
   padding: 0.25rem 0.5rem;
   background: #edf2f7;
   color: #4a5568;
   border-radius: 4px;
   font-size: 0.75rem;
+}
+
+.tag-remove {
+  background: none;
+  border: none;
+  color: #a0aec0;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  font-size: 0.875rem;
+}
+
+.tag-remove:hover {
+  color: #e53e3e;
+}
+
+.tag-input-wrapper {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.tag-input {
+  flex: 1;
+  padding: 0.375rem 0.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  font-size: 0.8125rem;
+}
+
+.tag-input:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.tag-add-btn {
+  padding: 0.375rem 0.75rem;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.tag-add-btn:hover:not(:disabled) {
+  background: #5a67d8;
+}
+
+.tag-add-btn:disabled {
+  background: #cbd5e0;
+  cursor: not-allowed;
 }
 
 .property-actions {

@@ -127,10 +127,11 @@ class FileMetadata(SQLModel, table=True):
     size: int
     hash: Optional[str] = None  # For detecting changes
 
-    # Metadata
+    # Metadata - properties from frontmatter (source of truth is file)
+    # title and description are indexed fields extracted from properties for search
     title: Optional[str] = None
     description: Optional[str] = None
-    frontmatter: Optional[str] = None  # JSON-encoded frontmatter
+    properties: Optional[str] = None  # JSON-encoded dict from frontmatter
     sidecar_path: Optional[str] = None
 
     # Timestamps

@@ -43,6 +43,13 @@ def init_notebook_db(notebook_path: str):
     """Initialize notebook database tables."""
     engine = get_notebook_engine(notebook_path)
     SQLModel.metadata.create_all(engine)
+
+    # Run migrations on this notebook database
+    from backend.db.migrations import migrate_frontmatter_to_properties
+
+    db_path = os.path.join(notebook_path, ".codex", "notebook.db")
+    migrate_frontmatter_to_properties(db_path)
+
     return engine
 
 

@@ -31,8 +31,13 @@ async def init_system_db():
         await conn.run_sync(SQLModel.metadata.create_all)
     
     # Run migrations on system database
-    # Extract the path from the async URL
-    db_path = SYSTEM_DATABASE_URL.replace("sqlite:///", "")
+    # Extract the path from the database URL
+    if SYSTEM_DATABASE_URL.startswith("sqlite:///"):
+        db_path = SYSTEM_DATABASE_URL.replace("sqlite:///", "")
+    else:
+        # For other database types or URL formats, skip migrations
+        # (migrations are SQLite-specific)
+        return
     
     # Import and run migrations
     from backend.db.system_migrations.add_theme_setting import migrate_system_db as migrate_theme

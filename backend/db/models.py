@@ -11,7 +11,9 @@ def utc_now() -> datetime:
 
 
 # Link tables (must be defined before they are referenced)
-# NotebookTag is not needed since notebooks are now in system database
+# NotebookTag link table removed: Notebooks are now in the system database, 
+# while tags remain in per-notebook databases. Tags can still be applied to notebooks
+# by referencing the notebook_id, but there's no direct SQLAlchemy relationship.
 
 
 class FileTag(SQLModel, table=True):

@@ -3,6 +3,8 @@
 import re
 from pathlib import Path
 from typing import Optional
+from unicodedata import name
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -12,6 +14,7 @@ from sqlmodel import select
 from backend.api.auth import get_current_active_user
 from backend.db.database import get_system_session, DATA_DIRECTORY
 from backend.db.models import User, Workspace
+
 
 
 class WorkspaceCreate(BaseModel):
@@ -74,23 +77,19 @@ async def create_workspace(
     based on the workspace name.
     """
     name = body.name
-    path = body.path
+    path = body.path or slugify(name)
+    
+    base_path = Path(DATA_DIRECTORY) / "workspaces"
+    workspace_path = base_path / path
 
-    if path is None:
-        # Generate path from name
-        base_path = Path(DATA_DIRECTORY)
-        slug = slugify(name)
+    # Handle name collisions by appending a number
+    
+    while workspace_path.exists():
+        counter = uuid4().hex[:8]
+        slug = f"{path}-{counter}"
         workspace_path = base_path / slug
 
-        # Handle name collisions by appending a number
-        counter = 1
-        original_slug = slug
-        while workspace_path.exists():
-            slug = f"{original_slug}-{counter}"
-            workspace_path = base_path / slug
-            counter += 1
-
-        path = str(workspace_path)
+    path = str(workspace_path)
 
     # Create the workspace directory
     workspace_dir = Path(path)

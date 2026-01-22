@@ -16,7 +16,6 @@ from backend.api.routes.query import (
     file_to_dict,
 )
 
-
 client = TestClient(app)
 
 

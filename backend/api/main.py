@@ -57,7 +57,6 @@ async def root():
 @app.post("/token")
 async def login(form_data: OAuth2PasswordRequestForm = Depends(), session: AsyncSession = Depends(get_system_session)):
     """Login endpoint to get access token."""
-    from sqlmodel import select
 
     result = await session.execute(select(User).where(User.username == form_data.username))
     user = result.scalar_one_or_none()
@@ -76,13 +75,13 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), session: Async
 
 
 @app.get("/users/me")
-async def read_users_me(current_user: User = Depends(get_current_active_user)):
+async def read_users_me(current_user: User = Depends(get_current_active_user)) -> UserResponse:
     """Get current user information."""
-    return current_user
+    return UserResponse.model_validate(current_user)
 
 
 @app.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-async def register(user_data: UserCreate, session: AsyncSession = Depends(get_system_session)):
+async def register(user_data: UserCreate, session: AsyncSession = Depends(get_system_session)) -> UserResponse:
     """Register a new user."""
     # Check if username already exists
     result = await session.execute(select(User).where(User.username == user_data.username))
@@ -106,30 +105,28 @@ async def register(user_data: UserCreate, session: AsyncSession = Depends(get_sy
     base_path = Path(DATA_DIRECTORY)
     slug = slugify(user_data.username)
     workspace_path = base_path / slug
-    
+
     # Handle name collisions by appending a number (check both filesystem and database)
     counter = 1
     original_slug = slug
-    while workspace_path.exists() or (await session.execute(
-        select(Workspace).where(Workspace.path == str(workspace_path))
-    )).scalar_one_or_none() is not None:
+    while (
+        workspace_path.exists()
+        or (await session.execute(select(Workspace).where(Workspace.path == str(workspace_path)))).scalar_one_or_none()
+        is not None
+    ):
         slug = f"{original_slug}-{counter}"
         workspace_path = base_path / slug
         counter += 1
-    
+
     # Create the workspace directory
     workspace_path.mkdir(parents=True, exist_ok=True)
-    
+
     # Create default workspace
-    default_workspace = Workspace(
-        name=user_data.username,
-        path=str(workspace_path),
-        owner_id=new_user.id
-    )
+    default_workspace = Workspace(name=user_data.username, path=str(workspace_path), owner_id=new_user.id)
     session.add(default_workspace)
     await session.commit()
 
-    return new_user
+    return UserResponse.model_validate(new_user)
 
 
 # Include routers
@@ -147,5 +144,5 @@ if __name__ == "__main__":
 
     debug = os.getenv("DEBUG", "false").lower() == "true"
     log_level = "debug" if debug else "info"
-    
+
     uvicorn.run(app, host="0.0.0.0", port=8000, log_level=log_level, reload=debug)

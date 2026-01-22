@@ -14,7 +14,6 @@ from backend.db.models import User
 from backend.db.database import get_system_session
 import os
 
-
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
@@ -30,7 +29,10 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         # Hash the plain password with the same salt
         password_hash = hashlib.pbkdf2_hmac("sha256", plain_password.encode("utf-8"), bytes.fromhex(salt), 100000)
         return password_hash.hex() == stored_hash
-    except (ValueError, AttributeError):
+    except (
+        ValueError,
+        AttributeError,
+    ):
         return False
 
 

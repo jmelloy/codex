@@ -110,6 +110,7 @@ class NotebookFileHandler(FileSystemEventHandler):
                     if not is_binary:
                         try:
                             from backend.core.git_manager import GitManager
+
                             git_manager = GitManager(self.notebook_path)
                             commit_hash = git_manager.auto_commit_on_change(filepath)
                             if commit_hash:

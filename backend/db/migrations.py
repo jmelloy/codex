@@ -30,9 +30,7 @@ def migrate_frontmatter_to_properties(db_path: str) -> bool:
 
     try:
         # Check if file_metadata table exists
-        cursor.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='file_metadata'"
-        )
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='file_metadata'")
         if not cursor.fetchone():
             return False
 
@@ -51,17 +49,13 @@ def migrate_frontmatter_to_properties(db_path: str) -> bool:
         # Perform migration: rename frontmatter to properties
         # SQLite 3.25.0+ supports ALTER TABLE RENAME COLUMN
         try:
-            cursor.execute(
-                "ALTER TABLE file_metadata RENAME COLUMN frontmatter TO properties"
-            )
+            cursor.execute("ALTER TABLE file_metadata RENAME COLUMN frontmatter TO properties")
             conn.commit()
             return True
         except sqlite3.OperationalError:
             # Fallback for older SQLite versions: recreate table
             # Get the full schema
-            cursor.execute(
-                "SELECT sql FROM sqlite_master WHERE type='table' AND name='file_metadata'"
-            )
+            cursor.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='file_metadata'")
             old_schema = cursor.fetchone()[0]
 
             # Create new schema with properties instead of frontmatter
@@ -75,14 +69,10 @@ def migrate_frontmatter_to_properties(db_path: str) -> bool:
             cursor.execute("PRAGMA table_info(file_metadata)")
             all_columns = [row[1] for row in cursor.fetchall()]
             old_columns = ", ".join(all_columns)
-            new_columns = ", ".join(
-                "properties" if c == "frontmatter" else c for c in all_columns
-            )
+            new_columns = ", ".join("properties" if c == "frontmatter" else c for c in all_columns)
 
             # Copy data
-            cursor.execute(
-                f"INSERT INTO file_metadata_new ({new_columns}) SELECT {old_columns} FROM file_metadata"
-            )
+            cursor.execute(f"INSERT INTO file_metadata_new ({new_columns}) SELECT {old_columns} FROM file_metadata")
 
             # Drop old table and rename new one
             cursor.execute("DROP TABLE file_metadata")

@@ -7,7 +7,9 @@ class PropertyValidator:
     """Validator for file properties."""
 
     @staticmethod
-    def validate_property_schema(properties: dict[str, Any], schema: dict[str, dict[str, Any]]) -> tuple[bool, list[str]]:
+    def validate_property_schema(
+        properties: dict[str, Any], schema: dict[str, dict[str, Any]]
+    ) -> tuple[bool, list[str]]:
         """Validate properties against a schema.
 
         Args:

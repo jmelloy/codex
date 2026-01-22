@@ -16,9 +16,7 @@ def migrate_system_db(db_path: str = "./codex_system.db"):
 
         if "theme_setting" not in columns:
             # Add the column with default value
-            cursor.execute(
-                "ALTER TABLE workspaces ADD COLUMN theme_setting TEXT DEFAULT 'cream'"
-            )
+            cursor.execute("ALTER TABLE workspaces ADD COLUMN theme_setting TEXT DEFAULT 'cream'")
             conn.commit()
             print(f"Added theme_setting column to {db_path}")
         else:
@@ -34,5 +32,6 @@ def migrate_system_db(db_path: str = "./codex_system.db"):
 
 if __name__ == "__main__":
     import sys
+
     db_path = sys.argv[1] if len(sys.argv) > 1 else "./codex_system.db"
     migrate_system_db(db_path)

@@ -193,16 +193,12 @@ def apply_property_filters_to_query(query: Any, property_filters: dict[str, Any]
             for v in value:
                 # json_extract returns JSON-encoded values, so we need to compare as strings
                 json_value = json.dumps(v)
-                or_conditions.append(
-                    func.json_extract(FileMetadata.properties, json_path) == json_value
-                )
+                or_conditions.append(func.json_extract(FileMetadata.properties, json_path) == json_value)
             query = query.where(or_(*or_conditions))
         else:
             # Exact match
             json_value = json.dumps(value)
-            query = query.where(
-                func.json_extract(FileMetadata.properties, json_path) == json_value
-            )
+            query = query.where(func.json_extract(FileMetadata.properties, json_path) == json_value)
 
     return query
 
@@ -220,9 +216,7 @@ def apply_property_exists_filter_to_query(query: Any, property_keys: list[str]) 
     for key in property_keys:
         json_path = f"$.{key}"
         # Check that json_extract doesn't return NULL
-        query = query.where(
-            func.json_extract(FileMetadata.properties, json_path).isnot(None)
-        )
+        query = query.where(func.json_extract(FileMetadata.properties, json_path).isnot(None))
 
     return query
 
@@ -425,7 +419,10 @@ async def query_files(
                 filtered_files = []
                 for file in files:
                     file_tags_query = (
-                        select(Tag).join(FileTag).where(FileTag.file_id == file.id).where(Tag.notebook_id == notebook.id)
+                        select(Tag)
+                        .join(FileTag)
+                        .where(FileTag.file_id == file.id)
+                        .where(Tag.notebook_id == notebook.id)
                     )
                     file_tags_result = nb_session.execute(file_tags_query)
                     file_tags = {tag.name for tag in file_tags_result.scalars().all()}

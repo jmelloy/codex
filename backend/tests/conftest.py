@@ -15,9 +15,9 @@ def initialize_database():
         loop.run_until_complete(init_system_db())
     finally:
         loop.close()
-    
+
     yield
-    
+
     # Clean up: dispose of the async engine to prevent hanging connections
     loop = asyncio.new_event_loop()
     try:

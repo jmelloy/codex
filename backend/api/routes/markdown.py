@@ -230,6 +230,7 @@ async def create_markdown_file(
         try:
             # Find which notebook this file belongs to
             from backend.core.git_manager import GitManager
+
             current_path = full_file_path.parent
             while current_path != workspace_path and current_path != current_path.parent:
                 codex_dir = current_path / ".codex"
@@ -308,6 +309,7 @@ async def update_markdown_file(
         try:
             # Find which notebook this file belongs to
             from backend.core.git_manager import GitManager
+
             current_path = full_file_path.parent
             while current_path != workspace_path and current_path != current_path.parent:
                 codex_dir = current_path / ".codex"

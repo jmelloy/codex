@@ -294,6 +294,7 @@ async def create_file(
 
                         # Commit file to git
                         from backend.core.git_manager import GitManager
+
                         git_manager = GitManager(str(item))
                         commit_hash = git_manager.commit(f"Create {os.path.basename(path)}", [str(file_path)])
                         if commit_hash:
@@ -400,6 +401,7 @@ async def update_file(
 
                         # Commit file changes to git
                         from backend.core.git_manager import GitManager
+
                         git_manager = GitManager(str(item))
                         commit_hash = git_manager.commit(f"Update {file_meta.filename}", [str(file_path)])
                         if commit_hash:

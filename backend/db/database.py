@@ -6,7 +6,6 @@ from sqlalchemy.orm import sessionmaker
 from typing import AsyncGenerator
 import os
 
-
 # System database (users, workspaces, permissions, tasks)
 SYSTEM_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./codex_system.db")
 

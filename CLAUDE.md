@@ -64,6 +64,21 @@ frontend/src/
 - See `AGENT_SYSTEM.md` for the task/sandbox system
 - Migrations run automatically on workspace initialization
 
+## Git Workflow
+
+- **Commit and push regularly** when working on a feature branch (not main). This preserves work in progress and allows for easier recovery if something goes wrong.
+- **Use git worktrees** for parallel work on multiple branches without switching contexts:
+  ```bash
+  # Create a worktree for a new branch
+  git worktree add ../codex-feature feature-branch
+
+  # List existing worktrees
+  git worktree list
+
+  # Remove a worktree when done
+  git worktree remove ../codex-feature
+  ```
+
 ## Testing
 
 Expected: 251 tests pass, 63 warnings. Run: `pytest backend/tests/ -v`

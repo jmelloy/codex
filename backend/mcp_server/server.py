@@ -19,7 +19,6 @@ from mcp.server.stdio import stdio_server
 from mcp.types import Tool, TextContent
 from playwright.async_api import async_playwright, Browser, Page
 
-
 # Global state for managing processes and browser
 _frontend_process: subprocess.Popen | None = None
 _backend_process: subprocess.Popen | None = None

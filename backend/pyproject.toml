@@ -3,7 +3,7 @@ name = "codex"
 version = "0.1.0"
 description = "A hierarchical digital laboratory journal system for tracking experiments, iterations, and investigations"
 readme = "../README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 license = {text = "MIT"}
 authors = [
     {name = "Jeffrey Melloy", email = "jmelloy@example.com"}

@@ -1,8 +1,20 @@
 <script setup lang="ts">
+import { watchEffect } from 'vue'
+import { useThemeStore } from './stores/theme'
+
+const themeStore = useThemeStore()
+
+// Apply theme class to document body
+watchEffect(() => {
+  // Remove any existing theme classes
+  document.body.classList.remove('theme-cream', 'theme-manila', 'theme-white', 'theme-blueprint')
+  // Add current theme class
+  document.body.classList.add(themeStore.theme.className)
+})
 </script>
 
 <template>
-  <div class="w-full h-screen">
+  <div class="w-full h-screen" :class="themeStore.theme.className">
     <router-view />
   </div>
 </template>

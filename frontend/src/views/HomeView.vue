@@ -4,6 +4,13 @@
       <h1 class="text-2xl font-semibold m-0">Codex</h1>
       <div class="flex items-center gap-4">
         <ThemeSwitcher />
+        <button @click="goToSettings" class="bg-white/20 text-white border-none px-4 py-2 rounded cursor-pointer hover:bg-white/30 transition" title="User Settings">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M12 1v6m0 6v6m9-9h-6m-6 0H3"></path>
+          </svg>
+          Settings
+        </button>
         <span>{{ authStore.user?.username }}</span>
         <button @click="handleLogout" class="bg-white/20 text-white border-none px-4 py-2 rounded cursor-pointer hover:bg-white/30 transition">Logout</button>
       </div>
@@ -305,6 +312,10 @@ onMounted(async () => {
 function handleLogout() {
   authStore.logout()
   router.push('/login')
+}
+
+function goToSettings() {
+  router.push('/settings')
 }
 
 function selectWorkspace(workspace: Workspace) {

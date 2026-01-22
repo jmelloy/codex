@@ -132,7 +132,17 @@
 
         <!-- Viewer Mode -->
         <div v-else-if="workspaceStore.currentFile" class="flex-1 flex overflow-hidden p-4">
+          <!-- Dynamic View Renderer for .cdx files -->
+          <ViewRenderer
+            v-if="workspaceStore.currentFile.file_type === 'view'"
+            :file-id="workspaceStore.currentFile.id"
+            :workspace-id="workspaceStore.currentWorkspace!.id"
+            class="flex-1"
+          />
+
+          <!-- Markdown Viewer for regular files -->
           <MarkdownViewer
+            v-else
             :content="workspaceStore.currentFile.content"
             :frontmatter="workspaceStore.currentFile.properties"
             :show-frontmatter="showFrontmatter"
@@ -237,6 +247,7 @@ import Modal from '../components/Modal.vue'
 import FormGroup from '../components/FormGroup.vue'
 import MarkdownViewer from '../components/MarkdownViewer.vue'
 import MarkdownEditor from '../components/MarkdownEditor.vue'
+import ViewRenderer from '../components/views/ViewRenderer.vue'
 import FilePropertiesPanel from '../components/FilePropertiesPanel.vue'
 import FileTreeItem from '../components/FileTreeItem.vue'
 import ThemeSwitcher from '../components/ThemeSwitcher.vue'

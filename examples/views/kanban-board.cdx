@@ -1,0 +1,48 @@
+---
+type: view
+view_type: kanban
+title: Project Tasks
+description: Kanban board of all tasks across the workspace
+query:
+  tags:
+    - task
+  sort: created_at desc
+config:
+  columns:
+    - id: backlog
+      title: Backlog
+      filter:
+        status: backlog
+    - id: todo
+      title: To Do
+      filter:
+        status: todo
+    - id: in-progress
+      title: In Progress
+      filter:
+        status: in-progress
+    - id: review
+      title: Review
+      filter:
+        status: review
+    - id: done
+      title: Done
+      filter:
+        status: done
+  card_fields:
+    - description
+    - priority
+    - due_date
+  drag_drop: true
+  editable: true
+---
+
+# Project Task Board
+
+This board shows all tasks in the workspace organized by status. Drag cards between columns to update their status.
+
+## Usage
+
+- **Drag and drop** cards to change status
+- **Click** a card to open in editor
+- **Filter** by tags in the sidebar

@@ -20,7 +20,7 @@ from backend.api.auth import (
 )
 from backend.db.models import User, Workspace
 from backend.api.schemas import UserCreate, UserResponse
-from backend.api.routes import workspaces, notebooks, files, search, tasks, markdown
+from backend.api.routes import workspaces, notebooks, files, search, tasks, markdown, query
 from backend.api.routes.workspaces import slugify
 
 
@@ -139,6 +139,7 @@ app.include_router(files.router, prefix="/api/v1/files", tags=["files"])
 app.include_router(search.router, prefix="/api/v1/search", tags=["search"])
 app.include_router(tasks.router, prefix="/api/v1/tasks", tags=["tasks"])
 app.include_router(markdown.router, prefix="/api/v1/markdown", tags=["markdown"])
+app.include_router(query.router, prefix="/api/v1/query", tags=["query"])
 
 
 if __name__ == "__main__":

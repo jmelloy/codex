@@ -1,0 +1,32 @@
+---
+type: view
+view_type: corkboard
+title: Novel Outline
+description: Visual outline of novel chapters and scenes
+query:
+  paths:
+    - "novel/chapters/**/*.md"
+  sort: properties.chapter asc
+config:
+  group_by: properties.chapter
+  card_style: notecard
+  layout: swimlanes
+  draggable: true
+  editable: true
+  card_fields:
+    - scene
+    - characters
+    - summary
+    - word_count
+---
+
+# Novel Outline
+
+Visual corkboard layout of your novel's structure. Each lane represents a chapter, and each card is a scene.
+
+## Organization
+
+- **Chapters** are shown as horizontal swimlanes
+- **Scenes** within each chapter
+- **Drag and drop** to reorder scenes
+- **Click** to edit scene details

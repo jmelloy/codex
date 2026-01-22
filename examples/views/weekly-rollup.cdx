@@ -1,0 +1,37 @@
+---
+type: view
+view_type: rollup
+title: Weekly Activity Report
+description: Rollup of all activity this week
+query:
+  created_after: "{{ startOfWeek }}"
+  created_before: "{{ endOfWeek }}"
+  sort: created_at desc
+config:
+  group_by: created_at
+  group_format: day
+  show_stats: true
+  sections:
+    - title: New Tasks
+      filter:
+        tags:
+          - task
+    - title: Journal Entries
+      filter:
+        tags:
+          - journal
+    - title: Notes
+      filter:
+        file_types:
+          - markdown
+---
+
+# Weekly Activity Report
+
+This report shows all files created this week, grouped by day and categorized by type.
+
+## Sections
+
+- **New Tasks**: Tasks created this week
+- **Journal Entries**: Daily journal entries
+- **Notes**: All other markdown files

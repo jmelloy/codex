@@ -150,16 +150,16 @@ async def get_file(
                         file_path = item / file_meta.path
                         content = None
                         raw_content = None
-                        if file_path.exists() and file_meta.file_type in ["text", "markdown", "json", "xml"]:
+                        if file_path.exists() and file_meta.file_type in ["text", "markdown", "view", "json", "xml"]:
                             try:
                                 with open(file_path) as f:
                                     raw_content = f.read()
                             except Exception as e:
                                 print(f"Error reading file content: {e}")
 
-                        # Parse frontmatter from file content if it's a markdown file
+                        # Parse frontmatter from file content if it's a markdown or view file
                         properties = None
-                        if raw_content and file_meta.file_type == "markdown":
+                        if raw_content and file_meta.file_type in ["markdown", "view"]:
                             properties, content = MetadataParser.parse_frontmatter(raw_content)
                             # Sync properties to DB cache if they changed
                             properties_json = json.dumps(properties) if properties else None
@@ -272,6 +272,8 @@ async def create_file(
                         file_type = "text"
                         if path.endswith(".md"):
                             file_type = "markdown"
+                        elif path.endswith(".cdx"):
+                            file_type = "view"
                         elif path.endswith(".json"):
                             file_type = "json"
                         elif path.endswith(".xml"):
@@ -367,7 +369,7 @@ async def update_file(
                         # Prepare content with frontmatter if properties provided
                         final_content = content
                         properties = request.properties
-                        if properties and file_meta.file_type == "markdown":
+                        if properties and file_meta.file_type in ["markdown", "view"]:
                             # Write frontmatter to file
                             final_content = MetadataParser.write_frontmatter(content, properties)
 

@@ -34,7 +34,7 @@
       :style="{ paddingLeft: `${(depth + 1) * 16 + 32}px` }"
       @click="node.file && emit('selectFile', node.file)"
     >
-      <span class="mr-2 text-sm">📄</span>
+      <span class="mr-2 text-sm">{{ getFileIcon(node.file) }}</span>
       <span class="overflow-hidden text-ellipsis whitespace-nowrap">{{ node.file?.title || node.name }}</span>
     </div>
   </li>
@@ -64,4 +64,21 @@ const isFolderExpanded = computed(() => {
   if (props.node.type !== 'folder') return false
   return props.expandedFolders.get(props.notebookId)?.has(props.node.path) || false
 })
+
+const getFileIcon = (file: FileMetadata | undefined): string => {
+  if (!file) return '📄'
+
+  switch (file.file_type) {
+    case 'view':
+      return '📊' // Chart/view icon for .cdx files
+    case 'markdown':
+      return '📝' // Memo for markdown
+    case 'json':
+      return '📋' // Clipboard for JSON
+    case 'xml':
+      return '🏷️'  // Tag for XML
+    default:
+      return '📄' // Default file icon
+  }
+}
 </script>

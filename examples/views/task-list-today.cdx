@@ -1,0 +1,21 @@
+---
+type: view
+view_type: task-list
+title: Today's Tasks
+description: Tasks due today
+query:
+  tags:
+    - task
+  properties:
+    due_date: "{{ todayStart }}"
+  sort: properties.priority desc
+config:
+  compact: true
+  show_details: true
+  max_items: 10
+  editable: true
+---
+
+# Today's Tasks
+
+Quick view of tasks due today, ordered by priority.

@@ -1,0 +1,47 @@
+[tools]
+python = "3.13"
+node = "22"
+
+[env]
+_.python.venv = { path = ".venv", create = true }
+
+[tasks.install]
+description = "Install all dependencies"
+run = """
+cd backend && pip install -e ".[dev]"
+cd frontend && npm install
+"""
+
+[tasks.dev]
+description = "Start development servers with Docker"
+run = "docker compose up -d"
+
+[tasks.test]
+description = "Run all tests"
+run = """
+pytest backend/tests/ -v
+cd frontend && npm run test
+"""
+
+[tasks."test:backend"]
+description = "Run backend tests"
+run = "pytest backend/tests/ -v"
+
+[tasks."test:frontend"]
+description = "Run frontend tests"
+run = "cd frontend && npm run test"
+
+[tasks.build]
+description = "Build the frontend"
+run = "cd frontend && npm run build"
+
+[tasks.lint]
+description = "Run linters"
+run = """
+cd backend && ruff check .
+cd frontend && npm run build
+"""
+
+[tasks.validate]
+description = "Validate Docker setup"
+run = "./validate-docker.sh"

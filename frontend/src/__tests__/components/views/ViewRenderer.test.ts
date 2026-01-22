@@ -427,12 +427,14 @@ title: My Board
       await flushPromises()
 
       expect(fileService.get).toHaveBeenCalledWith(2, 1)
-      expect(fileService.update).toHaveBeenCalledWith(2, 1, {
-        content: mockFile.content,
-        properties: {
+      expect(fileService.update).toHaveBeenCalledWith(
+        2,
+        1,
+        mockFile.content,
+        {
           status: 'done',
-        },
-      })
+        }
+      )
     })
 
     it('should merge properties when updating', async () => {
@@ -480,13 +482,15 @@ title: My Board
       await (wrapper.vm as any).handleUpdate(updateEvent)
       await flushPromises()
 
-      expect(fileService.update).toHaveBeenCalledWith(2, 1, {
-        content: mockFile.content,
-        properties: {
+      expect(fileService.update).toHaveBeenCalledWith(
+        2,
+        1,
+        mockFile.content,
+        {
           status: 'done',
           priority: 'high',
-        },
-      })
+        }
+      )
     })
 
     it('should refresh view after update', async () => {

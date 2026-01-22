@@ -6,8 +6,6 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-
 interface Props {
   label?: string
   id?: string
@@ -15,10 +13,9 @@ interface Props {
 
 const props = defineProps<Props>()
 
-// Generate a unique ID if not provided
-// Using timestamp + random for uniqueness across component instances
-let idCounter = 0
-const id = computed(() => props.id || `input-${Date.now()}-${++idCounter}`)
+// Generate a unique ID once at setup time if not provided
+// Using random number to ensure uniqueness across component instances
+const id = props.id || `input-${Math.random().toString(36).substring(2, 11)}`
 </script>
 
 <style>

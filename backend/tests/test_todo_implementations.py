@@ -154,7 +154,11 @@ def test_file_endpoints():
     assert len(files) == 1
 
     # Get file by ID
-    response = client.get(f"/api/v1/files/{file_id}", params={"workspace_id": workspace_id}, headers=headers)
+    response = client.get(
+        f"/api/v1/files/{file_id}",
+        params={"workspace_id": workspace_id, "notebook_id": notebook_id},
+        headers=headers
+    )
     assert response.status_code == 200
     file_content = response.json()
     assert file_content["id"] == file_id
@@ -163,14 +167,18 @@ def test_file_endpoints():
     # Update file
     response = client.put(
         f"/api/v1/files/{file_id}",
-        params={"workspace_id": workspace_id},
+        params={"workspace_id": workspace_id, "notebook_id": notebook_id},
         json={"content": "# Updated Test File\n\nThis is updated."},
         headers=headers,
     )
     assert response.status_code == 200
 
     # Verify update
-    response = client.get(f"/api/v1/files/{file_id}", params={"workspace_id": workspace_id}, headers=headers)
+    response = client.get(
+        f"/api/v1/files/{file_id}",
+        params={"workspace_id": workspace_id, "notebook_id": notebook_id},
+        headers=headers
+    )
     assert response.status_code == 200
     updated_content = response.json()
     assert updated_content["content"] == "# Updated Test File\n\nThis is updated."

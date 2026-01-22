@@ -1,8 +1,14 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { setActivePinia, createPinia } from 'pinia'
 import MarkdownEditor from '../../components/MarkdownEditor.vue'
 
 describe('MarkdownEditor', () => {
+  beforeEach(() => {
+    // Create a fresh pinia instance for each test
+    setActivePinia(createPinia())
+  })
+
   it('renders without crashing', () => {
     const wrapper = mount(MarkdownEditor, {
       props: {

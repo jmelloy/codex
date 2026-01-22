@@ -1,8 +1,14 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { setActivePinia, createPinia } from 'pinia'
 import MarkdownViewer from '../../components/MarkdownViewer.vue'
 
 describe('MarkdownViewer', () => {
+  beforeEach(() => {
+    // Create a fresh pinia instance for each test
+    setActivePinia(createPinia())
+  })
+
   it('renders markdown content properly', () => {
     const markdownContent = '# Hello World\n\nThis is a **test**.'
     const wrapper = mount(MarkdownViewer, { 

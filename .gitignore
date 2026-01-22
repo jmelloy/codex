@@ -89,6 +89,9 @@ logs/
 .env
 .env.local
 .pytest_cache/
+
+# Docker development overrides (use docker-compose.override.yml.example as template)
+docker-compose.override.yml
 cover/
 
 # Translations

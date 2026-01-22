@@ -2,12 +2,13 @@
 
 import json
 from datetime import datetime
+from fnmatch import fnmatch
 from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, func, or_, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -82,122 +83,6 @@ def parse_sort_field(sort_str: str) -> tuple[str, bool]:
     return field, is_desc
 
 
-def apply_property_filter(files: list[FileMetadata], property_filters: dict[str, Any]) -> list[FileMetadata]:
-    """Filter files by properties.
-
-    Args:
-        files: List of file metadata
-        property_filters: Dictionary of property filters
-
-    Returns:
-        Filtered list of files
-    """
-    filtered = []
-    for file in files:
-        if not file.properties:
-            continue
-
-        try:
-            properties = json.loads(file.properties)
-        except json.JSONDecodeError:
-            continue
-
-        matches = True
-        for key, value in property_filters.items():
-            if key not in properties:
-                matches = False
-                break
-
-            # Handle list values (OR logic)
-            if isinstance(value, list):
-                if properties[key] not in value:
-                    matches = False
-                    break
-            else:
-                if properties[key] != value:
-                    matches = False
-                    break
-
-        if matches:
-            filtered.append(file)
-
-    return filtered
-
-
-def apply_property_exists_filter(files: list[FileMetadata], property_keys: list[str]) -> list[FileMetadata]:
-    """Filter files that have specific properties defined.
-
-    Args:
-        files: List of file metadata
-        property_keys: List of property keys that must exist
-
-    Returns:
-        Filtered list of files
-    """
-    filtered = []
-    for file in files:
-        if not file.properties:
-            continue
-
-        try:
-            properties = json.loads(file.properties)
-        except json.JSONDecodeError:
-            continue
-
-        if all(key in properties for key in property_keys):
-            filtered.append(file)
-
-    return filtered
-
-
-def apply_date_property_filter(
-    files: list[FileMetadata], date_property: str, date_after: str | None, date_before: str | None
-) -> list[FileMetadata]:
-    """Filter files by a date property value.
-
-    Args:
-        files: List of file metadata
-        date_property: Name of the property containing a date
-        date_after: ISO date string (inclusive)
-        date_before: ISO date string (inclusive)
-
-    Returns:
-        Filtered list of files
-    """
-    filtered = []
-    for file in files:
-        if not file.properties:
-            continue
-
-        try:
-            properties = json.loads(file.properties)
-        except json.JSONDecodeError:
-            continue
-
-        if date_property not in properties:
-            continue
-
-        try:
-            prop_date = datetime.fromisoformat(properties[date_property].replace("Z", "+00:00"))
-
-            if date_after:
-                after_dt = datetime.fromisoformat(date_after.replace("Z", "+00:00"))
-                if prop_date < after_dt:
-                    continue
-
-            if date_before:
-                before_dt = datetime.fromisoformat(date_before.replace("Z", "+00:00"))
-                if prop_date > before_dt:
-                    continue
-
-            filtered.append(file)
-        except (ValueError, AttributeError):
-            # Skip files with invalid date values
-            continue
-
-    return filtered
-
-
 def apply_path_filter(files: list[FileMetadata], path_patterns: list[str]) -> list[FileMetadata]:
     """Filter files by path patterns (supports glob-like matching).
 
@@ -208,8 +93,6 @@ def apply_path_filter(files: list[FileMetadata], path_patterns: list[str]) -> li
     Returns:
         Filtered list of files
     """
-    from fnmatch import fnmatch
-
     filtered = []
     for file in files:
         for pattern in path_patterns:
@@ -218,40 +101,6 @@ def apply_path_filter(files: list[FileMetadata], path_patterns: list[str]) -> li
                 break
 
     return filtered
-
-
-def sort_files(files: list[FileMetadata], sort_str: str) -> list[FileMetadata]:
-    """Sort files by field.
-
-    Args:
-        files: List of file metadata
-        sort_str: Sort string like "created_at desc" or "properties.priority desc"
-
-    Returns:
-        Sorted list of files
-    """
-    field, is_desc = parse_sort_field(sort_str)
-
-    # Handle property sorting
-    if field.startswith("properties."):
-        prop_key = field.split(".", 1)[1]
-
-        def get_sort_key(file: FileMetadata) -> Any:
-            if not file.properties:
-                return None
-            try:
-                properties = json.loads(file.properties)
-                return properties.get(prop_key)
-            except json.JSONDecodeError:
-                return None
-
-        return sorted(files, key=get_sort_key, reverse=is_desc)
-
-    # Handle standard field sorting
-    if hasattr(FileMetadata, field):
-        return sorted(files, key=lambda f: getattr(f, field) or "", reverse=is_desc)
-
-    return files
 
 
 def group_files(files: list[FileMetadata], group_by: str) -> dict[str, list[dict[str, Any]]]:
@@ -324,6 +173,124 @@ def file_to_dict(file: FileMetadata) -> dict[str, Any]:
     }
 
 
+def apply_property_filters_to_query(query: Any, property_filters: dict[str, Any]) -> Any:
+    """Apply property filters to SQLAlchemy query using JSON operators.
+
+    Args:
+        query: SQLAlchemy query
+        property_filters: Dictionary of property filters
+
+    Returns:
+        Modified query with property filters applied
+    """
+    for key, value in property_filters.items():
+        # Use SQLite's json_extract function to query properties
+        json_path = f"$.{key}"
+
+        if isinstance(value, list):
+            # OR logic for list values
+            or_conditions = []
+            for v in value:
+                # json_extract returns JSON-encoded values, so we need to compare as strings
+                json_value = json.dumps(v)
+                or_conditions.append(
+                    func.json_extract(FileMetadata.properties, json_path) == json_value
+                )
+            query = query.where(or_(*or_conditions))
+        else:
+            # Exact match
+            json_value = json.dumps(value)
+            query = query.where(
+                func.json_extract(FileMetadata.properties, json_path) == json_value
+            )
+
+    return query
+
+
+def apply_property_exists_filter_to_query(query: Any, property_keys: list[str]) -> Any:
+    """Apply property exists filter to SQLAlchemy query.
+
+    Args:
+        query: SQLAlchemy query
+        property_keys: List of property keys that must exist
+
+    Returns:
+        Modified query with exists filters applied
+    """
+    for key in property_keys:
+        json_path = f"$.{key}"
+        # Check that json_extract doesn't return NULL
+        query = query.where(
+            func.json_extract(FileMetadata.properties, json_path).isnot(None)
+        )
+
+    return query
+
+
+def apply_date_property_filter_to_query(
+    query: Any, date_property: str, date_after: str | None, date_before: str | None
+) -> Any:
+    """Apply date property filter to SQLAlchemy query.
+
+    Args:
+        query: SQLAlchemy query
+        date_property: Name of the property containing a date
+        date_after: ISO date string (inclusive)
+        date_before: ISO date string (inclusive)
+
+    Returns:
+        Modified query with date property filters applied
+    """
+    json_path = f"$.{date_property}"
+
+    # Extract the date value from JSON
+    date_expr = func.json_extract(FileMetadata.properties, json_path)
+
+    if date_after:
+        # Convert ISO date string to datetime for comparison
+        after_dt = datetime.fromisoformat(date_after.replace("Z", "+00:00"))
+        # SQLite stores dates as strings, so we can compare them directly if ISO formatted
+        query = query.where(date_expr >= date_after)
+
+    if date_before:
+        before_dt = datetime.fromisoformat(date_before.replace("Z", "+00:00"))
+        query = query.where(date_expr <= date_before)
+
+    return query
+
+
+def apply_sorting(query: Any, files: list[FileMetadata], sort_str: str) -> list[FileMetadata]:
+    """Apply sorting to query results.
+
+    Args:
+        query: SQLAlchemy query (for DB-level sorting)
+        files: List of files (for property-based sorting)
+        sort_str: Sort string like "created_at desc" or "properties.priority desc"
+
+    Returns:
+        Sorted list of files
+    """
+    field, is_desc = parse_sort_field(sort_str)
+
+    # Handle property sorting (done in Python since we need to parse JSON)
+    if field.startswith("properties."):
+        prop_key = field.split(".", 1)[1]
+
+        def get_sort_key(file: FileMetadata) -> Any:
+            if not file.properties:
+                return None
+            try:
+                properties = json.loads(file.properties)
+                return properties.get(prop_key)
+            except json.JSONDecodeError:
+                return None
+
+        return sorted(files, key=get_sort_key, reverse=is_desc)
+
+    # Standard field sorting was already applied at DB level
+    return files
+
+
 @router.post("/")
 async def query_files(
     workspace_id: int,
@@ -354,7 +321,7 @@ async def query_files(
     if not workspace_path.exists():
         raise HTTPException(status_code=404, detail="Workspace path not found")
 
-    # Collect all notebooks in workspace
+    # Collect all files from notebooks
     all_files: list[FileMetadata] = []
 
     for item in workspace_path.iterdir():
@@ -406,6 +373,19 @@ async def query_files(
                 modified_before_dt = datetime.fromisoformat(query.modified_before.replace("Z", "+00:00"))
                 files_query = files_query.where(FileMetadata.file_modified_at <= modified_before_dt)
 
+            # Apply property filters using JSON operators
+            if query.properties:
+                files_query = apply_property_filters_to_query(files_query, query.properties)
+
+            if query.properties_exists:
+                files_query = apply_property_exists_filter_to_query(files_query, query.properties_exists)
+
+            # Apply date property filter
+            if query.date_property and (query.date_after or query.date_before):
+                files_query = apply_date_property_filter_to_query(
+                    files_query, query.date_property, query.date_after, query.date_before
+                )
+
             # Apply tag filters
             if query.tags or query.tags_any:
                 files_query = files_query.join(FileTag).join(Tag)
@@ -416,6 +396,26 @@ async def query_files(
                 elif query.tags_any:
                     # ANY tags (OR logic)
                     files_query = files_query.where(Tag.name.in_(query.tags_any))
+
+            # Apply content search (title/description)
+            if query.content_search:
+                search_term = f"%{query.content_search}%"
+                files_query = files_query.where(
+                    or_(
+                        FileMetadata.title.like(search_term),
+                        FileMetadata.description.like(search_term),
+                    )
+                )
+
+            # Apply sorting at DB level for standard fields (not properties)
+            if query.sort and not query.sort.startswith("properties."):
+                field, is_desc = parse_sort_field(query.sort)
+                if hasattr(FileMetadata, field):
+                    sort_column = getattr(FileMetadata, field)
+                    if is_desc:
+                        files_query = files_query.order_by(sort_column.desc())
+                    else:
+                        files_query = files_query.order_by(sort_column.asc())
 
             files_result = nb_session.execute(files_query)
             files = list(files_result.scalars().all())
@@ -444,34 +444,13 @@ async def query_files(
 
             traceback.print_exc()
 
-    # Apply property filters (post-query since properties are JSON)
-    if query.properties:
-        all_files = apply_property_filter(all_files, query.properties)
-
-    if query.properties_exists:
-        all_files = apply_property_exists_filter(all_files, query.properties_exists)
-
-    # Apply date property filter
-    if query.date_property and (query.date_after or query.date_before):
-        all_files = apply_date_property_filter(all_files, query.date_property, query.date_after, query.date_before)
-
-    # Apply path filter
+    # Apply path filter (post-query since it uses glob patterns)
     if query.paths:
         all_files = apply_path_filter(all_files, query.paths)
 
-    # Apply content search (simplified - just searches in title/description for now)
-    if query.content_search:
-        search_term = query.content_search.lower()
-        all_files = [
-            f
-            for f in all_files
-            if (f.title and search_term in f.title.lower())
-            or (f.description and search_term in f.description.lower())
-        ]
-
-    # Sort files
-    if query.sort:
-        all_files = sort_files(all_files, query.sort)
+    # Apply sorting for property-based sorts (requires Python)
+    if query.sort and query.sort.startswith("properties."):
+        all_files = apply_sorting(None, all_files, query.sort)
 
     # Get total count before pagination
     total = len(all_files)

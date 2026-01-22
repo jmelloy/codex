@@ -81,6 +81,8 @@ def test_notebook_endpoints():
         json={"workspace_id": workspace_id, "name": "Test Notebook", "description": "A test notebook"},
         headers=headers,
     )
+    if response.status_code != 200:
+        print(f"ERROR: {response.status_code} - {response.text}")
     assert response.status_code == 200
     notebook = response.json()
     assert notebook["name"] == "Test Notebook"

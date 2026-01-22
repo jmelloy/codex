@@ -35,8 +35,8 @@ async def init_system_db():
     db_path = SYSTEM_DATABASE_URL.replace("sqlite:///", "")
     
     # Import and run migrations
-    from backend.db.migrations.add_theme_setting import migrate_system_db as migrate_theme
-    from backend.db.migrations.add_notebooks_to_system_db import migrate_system_db as migrate_notebooks
+    from backend.db.system_migrations.add_theme_setting import migrate_system_db as migrate_theme
+    from backend.db.system_migrations.add_notebooks_to_system_db import migrate_system_db as migrate_notebooks
     
     migrate_theme(db_path)
     migrate_notebooks(db_path)

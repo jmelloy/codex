@@ -17,8 +17,8 @@
 
 ```bash
 # Backend setup and testing
-pip install -e ".[dev]"
-pytest tests/ -v
+cd backend && pip install -e ".[dev]"
+pytest backend/tests/ -v
 
 # Frontend
 cd frontend && npm install && npm run build
@@ -40,15 +40,14 @@ backend/
 │   └── routes/    # REST endpoints
 ├── cli/           # CLI commands (main.py entry point)
 ├── core/          # Business logic (workspace, notebook, page, storage)
-└── db/            # SQLAlchemy models, Alembic migrations
+├── db/            # SQLAlchemy models, Alembic migrations
+└── tests/         # pytest test suite
 
 frontend/src/
 ├── views/         # Page components
 ├── components/    # Reusable components
 ├── stores/        # Pinia state management
 └── router/        # Vue Router configuration
-
-tests/             # pytest test suite
 ```
 
 ## Key Files
@@ -67,4 +66,4 @@ tests/             # pytest test suite
 
 ## Testing
 
-Expected: 251 tests pass, 63 warnings. Run: `pytest tests/ -v`
+Expected: 251 tests pass, 63 warnings. Run: `pytest backend/tests/ -v`

@@ -13,7 +13,6 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-      target: builder  # Use builder stage for dev (includes all deps)
     environment:
       - DATABASE_URL=sqlite:///./data/codex_system.db
       - SECRET_KEY=dev-secret-key-not-for-production

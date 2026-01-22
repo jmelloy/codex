@@ -94,7 +94,7 @@ const corkboardBg = computed(() => ({
 
 // Card style class
 const cardStyleClass = computed(() => {
-  return config.card_style === 'sticky' ? 'sticky-note' : 'note-card';
+  return props.config.card_style === 'sticky' ? 'sticky-note' : 'note-card';
 });
 
 // Get all cards
@@ -102,7 +102,7 @@ const allCards = computed(() => props.data?.files || []);
 
 // Grouped cards (for swimlanes layout)
 const groupedCards = computed(() => {
-  if (config.layout !== 'swimlanes' || !config.group_by) {
+  if (props.config.layout !== 'swimlanes' || !props.config.group_by) {
     return { default: allCards.value };
   }
 
@@ -111,17 +111,17 @@ const groupedCards = computed(() => {
   allCards.value.forEach((card) => {
     let groupKey = 'Uncategorized';
 
-    if (config.group_by?.startsWith('properties.')) {
-      const propKey = config.group_by.split('.')[1];
+    if (props.config.group_by?.startsWith('properties.')) {
+      const propKey = props.config.group_by.split('.')[1] ?? '';
       groupKey = card.properties?.[propKey] || 'Uncategorized';
-    } else if (config.group_by && card.properties?.[config.group_by]) {
-      groupKey = card.properties[config.group_by];
+    } else if (props.config.group_by && card.properties?.[props.config.group_by]) {
+      groupKey = card.properties[props.config.group_by];
     }
 
     if (!groups[groupKey]) {
       groups[groupKey] = [];
     }
-    groups[groupKey].push(card);
+    groups[groupKey]!.push(card);
   });
 
   return groups;
@@ -170,7 +170,7 @@ const handleDragStart = (event: DragEvent, card: FileMetadata) => {
 const handleDrop = (event: DragEvent) => {
   event.preventDefault();
 
-  if (!draggedCard.value || config.layout !== 'freeform') return;
+  if (!draggedCard.value || props.config.layout !== 'freeform') return;
 
   // Calculate drop position relative to canvas
   const canvasRect = canvas.value?.getBoundingClientRect();
@@ -192,7 +192,7 @@ const handleDrop = (event: DragEvent) => {
 
 // Handle card click
 const handleCardClick = (card: FileMetadata) => {
-  if (config.editable !== false) {
+  if (props.config.editable !== false) {
     console.log('Card clicked:', card);
     // TODO: Open edit modal or navigate to file
   }

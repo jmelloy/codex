@@ -176,7 +176,7 @@ const groupedFiles = computed(() => {
     if (!groups[groupKey]) {
       groups[groupKey] = [];
     }
-    groups[groupKey].push(file);
+    groups[groupKey]!.push(file);
   });
 
   // Sort groups by date (most recent first)
@@ -184,7 +184,7 @@ const groupedFiles = computed(() => {
   Object.keys(groups)
     .sort((a, b) => b.localeCompare(a))
     .forEach((key) => {
-      sortedGroups[key] = groups[key];
+      sortedGroups[key] = groups[key]!;
       // Expand first group by default
       if (Object.keys(sortedGroups).length === 1) {
         expandedGroups.value.add(key);
@@ -196,7 +196,7 @@ const groupedFiles = computed(() => {
 
 // Get day key (YYYY-MM-DD)
 const getDayKey = (date: Date): string => {
-  return date.toISOString().split('T')[0];
+  return date.toISOString().split('T')[0] as string;
 };
 
 // Get week key (YYYY-Www)
@@ -263,7 +263,7 @@ const filterSection = (
     if (!file.properties) return false;
 
     // Check if all filter conditions match
-    return Object.entries(section.filter).every(([key, value]) => {
+    return Object.entries(section.filter || {}).every(([key, value]) => {
       if (Array.isArray(value)) {
         return value.includes(file.properties?.[key]);
       }

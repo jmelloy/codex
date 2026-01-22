@@ -30,7 +30,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, onMounted, shallowRef } from 'vue';
+import { computed, ref, watch, shallowRef } from 'vue';
 import { parseViewDefinition, type ViewDefinition } from '@/services/viewParser';
 import { queryService, type QueryResult } from '@/services/queryService';
 import { fileService } from '@/services/codex';
@@ -83,7 +83,7 @@ const loadView = async () => {
     emit('loaded', viewDefinition.value);
   } catch (err: any) {
     error.value = err.message || 'Failed to load view';
-    emit('error', error.value);
+    emit('error', error.value as string);
   } finally {
     loading.value = false;
   }
@@ -149,10 +149,12 @@ const handleUpdate = async (event: ViewUpdateEvent) => {
     };
 
     // Update file
-    await fileService.update(event.fileId, props.workspaceId, {
-      content: file.content || '',
-      properties: updatedProperties,
-    });
+    await fileService.update(
+      event.fileId,
+      props.workspaceId,
+      file.content || '',
+      updatedProperties
+    );
 
     // Refresh view
     await loadView();

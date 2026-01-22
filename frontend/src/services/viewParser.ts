@@ -132,7 +132,7 @@ export function parseViewDefinition(content: string): ViewDefinition {
   // Parse YAML frontmatter
   let data: any;
   try {
-    data = yaml.load(frontmatterText) as any;
+    data = yaml.load(frontmatterText as string) as any;
   } catch (error) {
     throw new Error(`Failed to parse YAML frontmatter: ${error}`);
   }
@@ -157,7 +157,7 @@ export function parseViewDefinition(content: string): ViewDefinition {
     query,
     config: data.config || {},
     layout: data.layout,
-    content: markdownContent.trim() || undefined,
+    content: markdownContent?.trim() || undefined,
   };
 }
 

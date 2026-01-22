@@ -111,7 +111,7 @@ const getColumnCards = (columnId: string) => {
       if (!file.properties) return false;
 
       // Check if all filter conditions match
-      return Object.entries(column.filter).every(([key, value]) => {
+      return Object.entries(column.filter || {}).every(([key, value]) => {
         return file.properties?.[key] === value;
       });
     });

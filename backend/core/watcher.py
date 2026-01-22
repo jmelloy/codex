@@ -45,6 +45,7 @@ class NotebookFileHandler(FileSystemEventHandler):
         return any(pattern in path for pattern in ignore_patterns)
 
     def _update_file_metadata(self, filepath: str, event_type: str):
+        print(f"Updating metadata for {filepath} due to {event_type} event")
         """Update file metadata in database."""
         if self._should_ignore(filepath):
             return
@@ -162,8 +163,11 @@ class NotebookWatcher:
 
     def start(self):
         """Start watching the notebook directory."""
+        print(f"Starting watcher for notebook at {self.notebook_path}")
         self.observer.schedule(self.handler, self.notebook_path, recursive=True)
         self.observer.start()
+
+        self.scan_existing_files()
 
     def stop(self):
         """Stop watching the notebook directory."""

@@ -272,3 +272,4 @@ frontend/dist/
 
 # Test workspaces (created during test runs)
 backend/workspaces/
+workspaces/

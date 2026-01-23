@@ -83,6 +83,8 @@ class NotebookFileHandler(FileSystemEventHandler):
                         file_type = "json"
                     elif filepath.endswith(".xml"):
                         file_type = "xml"
+                    elif filepath.lower().endswith((".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".svg")):
+                        file_type = "image"
 
                     if file_meta:
                         # Update existing

@@ -1,10 +1,12 @@
 """Database connection and session management."""
 
+import os
+from pathlib import Path
+from typing import AsyncGenerator
+
 from sqlmodel import create_engine, Session, SQLModel
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
-from typing import AsyncGenerator
-import os
 
 # System database (users, workspaces, permissions, tasks)
 SYSTEM_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./codex_system.db")
@@ -25,26 +27,47 @@ async def get_system_session() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
+def run_alembic_migrations():
+    """Run Alembic migrations for system database.
+
+    This function runs migrations programmatically, which is useful for
+    application startup and Docker containers.
+    """
+    from alembic.config import Config
+    from alembic import command
+
+    # Find alembic.ini relative to this file
+    backend_dir = Path(__file__).parent.parent
+    alembic_ini = backend_dir / "alembic.ini"
+
+    if not alembic_ini.exists():
+        raise FileNotFoundError(f"alembic.ini not found at {alembic_ini}")
+
+    # Create Alembic config and run migrations
+    alembic_cfg = Config(str(alembic_ini))
+
+    # Set the script location relative to alembic.ini
+    alembic_cfg.set_main_option("script_location", str(backend_dir / "alembic"))
+
+    # Run upgrade to head
+    command.upgrade(alembic_cfg, "head")
+
+
 async def init_system_db():
-    """Initialize system database tables."""
-    async with system_engine.begin() as conn:
-        await conn.run_sync(SQLModel.metadata.create_all)
-    
-    # Run migrations on system database
-    # Extract the path from the database URL
-    if SYSTEM_DATABASE_URL.startswith("sqlite:///"):
-        db_path = SYSTEM_DATABASE_URL.replace("sqlite:///", "")
-    else:
-        # For other database types or URL formats, skip migrations
-        # (migrations are SQLite-specific)
-        return
-    
-    # Import and run migrations
-    from backend.db.system_migrations.add_theme_setting import migrate_system_db as migrate_theme
-    from backend.db.system_migrations.add_notebooks_to_system_db import migrate_system_db as migrate_notebooks
-    
-    migrate_theme(db_path)
-    migrate_notebooks(db_path)
+    """Initialize system database tables using Alembic migrations.
+
+    This function runs Alembic migrations to set up or upgrade the system database.
+    For new databases, this creates all tables. For existing databases, this applies
+    any pending migrations.
+    """
+    # Ensure data directory exists
+    db_path = SYSTEM_DATABASE_URL.replace("sqlite:///", "")
+    db_dir = os.path.dirname(db_path)
+    if db_dir:
+        os.makedirs(db_dir, exist_ok=True)
+
+    # Run Alembic migrations
+    run_alembic_migrations()
 
 
 def get_notebook_engine(notebook_path: str):

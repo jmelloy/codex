@@ -22,9 +22,9 @@ from backend.api.auth import (
 from backend.db.models import User, Workspace, Notebook
 from backend.api.schemas import UserCreate, UserResponse
 from backend.api.routes import workspaces, notebooks, files, search, tasks, markdown, query
-from api.routes.workspaces import create_workspace, WorkspaceCreate
+from backend.api.routes.workspaces import create_workspace, WorkspaceCreate
 from backend.db.database import get_notebook_session
-from core.watcher import NotebookWatcher
+from backend.core.watcher import NotebookWatcher
 
 # Global registry of active watchers
 _active_watchers: list[NotebookWatcher] = []

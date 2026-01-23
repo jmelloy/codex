@@ -1,7 +1,7 @@
 """Query routes for dynamic views."""
 
 import json
-from backend.core.logging_config import get_logger
+import logging
 from datetime import datetime
 from fnmatch import fnmatch
 from pathlib import Path
@@ -13,12 +13,12 @@ from sqlalchemy import and_, func, or_, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from backend.api.auth import get_current_active_user
-from backend.db.database import get_notebook_session, get_system_session
-from backend.db.models import FileMetadata, FileTag, Notebook, Tag, User, Workspace
+from codex.api.auth import get_current_active_user
+from codex.db.database import get_notebook_session, get_system_session
+from codex.db.models import FileMetadata, FileTag, Notebook, Tag, User, Workspace
 
 router = APIRouter()
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class ViewQuery(BaseModel):

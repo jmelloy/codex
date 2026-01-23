@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from sqlalchemy import inspect, text
 
-from backend.db.database import init_notebook_db, get_notebook_engine
+from codex.db.database import init_notebook_db, get_notebook_engine
 
 
 class TestNotebookMigrations:

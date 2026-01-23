@@ -332,7 +332,7 @@ To test the MCP server manually:
 
 ```bash
 # Run the MCP server
-python -m backend.mcp_server
+python -m codex.mcp_server
 
 # The server will communicate via stdio (standard input/output)
 # You can send MCP protocol messages to interact with it

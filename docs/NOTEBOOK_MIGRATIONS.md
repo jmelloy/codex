@@ -49,6 +49,7 @@ backend/
 #### Fresh Databases (No Tables)
 
 For new notebooks, migrations run sequentially:
+
 1. Migration 001: Create all tables (file_metadata, tags, file_tags, search_index)
 2. Migration 002: No-op (column already has correct name)
 
@@ -71,18 +72,21 @@ This approach is idempotent and safe for existing data.
 #### `backend/db/database.py`
 
 Added `run_notebook_alembic_migrations()`:
+
 - Detects whether database needs stamping
 - Stamps pre-Alembic databases at appropriate revision
 - Runs any pending migrations
 - Handles both fresh installs and upgrades
 
 Modified `init_notebook_db()`:
+
 - Now calls `run_notebook_alembic_migrations()` instead of `SQLModel.metadata.create_all()`
 - Returns the engine after migrations complete
 
 #### `backend/notebook_alembic/env.py`
 
 Key features:
+
 - Reads database URL from Alembic config (set programmatically)
 - Creates empty metadata (no models imported to avoid system model pollution)
 - Supports both online and offline migration modes
@@ -90,11 +94,13 @@ Key features:
 #### Migration Files
 
 **Migration 001: Initial Schema**
+
 - Creates all 4 tables with proper columns
 - No conditional checks (assumes fresh database)
 - Includes indexes for common query patterns
 
 **Migration 002: Frontmatter to Properties**
+
 - Renames `frontmatter` column to `properties` if it exists
 - Uses try/except to handle missing column (no-op for fresh installs)
 - Compatible with SQLite's batch alter operations
@@ -115,7 +121,7 @@ All tests pass ✅
 ### Creating a New Notebook
 
 ```python
-from backend.db.database import init_notebook_db
+from codex.db.database import init_notebook_db
 
 # Automatically runs Alembic migrations
 engine = init_notebook_db("/path/to/notebook")
@@ -161,6 +167,7 @@ with engine.connect() as conn:
 ### Existing Notebooks
 
 Pre-Alembic notebooks are automatically detected and migrated:
+
 - No manual intervention required
 - Data is preserved during migration
 - Auto-stamping prevents re-running migrations
@@ -170,6 +177,7 @@ Pre-Alembic notebooks are automatically detected and migrated:
 ### Adding a New Migration
 
 1. Generate migration template:
+
    ```bash
    cd backend
    python -m alembic -c notebook_alembic.ini revision -m "add_new_column"
@@ -178,8 +186,9 @@ Pre-Alembic notebooks are automatically detected and migrated:
 2. Edit the generated file in `backend/notebook_alembic/versions/`
 
 3. Test the migration:
+
    ```python
-   from backend.db.database import init_notebook_db
+   from codex.db.database import init_notebook_db
    engine = init_notebook_db("/path/to/test/notebook")
    ```
 
@@ -201,6 +210,7 @@ Pre-Alembic notebooks are automatically detected and migrated:
 ### Migration Fails with "table already exists"
 
 This means Alembic doesn't know the current state. Solution:
+
 - Check if `alembic_version` table exists
 - If missing, the auto-stamping should handle it
 - Verify `run_notebook_alembic_migrations()` is being called
@@ -208,11 +218,13 @@ This means Alembic doesn't know the current state. Solution:
 ### Version is incorrect
 
 Check the version:
+
 ```sql
 SELECT version_num FROM alembic_version;
 ```
 
 Manually stamp if needed:
+
 ```bash
 python -m alembic -c notebook_alembic.ini \
   -x sqlalchemy.url=sqlite:////path/to/notebook/.codex/notebook.db \
@@ -222,6 +234,7 @@ python -m alembic -c notebook_alembic.ini \
 ### Migration creates duplicate tables
 
 This shouldn't happen with the current implementation. If it does:
+
 1. Check that `table_exists()` logic is working
 2. Verify migration has proper guards
 3. Check Alembic version tracking

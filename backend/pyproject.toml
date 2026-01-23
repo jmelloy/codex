@@ -5,7 +5,7 @@ description = "A hierarchical digital laboratory journal system for tracking exp
 requires-python = ">=3.12"
 license = {text = "MIT"}
 authors = [
-    {name = "Jeffrey Melloy", email = "jmelloy@example.com"}
+    {name = "Jeffrey Melloy", email = "jmelloy@gmail.com"}
 ]
 dependencies = [
     "fastapi>=0.115.0",
@@ -25,6 +25,7 @@ dependencies = [
     "greenlet>=3.0.0",
     "mcp>=1.0.0",
     "playwright>=1.40.0",
+    "pyyaml>=6.0.3",
 ]
 
 [project.optional-dependencies]

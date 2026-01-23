@@ -13,9 +13,9 @@ import asyncio
 from pathlib import Path
 from sqlmodel import select
 
-from backend.scripts.seed_test_data import seed_data, clean_test_data, TEST_USERS
-from backend.db.database import get_system_session, init_system_db
-from backend.db.models import User, Workspace, Notebook
+from codex.scripts.seed_test_data import seed_data, clean_test_data, TEST_USERS
+from codex.db.database import get_system_session, init_system_db
+from codex.db.models import User, Workspace, Notebook
 
 
 @pytest.mark.asyncio

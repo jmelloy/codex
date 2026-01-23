@@ -7,9 +7,9 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from fastapi.testclient import TestClient
 from sqlmodel import create_engine, Session
-from backend.api.main import app
-from backend.db.models import FileMetadata, Notebook, Tag, FileTag
-from backend.api.routes.query import (
+from backend.codex.main import app
+from codex.db.models import FileMetadata, Notebook, Tag, FileTag
+from codex.api.routes.query import (
     parse_sort_field,
     apply_path_filter,
     group_files,
@@ -344,7 +344,7 @@ class TestQueryAPI:
 
     def test_query_model_validation(self):
         """Test ViewQuery model validation."""
-        from backend.api.routes.query import ViewQuery
+        from codex.api.routes.query import ViewQuery
 
         # Test valid query
         query = ViewQuery(
@@ -362,7 +362,7 @@ class TestQueryAPI:
 
     def test_query_model_defaults(self):
         """Test ViewQuery model default values."""
-        from backend.api.routes.query import ViewQuery
+        from codex.api.routes.query import ViewQuery
 
         query = ViewQuery()
         assert query.limit == 100
@@ -376,7 +376,7 @@ class TestPropertyFilters:
 
     def test_property_filters_import(self):
         """Test that property filter functions can be imported."""
-        from backend.api.routes.query import (
+        from codex.api.routes.query import (
             apply_property_filters_to_query,
             apply_property_exists_filter_to_query,
             apply_date_property_filter_to_query,
@@ -393,7 +393,7 @@ class TestQueryResult:
 
     def test_query_result_model(self):
         """Test QueryResult model structure."""
-        from backend.api.routes.query import QueryResult
+        from codex.api.routes.query import QueryResult
 
         result = QueryResult(
             files=[{"id": 1, "title": "Test"}],
@@ -409,7 +409,7 @@ class TestQueryResult:
 
     def test_query_result_with_groups(self):
         """Test QueryResult with grouped data."""
-        from backend.api.routes.query import QueryResult
+        from codex.api.routes.query import QueryResult
 
         result = QueryResult(
             files=[],

@@ -16,7 +16,7 @@ services:
       - codex-data:/app/data
     restart: unless-stopped
     command: >
-      sh -c "alembic upgrade head && uvicorn backend.api.main:app --host 0.0.0.0 --port 8000 --workers 2 --log-config /dev/null"
+      sh -c "alembic upgrade head && uvicorn codex.main:app --host 0.0.0.0 --port 8000 --workers 2 --log-config log_conf.yml"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 30s

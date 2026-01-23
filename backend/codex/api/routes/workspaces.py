@@ -11,9 +11,9 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from backend.api.auth import get_current_active_user
-from backend.db.database import get_system_session, DATA_DIRECTORY
-from backend.db.models import User, Workspace
+from codex.api.auth import get_current_active_user
+from codex.db.database import get_system_session, DATA_DIRECTORY
+from codex.db.models import User, Workspace
 
 
 

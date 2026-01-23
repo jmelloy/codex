@@ -6,8 +6,8 @@ from typing import Dict, Any, Optional
 from pathlib import Path
 import frontmatter
 
-from backend.core.logging_config import get_logger
-logger = get_logger(__name__)
+import logging
+logger = logging.getLogger(__name__)
 
 
 class MetadataParser:

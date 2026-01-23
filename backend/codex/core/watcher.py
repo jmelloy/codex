@@ -7,8 +7,8 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from typing import Optional, Callable
 import logging
-from backend.db.database import get_notebook_session
-from backend.db.models import FileMetadata, Notebook
+from codex.db.database import get_notebook_session
+from codex.db.models import FileMetadata, Notebook
 from sqlmodel import select
 
 logger = logging.getLogger(__name__)
@@ -113,7 +113,7 @@ class NotebookFileHandler(FileSystemEventHandler):
                     # Auto-commit to git if file should be tracked
                     if not is_binary:
                         try:
-                            from backend.core.git_manager import GitManager
+                            from codex.core.git_manager import GitManager
 
                             git_manager = GitManager(self.notebook_path)
                             commit_hash = git_manager.auto_commit_on_change(filepath)

@@ -127,8 +127,8 @@ def run_all_migrations(data_directory: str) -> int:
 
 if __name__ == "__main__":
     import sys
-    from backend.db.database import DATA_DIRECTORY
-    from backend.core.logging_config import setup_logging
+    from codex.db.database import DATA_DIRECTORY
+    from codex.core.logging_config import setup_logging
     
     setup_logging()
 

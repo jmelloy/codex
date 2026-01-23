@@ -4,8 +4,8 @@
 
 set -e
 
-# Change to the backend directory
-cd "$(dirname "$0")/.."
+# Change to the backend directory (now scripts is in codex/scripts)
+cd "$(dirname "$0")/../.."
 
 # Ensure the data directory exists
 mkdir -p ./data

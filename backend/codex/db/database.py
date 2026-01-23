@@ -19,7 +19,7 @@ SYSTEM_DATABASE_URL_ASYNC = SYSTEM_DATABASE_URL.replace("sqlite:///", "sqlite+ai
 system_engine = create_async_engine(SYSTEM_DATABASE_URL_ASYNC, echo=True, connect_args={"check_same_thread": False})
 
 # Synchronous engine for use in thread pools (e.g., notebook watchers)
-system_engine_sync = create_engine(SYSTEM_DATABASE_URL, echo=False, connect_args={"check_same_thread": False})
+system_engine_sync = create_engine(SYSTEM_DATABASE_URL, echo=True, connect_args={"check_same_thread": False})
 
 async_session_maker = sessionmaker(system_engine, class_=AsyncSession, expire_on_commit=False)
 
@@ -43,8 +43,8 @@ def run_alembic_migrations():
     from alembic.config import Config
     from alembic import command
 
-    # Find alembic.ini relative to this file
-    backend_dir = Path(__file__).parent.parent
+    # Find alembic.ini relative to this file - now it's in backend/ not backend/codex/
+    backend_dir = Path(__file__).parent.parent.parent
     alembic_ini = backend_dir / "alembic.ini"
 
     if not alembic_ini.exists():
@@ -54,7 +54,7 @@ def run_alembic_migrations():
     alembic_cfg = Config(str(alembic_ini))
 
     # Set the script location relative to alembic.ini
-    alembic_cfg.set_main_option("script_location", str(backend_dir / "alembic"))
+    alembic_cfg.set_main_option("script_location", str(backend_dir / "codex" / "alembic"))
 
     # Run upgrade to head
     command.upgrade(alembic_cfg, "head")
@@ -74,8 +74,8 @@ def run_notebook_alembic_migrations(notebook_path: str):
     from sqlalchemy import inspect, create_engine
     from alembic.runtime.migration import MigrationContext
 
-    # Find notebook_alembic.ini relative to this file
-    backend_dir = Path(__file__).parent.parent
+    # Find notebook_alembic.ini relative to this file - now it's in backend/ not backend/codex/
+    backend_dir = Path(__file__).parent.parent.parent
     alembic_ini = backend_dir / "notebook_alembic.ini"
 
     if not alembic_ini.exists():
@@ -89,7 +89,7 @@ def run_notebook_alembic_migrations(notebook_path: str):
     alembic_cfg = Config(str(alembic_ini))
 
     # Set the script location relative to alembic.ini
-    alembic_cfg.set_main_option("script_location", str(backend_dir / "notebook_alembic"))
+    alembic_cfg.set_main_option("script_location", str(backend_dir / "codex" / "notebook_alembic"))
     
     # Set the database URL for this specific notebook
     alembic_cfg.set_main_option("sqlalchemy.url", f"sqlite:///{db_path}")
@@ -148,7 +148,7 @@ def get_notebook_engine(notebook_path: str):
     """Get database engine for a specific notebook."""
     db_path = os.path.join(notebook_path, ".codex", "notebook.db")
     os.makedirs(os.path.dirname(db_path), exist_ok=True)
-    return create_engine(f"sqlite:///{db_path}", echo=False)
+    return create_engine(f"sqlite:///{db_path}", echo=True)
 
 
 def init_notebook_db(notebook_path: str):

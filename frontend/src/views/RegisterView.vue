@@ -1,10 +1,10 @@
 <template>
-  <div class="flex justify-center items-center min-h-screen bg-gray-100 p-5 w-full">
-    <div class="bg-white p-10 rounded-lg shadow-lg w-full max-w-md">
-      <h1 class="mb-8 text-center text-gray-800 text-2xl font-semibold">Register</h1>
+  <div class="flex justify-center items-center min-h-screen graph-paper p-5 w-full">
+    <div class="notebook-page p-10 rounded-lg shadow-lg w-full max-w-md">
+      <h1 class="mb-8 text-center text-2xl font-semibold" style="color: var(--notebook-text)">Register</h1>
       <form @submit.prevent="handleRegister">
         <div class="mb-5">
-          <label for="username" class="block mb-1.5 text-gray-700 font-medium">Username</label>
+          <label for="username" class="block mb-1.5 font-medium" style="color: var(--notebook-text)">Username</label>
           <input
             id="username"
             v-model="form.username"
@@ -14,12 +14,12 @@
             maxlength="50"
             placeholder="Enter username"
             :disabled="loading"
-            class="w-full px-2.5 py-2.5 border border-gray-300 rounded text-sm disabled:bg-gray-100 disabled:cursor-not-allowed focus:outline-none focus:border-primary"
+            class="auth-input w-full px-2.5 py-2.5 rounded text-sm disabled:cursor-not-allowed focus:outline-none"
           />
         </div>
 
         <div class="mb-5">
-          <label for="email" class="block mb-1.5 text-gray-700 font-medium">Email</label>
+          <label for="email" class="block mb-1.5 font-medium" style="color: var(--notebook-text)">Email</label>
           <input
             id="email"
             v-model="form.email"
@@ -27,12 +27,12 @@
             required
             placeholder="Enter email"
             :disabled="loading"
-            class="w-full px-2.5 py-2.5 border border-gray-300 rounded text-sm disabled:bg-gray-100 disabled:cursor-not-allowed focus:outline-none focus:border-primary"
+            class="auth-input w-full px-2.5 py-2.5 rounded text-sm disabled:cursor-not-allowed focus:outline-none"
           />
         </div>
 
         <div class="mb-5">
-          <label for="password" class="block mb-1.5 text-gray-700 font-medium">Password</label>
+          <label for="password" class="block mb-1.5 font-medium" style="color: var(--notebook-text)">Password</label>
           <input
             id="password"
             v-model="form.password"
@@ -41,12 +41,12 @@
             minlength="8"
             placeholder="Enter password (min 8 characters)"
             :disabled="loading"
-            class="w-full px-2.5 py-2.5 border border-gray-300 rounded text-sm disabled:bg-gray-100 disabled:cursor-not-allowed focus:outline-none focus:border-primary"
+            class="auth-input w-full px-2.5 py-2.5 rounded text-sm disabled:cursor-not-allowed focus:outline-none"
           />
         </div>
 
         <div class="mb-5">
-          <label for="confirmPassword" class="block mb-1.5 text-gray-700 font-medium">Confirm Password</label>
+          <label for="confirmPassword" class="block mb-1.5 font-medium" style="color: var(--notebook-text)">Confirm Password</label>
           <input
             id="confirmPassword"
             v-model="form.confirmPassword"
@@ -54,22 +54,22 @@
             required
             placeholder="Confirm password"
             :disabled="loading"
-            class="w-full px-2.5 py-2.5 border border-gray-300 rounded text-sm disabled:bg-gray-100 disabled:cursor-not-allowed focus:outline-none focus:border-primary"
+            class="auth-input w-full px-2.5 py-2.5 rounded text-sm disabled:cursor-not-allowed focus:outline-none"
           />
         </div>
 
-        <div v-if="error" class="text-red-700 bg-red-50 p-2.5 rounded mb-5 text-sm">
+        <div v-if="error" class="p-2.5 rounded mb-5 text-sm" style="color: var(--pen-red); background: color-mix(in srgb, var(--pen-red) 10%, transparent)">
           {{ error }}
         </div>
 
-        <button type="submit" :disabled="loading" class="w-full px-3 py-3 bg-primary text-white border-none rounded text-base cursor-pointer transition hover:bg-primary-hover disabled:bg-gray-400 disabled:cursor-not-allowed">
+        <button type="submit" :disabled="loading" class="notebook-button w-full px-3 py-3 border-none rounded text-base cursor-pointer transition disabled:opacity-50 disabled:cursor-not-allowed">
           {{ loading ? 'Registering...' : 'Register' }}
         </button>
       </form>
 
-      <div class="login-link text-center mt-5 text-gray-600">
+      <div class="login-link text-center mt-5" style="color: var(--pen-gray)">
         Already have an account? 
-        <router-link to="/login" class="text-primary no-underline hover:underline">Login here</router-link>
+        <router-link to="/login" class="no-underline hover:underline" style="color: var(--notebook-accent)">Login here</router-link>
       </div>
     </div>
   </div>
@@ -150,5 +150,22 @@ const handleRegister = async () => {
 </script>
 
 <style scoped>
-/* Tailwind classes used, minimal custom styles needed */
+.auth-input {
+  border: 1px solid var(--page-border);
+  background: var(--notebook-bg);
+  color: var(--notebook-text);
+}
+
+.auth-input:focus {
+  border-color: var(--notebook-accent);
+}
+
+.auth-input::placeholder {
+  color: color-mix(in srgb, var(--notebook-text) 40%, transparent);
+}
+
+.auth-input:disabled {
+  opacity: 0.6;
+  background: color-mix(in srgb, var(--notebook-text) 5%, transparent);
+}
 </style>

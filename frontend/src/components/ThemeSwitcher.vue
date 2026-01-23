@@ -82,18 +82,18 @@ onUnmounted(() => {
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 0.75rem;
-  background: rgba(0, 0, 0, 0.05);
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  background: color-mix(in srgb, var(--notebook-text) 8%, transparent);
+  border: 1px solid var(--page-border);
   border-radius: 0.375rem;
   cursor: pointer;
   font-size: 0.875rem;
   transition: all 0.2s;
-  color: inherit;
+  color: var(--notebook-text);
 }
 
 .theme-button:hover {
-  background: rgba(0, 0, 0, 0.1);
-  border-color: rgba(0, 0, 0, 0.2);
+  background: color-mix(in srgb, var(--notebook-text) 12%, transparent);
+  border-color: var(--page-border);
 }
 
 .theme-label {
@@ -105,10 +105,10 @@ onUnmounted(() => {
   top: calc(100% + 0.5rem);
   right: 0;
   min-width: 250px;
-  background: white;
-  border: 1px solid rgba(0, 0, 0, 0.15);
+  background: var(--notebook-bg);
+  border: 1px solid var(--page-border);
   border-radius: 0.5rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px var(--page-shadow);
   overflow: hidden;
   z-index: 1000;
 }
@@ -119,12 +119,13 @@ onUnmounted(() => {
   justify-content: space-between;
   width: 100%;
   padding: 0.75rem 1rem;
-  background: white;
+  background: var(--notebook-bg);
   border: none;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  border-bottom: 1px solid var(--page-border);
   cursor: pointer;
   text-align: left;
   transition: background 0.2s;
+  color: var(--notebook-text);
 }
 
 .theme-option:last-child {
@@ -132,11 +133,11 @@ onUnmounted(() => {
 }
 
 .theme-option:hover {
-  background: rgba(102, 126, 234, 0.08);
+  background: color-mix(in srgb, var(--notebook-accent) 10%, transparent);
 }
 
 .theme-option.active {
-  background: rgba(102, 126, 234, 0.12);
+  background: color-mix(in srgb, var(--notebook-accent) 15%, transparent);
 }
 
 .theme-option-content {
@@ -148,17 +149,17 @@ onUnmounted(() => {
 .theme-option-label {
   font-weight: 600;
   font-size: 0.875rem;
-  color: #1a202c;
+  color: var(--notebook-text);
 }
 
 .theme-option-description {
   font-size: 0.75rem;
-  color: #718096;
+  color: var(--pen-gray);
 }
 
 .check-mark {
   font-size: 1rem;
-  color: #667eea;
+  color: var(--notebook-accent);
   font-weight: bold;
 }
 </style>

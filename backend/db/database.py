@@ -18,6 +18,9 @@ SYSTEM_DATABASE_URL_ASYNC = SYSTEM_DATABASE_URL.replace("sqlite:///", "sqlite+ai
 
 system_engine = create_async_engine(SYSTEM_DATABASE_URL_ASYNC, echo=True, connect_args={"check_same_thread": False})
 
+# Synchronous engine for use in thread pools (e.g., notebook watchers)
+system_engine_sync = create_engine(SYSTEM_DATABASE_URL, echo=False, connect_args={"check_same_thread": False})
+
 async_session_maker = sessionmaker(system_engine, class_=AsyncSession, expire_on_commit=False)
 
 
@@ -25,6 +28,10 @@ async def get_system_session() -> AsyncGenerator[AsyncSession, None]:
     """Get async database session for system database."""
     async with async_session_maker() as session:
         yield session
+        
+def get_system_session_sync() -> Session:
+    """Get synchronous database session for system database (for use in thread pools)."""
+    return Session(system_engine_sync)
 
 
 def run_alembic_migrations():

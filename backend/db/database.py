@@ -134,8 +134,11 @@ async def init_system_db():
     # Ensure data directory exists
     db_path = SYSTEM_DATABASE_URL.replace("sqlite:///", "")
     db_dir = os.path.dirname(db_path)
-    if db_dir:
-        os.makedirs(db_dir, exist_ok=True)
+    if db_dir and not os.path.exists(db_dir):
+        try:
+            os.makedirs(db_dir, exist_ok=True)
+        except FileExistsError:
+            pass
 
     # Run Alembic migrations
     run_alembic_migrations()

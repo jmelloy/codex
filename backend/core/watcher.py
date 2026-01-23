@@ -119,7 +119,24 @@ class NotebookFileHandler(FileSystemEventHandler):
                         except Exception as e:
                             print(f"Warning: Could not commit file to git: {e}")
 
-                    session.commit()
+                    try:
+                        session.commit()
+                    except Exception as commit_error:
+                        # Handle race condition: another process created the record
+                        session.rollback()
+                        if "UNIQUE constraint failed" in str(commit_error):
+                            # Re-query and update instead
+                            file_meta = get_existing()
+                            if file_meta:
+                                file_meta.size = file_stats.st_size
+                                file_meta.hash = file_hash
+                                file_meta.file_type = file_type
+                                from datetime import datetime, timezone
+                                file_meta.updated_at = datetime.now(timezone.utc)
+                                file_meta.file_modified_at = datetime.fromtimestamp(file_stats.st_mtime)
+                                session.commit()
+                        else:
+                            raise
 
             if self.callback:
                 self.callback(filepath, event_type)
@@ -175,12 +192,82 @@ class NotebookWatcher:
         self.observer.join()
 
     def scan_existing_files(self):
-        """Scan and index all existing files in the notebook."""
-        for root, dirs, files in os.walk(self.notebook_path):
-            # Skip ignored directories
-            dirs[:] = [d for d in dirs if not self.handler._should_ignore(os.path.join(root, d))]
+        """Scan and index existing files in the notebook, skipping unchanged files."""
+        from datetime import datetime
 
-            for filename in files:
-                filepath = os.path.join(root, filename)
-                if not self.handler._should_ignore(filepath):
-                    self.handler._update_file_metadata(filepath, "created")
+        session = get_notebook_session(self.notebook_path)
+
+        try:
+            # Get all existing file records from database
+            result = session.execute(
+                select(FileMetadata).where(FileMetadata.notebook_id == self.notebook_id)
+            )
+            existing_files = {f.path: f for f in result.scalars().all()}
+
+            # Track which paths we've seen on disk
+            seen_paths = set()
+            updated_count = 0
+
+            for root, dirs, files in os.walk(self.notebook_path):
+                # Skip ignored directories
+                dirs[:] = [d for d in dirs if not self.handler._should_ignore(os.path.join(root, d))]
+
+                for filename in files:
+                    filepath = os.path.join(root, filename)
+                    if self.handler._should_ignore(filepath):
+                        continue
+
+                    rel_path = os.path.relpath(filepath, self.notebook_path)
+                    seen_paths.add(rel_path)
+
+                    try:
+                        file_stats = os.stat(filepath)
+                    except OSError:
+                        # File may have been deleted between walk and stat
+                        continue
+
+                    file_mtime = datetime.fromtimestamp(file_stats.st_mtime)
+                    file_size = file_stats.st_size
+
+                    existing = existing_files.get(rel_path)
+
+                    if existing:
+                        # File exists in database - check if it needs updating
+                        needs_update = False
+
+                        # Compare size first (cheap check)
+                        if existing.size != file_size:
+                            needs_update = True
+                        # Compare modification time (allow 1 second tolerance for filesystem precision)
+                        elif existing.file_modified_at:
+                            time_diff = abs((file_mtime - existing.file_modified_at).total_seconds())
+                            if time_diff > 1:
+                                needs_update = True
+                        else:
+                            # No mtime recorded, need to update
+                            needs_update = True
+
+                        if needs_update:
+                            self.handler._update_file_metadata(filepath, "modified")
+                            updated_count += 1
+                    else:
+                        # New file not in database
+                        self.handler._update_file_metadata(filepath, "created")
+
+            # Find deleted files (in database but not on disk)
+            deleted_paths = set(existing_files.keys()) - seen_paths
+            for rel_path in deleted_paths:
+                filepath = os.path.join(self.notebook_path, rel_path)
+                self.handler._update_file_metadata(filepath, "deleted")
+
+            # Log scan summary
+            new_count = len(seen_paths - set(existing_files.keys()))
+            deleted_count = len(deleted_paths)
+            unchanged_count = len(seen_paths) - new_count - updated_count
+            print(f"Scan complete: {len(seen_paths)} files on disk, {len(existing_files)} in database")
+            print(f"  New: {new_count}, Updated: {updated_count}, Deleted: {deleted_count}, Unchanged: {unchanged_count}")
+
+        except Exception as e:
+            print(f"Error during file scan: {e}")
+        finally:
+            session.close()

@@ -1,6 +1,7 @@
 """File routes."""
 
 import json
+import mimetypes
 import os
 from pathlib import Path
 from typing import Any
@@ -229,11 +230,21 @@ async def get_file_content(
         # Get file path
         file_path = notebook_path / file_meta.path
         
+        # Validate path to prevent directory traversal attacks
+        try:
+            resolved_path = file_path.resolve()
+            resolved_notebook = notebook_path.resolve()
+            # Ensure the file is within the notebook directory
+            if not str(resolved_path).startswith(str(resolved_notebook)):
+                raise HTTPException(status_code=403, detail="Access denied: Invalid file path")
+        except (OSError, ValueError) as e:
+            logger.error(f"Path validation error: {e}")
+            raise HTTPException(status_code=400, detail="Invalid file path")
+        
         if not file_path.exists():
             raise HTTPException(status_code=404, detail="File not found on disk")
 
         # Determine media type based on file extension
-        import mimetypes
         media_type, _ = mimetypes.guess_type(str(file_path))
         
         # Return the file

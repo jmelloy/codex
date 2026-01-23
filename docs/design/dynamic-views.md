@@ -89,7 +89,6 @@ config:
   groupBy: status
   editable: true
 ---
-
 # Optional markdown content or instructions
 This board shows all tasks across the workspace.
 ```
@@ -139,60 +138,63 @@ const journal = query({ path: 'journal/2026-01-22.md' })
 Add new endpoint: `GET /api/v1/query?workspace_id=X`
 
 **Query Schema:**
+
 ```typescript
 interface ViewQuery {
   // Scope
-  notebook_ids?: number[]           // Limit to specific notebooks
-  paths?: string[]                  // Limit to specific paths (glob support)
+  notebook_ids?: number[]; // Limit to specific notebooks
+  paths?: string[]; // Limit to specific paths (glob support)
 
   // Filtering
-  tags?: string[]                   // Files with ALL these tags
-  tags_any?: string[]               // Files with ANY of these tags
-  file_types?: string[]             // Filter by file type
+  tags?: string[]; // Files with ALL these tags
+  tags_any?: string[]; // Files with ANY of these tags
+  file_types?: string[]; // Filter by file type
 
   // Property filtering
-  properties?: {                    // Filter by frontmatter properties
-    [key: string]: any | any[]      // Exact match or "in" match
-  }
-  properties_exists?: string[]      // Files with these properties defined
+  properties?: {
+    // Filter by frontmatter properties
+    [key: string]: any | any[]; // Exact match or "in" match
+  };
+  properties_exists?: string[]; // Files with these properties defined
 
   // Date filtering
-  created_after?: string            // ISO date
-  created_before?: string
-  modified_after?: string
-  modified_before?: string
+  created_after?: string; // ISO date
+  created_before?: string;
+  modified_after?: string;
+  modified_before?: string;
 
   // Date properties
-  date_property?: string            // Property name (e.g., "due_date")
-  date_after?: string               // Filter by property date
-  date_before?: string
+  date_property?: string; // Property name (e.g., "due_date")
+  date_after?: string; // Filter by property date
+  date_before?: string;
 
   // Content filtering
-  content_search?: string           // Full-text search
+  content_search?: string; // Full-text search
 
   // Sorting & pagination
-  sort?: string                     // "created_at desc", "title asc", "properties.priority desc"
-  limit?: number
-  offset?: number
+  sort?: string; // "created_at desc", "title asc", "properties.priority desc"
+  limit?: number;
+  offset?: number;
 
   // Aggregation
-  group_by?: string                 // Group results by property
+  group_by?: string; // Group results by property
 }
 
 interface QueryResult {
-  files: FileMetadata[]
-  groups?: {                        // If group_by specified
-    [key: string]: FileMetadata[]
-  }
-  total: number
-  limit: number
-  offset: number
+  files: FileMetadata[];
+  groups?: {
+    // If group_by specified
+    [key: string]: FileMetadata[];
+  };
+  total: number;
+  limit: number;
+  offset: number;
 }
 ```
 
 ### Implementation
 
-**Backend**: `backend/codex/api/routes/query.py`
+**Backend**: `backend/api/routes/query.py`
 
 ```python
 @router.get("/")
@@ -256,18 +258,18 @@ async def query_files(
 
 ```typescript
 export interface QueryService {
-  execute(workspaceId: number, query: ViewQuery): Promise<QueryResult>
+  execute(workspaceId: number, query: ViewQuery): Promise<QueryResult>;
 }
 
 export const queryService: QueryService = {
   async execute(workspaceId, query) {
-    const response = await api.get('/query', {
+    const response = await api.get("/query", {
       params: { workspace_id: workspaceId },
-      data: query
-    })
-    return response.data
-  }
-}
+      data: query,
+    });
+    return response.data;
+  },
+};
 ```
 
 ---
@@ -452,6 +454,7 @@ config:
 ### Frontend: `frontend/src/components/views/ViewRenderer.vue`
 
 Main component that:
+
 1. Loads `.cdx` file content
 2. Parses frontmatter (query + config)
 3. Executes query via API
@@ -469,96 +472,102 @@ Main component that:
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
-import { parseViewDefinition } from '@/services/viewParser'
-import { queryService } from '@/services/query'
-import KanbanView from './KanbanView.vue'
-import GalleryView from './GalleryView.vue'
-import RollupView from './RollupView.vue'
-import DashboardView from './DashboardView.vue'
-import CorkboardView from './CorkboardView.vue'
+import { computed, ref, watch } from "vue";
+import { parseViewDefinition } from "@/services/viewParser";
+import { queryService } from "@/services/query";
+import KanbanView from "./KanbanView.vue";
+import GalleryView from "./GalleryView.vue";
+import RollupView from "./RollupView.vue";
+import DashboardView from "./DashboardView.vue";
+import CorkboardView from "./CorkboardView.vue";
 
 const props = defineProps<{
-  fileId: number
-  workspaceId: number
-}>()
+  fileId: number;
+  workspaceId: number;
+}>();
 
-const viewDefinition = ref(null)
-const queryResults = ref(null)
-const loading = ref(true)
+const viewDefinition = ref(null);
+const queryResults = ref(null);
+const loading = ref(true);
 
 // Load view definition
 const loadView = async () => {
-  const file = await fileService.get(props.fileId, props.workspaceId)
-  viewDefinition.value = parseViewDefinition(file.content)
+  const file = await fileService.get(props.fileId, props.workspaceId);
+  viewDefinition.value = parseViewDefinition(file.content);
 
   // Execute query
   queryResults.value = await queryService.execute(
     props.workspaceId,
-    viewDefinition.value.query
-  )
+    viewDefinition.value.query,
+  );
 
-  loading.value = false
-}
+  loading.value = false;
+};
 
 // Map view type to component
 const viewComponent = computed(() => {
   switch (viewDefinition.value?.view_type) {
-    case 'kanban': return KanbanView
-    case 'gallery': return GalleryView
-    case 'rollup': return RollupView
-    case 'dashboard': return DashboardView
-    case 'corkboard': return CorkboardView
-    default: return null
+    case "kanban":
+      return KanbanView;
+    case "gallery":
+      return GalleryView;
+    case "rollup":
+      return RollupView;
+    case "dashboard":
+      return DashboardView;
+    case "corkboard":
+      return CorkboardView;
+    default:
+      return null;
   }
-})
+});
 
-const viewConfig = computed(() => viewDefinition.value?.config || {})
+const viewConfig = computed(() => viewDefinition.value?.config || {});
 
 // Handle updates from view (e.g., drag-drop)
 const handleUpdate = async (event: ViewUpdateEvent) => {
-  const { fileId, updates } = event
+  const { fileId, updates } = event;
 
   // Update file properties
-  const file = await fileService.get(fileId, props.workspaceId)
+  const file = await fileService.get(fileId, props.workspaceId);
   await fileService.update(fileId, props.workspaceId, {
-    properties: { ...file.properties, ...updates }
-  })
+    properties: { ...file.properties, ...updates },
+  });
 
   // Refresh query
-  await loadView()
-}
+  await loadView();
+};
 
-watch(() => props.fileId, loadView, { immediate: true })
+watch(() => props.fileId, loadView, { immediate: true });
 </script>
 ```
 
 ### View Parser: `frontend/src/services/viewParser.ts`
 
 ```typescript
-import matter from 'gray-matter'
+import matter from "gray-matter";
 
 export interface ViewDefinition {
-  type: 'view'
-  view_type: string
-  title: string
-  description?: string
-  query: ViewQuery
-  config: Record<string, any>
-  layout?: any[]
-  content?: string  // Markdown content after frontmatter
+  type: "view";
+  view_type: string;
+  title: string;
+  description?: string;
+  query: ViewQuery;
+  config: Record<string, any>;
+  layout?: any[];
+  content?: string; // Markdown content after frontmatter
 }
 
 export function parseViewDefinition(content: string): ViewDefinition {
-  const { data, content: markdown } = matter(content)
+  const { data, content: markdown } = matter(content);
 
   // Validate required fields
-  if (data.type !== 'view') {
-    throw new Error('Not a valid view definition')
+  if (data.type !== "view") {
+    throw new Error("Not a valid view definition");
   }
 
   // Process template variables in query (e.g., {{ startOfWeek }})
-  const query = processQueryTemplates(data.query)
+  const query = processQueryTemplates(data.query);
 
   return {
     type: data.type,
@@ -568,25 +577,25 @@ export function parseViewDefinition(content: string): ViewDefinition {
     query,
     config: data.config || {},
     layout: data.layout,
-    content: markdown
-  }
+    content: markdown,
+  };
 }
 
 function processQueryTemplates(query: ViewQuery): ViewQuery {
   // Replace template variables with computed values
   const replacements = {
-    '{{ startOfWeek }}': startOfWeek().toISOString(),
-    '{{ endOfWeek }}': endOfWeek().toISOString(),
-    '{{ today }}': new Date().toISOString(),
+    "{{ startOfWeek }}": startOfWeek().toISOString(),
+    "{{ endOfWeek }}": endOfWeek().toISOString(),
+    "{{ today }}": new Date().toISOString(),
     // ... more templates
-  }
+  };
 
   return JSON.parse(
     JSON.stringify(query).replace(
       /\{\{\s*(\w+)\s*\}\}/g,
-      (match, key) => replacements[`{{ ${key} }}`] || match
-    )
-  )
+      (match, key) => replacements[`{{ ${key} }}`] || match,
+    ),
+  );
 }
 ```
 
@@ -599,11 +608,12 @@ function processQueryTemplates(query: ViewQuery): ViewQuery {
 When a user interacts with a view (e.g., drags a card in kanban):
 
 1. **Event**: View component emits `@update` event
+
    ```typescript
-   emit('update', {
+   emit("update", {
      fileId: 123,
-     updates: { status: 'in-progress' }
-   })
+     updates: { status: "in-progress" },
+   });
    ```
 
 2. **Handler**: `ViewRenderer` handles update
@@ -656,7 +666,6 @@ config:
   compact: false
   show_details: true
 ---
-
 # tasks/today-mini.cdx - Mini version
 ---
 type: view
@@ -714,13 +723,13 @@ layout:
 
 <script setup lang="ts">
 const props = defineProps<{
-  viewPath: string  // e.g., "tasks/today-mini.cdx"
-  span: number      // Grid span (1-12)
-  workspaceId: number
-}>()
+  viewPath: string; // e.g., "tasks/today-mini.cdx"
+  span: number; // Grid span (1-12)
+  workspaceId: number;
+}>();
 
 // Resolve view path to file ID
-const viewFileId = await resolveViewPath(props.viewPath, props.workspaceId)
+const viewFileId = await resolveViewPath(props.viewPath, props.workspaceId);
 </script>
 ```
 
@@ -731,6 +740,7 @@ const viewFileId = await resolveViewPath(props.viewPath, props.workspaceId)
 ### Phase 1: Foundation (Week 1-2)
 
 **Backend:**
+
 - [ ] Add `.cdx` file type support
 - [ ] Implement query API endpoint (`/api/v1/query`)
   - Basic filtering (tags, properties, dates)
@@ -739,40 +749,47 @@ const viewFileId = await resolveViewPath(props.viewPath, props.workspaceId)
 - [ ] Add property validation helpers
 
 **Frontend:**
+
 - [ ] Create `ViewRenderer.vue` component
 - [ ] Implement view parser (`viewParser.ts`)
 - [ ] Add query service (`queryService.ts`)
 - [ ] Update file tree to show `.cdx` files with icon
 
 **Testing:**
+
 - [ ] Unit tests for query API
 - [ ] Integration tests for view parsing
 
 ### Phase 2: Core Views (Week 3-4)
 
 **Frontend Components:**
+
 - [ ] `KanbanView.vue` - Kanban board with drag-drop
 - [ ] `TaskListView.vue` - Simple task list (for mini-views)
 - [ ] `RollupView.vue` - Date-grouped rollup
 
 **Features:**
+
 - [ ] Drag-and-drop property updates
 - [ ] Inline editing (click to edit fields)
 - [ ] Auto-refresh on updates
 - [ ] Error handling and loading states
 
 **Testing:**
+
 - [ ] Component tests for each view type
 - [ ] E2E tests for kanban interactions
 
 ### Phase 3: Advanced Views (Week 5-6)
 
 **Frontend Components:**
+
 - [ ] `GalleryView.vue` - Image gallery with lightbox
 - [ ] `CorkboardView.vue` - Free-form canvas
 - [ ] `CalendarView.vue` - Calendar view (bonus)
 
 **Features:**
+
 - [ ] Image thumbnail generation (backend)
 - [ ] Lightbox with EXIF data
 - [ ] Free-form positioning (save to view config)
@@ -780,34 +797,40 @@ const viewFileId = await resolveViewPath(props.viewPath, props.workspaceId)
 ### Phase 4: Dashboards (Week 7-8)
 
 **Frontend:**
+
 - [ ] `DashboardView.vue` - Grid layout
 - [ ] `MiniViewContainer.vue` - Embeddable views
 - [ ] View path resolution service
 
 **Features:**
+
 - [ ] Responsive grid system
 - [ ] View nesting (limit depth to 2)
 - [ ] Dashboard templates
 
 **Examples:**
+
 - [ ] Create example dashboards
 - [ ] Documentation for custom views
 
 ### Phase 5: Polish & Documentation (Week 9-10)
 
 **UI/UX:**
+
 - [ ] View creation wizard
 - [ ] Template gallery
 - [ ] Keyboard shortcuts
 - [ ] Dark mode support
 
 **Documentation:**
+
 - [ ] User guide for creating views
 - [ ] API reference for query syntax
 - [ ] View type reference
 - [ ] Example gallery
 
 **Performance:**
+
 - [ ] Query optimization
 - [ ] View caching
 - [ ] Lazy loading for large result sets
@@ -888,6 +911,7 @@ const viewFileId = await resolveViewPath(props.viewPath, props.workspaceId)
 ### Use Case 1: Project Management
 
 **Structure:**
+
 ```
 workspace/
   projects/
@@ -901,6 +925,7 @@ workspace/
 ```
 
 **board.cdx:**
+
 ```yaml
 ---
 type: view
@@ -932,6 +957,7 @@ config:
 ### Use Case 2: Novel Writing
 
 **Structure:**
+
 ```
 workspace/
   novel/
@@ -947,6 +973,7 @@ workspace/
 ```
 
 **outline.cdx:**
+
 ```yaml
 ---
 type: view
@@ -971,6 +998,7 @@ config:
 ### Use Case 3: Research Journal
 
 **Structure:**
+
 ```
 workspace/
   research/
@@ -984,6 +1012,7 @@ workspace/
 ```
 
 **weekly-summary.cdx:**
+
 ```yaml
 ---
 type: view
@@ -1015,9 +1044,11 @@ config:
 **`GET /api/v1/query`**
 
 **Query Parameters:**
+
 - `workspace_id` (required): Workspace ID
 
 **Request Body** (JSON):
+
 ```json
 {
   "notebook_ids": [1, 2],
@@ -1035,6 +1066,7 @@ config:
 ```
 
 **Response:**
+
 ```json
 {
   "files": [
@@ -1070,6 +1102,7 @@ config:
 Update only properties without modifying content:
 
 **Request Body:**
+
 ```json
 {
   "properties": {
@@ -1081,6 +1114,7 @@ Update only properties without modifying content:
 ```
 
 **Response:**
+
 ```json
 {
   "id": 1,
@@ -1129,7 +1163,7 @@ Update only properties without modifying content:
 
 Use markdown with special syntax blocks:
 
-```markdown
+````markdown
 # Project Board
 
 ```codex-view:kanban
@@ -1138,7 +1172,9 @@ query:
 config:
   columns: [todo, in-progress, done]
 ```
-```
+````
+
+````
 
 **Pros:** Familiar markdown format
 **Cons:** Limited flexibility, hard to compose, parsing complexity
@@ -1153,7 +1189,7 @@ Allow embedding Vue components directly in markdown:
 
 <TaskBoard :query="{ tags: ['task'] }" />
 <WeatherWidget location="current" />
-```
+````
 
 **Pros:** Maximum flexibility, reuse existing components
 **Cons:** Security risk, requires component registration, steep learning curve
@@ -1186,30 +1222,30 @@ Maintain a registry of available view types:
 // frontend/src/components/views/registry.ts
 
 export const VIEW_TYPES = {
-  'kanban': {
-    component: () => import('./KanbanView.vue'),
-    name: 'Kanban Board',
-    description: 'Organize items in columns',
-    icon: 'board',
+  kanban: {
+    component: () => import("./KanbanView.vue"),
+    name: "Kanban Board",
+    description: "Organize items in columns",
+    icon: "board",
     configSchema: {
-      columns: 'array',
-      card_fields: 'array',
-      drag_drop: 'boolean'
-    }
+      columns: "array",
+      card_fields: "array",
+      drag_drop: "boolean",
+    },
   },
-  'gallery': {
-    component: () => import('./GalleryView.vue'),
-    name: 'Gallery',
-    description: 'Display images in grid',
-    icon: 'image',
+  gallery: {
+    component: () => import("./GalleryView.vue"),
+    name: "Gallery",
+    description: "Display images in grid",
+    icon: "image",
     configSchema: {
-      columns: 'number',
-      thumbnail_size: 'number',
-      lightbox: 'boolean'
-    }
+      columns: "number",
+      thumbnail_size: "number",
+      lightbox: "boolean",
+    },
   },
   // ... more types
-}
+};
 ```
 
 ### B. Template Library
@@ -1218,9 +1254,9 @@ Pre-built templates for common use cases:
 
 ```typescript
 export const VIEW_TEMPLATES = {
-  'task-board': {
-    name: 'Task Board',
-    description: 'Kanban board for task management',
+  "task-board": {
+    name: "Task Board",
+    description: "Kanban board for task management",
     content: `---
 type: view
 view_type: kanban
@@ -1233,10 +1269,10 @@ config:
     - { id: doing, title: "Doing", filter: { status: doing } }
     - { id: done, title: "Done", filter: { status: done } }
   drag_drop: true
----`
+---`,
   },
   // ... more templates
-}
+};
 ```
 
 ### C. Migration Path

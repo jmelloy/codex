@@ -129,6 +129,24 @@
           <ViewRenderer v-if="workspaceStore.currentFile.file_type === 'view'" :file-id="workspaceStore.currentFile.id"
             :workspace-id="workspaceStore.currentWorkspace!.id" :notebook-id="workspaceStore.currentFile.notebook_id" class="flex-1" />
 
+          <!-- Image Viewer for image files -->
+          <div v-else-if="workspaceStore.currentFile.file_type === 'image'" class="flex-1 flex flex-col overflow-hidden">
+            <div class="flex justify-between items-center mb-4">
+              <h2 class="text-xl font-semibold m-0">{{ workspaceStore.currentFile.title || workspaceStore.currentFile.filename }}</h2>
+              <button @click="toggleProperties"
+                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
+                Properties
+              </button>
+            </div>
+            <div class="flex-1 flex items-center justify-center overflow-auto bg-gray-50 rounded-lg">
+              <img
+                :src="`/api/v1/files/${workspaceStore.currentFile.id}/content?workspace_id=${workspaceStore.currentWorkspace!.id}&notebook_id=${workspaceStore.currentFile.notebook_id}`"
+                :alt="workspaceStore.currentFile.title || workspaceStore.currentFile.filename"
+                class="max-w-full max-h-full object-contain"
+              />
+            </div>
+          </div>
+
           <!-- Markdown Viewer for regular files -->
           <MarkdownViewer v-else :content="workspaceStore.currentFile.content"
             :frontmatter="workspaceStore.currentFile.properties" :show-frontmatter="showFrontmatter" @edit="startEdit"

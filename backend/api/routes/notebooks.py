@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from backend.api.auth import get_current_active_user
+from backend.core.watcher import NotebookWatcher
 from backend.db.database import get_system_session, init_notebook_db
 from backend.db.models import Notebook, User, Workspace
 
@@ -148,6 +149,8 @@ async def create_notebook(
         session.add(notebook)
         await session.commit()
         await session.refresh(notebook)
+
+        NotebookWatcher(str(notebook_path), notebook.id).start()
 
         return {
             "id": notebook.id,

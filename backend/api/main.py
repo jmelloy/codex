@@ -1,5 +1,6 @@
 """Main FastAPI application."""
 
+import asyncio
 import os
 from pathlib import Path
 from fastapi import FastAPI, Depends, HTTPException, status
@@ -18,18 +19,94 @@ from backend.api.auth import (
     get_password_hash,
     get_current_active_user,
 )
-from backend.db.models import User, Workspace
+from backend.db.models import User, Workspace, Notebook
 from backend.api.schemas import UserCreate, UserResponse
 from backend.api.routes import workspaces, notebooks, files, search, tasks, markdown, query
-from backend.api.routes.workspaces import slugify
+from api.routes.workspaces import create_workspace, WorkspaceCreate
+from backend.db.database import get_notebook_session
+from core.watcher import NotebookWatcher
+
+# Global registry of active watchers
+_active_watchers: list[NotebookWatcher] = []
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize database on startup."""
+    
     await init_system_db()
-    yield
+    
 
+    try:
+        # Run blocking file I/O in thread pool
+        await asyncio.to_thread(_start_notebook_watchers_sync)
+    except Exception as e:
+        print(f"[lifespan] Error starting notebook watcher: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
+
+    
+    yield
+    
+
+    # Stop all watchers on shutdown
+    for watcher in _active_watchers:
+        try:
+            watcher.stop()
+        except Exception as e:
+            print(f"[lifespan] Error stopping watcher: {e}", flush=True)
+
+
+def _start_notebook_watchers_sync():
+    """Start notebook watchers synchronously (runs in thread pool)."""
+    print("[watcher] Starting notebook watchers...", flush=True)
+    workspace_dir = Path(DATA_DIRECTORY) / "workspaces"
+    print(f"[watcher] Looking for notebooks in: {workspace_dir}", flush=True)
+    os.makedirs(workspace_dir, exist_ok=True)
+
+    if not workspace_dir.exists():
+        print("[watcher] Workspace directory does not exist", flush=True)
+        return
+
+    user_dirs = list(workspace_dir.iterdir())
+    print(f"[watcher] Found {len(user_dirs)} user directories", flush=True)
+
+    for user in user_dirs:
+        if not user.is_dir():
+            continue
+        print(f"[watcher] Checking user directory: {user.name}", flush=True)
+        notebook_dirs = list(user.iterdir())
+        for notebook in notebook_dirs:
+            if not notebook.is_dir():
+                continue
+            codex_db_path = notebook / ".codex" / "notebook.db"
+            print(f"[watcher] Checking notebook at {notebook}", flush=True)
+            if not codex_db_path.exists():
+                print("[watcher] No .codex/notebook.db found, skipping", flush=True)
+                continue
+
+            try:
+                nb_session = get_notebook_session(str(notebook))
+                nb_result = nb_session.execute(select(Notebook))
+                nb_instance = nb_result.scalar_one_or_none()
+                nb_session.close()
+
+                if nb_instance is None:
+                    print(f"[watcher] No notebook record found in {notebook}", flush=True)
+                    continue
+
+                print(f"[watcher] Starting watcher for: {nb_instance.name} (id={nb_instance.id})", flush=True)
+                watcher = NotebookWatcher(str(notebook), nb_instance.id)
+                watcher.start()
+                _active_watchers.append(watcher)
+                print(f"[watcher] Watcher started successfully for {nb_instance.name}", flush=True)
+            except Exception as e:
+                print(f"[watcher] Error starting watcher for {notebook}: {e}", flush=True)
+                import traceback
+                traceback.print_exc()
+
+    print(f"[watcher] Finished starting {len(_active_watchers)} watchers", flush=True)
+        
 
 app = FastAPI(
     title="Codex API",

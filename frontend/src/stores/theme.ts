@@ -58,7 +58,23 @@ export const useThemeStore = defineStore("theme", () => {
     // Save to workspace if available
     if (currentWorkspaceId.value) {
       try {
-        await workspaceService.updateTheme(currentWorkspaceId.value, themeName)
+        const updatedWorkspace = await workspaceService.updateTheme(currentWorkspaceId.value, themeName)
+
+        // Update the workspace store's current workspace object with the new theme
+        // Import inside function to avoid circular dependency issues
+        const { useWorkspaceStore } = await import("./workspace")
+        const workspaceStore = useWorkspaceStore()
+
+        // Update currentWorkspace if it's the same workspace
+        if (workspaceStore.currentWorkspace?.id === currentWorkspaceId.value) {
+          workspaceStore.currentWorkspace.theme_setting = updatedWorkspace.theme_setting
+        }
+
+        // Also update in the workspaces list
+        const workspaceIndex = workspaceStore.workspaces.findIndex(w => w.id === currentWorkspaceId.value)
+        if (workspaceIndex !== -1 && workspaceStore.workspaces[workspaceIndex]) {
+          workspaceStore.workspaces[workspaceIndex]!.theme_setting = updatedWorkspace.theme_setting
+        }
       } catch (error) {
         console.error("Failed to save theme to workspace:", error)
         // Fallback to localStorage on error

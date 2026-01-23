@@ -59,7 +59,7 @@
               </div>
 
               <!-- File Tree -->
-              <ul v-if="workspaceStore.expandedNotebooks.has(notebook.id)" class="list-none p-0 m-0 bg-white">
+              <ul v-if="workspaceStore.expandedNotebooks.has(notebook.id)" class="list-none p-0 m-0">
                 <template v-if="notebookFileTrees.get(notebook.id)?.length">
                   <template v-for="node in notebookFileTrees.get(notebook.id)" :key="node.path">
                     <!-- Render folder or file -->
@@ -112,7 +112,7 @@
       </aside>
 
       <!-- Center: Content Pane (flex: 1) -->
-      <main class="flex-1 flex flex-col overflow-hidden bg-white">
+      <main class="flex-1 flex flex-col overflow-hidden">
         <!-- Loading State -->
         <div v-if="workspaceStore.fileLoading" class="flex flex-col items-center justify-center h-full text-gray-500">
           <span>Loading...</span>

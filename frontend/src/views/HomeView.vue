@@ -468,7 +468,7 @@ async function handleCreateFile() {
 }
 
 .workspace-item:hover:not(.workspace-active) {
-  background: color-mix(in srgb, var(--notebook-text) 8%, transparent);
+  background: color-mix(in srgb, var(--notebook-text) var(--hover-opacity), transparent);
 }
 
 .workspace-active {
@@ -483,11 +483,11 @@ async function handleCreateFile() {
 }
 
 .notebook-item:hover:not(.notebook-active) {
-  background: color-mix(in srgb, var(--notebook-text) 8%, transparent);
+  background: color-mix(in srgb, var(--notebook-text) var(--hover-opacity), transparent);
 }
 
 .notebook-active {
-  background: color-mix(in srgb, var(--notebook-text) 12%, transparent);
+  background: color-mix(in srgb, var(--notebook-text) var(--active-opacity), transparent);
 }
 
 /* Folder items */
@@ -496,7 +496,7 @@ async function handleCreateFile() {
 }
 
 .folder-item:hover {
-  background: color-mix(in srgb, var(--notebook-text) 5%, transparent);
+  background: color-mix(in srgb, var(--notebook-text) var(--subtle-hover-opacity), transparent);
 }
 
 /* File items */
@@ -505,11 +505,11 @@ async function handleCreateFile() {
 }
 
 .file-item:hover:not(.file-active) {
-  background: color-mix(in srgb, var(--notebook-text) 5%, transparent);
+  background: color-mix(in srgb, var(--notebook-text) var(--subtle-hover-opacity), transparent);
 }
 
 .file-active {
-  background: color-mix(in srgb, var(--notebook-accent) 15%, transparent);
+  background: color-mix(in srgb, var(--notebook-accent) var(--selected-opacity), transparent);
   color: var(--notebook-accent);
 }
 </style>

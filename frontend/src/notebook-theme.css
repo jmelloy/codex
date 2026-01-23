@@ -30,6 +30,12 @@
   --page-shadow: rgba(0, 0, 0, 0.1);
   --page-border: rgba(0, 0, 0, 0.15);
 
+  /* UI Interaction Opacity Values */
+  --hover-opacity: 8%;
+  --active-opacity: 12%;
+  --subtle-hover-opacity: 5%;
+  --selected-opacity: 15%;
+
   /* Default Theme Colors */
   --notebook-bg: var(--page-cream);
   --notebook-text: var(--pen-black);

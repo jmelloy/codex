@@ -140,7 +140,7 @@
             </div>
             <div class="flex-1 flex items-center justify-center overflow-auto bg-gray-50 rounded-lg">
               <img
-                :src="`/api/v1/files/${workspaceStore.currentFile.id}/content?workspace_id=${workspaceStore.currentWorkspace!.id}&notebook_id=${workspaceStore.currentFile.notebook_id}`"
+                :src="currentImageUrl"
                 :alt="workspaceStore.currentFile.title || workspaceStore.currentFile.filename"
                 class="max-w-full max-h-full object-contain"
               />
@@ -273,6 +273,12 @@ const notebookFileTrees = computed(() => {
     trees.set(notebook.id, buildFileTree(files))
   })
   return trees
+})
+
+// Get image URL for current file
+const currentImageUrl = computed(() => {
+  if (!workspaceStore.currentFile || !workspaceStore.currentWorkspace) return ''
+  return `/api/v1/files/${workspaceStore.currentFile.id}/content?workspace_id=${workspaceStore.currentWorkspace.id}&notebook_id=${workspaceStore.currentFile.notebook_id}`
 })
 
 // Sync edit content when file changes

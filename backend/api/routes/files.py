@@ -246,6 +246,8 @@ async def get_file_content(
 
         # Determine media type based on file extension
         media_type, _ = mimetypes.guess_type(str(file_path))
+        if media_type is None:
+            media_type = "application/octet-stream"
         
         # Return the file
         return FileResponse(

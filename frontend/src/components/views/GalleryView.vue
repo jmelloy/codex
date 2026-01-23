@@ -183,7 +183,7 @@ const currentImage = computed(() => {
 const getImageUrl = (image: FileMetadata): string => {
   // In a real implementation, this would be an API endpoint that serves the image
   // For now, we'll use a placeholder or construct a path
-  return `/api/v1/files/${image.id}/content?workspace_id=${props.workspaceId}`;
+  return `/api/v1/files/${image.id}/content?workspace_id=${props.workspaceId}&notebook_id=${image.notebook_id}`;
 };
 
 // Lightbox controls

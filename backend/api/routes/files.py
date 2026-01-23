@@ -1,11 +1,13 @@
 """File routes."""
 
 import json
+import mimetypes
 import os
 from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
@@ -146,6 +148,7 @@ async def get_file(
             raise HTTPException(status_code=404, detail="File not found")
 
         # Read file content if it's a text file
+        # Note: Binary files like images are excluded - use /content endpoint to download them
         file_path = notebook_path / file_meta.path
         content = None
         raw_content = None
@@ -204,6 +207,59 @@ async def get_file(
         nb_session.close()
 
 
+@router.get("/{file_id}/content")
+async def get_file_content(
+    file_id: int,
+    workspace_id: int,
+    notebook_id: int,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Get file content (serves binary files like images)."""
+    # Get notebook path from system database
+    notebook_path, _ = await get_notebook_path(notebook_id, workspace_id, current_user, session)
+
+    # Query file from notebook database
+    nb_session = get_notebook_session(str(notebook_path))
+    try:
+        file_result = nb_session.execute(select(FileMetadata).where(FileMetadata.id == file_id))
+        file_meta = file_result.scalar_one_or_none()
+
+        if not file_meta:
+            raise HTTPException(status_code=404, detail="File not found")
+
+        # Get file path
+        file_path = notebook_path / file_meta.path
+        
+        # Validate path to prevent directory traversal attacks
+        try:
+            resolved_path = file_path.resolve()
+            resolved_notebook = notebook_path.resolve()
+            # Ensure the file is within the notebook directory
+            if not str(resolved_path).startswith(str(resolved_notebook)):
+                raise HTTPException(status_code=403, detail="Access denied: Invalid file path")
+        except (OSError, ValueError) as e:
+            logger.error(f"Path validation error: {e}")
+            raise HTTPException(status_code=400, detail="Invalid file path")
+        
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="File not found on disk")
+
+        # Determine media type based on file extension
+        media_type, _ = mimetypes.guess_type(str(file_path))
+        if media_type is None:
+            media_type = "application/octet-stream"
+        
+        # Return the file
+        return FileResponse(
+            path=str(file_path),
+            media_type=media_type,
+            filename=file_meta.filename
+        )
+    finally:
+        nb_session.close()
+
+
 @router.post("/")
 async def create_file(
     request: CreateFileRequest,
@@ -241,6 +297,8 @@ async def create_file(
             file_type = "json"
         elif path.endswith(".xml"):
             file_type = "xml"
+        elif path.lower().endswith((".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".svg")):
+            file_type = "image"
 
         import hashlib
         from datetime import datetime

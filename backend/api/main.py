@@ -1,6 +1,7 @@
 """Main FastAPI application."""
 
 import asyncio
+import logging
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -9,11 +10,20 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import select
 
+from backend.core.logging_config import setup_logging
+
 from backend.api.routes import (files, markdown, notebooks, query, search,
                                 tasks, users, workspaces)
 from backend.core.watcher import NotebookWatcher
 from backend.db.database import  get_system_session_sync,init_system_db
 from backend.db.models import Notebook, Workspace
+
+# Initialize logging based on environment
+log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+json_logs = os.getenv("JSON_LOGS", "false").lower() == "true"
+setup_logging(level=log_level, json_logs=json_logs)
+
+logger = logging.getLogger(__name__)
 
 # Global registry of active watchers
 _active_watchers: list[NotebookWatcher] = []
@@ -30,9 +40,7 @@ async def lifespan(app: FastAPI):
         # Run blocking file I/O in thread pool
         await asyncio.to_thread(_start_notebook_watchers_sync)
     except Exception as e:
-        print(f"[lifespan] Error starting notebook watcher: {e}", flush=True)
-        import traceback
-        traceback.print_exc()
+        logger.error(f"Error starting notebook watcher: {e}", exc_info=True)
 
     
     yield
@@ -43,12 +51,12 @@ async def lifespan(app: FastAPI):
         try:
             watcher.stop()
         except Exception as e:
-            print(f"[lifespan] Error stopping watcher: {e}", flush=True)
+            logger.error(f"Error stopping watcher: {e}", exc_info=True)
 
 
 def _start_notebook_watchers_sync():
     """Start notebook watchers synchronously (runs in thread pool)."""
-    print("[watcher] Starting notebook watchers...", flush=True)
+    logger.info("Starting notebook watchers...")
 
     # Query notebooks from the system database
     session = get_system_session_sync()
@@ -56,7 +64,7 @@ def _start_notebook_watchers_sync():
         # Select notebooks with their workspace relationship to get full paths
         result = session.execute(select(Notebook))
         notebooks = result.scalars().all()
-        print(f"[watcher] Found {len(notebooks)} notebooks in database", flush=True)
+        logger.info(f"Found {len(notebooks)} notebooks in database")
 
         for nb in notebooks:
             try:
@@ -67,37 +75,35 @@ def _start_notebook_watchers_sync():
                 workspace = workspace_result.scalar_one_or_none()
 
                 if workspace is None:
-                    print(f"[watcher] Workspace not found for notebook {nb.name} (id={nb.id})", flush=True)
+                    logger.warning(f"Workspace not found for notebook {nb.name} (id={nb.id})")
                     continue
 
                 # Compute full notebook path
                 notebook_path = Path(workspace.path) / nb.path
                 codex_db_path = notebook_path / ".codex" / "notebook.db"
 
-                print(f"[watcher] Checking notebook: {nb.name} at {notebook_path}", flush=True)
+                logger.debug(f"Checking notebook: {nb.name} at {notebook_path}")
 
                 if not notebook_path.exists():
-                    print(f"[watcher] Notebook directory does not exist: {notebook_path}", flush=True)
+                    logger.warning(f"Notebook directory does not exist: {notebook_path}")
                     continue
 
                 if not codex_db_path.exists():
-                    print(f"[watcher] No .codex/notebook.db found at {codex_db_path}, skipping", flush=True)
+                    logger.debug(f"No .codex/notebook.db found at {codex_db_path}, skipping")
                     continue
 
-                print(f"[watcher] Starting watcher for: {nb.name} (id={nb.id})", flush=True)
+                logger.info(f"Starting watcher for: {nb.name} (id={nb.id})")
                 watcher = NotebookWatcher(str(notebook_path), nb.id)
                 watcher.start()
                 _active_watchers.append(watcher)
-                print(f"[watcher] Watcher started successfully for {nb.name}", flush=True)
+                logger.info(f"Watcher started successfully for {nb.name}")
 
             except Exception as e:
-                print(f"[watcher] Error starting watcher for notebook {nb.name}: {e}", flush=True)
-                import traceback
-                traceback.print_exc()
+                logger.error(f"Error starting watcher for notebook {nb.name}: {e}", exc_info=True)
     finally:
         session.close()
 
-    print(f"[watcher] Finished starting {len(_active_watchers)} watchers", flush=True)
+    logger.info(f"Finished starting {len(_active_watchers)} watchers")
         
 
 app = FastAPI(
@@ -121,6 +127,12 @@ app.add_middleware(
 async def root():
     """Root endpoint."""
     return {"message": "Codex API", "version": "0.1.0", "docs": "/docs"}
+
+
+@app.get("/health")
+async def health():
+    """Health check endpoint for Docker and monitoring."""
+    return {"status": "healthy", "version": "0.1.0"}
 
 
 # Include routers

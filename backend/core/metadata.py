@@ -6,9 +6,8 @@ from typing import Dict, Any, Optional
 from pathlib import Path
 import frontmatter
 
-import logging
-
-logger = logging.getLogger(__name__)
+from backend.core.logging_config import get_logger
+logger = get_logger(__name__)
 
 
 class MetadataParser:
@@ -56,7 +55,7 @@ class MetadataParser:
             with open(sidecar_path, "r") as f:
                 return json.load(f)
         except Exception as e:
-            print(f"Error parsing JSON sidecar: {e}")
+            logger.error(f"Error parsing JSON sidecar: {e}", exc_info=True)
             return None
 
     @staticmethod
@@ -74,7 +73,7 @@ class MetadataParser:
             root = tree.getroot()
             return MetadataParser._xml_to_dict(root)
         except Exception as e:
-            print(f"Error parsing XML sidecar: {e}")
+            logger.error(f"Error parsing XML sidecar: {e}", exc_info=True)
             return None
 
     @staticmethod
@@ -122,7 +121,7 @@ class MetadataParser:
             metadata, _ = MetadataParser.parse_frontmatter(content)
             return metadata
         except Exception as e:
-            print(f"Error parsing markdown sidecar: {e}")
+            logger.error(f"Error parsing markdown sidecar: {e}", exc_info=True)
             return None
 
     @staticmethod
@@ -162,7 +161,7 @@ class MetadataParser:
             with open(sidecar_path, "w") as f:
                 json.dump(metadata, f, indent=2)
         except Exception as e:
-            print(f"Error writing JSON sidecar: {e}")
+            logger.error(f"Error writing JSON sidecar: {e}", exc_info=True)
 
     @staticmethod
     def write_markdown_sidecar(filepath: str, metadata: Dict[str, Any], content: str = "", use_dot_prefix: bool = True):
@@ -177,4 +176,4 @@ class MetadataParser:
             with open(sidecar_path, "w") as f:
                 f.write(frontmatter.dumps(post))
         except Exception as e:
-            print(f"Error writing markdown sidecar: {e}")
+            logger.error(f"Error writing markdown sidecar: {e}", exc_info=True)

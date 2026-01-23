@@ -1,6 +1,7 @@
 """Query routes for dynamic views."""
 
 import json
+from backend.core.logging_config import get_logger
 from datetime import datetime
 from fnmatch import fnmatch
 from pathlib import Path
@@ -17,6 +18,7 @@ from backend.db.database import get_notebook_session, get_system_session
 from backend.db.models import FileMetadata, FileTag, Notebook, Tag, User, Workspace
 
 router = APIRouter()
+logger = get_logger(__name__)
 
 
 class ViewQuery(BaseModel):
@@ -427,10 +429,7 @@ async def query_files(
             nb_session.close()
 
         except Exception as e:
-            print(f"Error querying notebook {notebook.path}: {e}")
-            import traceback
-
-            traceback.print_exc()
+            logger.error(f"Error querying notebook {notebook.path}: {e}", exc_info=True)
 
     # Apply path filter (post-query since it uses glob patterns)
     if query.paths:

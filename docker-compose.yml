@@ -9,11 +9,14 @@ services:
       - DATABASE_URL=${DATABASE_URL:-sqlite:///./data/codex_system.db}
       - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}
       - DEBUG=false
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - JSON_LOGS=${JSON_LOGS:-true}
+      - PYTHONUNBUFFERED=1
     volumes:
       - codex-data:/app/data
     restart: unless-stopped
     command: >
-      sh -c "alembic upgrade head && uvicorn codex.api.main:app --host 0.0.0.0 --port 8000 --workers 2"
+      sh -c "alembic upgrade head && uvicorn backend.api.main:app --host 0.0.0.0 --port 8000 --workers 2 --log-config /dev/null"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 30s

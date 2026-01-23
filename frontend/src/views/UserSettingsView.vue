@@ -15,12 +15,12 @@
 
     <div class="flex-1 overflow-auto p-8">
       <div class="max-w-4xl mx-auto">
-        <h2 class="text-3xl font-bold mb-6 text-gray-800">User Settings</h2>
+        <h2 class="text-3xl font-bold mb-6">User Settings</h2>
 
         <!-- Theme Settings Section -->
-        <div class="bg-white rounded-lg shadow-md p-6 mb-6 border border-gray-200">
-          <h3 class="text-xl font-semibold mb-4 text-gray-800">Theme</h3>
-          <p class="text-gray-600 mb-6">
+        <div class="rounded-lg shadow-md p-6 mb-6 border border-gray-300 bg-white/80 backdrop-blur-sm">
+          <h3 class="text-xl font-semibold mb-4">Theme</h3>
+          <p class="mb-6 opacity-80">
             Choose your preferred theme. The theme will be applied across all notebooks and pages.
           </p>
 
@@ -47,8 +47,8 @@
               <!-- Theme Info -->
               <div class="flex items-start justify-between">
                 <div>
-                  <div class="font-semibold text-lg text-gray-800">{{ theme.label }}</div>
-                  <div class="text-sm text-gray-600 mt-1">{{ theme.description }}</div>
+                  <div class="font-semibold text-lg">{{ theme.label }}</div>
+                  <div class="text-sm opacity-70 mt-1">{{ theme.description }}</div>
                 </div>
                 <svg
                   v-if="theme.name === themeStore.currentTheme"
@@ -77,19 +77,19 @@
         </div>
 
         <!-- Account Settings Section (Placeholder) -->
-        <div class="bg-white rounded-lg shadow-md p-6 border border-gray-200">
-          <h3 class="text-xl font-semibold mb-4 text-gray-800">Account</h3>
+        <div class="rounded-lg shadow-md p-6 border border-gray-300 bg-white/80 backdrop-blur-sm">
+          <h3 class="text-xl font-semibold mb-4">Account</h3>
           <div class="space-y-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Username</label>
+              <label class="block text-sm font-medium mb-1 opacity-90">Username</label>
               <input
                 type="text"
                 :value="authStore.user?.username"
                 disabled
-                class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-600 cursor-not-allowed"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md bg-black/5 opacity-60 cursor-not-allowed"
               />
             </div>
-            <p class="text-sm text-gray-500">
+            <p class="text-sm opacity-70">
               More account settings coming soon...
             </p>
           </div>

@@ -47,50 +47,53 @@ async def lifespan(app: FastAPI):
 def _start_notebook_watchers_sync():
     """Start notebook watchers synchronously (runs in thread pool)."""
     print("[watcher] Starting notebook watchers...", flush=True)
-    workspace_dir = Path(DATA_DIRECTORY) / "workspaces"
-    print(f"[watcher] Looking for notebooks in: {workspace_dir}", flush=True)
-    os.makedirs(workspace_dir, exist_ok=True)
 
-    if not workspace_dir.exists():
-        print("[watcher] Workspace directory does not exist", flush=True)
-        return
+    # Query notebooks from the system database
+    session = get_system_session_sync()
+    try:
+        # Select notebooks with their workspace relationship to get full paths
+        result = session.execute(select(Notebook))
+        notebooks = result.scalars().all()
+        print(f"[watcher] Found {len(notebooks)} notebooks in database", flush=True)
 
-    user_dirs = list(workspace_dir.iterdir())
-    print(f"[watcher] Found {len(user_dirs)} user directories", flush=True)
-
-    for user in user_dirs:
-        if not user.is_dir():
-            continue
-        print(f"[watcher] Checking user directory: {user.name}", flush=True)
-        notebook_dirs = list(user.iterdir())
-        for notebook in notebook_dirs:
-            if not notebook.is_dir():
-                continue
-            codex_db_path = notebook / ".codex" / "notebook.db"
-            print(f"[watcher] Checking notebook at {notebook}", flush=True)
-            if not codex_db_path.exists():
-                print("[watcher] No .codex/notebook.db found, skipping", flush=True)
-                continue
-
+        for nb in notebooks:
             try:
-                nb_session = get_notebook_session(str(notebook))
-                nb_result = nb_session.execute(select(Notebook))
-                nb_instance = nb_result.scalar_one_or_none()
-                nb_session.close()
+                # Get the workspace to compute full notebook path
+                workspace_result = session.execute(
+                    select(Workspace).where(Workspace.id == nb.workspace_id)
+                )
+                workspace = workspace_result.scalar_one_or_none()
 
-                if nb_instance is None:
-                    print(f"[watcher] No notebook record found in {notebook}", flush=True)
+                if workspace is None:
+                    print(f"[watcher] Workspace not found for notebook {nb.name} (id={nb.id})", flush=True)
                     continue
 
-                print(f"[watcher] Starting watcher for: {nb_instance.name} (id={nb_instance.id})", flush=True)
-                watcher = NotebookWatcher(str(notebook), nb_instance.id)
+                # Compute full notebook path
+                notebook_path = Path(workspace.path) / nb.path
+                codex_db_path = notebook_path / ".codex" / "notebook.db"
+
+                print(f"[watcher] Checking notebook: {nb.name} at {notebook_path}", flush=True)
+
+                if not notebook_path.exists():
+                    print(f"[watcher] Notebook directory does not exist: {notebook_path}", flush=True)
+                    continue
+
+                if not codex_db_path.exists():
+                    print(f"[watcher] No .codex/notebook.db found at {codex_db_path}, skipping", flush=True)
+                    continue
+
+                print(f"[watcher] Starting watcher for: {nb.name} (id={nb.id})", flush=True)
+                watcher = NotebookWatcher(str(notebook_path), nb.id)
                 watcher.start()
                 _active_watchers.append(watcher)
-                print(f"[watcher] Watcher started successfully for {nb_instance.name}", flush=True)
+                print(f"[watcher] Watcher started successfully for {nb.name}", flush=True)
+
             except Exception as e:
-                print(f"[watcher] Error starting watcher for {notebook}: {e}", flush=True)
+                print(f"[watcher] Error starting watcher for notebook {nb.name}: {e}", flush=True)
                 import traceback
                 traceback.print_exc()
+    finally:
+        session.close()
 
     print(f"[watcher] Finished starting {len(_active_watchers)} watchers", flush=True)
         

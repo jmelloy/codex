@@ -282,7 +282,10 @@ async def create_file(
         with open(file_path, "w") as f:
             f.write(content)
 
-        # Update metadata with actual file stats
+        # Refresh to get any updates the watcher may have made
+        nb_session.refresh(file_meta)
+
+        # Update metadata with actual file stats (watcher may have already set these)
         file_stats = os.stat(file_path)
         file_meta.size = file_stats.st_size
         file_meta.file_created_at = datetime.fromtimestamp(file_stats.st_ctime)

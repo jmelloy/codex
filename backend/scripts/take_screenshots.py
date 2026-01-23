@@ -57,25 +57,39 @@ async def login(page: Page, username: str, password: str):
     await asyncio.sleep(2)  # Wait for redirect
 
 
-async def set_theme(page: Page, theme_name: str):
-    """Set the theme via the theme switcher."""
+async def set_theme(page: Page, theme_name: str, theme_slug: str):
+    """Set the theme by directly manipulating the DOM."""
     try:
-        # Look for theme switcher button
-        theme_button = page.locator('.theme-button, [title*="theme"], button:has-text("Cream"), button:has-text("Manila")')
-        if await theme_button.count() > 0:
-            await theme_button.first.click()
-            await asyncio.sleep(0.5)
-            
-            # Click on the theme option
-            theme_option = page.locator(f'button:has-text("{theme_name.title()}")')
-            if await theme_option.count() > 0:
-                await theme_option.first.click()
-                await asyncio.sleep(1)
-                print(f"  ✓ Set theme to {theme_name}")
-            else:
-                print(f"  ⚠️  Theme option '{theme_name}' not found")
-        else:
-            print(f"  ⚠️  Theme switcher not found")
+        # Create the CSS class name (e.g., "cream" -> "theme-cream")
+        theme_class = f"theme-{theme_slug}"
+        
+        # Remove all theme classes from body
+        await page.evaluate("""
+            () => {
+                document.body.classList.remove('theme-cream', 'theme-manila', 'theme-white', 'theme-blueprint');
+            }
+        """)
+        
+        # Add the new theme class to body
+        await page.evaluate(f"""
+            () => {{
+                document.body.classList.add('{theme_class}');
+            }}
+        """)
+        
+        # Also update the main app div if it exists
+        await page.evaluate(f"""
+            () => {{
+                const appDiv = document.querySelector('.w-full.h-screen');
+                if (appDiv) {{
+                    appDiv.classList.remove('theme-cream', 'theme-manila', 'theme-white', 'theme-blueprint');
+                    appDiv.classList.add('{theme_class}');
+                }}
+            }}
+        """)
+        
+        await asyncio.sleep(0.5)  # Wait for CSS to apply
+        print(f"  ✓ Set theme to {theme_name} (class: {theme_class})")
     except Exception as e:
         print(f"  ⚠️  Could not set theme: {e}")
 
@@ -125,7 +139,7 @@ async def take_theme_screenshots(browser: Browser, output_dir: Path):
             print(f"\n  Theme: {theme['label']}")
             
             # Set the theme
-            await set_theme(page, theme["label"])
+            await set_theme(page, theme["label"], theme["name"])
             
             # Take screenshot
             filename = output_dir / f"theme-{theme['name']}.png"

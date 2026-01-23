@@ -83,6 +83,7 @@ frontend/.env.*.local
 
 # Logs
 *.log
+*.pid
 logs/
 
 # Environment

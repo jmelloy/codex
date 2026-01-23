@@ -3,7 +3,6 @@
     <nav class="bg-primary text-white px-8 py-4 flex justify-between items-center">
       <h1 class="text-2xl font-semibold m-0">Codex</h1>
       <div class="flex items-center gap-4">
-        <ThemeSwitcher />
         <button @click="goToSettings" class="bg-white/20 text-white border-none px-4 py-2 rounded cursor-pointer hover:bg-white/30 transition" title="User Settings">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block">
             <circle cx="12" cy="12" r="3"></circle>
@@ -257,7 +256,6 @@ import MarkdownEditor from '../components/MarkdownEditor.vue'
 import ViewRenderer from '../components/views/ViewRenderer.vue'
 import FilePropertiesPanel from '../components/FilePropertiesPanel.vue'
 import FileTreeItem from '../components/FileTreeItem.vue'
-import ThemeSwitcher from '../components/ThemeSwitcher.vue'
 import { showToast } from '../utils/toast'
 import { buildFileTree, type FileTreeNode } from '../utils/fileTree'
 

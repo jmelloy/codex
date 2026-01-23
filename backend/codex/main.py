@@ -7,6 +7,7 @@ import sys
 import traceback
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Any
 
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -101,7 +102,7 @@ def _start_notebook_watchers_sync():
 
     logger.info(f"Finished starting {len(_active_watchers)} watchers")
 
-logger = logging.getLogger(__name__)
+
 
 app = FastAPI(
     title="Codex API",
@@ -145,4 +146,43 @@ app.include_router(query.router, prefix="/api/v1/query", tags=["query"])
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    debug = os.getenv("DEBUG", "false").lower() == "true"
+    log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+    log_sql = os.getenv("LOG_SQL", "false").lower() == "true"
+
+    LOGGING_CONFIG: dict[str, Any] = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "default": {
+            "()": "uvicorn.logging.DefaultFormatter",
+            "fmt": '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            "use_colors": debug,
+        },
+        "access": {
+            "()": "uvicorn.logging.AccessFormatter",
+            "fmt": '%(levelprefix)s %(client_addr)s - "%(request_line)s" %(status_code)s',  # noqa: E501
+        },
+    },
+    "handlers": {
+        "default": {
+            "formatter": "default",
+            "class": "logging.StreamHandler",
+            "stream": "ext://sys.stderr",
+        },
+        "access": {
+            "formatter": "access",
+            "class": "logging.StreamHandler",
+            "stream": "ext://sys.stdout",
+        },
+    },
+    "loggers": {
+        "uvicorn": {"handlers": ["default"], "level": "INFO", "propagate": False},
+        "uvicorn.error": {"level": "INFO"},
+        "uvicorn.access": {"handlers": ["access"], "level": "INFO", "propagate": False},
+        "codex": {"handlers": ["default"], "level": log_level, "propagate": False},
+        "sqlalchemy.engine": {"level": "INFO" if  log_sql else "WARNING", "handlers": ["default"], "propagate": False},
+    },
+}
+
+    uvicorn.run("codex.main:app", host="0.0.0.0", port=8000, reload=debug, log_config=LOGGING_CONFIG, log_level=log_level.lower())

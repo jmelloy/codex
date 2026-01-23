@@ -16,10 +16,10 @@ _default_data_dir = os.path.dirname(SYSTEM_DATABASE_URL.replace("sqlite:///", ""
 DATA_DIRECTORY = os.getenv("DATA_DIRECTORY", _default_data_dir)
 SYSTEM_DATABASE_URL_ASYNC = SYSTEM_DATABASE_URL.replace("sqlite:///", "sqlite+aiosqlite:///")
 
-system_engine = create_async_engine(SYSTEM_DATABASE_URL_ASYNC, echo=True, connect_args={"check_same_thread": False})
+system_engine = create_async_engine(SYSTEM_DATABASE_URL_ASYNC, echo=False, connect_args={"check_same_thread": False})
 
 # Synchronous engine for use in thread pools (e.g., notebook watchers)
-system_engine_sync = create_engine(SYSTEM_DATABASE_URL, echo=True, connect_args={"check_same_thread": False})
+system_engine_sync = create_engine(SYSTEM_DATABASE_URL, echo=False, connect_args={"check_same_thread": False})
 
 async_session_maker = sessionmaker(system_engine, class_=AsyncSession, expire_on_commit=False)
 
@@ -148,7 +148,7 @@ def get_notebook_engine(notebook_path: str):
     """Get database engine for a specific notebook."""
     db_path = os.path.join(notebook_path, ".codex", "notebook.db")
     os.makedirs(os.path.dirname(db_path), exist_ok=True)
-    return create_engine(f"sqlite:///{db_path}", echo=True)
+    return create_engine(f"sqlite:///{db_path}", echo=False)
 
 
 def init_notebook_db(notebook_path: str):

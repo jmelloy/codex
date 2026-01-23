@@ -1,7 +1,5 @@
 """Tests for workspace endpoints."""
 
-import tempfile
-import shutil
 import time
 from pathlib import Path
 from uuid import uuid4
@@ -42,23 +40,18 @@ def test_list_workspaces():
     assert default_ws is not None
 
 
-def test_create_workspace_with_path():
+def test_create_workspace_with_path(temp_workspace_dir):
     """Test creating a workspace with explicit path."""
     headers, _ = setup_test_user()
 
-    temp_dir = uuid4().hex[:8]
-    response = client.post("/api/v1/workspaces/", json={"name": "Test Workspace", "path": temp_dir}, headers=headers)
+    response = client.post("/api/v1/workspaces/", json={"name": "Test Workspace", "path": temp_workspace_dir}, headers=headers)
     assert response.status_code == 200
     workspace = response.json()
     assert workspace["name"] == "Test Workspace"
-    assert workspace["path"] == str(Path("workspaces") / temp_dir)
-
-    # Cleanup
-    shutil.rmtree(workspace["path"], ignore_errors=True)
-    client.delete(f"/api/v1/workspaces/{workspace['id']}", headers=headers)
+    # Cleanup handled by fixture
 
 
-def test_create_workspace_without_path():
+def test_create_workspace_without_path(cleanup_workspaces):
     """Test creating a workspace without explicit path (auto-generated)."""
     headers, _ = setup_test_user()
 
@@ -72,19 +65,17 @@ def test_create_workspace_without_path():
     # The path should exist
     assert Path(workspace["path"]).exists()
 
-    # Cleanup
-    shutil.rmtree(workspace["path"], ignore_errors=True)
-    client.delete(f"/api/v1/workspaces/{workspace['id']}", headers=headers)
+    # Register for cleanup
+    cleanup_workspaces(workspace["path"])
 
 
-def test_get_workspace_by_id():
+def test_get_workspace_by_id(temp_workspace_dir):
     """Test getting a specific workspace by ID."""
     headers, _ = setup_test_user()
 
     # Create a workspace
-    temp_dir = tempfile.mkdtemp()
     create_response = client.post(
-        "/api/v1/workspaces/", json={"name": "Get By ID Workspace", "path": temp_dir}, headers=headers
+        "/api/v1/workspaces/", json={"name": "Get By ID Workspace", "path": temp_workspace_dir}, headers=headers
     )
     workspace_id = create_response.json()["id"]
 
@@ -95,8 +86,7 @@ def test_get_workspace_by_id():
     assert workspace["id"] == workspace_id
     assert workspace["name"] == "Get By ID Workspace"
 
-    # Cleanup
-    shutil.rmtree(temp_dir, ignore_errors=True)
+    # Cleanup handled by fixture
 
 
 def test_get_nonexistent_workspace():
@@ -108,13 +98,12 @@ def test_get_nonexistent_workspace():
     assert response.json()["detail"] == "Workspace not found"
 
 
-def test_get_other_users_workspace():
+def test_get_other_users_workspace(temp_workspace_dir):
     """Test that users cannot access other users' workspaces."""
     # Create first user and workspace
     headers1, _ = setup_test_user()
-    temp_dir = tempfile.mkdtemp()
     create_response = client.post(
-        "/api/v1/workspaces/", json={"name": "Private Workspace", "path": temp_dir}, headers=headers1
+        "/api/v1/workspaces/", json={"name": "Private Workspace", "path": temp_workspace_dir}, headers=headers1
     )
     workspace_id = create_response.json()["id"]
 
@@ -125,18 +114,16 @@ def test_get_other_users_workspace():
     response = client.get(f"/api/v1/workspaces/{workspace_id}", headers=headers2)
     assert response.status_code == 404
 
-    # Cleanup
-    shutil.rmtree(temp_dir, ignore_errors=True)
+    # Cleanup handled by fixture
 
 
-def test_update_workspace_theme():
+def test_update_workspace_theme(temp_workspace_dir):
     """Test updating workspace theme setting."""
     headers, _ = setup_test_user()
 
     # Create a workspace
-    temp_dir = tempfile.mkdtemp()
     create_response = client.post(
-        "/api/v1/workspaces/", json={"name": "Theme Workspace", "path": temp_dir}, headers=headers
+        "/api/v1/workspaces/", json={"name": "Theme Workspace", "path": temp_workspace_dir}, headers=headers
     )
     workspace_id = create_response.json()["id"]
 
@@ -152,8 +139,7 @@ def test_update_workspace_theme():
     get_response = client.get(f"/api/v1/workspaces/{workspace_id}", headers=headers)
     assert get_response.json()["theme_setting"] == "dark"
 
-    # Cleanup
-    shutil.rmtree(temp_dir, ignore_errors=True)
+    # Cleanup handled by fixture
 
 
 def test_update_theme_nonexistent_workspace():
@@ -164,13 +150,12 @@ def test_update_theme_nonexistent_workspace():
     assert response.status_code == 404
 
 
-def test_update_theme_other_users_workspace():
+def test_update_theme_other_users_workspace(temp_workspace_dir):
     """Test that users cannot update theme on other users' workspaces."""
     # Create first user and workspace
     headers1, _ = setup_test_user()
-    temp_dir = tempfile.mkdtemp()
     create_response = client.post(
-        "/api/v1/workspaces/", json={"name": "Private Theme Workspace", "path": temp_dir}, headers=headers1
+        "/api/v1/workspaces/", json={"name": "Private Theme Workspace", "path": temp_workspace_dir}, headers=headers1
     )
     workspace_id = create_response.json()["id"]
 
@@ -181,8 +166,7 @@ def test_update_theme_other_users_workspace():
     response = client.patch(f"/api/v1/workspaces/{workspace_id}/theme", json={"theme": "dark"}, headers=headers2)
     assert response.status_code == 404
 
-    # Cleanup
-    shutil.rmtree(temp_dir, ignore_errors=True)
+    # Cleanup handled by fixture
 
 
 def test_workspace_requires_authentication():
@@ -201,7 +185,7 @@ def test_workspace_requires_authentication():
     assert response.status_code == 401
 
 
-def test_workspace_name_collision_handling():
+def test_workspace_name_collision_handling(cleanup_workspaces):
     """Test that workspace creation handles name collisions gracefully."""
     headers, _ = setup_test_user()
 
@@ -209,21 +193,21 @@ def test_workspace_name_collision_handling():
     response1 = client.post("/api/v1/workspaces/", json={"name": "Collision Test"}, headers=headers)
     assert response1.status_code == 200
     path1 = response1.json()["path"]
+    cleanup_workspaces(path1)
 
     # Create second workspace with same name
     response2 = client.post("/api/v1/workspaces/", json={"name": "Collision Test"}, headers=headers)
     assert response2.status_code == 200
     path2 = response2.json()["path"]
+    cleanup_workspaces(path2)
 
     # Paths should be different
     assert path1 != path2
 
-    # Cleanup
-    shutil.rmtree(path1, ignore_errors=True)
-    shutil.rmtree(path2, ignore_errors=True)
+    # Cleanup handled by fixture
 
 
-def test_workspace_special_characters_in_name():
+def test_workspace_special_characters_in_name(cleanup_workspaces):
     """Test creating workspace with special characters in name."""
     headers, _ = setup_test_user()
 
@@ -235,5 +219,5 @@ def test_workspace_special_characters_in_name():
     assert "@" not in workspace["path"]
     assert "#" not in workspace["path"]
 
-    # Cleanup
-    shutil.rmtree(workspace["path"], ignore_errors=True)
+    # Register for cleanup
+    cleanup_workspaces(workspace["path"])

@@ -1,7 +1,5 @@
 """Tests for the implemented TODO endpoints."""
 
-import tempfile
-import shutil
 from pathlib import Path
 from fastapi.testclient import TestClient
 from backend.api.main import app
@@ -25,14 +23,13 @@ def setup_test_user():
     return {"Authorization": f"Bearer {token}"}
 
 
-def test_search_endpoints():
+def test_search_endpoints(temp_workspace_dir):
     """Test search endpoints."""
     headers = setup_test_user()
 
     # Create a workspace
-    temp_dir = tempfile.mkdtemp()
     workspace_response = client.post(
-        "/api/v1/workspaces/", json={"name": "Search Test", "path": temp_dir}, headers=headers
+        "/api/v1/workspaces/", json={"name": "Search Test", "path": temp_workspace_dir}, headers=headers
     )
     assert workspace_response.status_code == 200
     workspace_id = workspace_response.json()["id"]
@@ -54,18 +51,16 @@ def test_search_endpoints():
     assert "tags" in data
     assert len(data["tags"]) == 2
 
-    # Cleanup
-    shutil.rmtree(temp_dir, ignore_errors=True)
+    # Cleanup handled by fixture
 
 
-def test_notebook_endpoints():
+def test_notebook_endpoints(temp_workspace_dir):
     """Test notebook endpoints."""
     headers = setup_test_user()
 
     # Create a workspace
-    temp_dir = tempfile.mkdtemp()
     workspace_response = client.post(
-        "/api/v1/workspaces/", json={"name": "Notebook Test", "path": temp_dir}, headers=headers
+        "/api/v1/workspaces/", json={"name": "Notebook Test", "path": temp_workspace_dir}, headers=headers
     )
     assert workspace_response.status_code == 200
     workspace_id = workspace_response.json()["id"]
@@ -102,18 +97,16 @@ def test_notebook_endpoints():
     assert notebook_data["id"] == notebook_id
     assert notebook_data["name"] == "Test Notebook"
 
-    # Cleanup
-    shutil.rmtree(temp_dir, ignore_errors=True)
+    # Cleanup handled by fixture
 
 
-def test_file_endpoints():
+def test_file_endpoints(temp_workspace_dir):
     """Test file endpoints."""
     headers = setup_test_user()
 
     # Create a workspace and notebook
-    temp_dir = tempfile.mkdtemp()
     workspace_response = client.post(
-        "/api/v1/workspaces/", json={"name": "File Test", "path": temp_dir}, headers=headers
+        "/api/v1/workspaces/", json={"name": "File Test", "path": temp_workspace_dir}, headers=headers
     )
     workspace_id = workspace_response.json()["id"]
 
@@ -183,18 +176,16 @@ def test_file_endpoints():
     updated_content = response.json()
     assert updated_content["content"] == "# Updated Test File\n\nThis is updated."
 
-    # Cleanup
-    shutil.rmtree(temp_dir, ignore_errors=True)
+    # Cleanup handled by fixture
 
 
-def test_markdown_file_operations():
+def test_markdown_file_operations(temp_workspace_dir):
     """Test markdown file operations."""
     headers = setup_test_user()
 
     # Create a workspace
-    temp_dir = tempfile.mkdtemp()
     workspace_response = client.post(
-        "/api/v1/workspaces/", json={"name": "Markdown Test", "path": temp_dir}, headers=headers
+        "/api/v1/workspaces/", json={"name": "Markdown Test", "path": temp_workspace_dir}, headers=headers
     )
     workspace_id = workspace_response.json()["id"]
 
@@ -241,5 +232,4 @@ def test_markdown_file_operations():
     assert response.status_code == 200
     assert len(response.json()) == 0
 
-    # Cleanup
-    shutil.rmtree(temp_dir, ignore_errors=True)
+    # Cleanup handled by fixture

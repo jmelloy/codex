@@ -100,6 +100,14 @@ A hierarchical digital laboratory journal system for tracking computational expe
    - API: http://localhost:8000
    - API Docs: http://localhost:8000/docs
 
+8. **Load test data** (optional, recommended for testing)
+
+   ```bash
+   python -m backend.scripts.seed_test_data
+   ```
+
+   This creates three test users with sample workspaces and notebooks. See [TEST_CREDENTIALS.md](TEST_CREDENTIALS.md) for login details.
+
 ### Docker Deployment
 
 1. **Start all services**
@@ -195,13 +203,39 @@ codex/
 - `GET /api/v1/tasks/{id}` - Get task
 - `PUT /api/v1/tasks/{id}` - Update task
 
-## Development
+## Testing
 
-### Running Tests
+### Test Users and Data
+
+For testing, screenshots, and demonstrations, you can create test users with sample data:
+
+```bash
+python -m backend.scripts.seed_test_data
+```
+
+This creates three test accounts with workspaces, notebooks, and markdown files:
+
+| Username | Password | Purpose |
+|----------|----------|---------|
+| `demo` | `demo123456` | Full-featured account with ML notebooks |
+| `testuser` | `testpass123` | Simple account for basic testing |
+| `scientist` | `lab123456` | Scientific research notebooks |
+
+See [TEST_CREDENTIALS.md](TEST_CREDENTIALS.md) for complete details.
+
+To clean up test data:
+
+```bash
+python -m backend.scripts.seed_test_data clean
+```
+
+### Running Automated Tests
 
 ```bash
 pytest tests/ -v
 ```
+
+## Development
 
 ### Code Formatting
 

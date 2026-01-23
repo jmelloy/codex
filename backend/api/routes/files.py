@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
@@ -204,6 +205,47 @@ async def get_file(
         nb_session.close()
 
 
+@router.get("/{file_id}/content")
+async def get_file_content(
+    file_id: int,
+    workspace_id: int,
+    notebook_id: int,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Get file content (serves binary files like images)."""
+    # Get notebook path from system database
+    notebook_path, _ = await get_notebook_path(notebook_id, workspace_id, current_user, session)
+
+    # Query file from notebook database
+    nb_session = get_notebook_session(str(notebook_path))
+    try:
+        file_result = nb_session.execute(select(FileMetadata).where(FileMetadata.id == file_id))
+        file_meta = file_result.scalar_one_or_none()
+
+        if not file_meta:
+            raise HTTPException(status_code=404, detail="File not found")
+
+        # Get file path
+        file_path = notebook_path / file_meta.path
+        
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="File not found on disk")
+
+        # Determine media type based on file extension
+        import mimetypes
+        media_type, _ = mimetypes.guess_type(str(file_path))
+        
+        # Return the file
+        return FileResponse(
+            path=str(file_path),
+            media_type=media_type,
+            filename=file_meta.filename
+        )
+    finally:
+        nb_session.close()
+
+
 @router.post("/")
 async def create_file(
     request: CreateFileRequest,
@@ -241,6 +283,8 @@ async def create_file(
             file_type = "json"
         elif path.endswith(".xml"):
             file_type = "xml"
+        elif path.lower().endswith((".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".svg")):
+            file_type = "image"
 
         import hashlib
         from datetime import datetime

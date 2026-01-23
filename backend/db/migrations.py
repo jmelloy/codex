@@ -1,5 +1,11 @@
 """Database migration utilities.
 
+DEPRECATED: This module contains legacy migration functions that have been
+replaced by Alembic migrations. New notebook databases use Alembic for schema
+management (see backend/notebook_alembic/).
+
+For historical reference and backward compatibility only.
+
 This module handles schema migrations for the Codex database.
 SQLite doesn't natively support column renaming in older versions,
 so we use table recreation for structural changes.
@@ -10,7 +16,9 @@ from pathlib import Path
 
 
 def migrate_frontmatter_to_properties(db_path: str) -> bool:
-    """Migrate the frontmatter column to properties in file_metadata table.
+    """DEPRECATED: Use Alembic migrations instead (backend/notebook_alembic/).
+    
+    Migrate the frontmatter column to properties in file_metadata table.
 
     This migration renames the 'frontmatter' column to 'properties' to
     reflect the unified properties system where frontmatter is the source
@@ -21,6 +29,10 @@ def migrate_frontmatter_to_properties(db_path: str) -> bool:
 
     Returns:
         True if migration was performed, False if already migrated or no table exists
+        
+    Note:
+        This function is kept for backward compatibility but is no longer used
+        by init_notebook_db(). Alembic migration 002 handles this migration.
     """
     if not Path(db_path).exists():
         return False

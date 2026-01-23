@@ -1,7 +1,5 @@
 """Tests for workspace endpoints."""
 
-import tempfile
-import shutil
 import time
 from pathlib import Path
 from uuid import uuid4

@@ -1,7 +1,5 @@
 """Tests for task endpoints."""
 
-import tempfile
-import shutil
 import time
 from fastapi.testclient import TestClient
 from backend.api.main import app

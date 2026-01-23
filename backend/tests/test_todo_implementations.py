@@ -1,7 +1,5 @@
 """Tests for the implemented TODO endpoints."""
 
-import tempfile
-import shutil
 from pathlib import Path
 from fastapi.testclient import TestClient
 from backend.api.main import app

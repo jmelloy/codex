@@ -17,43 +17,41 @@
 
     <div class="flex flex-1 overflow-hidden">
       <!-- Left: File Browser Sidebar (280px) -->
-      <aside class="w-[280px] min-w-[280px] bg-gray-50 border-r border-gray-200 flex flex-col overflow-hidden">
-        <div class="flex justify-between items-center px-4 py-4 border-b border-gray-200">
-          <h2 class="m-0 text-sm font-semibold text-gray-600 uppercase tracking-wide">Workspaces</h2>
-          <button @click="showCreateWorkspace = true" title="Create Workspace" class="bg-primary text-white border-none w-6 h-6 rounded-full cursor-pointer text-base flex items-center justify-center hover:bg-primary-hover transition">+</button>
+      <aside class="w-[280px] min-w-[280px] notebook-sidebar flex flex-col overflow-hidden">
+        <div class="flex justify-between items-center px-4 py-4" style="border-bottom: 1px solid var(--page-border)">
+          <h2 class="m-0 text-sm font-semibold uppercase tracking-wide" style="color: var(--pen-gray)">Workspaces</h2>
+          <button @click="showCreateWorkspace = true" title="Create Workspace" class="notebook-button text-white border-none w-6 h-6 rounded-full cursor-pointer text-base flex items-center justify-center transition">+</button>
         </div>
         <ul class="list-none p-0 m-0 max-h-[150px] overflow-y-auto">
           <li
             v-for="workspace in workspaceStore.workspaces"
             :key="workspace.id"
-            :class="['py-2.5 px-4 cursor-pointer border-b border-gray-100 text-sm text-gray-700 hover:bg-gray-100 transition', { 'bg-primary text-white hover:bg-primary': workspaceStore.currentWorkspace?.id === workspace.id }]"
+            :class="['workspace-item py-2.5 px-4 cursor-pointer text-sm transition', { 'workspace-active font-semibold': workspaceStore.currentWorkspace?.id === workspace.id }]"
             @click="selectWorkspace(workspace)"
           >
             {{ workspace.name }}
           </li>
         </ul>
 
-        <div v-if="workspaceStore.currentWorkspace" class="flex-1 flex flex-col overflow-hidden border-t border-gray-200">
-          <div class="flex justify-between items-center px-4 py-4 border-b border-gray-200">
-            <h3 class="m-0 text-sm font-semibold text-gray-600 uppercase tracking-wide">Notebooks</h3>
-            <button @click="showCreateNotebook = true" title="Create Notebook" class="bg-primary text-white border-none w-6 h-6 rounded-full cursor-pointer text-base flex items-center justify-center hover:bg-primary-hover transition">+</button>
+        <div v-if="workspaceStore.currentWorkspace" class="flex-1 flex flex-col overflow-hidden" style="border-top: 1px solid var(--page-border)">
+          <div class="flex justify-between items-center px-4 py-4" style="border-bottom: 1px solid var(--page-border)">
+            <h3 class="m-0 text-sm font-semibold uppercase tracking-wide" style="color: var(--pen-gray)">Notebooks</h3>
+            <button @click="showCreateNotebook = true" title="Create Notebook" class="notebook-button text-white border-none w-6 h-6 rounded-full cursor-pointer text-base flex items-center justify-center transition">+</button>
           </div>
 
           <!-- Notebook Tree with Files -->
           <ul class="list-none p-0 m-0 overflow-y-auto flex-1">
-            <li v-for="notebook in workspaceStore.notebooks" :key="notebook.id" class="border-b border-gray-100">
+            <li v-for="notebook in workspaceStore.notebooks" :key="notebook.id" style="border-bottom: 1px solid var(--page-border)">
               <div
-                :class="['flex items-center py-2 px-4 cursor-pointer text-sm text-gray-700 transition hover:bg-gray-100', {
-                  'bg-gray-200': workspaceStore.currentNotebook?.id === notebook.id
-                }]"
+                :class="['notebook-item flex items-center py-2 px-4 cursor-pointer text-sm transition', { 'notebook-active': workspaceStore.currentNotebook?.id === notebook.id }]"
                 @click="toggleNotebook(notebook)"
               >
-                <span class="text-[10px] mr-2 text-gray-500 w-3">{{ workspaceStore.expandedNotebooks.has(notebook.id) ? '▼' : '▶' }}</span>
+                <span class="text-[10px] mr-2 w-3" style="color: var(--pen-gray)">{{ workspaceStore.expandedNotebooks.has(notebook.id) ? '▼' : '▶' }}</span>
                 <span class="flex-1 font-medium">{{ notebook.name }}</span>
                 <button
                   v-if="workspaceStore.expandedNotebooks.has(notebook.id)"
                   @click.stop="startCreateFile(notebook)"
-                  class="w-5 h-5 text-sm ml-auto opacity-0 hover:opacity-100 transition bg-primary text-white border-none rounded-full cursor-pointer flex items-center justify-center"
+                  class="notebook-button w-5 h-5 text-sm ml-auto opacity-0 hover:opacity-100 transition text-white border-none rounded-full cursor-pointer flex items-center justify-center"
                   title="New File"
                 >+</button>
               </div>
@@ -66,10 +64,10 @@
                     <li v-if="node.type === 'folder'">
                       <!-- Folder -->
                       <div
-                        :class="['flex items-center py-2 px-4 pl-8 cursor-pointer text-[13px] text-gray-600 transition hover:bg-gray-50']"
+                        class="folder-item flex items-center py-2 px-4 pl-8 cursor-pointer text-[13px] transition"
                         @click="toggleFolder(notebook.id, node.path)"
                       >
-                        <span class="text-[10px] mr-2 text-gray-500 w-3">{{ isFolderExpanded(notebook.id, node.path) ? '▼' : '▶' }}</span>
+                        <span class="text-[10px] mr-2 w-3" style="color: var(--pen-gray)">{{ isFolderExpanded(notebook.id, node.path) ? '▼' : '▶' }}</span>
                         <span class="mr-2 text-sm">📁</span>
                         <span class="overflow-hidden text-ellipsis whitespace-nowrap">{{ node.name }}</span>
                       </div>
@@ -93,7 +91,7 @@
                     <!-- Root level file -->
                     <li v-else>
                       <div
-                        :class="['flex items-center py-2 px-4 pl-8 cursor-pointer text-[13px] text-gray-600 transition hover:bg-gray-50', { 'bg-gray-100 text-primary font-medium': workspaceStore.currentFile?.id === node.file?.id }]"
+                        :class="['file-item flex items-center py-2 px-4 pl-8 cursor-pointer text-[13px] transition', { 'file-active font-medium': workspaceStore.currentFile?.id === node.file?.id }]"
                         @click="node.file && selectFile(node.file)"
                       >
                         <span class="mr-2 text-sm">📄</span>
@@ -102,7 +100,7 @@
                     </li>
                   </template>
                 </template>
-                <li v-else class="py-2 px-4 pl-8 text-xs text-gray-400 italic">
+                <li v-else class="py-2 px-4 pl-8 text-xs italic" style="color: var(--pen-gray); opacity: 0.6">
                   No files yet
                 </li>
               </ul>
@@ -157,10 +155,10 @@
             class="flex-1"
           >
             <template #toolbar-actions>
-              <button @click="toggleFrontmatter" class="px-4 py-2 border border-gray-300 bg-white rounded cursor-pointer text-sm transition hover:bg-gray-50">
+              <button @click="toggleFrontmatter" class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
                 {{ showFrontmatter ? 'Hide' : 'Show' }} Metadata
               </button>
-              <button @click="toggleProperties" class="px-4 py-2 border border-gray-300 bg-white rounded cursor-pointer text-sm transition hover:bg-gray-50">
+              <button @click="toggleProperties" class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
                 Properties
               </button>
             </template>
@@ -168,8 +166,8 @@
         </div>
 
         <!-- Welcome State -->
-        <div v-else class="flex flex-col items-center justify-center h-full text-center text-gray-500">
-          <h2 class="text-gray-700 mb-2">Welcome to Codex</h2>
+        <div v-else class="flex flex-col items-center justify-center h-full text-center" style="color: var(--pen-gray)">
+          <h2 class="mb-2" style="color: var(--notebook-text)">Welcome to Codex</h2>
           <p v-if="!workspaceStore.currentWorkspace">Select a workspace to get started</p>
           <p v-else-if="workspaceStore.notebooks.length === 0">Create a notebook to start adding files</p>
           <p v-else>Select a notebook and file to view its content</p>
@@ -199,8 +197,8 @@
           <input :id="inputId" v-model="newWorkspaceName" required />
         </FormGroup>
         <div class="flex gap-2 justify-end mt-6">
-          <button type="button" @click="showCreateWorkspace = false" class="px-4 py-2 bg-gray-200 border-none rounded cursor-pointer">Cancel</button>
-          <button type="submit" class="px-4 py-2 bg-primary text-white border-none rounded cursor-pointer hover:bg-primary-hover transition">Create</button>
+          <button type="button" @click="showCreateWorkspace = false" class="notebook-button-secondary px-4 py-2 border-none rounded cursor-pointer">Cancel</button>
+          <button type="submit" class="notebook-button px-4 py-2 text-white border-none rounded cursor-pointer transition">Create</button>
         </div>
       </form>
     </Modal>
@@ -217,8 +215,8 @@
           <input :id="inputId" v-model="newNotebookName" required />
         </FormGroup>
         <div class="flex gap-2 justify-end mt-6">
-          <button type="button" @click="showCreateNotebook = false" class="px-4 py-2 bg-gray-200 border-none rounded cursor-pointer">Cancel</button>
-          <button type="submit" class="px-4 py-2 bg-primary text-white border-none rounded cursor-pointer hover:bg-primary-hover transition">Create</button>
+          <button type="button" @click="showCreateNotebook = false" class="notebook-button-secondary px-4 py-2 border-none rounded cursor-pointer">Cancel</button>
+          <button type="submit" class="notebook-button px-4 py-2 text-white border-none rounded cursor-pointer transition">Create</button>
         </div>
       </form>
     </Modal>
@@ -235,8 +233,8 @@
           <input :id="inputId" v-model="newFileName" placeholder="example.md" required />
         </FormGroup>
         <div class="flex gap-2 justify-end mt-6">
-          <button type="button" @click="showCreateFile = false" class="px-4 py-2 bg-gray-200 border-none rounded cursor-pointer">Cancel</button>
-          <button type="submit" class="px-4 py-2 bg-primary text-white border-none rounded cursor-pointer hover:bg-primary-hover transition">Create</button>
+          <button type="button" @click="showCreateFile = false" class="notebook-button-secondary px-4 py-2 border-none rounded cursor-pointer">Cancel</button>
+          <button type="submit" class="notebook-button px-4 py-2 text-white border-none rounded cursor-pointer transition">Create</button>
         </div>
       </form>
     </Modal>
@@ -461,5 +459,57 @@ async function handleCreateFile() {
 /* Add hover effect for notebook header buttons */
 .flex.items-center.py-2:hover button {
   opacity: 1;
+}
+
+/* Workspace items */
+.workspace-item {
+  color: var(--notebook-text);
+  border-bottom: 1px solid var(--page-border);
+}
+
+.workspace-item:hover:not(.workspace-active) {
+  background: color-mix(in srgb, var(--notebook-text) 8%, transparent);
+}
+
+.workspace-active {
+  background: var(--notebook-accent);
+  color: white;
+  border-bottom: 1px solid color-mix(in srgb, var(--notebook-accent) 80%, black);
+}
+
+/* Notebook items */
+.notebook-item {
+  color: var(--notebook-text);
+}
+
+.notebook-item:hover:not(.notebook-active) {
+  background: color-mix(in srgb, var(--notebook-text) 8%, transparent);
+}
+
+.notebook-active {
+  background: color-mix(in srgb, var(--notebook-text) 12%, transparent);
+}
+
+/* Folder items */
+.folder-item {
+  color: var(--pen-gray);
+}
+
+.folder-item:hover {
+  background: color-mix(in srgb, var(--notebook-text) 5%, transparent);
+}
+
+/* File items */
+.file-item {
+  color: var(--pen-gray);
+}
+
+.file-item:hover:not(.file-active) {
+  background: color-mix(in srgb, var(--notebook-text) 5%, transparent);
+}
+
+.file-active {
+  background: color-mix(in srgb, var(--notebook-accent) 15%, transparent);
+  color: var(--notebook-accent);
 }
 </style>

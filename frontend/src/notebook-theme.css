@@ -278,12 +278,8 @@
 
 /* ========== Sidebar and UI Elements ========== */
 .notebook-sidebar {
-  background: linear-gradient(
-    to bottom,
-    #f8fafc 0%,
-    #f1f5f9 100%
-  );
-  border-right: 1px solid #e2e8f0;
+  background: color-mix(in srgb, var(--notebook-bg) 95%, var(--notebook-text) 5%);
+  border-right: 1px solid var(--page-border);
 }
 
 .notebook-toolbar {
@@ -301,6 +297,36 @@
   .notebook-editor {
     line-height: var(--grid-size);
   }
+}
+
+/* ========== Button Styles ========== */
+.notebook-button {
+  background: var(--notebook-accent);
+  color: white;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.notebook-button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--notebook-accent) 85%, black);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.notebook-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.notebook-button-secondary {
+  background: color-mix(in srgb, var(--notebook-text) 10%, transparent);
+  color: var(--notebook-text);
+  border: 1px solid var(--page-border);
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.notebook-button-secondary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--notebook-text) 15%, transparent);
 }
 
 /* ========== Print Styles ========== */

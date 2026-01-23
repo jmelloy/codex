@@ -8,8 +8,8 @@ _.python.venv = { path = ".venv", create = true }
 [tasks.install]
 description = "Install all dependencies"
 run = """
-cd backend && pip install -e ".[dev]"
-cd frontend && npm install
+pushd backend && pip install -e ".[dev]" && popd
+pushd frontend && npm install && popd
 """
 
 [tasks.dev]
@@ -19,13 +19,13 @@ run = "docker compose up -d"
 [tasks.test]
 description = "Run all tests"
 run = """
-pytest backend/tests/ -v
-cd frontend && npm run test
+pushd backend && pytest tests/ -v || popd
+pushd frontend && npm run test || popd
 """
 
 [tasks."test:backend"]
 description = "Run backend tests"
-run = "pytest backend/tests/ -v"
+run = "cd backend && pytest -v"
 
 [tasks."test:frontend"]
 description = "Run frontend tests"

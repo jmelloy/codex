@@ -11,13 +11,8 @@
     </div>
 
     <!-- View Renderer -->
-    <ViewRenderer
-      v-else-if="viewFileId && notebookId"
-      :file-id="viewFileId"
-      :workspace-id="workspaceId"
-      :notebook-id="notebookId"
-      :compact="true"
-    />
+    <ViewRenderer v-else-if="viewFileId && notebookId" :file-id="viewFileId" :workspace-id="workspaceId"
+      :notebook-id="notebookId" :compact="true" />
 
     <!-- Not Found State -->
     <div v-else class="p-4 bg-yellow-50">

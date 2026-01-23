@@ -231,16 +231,7 @@ async def create_file(
         # Create parent directories if needed
         file_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Write content
-        with open(file_path, "w") as f:
-            f.write(content)
-
-        # Create metadata record
-        import hashlib
-
-        file_hash = hashlib.sha256(content.encode()).hexdigest()
-        file_stats = os.stat(file_path)
-
+        # Determine file type before creating file
         file_type = "text"
         if path.endswith(".md"):
             file_type = "markdown"
@@ -251,27 +242,21 @@ async def create_file(
         elif path.endswith(".xml"):
             file_type = "xml"
 
+        import hashlib
         from datetime import datetime
 
+        # Create metadata record BEFORE writing file to prevent race with watcher
+        # Use placeholder values that will be updated after file is written
         file_meta = FileMetadata(
             notebook_id=notebook_id,
             path=path,
             filename=os.path.basename(path),
             file_type=file_type,
-            size=file_stats.st_size,
-            hash=file_hash,
-            file_created_at=datetime.fromtimestamp(file_stats.st_ctime),
-            file_modified_at=datetime.fromtimestamp(file_stats.st_mtime),
+            size=0,  # Placeholder, will be updated
+            hash=hashlib.sha256(content.encode()).hexdigest(),
         )
 
-        # Commit file to git
-        from backend.core.git_manager import GitManager
-
-        git_manager = GitManager(str(notebook_path))
-        commit_hash = git_manager.commit(f"Create {os.path.basename(path)}", [str(file_path)])
-        if commit_hash:
-            file_meta.last_commit_hash = commit_hash
-
+        # Add and commit the metadata record first
         nb_session.add(file_meta)
         try:
             nb_session.commit()
@@ -292,6 +277,28 @@ async def create_file(
                     raise HTTPException(status_code=500, detail="Race condition: file metadata not found")
             else:
                 raise
+
+        # Now write the file to disk (watcher will update the existing record if needed)
+        with open(file_path, "w") as f:
+            f.write(content)
+
+        # Update metadata with actual file stats
+        file_stats = os.stat(file_path)
+        file_meta.size = file_stats.st_size
+        file_meta.file_created_at = datetime.fromtimestamp(file_stats.st_ctime)
+        file_meta.file_modified_at = datetime.fromtimestamp(file_stats.st_mtime)
+
+        # Commit file to git
+        from backend.core.git_manager import GitManager
+
+        git_manager = GitManager(str(notebook_path))
+        commit_hash = git_manager.commit(f"Create {os.path.basename(path)}", [str(file_path)])
+        if commit_hash:
+            file_meta.last_commit_hash = commit_hash
+
+        # Commit the updates
+        nb_session.commit()
+        nb_session.refresh(file_meta)
 
         result = {
             "id": file_meta.id,

@@ -148,6 +148,7 @@ async def get_file(
             raise HTTPException(status_code=404, detail="File not found")
 
         # Read file content if it's a text file
+        # Note: Binary files like images are excluded - use /content endpoint to download them
         file_path = notebook_path / file_meta.path
         content = None
         raw_content = None

@@ -6,6 +6,10 @@ from typing import Dict, Any, Optional
 from pathlib import Path
 import frontmatter
 
+from backend.core.logging_config import get_logger
+
+logger = get_logger(__name__)
+
 
 class MetadataParser:
     """Base class for metadata parsers."""
@@ -17,7 +21,7 @@ class MetadataParser:
             post = frontmatter.loads(content)
             return dict(post.metadata), post.content
         except Exception as e:
-            print(f"Error parsing frontmatter: {e}")
+            logger.error(f"Error parsing frontmatter: {e}")
             return {}, content
 
     @staticmethod
@@ -35,7 +39,7 @@ class MetadataParser:
             post = frontmatter.Post(content, **properties)
             return frontmatter.dumps(post)
         except Exception as e:
-            print(f"Error writing frontmatter: {e}")
+            logger.error(f"Error writing frontmatter: {e}")
             return content
 
     @staticmethod

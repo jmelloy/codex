@@ -6,9 +6,12 @@ from pathlib import Path
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from typing import Optional, Callable
+from backend.core.logging_config import get_logger
 from backend.db.database import get_notebook_session
 from backend.db.models import FileMetadata, Notebook
 from sqlmodel import select
+
+logger = get_logger(__name__)
 
 
 def calculate_file_hash(filepath: str) -> str:
@@ -49,7 +52,7 @@ class NotebookFileHandler(FileSystemEventHandler):
         if self._should_ignore(filepath):
             return
 
-        print(f"Updating metadata for {filepath} due to {event_type} event")
+        logger.debug(f"Updating metadata for {filepath} due to {event_type} event")
         try:
             session = get_notebook_session(self.notebook_path)
 
@@ -117,7 +120,7 @@ class NotebookFileHandler(FileSystemEventHandler):
                             if commit_hash:
                                 file_meta.last_commit_hash = commit_hash
                         except Exception as e:
-                            print(f"Warning: Could not commit file to git: {e}")
+                            logger.warning(f"Could not commit file to git: {e}")
 
                     try:
                         session.commit()
@@ -142,7 +145,7 @@ class NotebookFileHandler(FileSystemEventHandler):
                 self.callback(filepath, event_type)
 
         except Exception as e:
-            print(f"Error updating metadata for {filepath}: {e}")
+            logger.error(f"Error updating metadata for {filepath}: {e}", exc_info=True)
         finally:
             session.close()
 
@@ -180,7 +183,7 @@ class NotebookWatcher:
 
     def start(self):
         """Start watching the notebook directory."""
-        print(f"Starting watcher for notebook at {self.notebook_path}")
+        logger.info(f"Starting watcher for notebook at {self.notebook_path}")
         self.observer.schedule(self.handler, self.notebook_path, recursive=True)
         self.observer.start()
 
@@ -264,10 +267,10 @@ class NotebookWatcher:
             new_count = len(seen_paths - set(existing_files.keys()))
             deleted_count = len(deleted_paths)
             unchanged_count = len(seen_paths) - new_count - updated_count
-            print(f"Scan complete: {len(seen_paths)} files on disk, {len(existing_files)} in database")
-            print(f"  New: {new_count}, Updated: {updated_count}, Deleted: {deleted_count}, Unchanged: {unchanged_count}")
+            logger.info(f"Scan complete: {len(seen_paths)} files on disk, {len(existing_files)} in database")
+            logger.info(f"  New: {new_count}, Updated: {updated_count}, Deleted: {deleted_count}, Unchanged: {unchanged_count}")
 
         except Exception as e:
-            print(f"Error during file scan: {e}")
+            logger.error(f"Error during file scan: {e}", exc_info=True)
         finally:
             session.close()

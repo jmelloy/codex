@@ -11,11 +11,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from backend.api.auth import get_current_active_user
+from backend.core.logging_config import get_logger
 from backend.core.metadata import MetadataParser
 from backend.db.database import get_notebook_session, get_system_session
 from backend.db.models import FileMetadata, Notebook, User, Workspace
 
 router = APIRouter()
+logger = get_logger(__name__)
 
 
 async def get_notebook_path(
@@ -305,7 +307,7 @@ async def create_file(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error creating file in notebook {notebook_path}: {e}")
+        logger.error(f"Error creating file in notebook {notebook_path}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error creating file: {str(e)}")
     finally:
         nb_session.close()
@@ -411,7 +413,7 @@ async def update_file(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error updating file in notebook {notebook_path}: {e}")
+        logger.error(f"Error updating file in notebook {notebook_path}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error updating file: {str(e)}")
     finally:
         nb_session.close()

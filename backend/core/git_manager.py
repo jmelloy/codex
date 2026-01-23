@@ -6,6 +6,10 @@ from typing import Optional, List
 import git
 from git import Repo, InvalidGitRepositoryError
 
+from backend.core.logging_config import get_logger
+
+logger = get_logger(__name__)
+
 
 class GitManager:
     """Manager for Git operations in notebooks."""
@@ -98,7 +102,7 @@ class GitManager:
         try:
             self.repo.index.add([rel_path])
         except Exception as e:
-            print(f"Error adding file to git: {e}")
+            logger.error(f"Error adding file to git: {e}")
 
     def commit(self, message: str, files: Optional[List[str]] = None):
         """Commit changes to Git."""
@@ -121,7 +125,7 @@ class GitManager:
                 commit = self.repo.index.commit(message)
                 return commit.hexsha
         except Exception as e:
-            print(f"Error committing to git: {e}")
+            logger.error(f"Error committing to git: {e}")
             return None
 
     def get_file_history(self, filepath: str, max_count: int = 10) -> List[dict]:
@@ -145,7 +149,7 @@ class GitManager:
                 )
             return history
         except Exception as e:
-            print(f"Error getting file history: {e}")
+            logger.error(f"Error getting file history: {e}")
             return []
 
     def get_file_at_commit(self, filepath: str, commit_hash: str) -> Optional[str]:
@@ -160,7 +164,7 @@ class GitManager:
             blob = commit.tree / rel_path
             return blob.data_stream.read().decode("utf-8")
         except Exception as e:
-            print(f"Error getting file at commit: {e}")
+            logger.error(f"Error getting file at commit: {e}")
             return None
 
     def get_diff(self, filepath: str, commit_hash1: str, commit_hash2: str = "HEAD") -> Optional[str]:
@@ -178,7 +182,7 @@ class GitManager:
                 return diff[0].diff.decode("utf-8")
             return None
         except Exception as e:
-            print(f"Error getting diff: {e}")
+            logger.error(f"Error getting diff: {e}")
             return None
 
     def auto_commit_on_change(self, filepath: str):

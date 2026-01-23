@@ -127,7 +127,7 @@
         <div v-else-if="workspaceStore.currentFile" class="flex-1 flex overflow-hidden p-4">
           <!-- Dynamic View Renderer for .cdx files -->
           <ViewRenderer v-if="workspaceStore.currentFile.file_type === 'view'" :file-id="workspaceStore.currentFile.id"
-            :workspace-id="workspaceStore.currentWorkspace!.id" class="flex-1" />
+            :workspace-id="workspaceStore.currentWorkspace!.id" :notebook-id="workspaceStore.currentFile.notebook_id" class="flex-1" />
 
           <!-- Markdown Viewer for regular files -->
           <MarkdownViewer v-else :content="workspaceStore.currentFile.content"

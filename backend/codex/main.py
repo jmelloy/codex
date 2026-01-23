@@ -161,7 +161,7 @@ if __name__ == "__main__":
         },
         "access": {
             "()": "uvicorn.logging.AccessFormatter",
-            "fmt": '%(levelprefix)s %(client_addr)s - "%(request_line)s" %(status_code)s',  # noqa: E501
+            "fmt": '%(asctime)s - %(client_addr)s - "%(request_line)s" %(status_code)s',  # noqa: E501
         },
     },
     "handlers": {

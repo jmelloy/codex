@@ -12,9 +12,10 @@
 
     <!-- View Renderer -->
     <ViewRenderer
-      v-else-if="viewFileId"
+      v-else-if="viewFileId && notebookId"
       :file-id="viewFileId"
       :workspace-id="workspaceId"
+      :notebook-id="notebookId"
       :compact="true"
     />
 
@@ -37,6 +38,7 @@ const props = defineProps<{
 }>();
 
 const viewFileId = ref<number | null>(null);
+const notebookId = ref<number | null>(null);
 const loading = ref(true);
 const error = ref<string | null>(null);
 
@@ -71,6 +73,7 @@ const resolveViewPath = async () => {
 
         if (matchingFile) {
           viewFileId.value = matchingFile.id;
+          notebookId.value = notebook.id;
           return;
         }
       } catch (err) {

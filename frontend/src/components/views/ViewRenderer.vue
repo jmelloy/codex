@@ -9,16 +9,8 @@
       <p class="text-red-600">{{ error }}</p>
     </div>
 
-    <component
-      v-else-if="viewComponent"
-      :is="viewComponent"
-      :data="queryResults"
-      :config="viewConfig"
-      :definition="viewDefinition"
-      :workspace-id="workspaceId"
-      @update="handleUpdate"
-      @refresh="loadView"
-    />
+    <component v-else-if="viewComponent" :is="viewComponent" :data="queryResults" :config="viewConfig"
+      :definition="viewDefinition" :workspace-id="workspaceId" @update="handleUpdate" @refresh="loadView" />
 
     <div v-else class="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
       <h3 class="text-yellow-800 font-semibold mb-2">Unknown view type</h3>
@@ -46,6 +38,7 @@ const DashboardView = () => import('./DashboardView.vue');
 const props = defineProps<{
   fileId: number;
   workspaceId: number;
+  notebookId: number;
   compact?: boolean; // For mini-views
 }>();
 
@@ -67,7 +60,7 @@ const loadView = async () => {
 
   try {
     // Load the .cdx file
-    const file = await fileService.get(props.fileId, props.workspaceId);
+    const file = await fileService.get(props.fileId, props.workspaceId, props.notebookId);
 
     // Parse view definition
     viewDefinition.value = parseViewDefinition(file.content || '');
@@ -139,8 +132,9 @@ interface ViewUpdateEvent {
 
 const handleUpdate = async (event: ViewUpdateEvent) => {
   try {
-    // Load current file
-    const file = await fileService.get(event.fileId, props.workspaceId);
+    // Load current file - we need to get notebook_id from it since event doesn't have it
+    // TODO: Consider caching files or passing notebook_id in the event
+    const file = await fileService.get(event.fileId, props.workspaceId, props.notebookId);
 
     // Merge updates into properties
     const updatedProperties = {
@@ -152,6 +146,7 @@ const handleUpdate = async (event: ViewUpdateEvent) => {
     await fileService.update(
       event.fileId,
       props.workspaceId,
+      file.notebook_id,
       file.content || '',
       updatedProperties
     );

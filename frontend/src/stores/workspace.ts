@@ -105,7 +105,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     try {
       const fileList = await fileService.list(
         notebookId,
-        currentWorkspace.value.id
+        currentWorkspace.value.id,
       );
       files.value.set(notebookId, fileList);
     } catch (e: any) {
@@ -123,7 +123,8 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     try {
       const fileWithContent = await fileService.get(
         file.id,
-        currentWorkspace.value.id
+        currentWorkspace.value.id,
+        file.notebook_id,
       );
       currentFile.value = fileWithContent;
       isEditing.value = false;
@@ -140,20 +141,22 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     fileLoading.value = true;
     error.value = null;
     try {
+      if (!currentFile.value.notebook_id) {
+        throw new Error("File has no notebook_id");
+      }
       const updated = await fileService.update(
         currentFile.value.id,
         currentWorkspace.value.id,
+        currentFile.value.notebook_id,
         content,
-        properties
+        properties,
       );
       // Update currentFile with new content and properties
       currentFile.value = { ...currentFile.value, ...updated, content };
       isEditing.value = false;
 
       // Refresh file list for the notebook
-      if (currentFile.value.notebook_id) {
-        await fetchFiles(currentFile.value.notebook_id);
-      }
+      await fetchFiles(currentFile.value.notebook_id);
     } catch (e: any) {
       error.value = e.response?.data?.detail || "Failed to save file";
       throw e;
@@ -172,7 +175,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
         notebookId,
         currentWorkspace.value.id,
         path,
-        content
+        content,
       );
       // Refresh file list
       await fetchFiles(notebookId);

@@ -6,9 +6,9 @@ from typing import Optional, List
 import git
 from git import Repo, InvalidGitRepositoryError
 
-from backend.core.logging_config import get_logger
+import logging
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class GitManager:

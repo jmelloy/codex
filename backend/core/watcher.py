@@ -6,12 +6,12 @@ from pathlib import Path
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from typing import Optional, Callable
-from backend.core.logging_config import get_logger
+import logging
 from backend.db.database import get_notebook_session
 from backend.db.models import FileMetadata, Notebook
 from sqlmodel import select
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def calculate_file_hash(filepath: str) -> str:

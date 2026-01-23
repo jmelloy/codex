@@ -52,9 +52,9 @@ frontend/src/
 
 ## Key Files
 
-- **API entry**: `backend/codex/api/main.py`
-- **CLI entry**: `backend/codex/cli/main.py`
-- **DB models**: `backend/codex/db/models.py`
+- **API entry**: `backend/api/main.py`
+- **CLI entry**: `backend/cli/main.py`
+- **DB models**: `backend/db/models.py`
 - **Frontend entry**: `frontend/src/main.ts`
 - **Config**: `pyproject.toml`, `frontend/package.json`
 
@@ -68,6 +68,7 @@ frontend/src/
 
 - **Commit and push regularly** when working on a feature branch (not main). This preserves work in progress and allows for easier recovery if something goes wrong.
 - **Use git worktrees** for parallel work on multiple branches without switching contexts:
+
   ```bash
   # Create a worktree for a new branch
   git worktree add ../codex-feature feature-branch

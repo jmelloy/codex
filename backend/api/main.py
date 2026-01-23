@@ -8,10 +8,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from sqlmodel import select
 
-from backend.db.database import init_system_db, DATA_DIRECTORY, get_notebook_session
-from backend.db.models import Notebook
+from backend.db.database import init_system_db, DATA_DIRECTORY, get_notebook_session, get_system_session_sync
+from backend.db.models import Notebook, Workspace
 from backend.api.routes import workspaces, notebooks, files, search, tasks, markdown, query, users
-from core.watcher import NotebookWatcher
+from backend.core.watcher import NotebookWatcher
 
 # Global registry of active watchers
 _active_watchers: list[NotebookWatcher] = []

@@ -45,11 +45,11 @@ class NotebookFileHandler(FileSystemEventHandler):
         return any(pattern in path for pattern in ignore_patterns)
 
     def _update_file_metadata(self, filepath: str, event_type: str):
-        print(f"Updating metadata for {filepath} due to {event_type} event")
         """Update file metadata in database."""
         if self._should_ignore(filepath):
             return
 
+        print(f"Updating metadata for {filepath} due to {event_type} event")
         try:
             session = get_notebook_session(self.notebook_path)
 

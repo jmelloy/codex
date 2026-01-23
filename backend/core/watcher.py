@@ -119,7 +119,24 @@ class NotebookFileHandler(FileSystemEventHandler):
                         except Exception as e:
                             print(f"Warning: Could not commit file to git: {e}")
 
-                    session.commit()
+                    try:
+                        session.commit()
+                    except Exception as commit_error:
+                        # Handle race condition: another process created the record
+                        session.rollback()
+                        if "UNIQUE constraint failed" in str(commit_error):
+                            # Re-query and update instead
+                            file_meta = get_existing()
+                            if file_meta:
+                                file_meta.size = file_stats.st_size
+                                file_meta.hash = file_hash
+                                file_meta.file_type = file_type
+                                from datetime import datetime, timezone
+                                file_meta.updated_at = datetime.now(timezone.utc)
+                                file_meta.file_modified_at = datetime.fromtimestamp(file_stats.st_mtime)
+                                session.commit()
+                        else:
+                            raise
 
             if self.callback:
                 self.callback(filepath, event_type)

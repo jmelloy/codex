@@ -13,6 +13,7 @@ to the system database (not a foreign key, since it's in a different database).
 from datetime import datetime
 from typing import Optional, List
 
+from sqlalchemy import UniqueConstraint
 from sqlmodel import Field, SQLModel, Relationship
 
 from .base import utc_now
@@ -31,6 +32,10 @@ class FileMetadata(SQLModel, table=True):
     """Metadata for files in a notebook."""
 
     __tablename__ = "file_metadata"  # type: ignore[assignment]
+    __table_args__ = (
+        UniqueConstraint("notebook_id", "path", name="uq_file_metadata_notebook_path"),
+        {"sqlite_autoincrement": True},
+    )
 
     id: Optional[int] = Field(default=None, primary_key=True)
     notebook_id: int  # Reference to notebook in system database (not a foreign key)

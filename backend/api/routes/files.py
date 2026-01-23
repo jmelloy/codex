@@ -271,8 +271,25 @@ async def create_file(
             file_meta.last_commit_hash = commit_hash
 
         nb_session.add(file_meta)
-        nb_session.commit()
-        nb_session.refresh(file_meta)
+        try:
+            nb_session.commit()
+            nb_session.refresh(file_meta)
+        except Exception as commit_error:
+            # Handle race condition: watcher may have created the record
+            nb_session.rollback()
+            if "UNIQUE constraint failed" in str(commit_error):
+                # Query for the existing record created by the watcher
+                existing_result = nb_session.execute(
+                    select(FileMetadata).where(
+                        FileMetadata.notebook_id == notebook_id,
+                        FileMetadata.path == path
+                    )
+                )
+                file_meta = existing_result.scalar_one_or_none()
+                if not file_meta:
+                    raise HTTPException(status_code=500, detail="Race condition: file metadata not found")
+            else:
+                raise
 
         result = {
             "id": file_meta.id,

@@ -315,28 +315,19 @@ async def query_files(
     if not workspace_path.exists():
         raise HTTPException(status_code=404, detail="Workspace path not found")
 
+    # Query notebooks from system database
+    notebooks_result = await session.execute(
+        select(Notebook).where(Notebook.workspace_id == workspace_id)
+    )
+    notebooks = notebooks_result.scalars().all()
+
     # Collect all files from notebooks
     all_files: list[FileMetadata] = []
 
-    for item in workspace_path.iterdir():
-        if not item.is_dir():
-            continue
-
-        codex_dir = item / ".codex"
-        notebook_db_path = codex_dir / "notebook.db"
-        if not notebook_db_path.exists():
-            continue
-
+    for notebook in notebooks:
         try:
-            nb_session = get_notebook_session(str(item))
-
-            # Get notebook to check if it matches filter
-            nb_result = nb_session.execute(select(Notebook))
-            notebook = nb_result.scalar_one_or_none()
-
-            if not notebook:
-                nb_session.close()
-                continue
+            notebook_path = workspace_path / notebook.path
+            nb_session = get_notebook_session(str(notebook_path))
 
             # Skip if not in requested notebook_ids
             if query.notebook_ids and notebook.id not in query.notebook_ids:
@@ -436,7 +427,7 @@ async def query_files(
             nb_session.close()
 
         except Exception as e:
-            print(f"Error querying notebook {item}: {e}")
+            print(f"Error querying notebook {notebook.path}: {e}")
             import traceback
 
             traceback.print_exc()

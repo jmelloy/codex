@@ -11,13 +11,9 @@ def utc_now() -> datetime:
 
 
 # Link tables (must be defined before they are referenced)
-class NotebookTag(SQLModel, table=True):
-    """Link table for notebook tags."""
-
-    __tablename__ = "notebook_tags"  # type: ignore[assignment]
-
-    notebook_id: int = Field(foreign_key="notebooks.id", primary_key=True)
-    tag_id: int = Field(foreign_key="tags.id", primary_key=True)
+# NotebookTag link table removed: Notebooks are now in the system database, 
+# while tags remain in per-notebook databases. Tags can still be applied to notebooks
+# by referencing the notebook_id, but there's no direct SQLAlchemy relationship.
 
 
 class FileTag(SQLModel, table=True):
@@ -63,6 +59,7 @@ class Workspace(SQLModel, table=True):
     # Relationships
     owner: User = Relationship(back_populates="workspaces")
     permissions: List["WorkspacePermission"] = Relationship(back_populates="workspace")
+    notebooks: List["Notebook"] = Relationship(back_populates="workspace")
 
 
 class WorkspacePermission(SQLModel, table=True):
@@ -96,31 +93,32 @@ class Task(SQLModel, table=True):
     completed_at: Optional[datetime] = None
 
 
-# Notebook-level models (per-notebook SQLite database)
 class Notebook(SQLModel, table=True):
-    """Notebook metadata."""
+    """Notebook metadata (stored in system database)."""
 
     __tablename__ = "notebooks"  # type: ignore[assignment]
 
     id: Optional[int] = Field(default=None, primary_key=True)
+    workspace_id: int = Field(foreign_key="workspaces.id", index=True)
     name: str = Field(index=True)
-    path: str = Field(unique=True)  # Relative path from workspace
+    path: str = Field(index=True)  # Relative path from workspace
     description: Optional[str] = None
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
 
     # Relationships
-    files: List["FileMetadata"] = Relationship(back_populates="notebook")
-    tags: List["Tag"] = Relationship(back_populates="notebooks", link_model=NotebookTag)
+    workspace: Workspace = Relationship(back_populates="notebooks")
 
 
+# Per-notebook database models (FileMetadata, Tags, SearchIndex)
+# Note: notebook_id is stored as an integer reference to the system database
 class FileMetadata(SQLModel, table=True):
     """Metadata for files in a notebook."""
 
     __tablename__ = "file_metadata"  # type: ignore[assignment]
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    notebook_id: int = Field(foreign_key="notebooks.id")
+    notebook_id: int  # Reference to notebook in system database (not a foreign key)
     path: str = Field(index=True)  # Relative path from notebook
     filename: str = Field(index=True)
     file_type: str  # markdown, json, xml, binary, etc.
@@ -145,7 +143,6 @@ class FileMetadata(SQLModel, table=True):
     last_commit_hash: Optional[str] = None
 
     # Relationships
-    notebook: Notebook = Relationship(back_populates="files")
     tags: List["Tag"] = Relationship(back_populates="files", link_model=FileTag)
 
 
@@ -155,13 +152,12 @@ class Tag(SQLModel, table=True):
     __tablename__ = "tags"  # type: ignore[assignment]
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    notebook_id: int = Field(foreign_key="notebooks.id")
+    notebook_id: int  # Reference to notebook in system database (not a foreign key)
     name: str = Field(index=True)
     color: Optional[str] = None
     created_at: datetime = Field(default_factory=utc_now)
 
     # Relationships
-    notebooks: List["Notebook"] = Relationship(back_populates="tags", link_model=NotebookTag)
     files: List["FileMetadata"] = Relationship(back_populates="tags", link_model=FileTag)
 
 

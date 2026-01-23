@@ -29,6 +29,22 @@ async def init_system_db():
     """Initialize system database tables."""
     async with system_engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.create_all)
+    
+    # Run migrations on system database
+    # Extract the path from the database URL
+    if SYSTEM_DATABASE_URL.startswith("sqlite:///"):
+        db_path = SYSTEM_DATABASE_URL.replace("sqlite:///", "")
+    else:
+        # For other database types or URL formats, skip migrations
+        # (migrations are SQLite-specific)
+        return
+    
+    # Import and run migrations
+    from backend.db.system_migrations.add_theme_setting import migrate_system_db as migrate_theme
+    from backend.db.system_migrations.add_notebooks_to_system_db import migrate_system_db as migrate_notebooks
+    
+    migrate_theme(db_path)
+    migrate_notebooks(db_path)
 
 
 def get_notebook_engine(notebook_path: str):

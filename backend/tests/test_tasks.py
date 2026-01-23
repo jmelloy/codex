@@ -25,14 +25,13 @@ def setup_test_user():
     return {"Authorization": f"Bearer {token}"}
 
 
-def test_create_task():
+def test_create_task(temp_workspace_dir):
     """Test creating a task."""
     headers = setup_test_user()
 
     # Create a workspace first
-    temp_dir = tempfile.mkdtemp()
     workspace_response = client.post(
-        "/api/v1/workspaces/", json={"name": "Task Test Workspace", "path": temp_dir}, headers=headers
+        "/api/v1/workspaces/", json={"name": "Task Test Workspace", "path": temp_workspace_dir}, headers=headers
     )
     assert workspace_response.status_code == 200
     workspace_id = workspace_response.json()["id"]
@@ -50,18 +49,16 @@ def test_create_task():
     assert task["status"] == "pending"
     assert task["workspace_id"] == workspace_id
 
-    # Cleanup
-    shutil.rmtree(temp_dir, ignore_errors=True)
+    # Cleanup handled by fixture
 
 
-def test_list_tasks():
+def test_list_tasks(temp_workspace_dir):
     """Test listing tasks for a workspace."""
     headers = setup_test_user()
 
     # Create a workspace
-    temp_dir = tempfile.mkdtemp()
     workspace_response = client.post(
-        "/api/v1/workspaces/", json={"name": "Task List Workspace", "path": temp_dir}, headers=headers
+        "/api/v1/workspaces/", json={"name": "Task List Workspace", "path": temp_workspace_dir}, headers=headers
     )
     workspace_id = workspace_response.json()["id"]
 
@@ -80,18 +77,16 @@ def test_list_tasks():
     tasks = response.json()
     assert len(tasks) == 3
 
-    # Cleanup
-    shutil.rmtree(temp_dir, ignore_errors=True)
+    # Cleanup handled by fixture
 
 
-def test_get_task():
+def test_get_task(temp_workspace_dir):
     """Test getting a specific task."""
     headers = setup_test_user()
 
     # Create a workspace
-    temp_dir = tempfile.mkdtemp()
     workspace_response = client.post(
-        "/api/v1/workspaces/", json={"name": "Get Task Workspace", "path": temp_dir}, headers=headers
+        "/api/v1/workspaces/", json={"name": "Get Task Workspace", "path": temp_workspace_dir}, headers=headers
     )
     workspace_id = workspace_response.json()["id"]
 
@@ -111,8 +106,7 @@ def test_get_task():
     assert task["title"] == "Specific Task"
     assert task["description"] == "Task to retrieve"
 
-    # Cleanup
-    shutil.rmtree(temp_dir, ignore_errors=True)
+    # Cleanup handled by fixture
 
 
 def test_get_nonexistent_task():
@@ -124,14 +118,13 @@ def test_get_nonexistent_task():
     assert response.json()["detail"] == "Task not found"
 
 
-def test_update_task_status():
+def test_update_task_status(temp_workspace_dir):
     """Test updating a task's status."""
     headers = setup_test_user()
 
     # Create a workspace
-    temp_dir = tempfile.mkdtemp()
     workspace_response = client.post(
-        "/api/v1/workspaces/", json={"name": "Update Task Workspace", "path": temp_dir}, headers=headers
+        "/api/v1/workspaces/", json={"name": "Update Task Workspace", "path": temp_workspace_dir}, headers=headers
     )
     workspace_id = workspace_response.json()["id"]
 
@@ -154,18 +147,16 @@ def test_update_task_status():
     assert task["status"] == "completed"
     assert task["completed_at"] is not None
 
-    # Cleanup
-    shutil.rmtree(temp_dir, ignore_errors=True)
+    # Cleanup handled by fixture
 
 
-def test_update_task_assignment():
+def test_update_task_assignment(temp_workspace_dir):
     """Test assigning a task to an agent."""
     headers = setup_test_user()
 
     # Create a workspace
-    temp_dir = tempfile.mkdtemp()
     workspace_response = client.post(
-        "/api/v1/workspaces/", json={"name": "Assign Task Workspace", "path": temp_dir}, headers=headers
+        "/api/v1/workspaces/", json={"name": "Assign Task Workspace", "path": temp_workspace_dir}, headers=headers
     )
     workspace_id = workspace_response.json()["id"]
 
@@ -180,9 +171,7 @@ def test_update_task_assignment():
     assert response.status_code == 200
     assert response.json()["assigned_to"] == "agent-123"
 
-    # Cleanup
-    shutil.rmtree(temp_dir, ignore_errors=True)
-
+    # Cleanup handled by fixture
 
 def test_update_nonexistent_task():
     """Test updating a task that doesn't exist."""

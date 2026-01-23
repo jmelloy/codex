@@ -62,7 +62,7 @@ This is a test document."""
     assert "markdown" in data["frontmatter"]["tags"]
 
 
-def test_list_markdown_files_empty():
+def test_list_markdown_files_empty(temp_workspace_dir):
     """Test listing markdown files returns empty list."""
     # Login
     client.post(
@@ -74,13 +74,8 @@ def test_list_markdown_files_empty():
     headers = {"Authorization": f"Bearer {token}"}
 
     # Create a workspace first
-    import tempfile
-    import os
-
-    temp_dir = tempfile.mkdtemp()
-
     workspace_response = client.post(
-        "/api/v1/workspaces/", json={"name": "Test Workspace", "path": temp_dir}, headers=headers
+        "/api/v1/workspaces/", json={"name": "Test Workspace", "path": temp_workspace_dir}, headers=headers
     )
     assert workspace_response.status_code == 200
     workspace_id = workspace_response.json()["id"]
@@ -93,10 +88,7 @@ def test_list_markdown_files_empty():
     assert isinstance(data, list)
     assert len(data) == 0
 
-    # Cleanup
-    import shutil
-
-    shutil.rmtree(temp_dir, ignore_errors=True)
+    # Cleanup handled by fixture
 
 
 def test_markdown_endpoints_require_auth():

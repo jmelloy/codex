@@ -83,6 +83,7 @@ frontend/.env.*.local
 
 # Logs
 *.log
+*.pid
 logs/
 
 # Environment
@@ -272,3 +273,7 @@ frontend/dist/
 
 # Test workspaces (created during test runs)
 backend/workspaces/
+workspaces/
+
+# Screenshots (generated for documentation)
+screenshots/

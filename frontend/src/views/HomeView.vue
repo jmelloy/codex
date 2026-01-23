@@ -3,15 +3,19 @@
     <nav class="bg-primary text-white px-8 py-4 flex justify-between items-center">
       <h1 class="text-2xl font-semibold m-0">Codex</h1>
       <div class="flex items-center gap-4">
-        <button @click="goToSettings" class="bg-white/20 text-white border-none px-4 py-2 rounded cursor-pointer hover:bg-white/30 transition" title="User Settings">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block">
+        <button @click="goToSettings"
+          class="bg-white/20 text-white border-none px-4 py-2 rounded cursor-pointer hover:bg-white/30 transition"
+          title="User Settings">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block">
             <circle cx="12" cy="12" r="3"></circle>
             <path d="M12 1v6m0 6v6m9-9h-6m-6 0H3"></path>
           </svg>
           Settings
         </button>
         <span>{{ authStore.user?.username }}</span>
-        <button @click="handleLogout" class="bg-white/20 text-white border-none px-4 py-2 rounded cursor-pointer hover:bg-white/30 transition">Logout</button>
+        <button @click="handleLogout"
+          class="bg-white/20 text-white border-none px-4 py-2 rounded cursor-pointer hover:bg-white/30 transition">Logout</button>
       </div>
     </nav>
 
@@ -20,40 +24,38 @@
       <aside class="w-[280px] min-w-[280px] notebook-sidebar flex flex-col overflow-hidden">
         <div class="flex justify-between items-center px-4 py-4" style="border-bottom: 1px solid var(--page-border)">
           <h2 class="m-0 text-sm font-semibold uppercase tracking-wide" style="color: var(--pen-gray)">Workspaces</h2>
-          <button @click="showCreateWorkspace = true" title="Create Workspace" class="notebook-button text-white border-none w-6 h-6 rounded-full cursor-pointer text-base flex items-center justify-center transition">+</button>
+          <button @click="showCreateWorkspace = true" title="Create Workspace"
+            class="notebook-button text-white border-none w-6 h-6 rounded-full cursor-pointer text-base flex items-center justify-center transition">+</button>
         </div>
         <ul class="list-none p-0 m-0 max-h-[150px] overflow-y-auto">
-          <li
-            v-for="workspace in workspaceStore.workspaces"
-            :key="workspace.id"
+          <li v-for="workspace in workspaceStore.workspaces" :key="workspace.id"
             :class="['workspace-item py-2.5 px-4 cursor-pointer text-sm transition', { 'workspace-active font-semibold': workspaceStore.currentWorkspace?.id === workspace.id }]"
-            @click="selectWorkspace(workspace)"
-          >
+            @click="selectWorkspace(workspace)">
             {{ workspace.name }}
           </li>
         </ul>
 
-        <div v-if="workspaceStore.currentWorkspace" class="flex-1 flex flex-col overflow-hidden" style="border-top: 1px solid var(--page-border)">
+        <div v-if="workspaceStore.currentWorkspace" class="flex-1 flex flex-col overflow-hidden"
+          style="border-top: 1px solid var(--page-border)">
           <div class="flex justify-between items-center px-4 py-4" style="border-bottom: 1px solid var(--page-border)">
             <h3 class="m-0 text-sm font-semibold uppercase tracking-wide" style="color: var(--pen-gray)">Notebooks</h3>
-            <button @click="showCreateNotebook = true" title="Create Notebook" class="notebook-button text-white border-none w-6 h-6 rounded-full cursor-pointer text-base flex items-center justify-center transition">+</button>
+            <button @click="showCreateNotebook = true" title="Create Notebook"
+              class="notebook-button text-white border-none w-6 h-6 rounded-full cursor-pointer text-base flex items-center justify-center transition">+</button>
           </div>
 
           <!-- Notebook Tree with Files -->
           <ul class="list-none p-0 m-0 overflow-y-auto flex-1">
-            <li v-for="notebook in workspaceStore.notebooks" :key="notebook.id" style="border-bottom: 1px solid var(--page-border)">
+            <li v-for="notebook in workspaceStore.notebooks" :key="notebook.id"
+              style="border-bottom: 1px solid var(--page-border)">
               <div
                 :class="['notebook-item flex items-center py-2 px-4 cursor-pointer text-sm transition', { 'notebook-active': workspaceStore.currentNotebook?.id === notebook.id }]"
-                @click="toggleNotebook(notebook)"
-              >
-                <span class="text-[10px] mr-2 w-3" style="color: var(--pen-gray)">{{ workspaceStore.expandedNotebooks.has(notebook.id) ? '▼' : '▶' }}</span>
+                @click="toggleNotebook(notebook)">
+                <span class="text-[10px] mr-2 w-3" style="color: var(--pen-gray)">{{
+                  workspaceStore.expandedNotebooks.has(notebook.id) ? '▼' : '▶' }}</span>
                 <span class="flex-1 font-medium">{{ notebook.name }}</span>
-                <button
-                  v-if="workspaceStore.expandedNotebooks.has(notebook.id)"
-                  @click.stop="startCreateFile(notebook)"
+                <button v-if="workspaceStore.expandedNotebooks.has(notebook.id)" @click.stop="startCreateFile(notebook)"
                   class="notebook-button w-5 h-5 text-sm ml-auto opacity-0 hover:opacity-100 transition text-white border-none rounded-full cursor-pointer flex items-center justify-center"
-                  title="New File"
-                >+</button>
+                  title="New File">+</button>
               </div>
 
               <!-- File Tree -->
@@ -63,39 +65,31 @@
                     <!-- Render folder or file -->
                     <li v-if="node.type === 'folder'">
                       <!-- Folder -->
-                      <div
-                        class="folder-item flex items-center py-2 px-4 pl-8 cursor-pointer text-[13px] transition"
-                        @click="toggleFolder(notebook.id, node.path)"
-                      >
-                        <span class="text-[10px] mr-2 w-3" style="color: var(--pen-gray)">{{ isFolderExpanded(notebook.id, node.path) ? '▼' : '▶' }}</span>
+                      <div class="folder-item flex items-center py-2 px-4 pl-8 cursor-pointer text-[13px] transition"
+                        @click="toggleFolder(notebook.id, node.path)">
+                        <span class="text-[10px] mr-2 w-3" style="color: var(--pen-gray)">{{
+                          isFolderExpanded(notebook.id, node.path) ? '▼' : '▶' }}</span>
                         <span class="mr-2 text-sm">📁</span>
                         <span class="overflow-hidden text-ellipsis whitespace-nowrap">{{ node.name }}</span>
                       </div>
-                      
+
                       <!-- Folder contents -->
                       <ul v-if="isFolderExpanded(notebook.id, node.path) && node.children" class="list-none p-0 m-0">
-                        <FileTreeItem
-                          v-for="child in node.children"
-                          :key="child.path"
-                          :node="child"
-                          :notebook-id="notebook.id"
-                          :depth="1"
-                          :expanded-folders="expandedFolders"
-                          :current-file-id="workspaceStore.currentFile?.id"
-                          @toggle-folder="toggleFolder"
-                          @select-file="selectFile"
-                        />
+                        <FileTreeItem v-for="child in node.children" :key="child.path" :node="child"
+                          :notebook-id="notebook.id" :depth="1" :expanded-folders="expandedFolders"
+                          :current-file-id="workspaceStore.currentFile?.id" @toggle-folder="toggleFolder"
+                          @select-file="selectFile" />
                       </ul>
                     </li>
-                    
+
                     <!-- Root level file -->
                     <li v-else>
                       <div
                         :class="['file-item flex items-center py-2 px-4 pl-8 cursor-pointer text-[13px] transition', { 'file-active font-medium': workspaceStore.currentFile?.id === node.file?.id }]"
-                        @click="node.file && selectFile(node.file)"
-                      >
+                        @click="node.file && selectFile(node.file)">
                         <span class="mr-2 text-sm">📄</span>
-                        <span class="overflow-hidden text-ellipsis whitespace-nowrap">{{ node.file?.title || node.name }}</span>
+                        <span class="overflow-hidden text-ellipsis whitespace-nowrap">{{ node.file?.title || node.name
+                          }}</span>
                       </div>
                     </li>
                   </template>
@@ -119,46 +113,33 @@
         <!-- Error State -->
         <div v-else-if="workspaceStore.error" class="flex flex-col items-center justify-center h-full text-red-600">
           <p>{{ workspaceStore.error }}</p>
-          <button @click="workspaceStore.error = null" class="mt-4 px-4 py-2 bg-red-600 text-white border-none rounded cursor-pointer">Dismiss</button>
+          <button @click="workspaceStore.error = null"
+            class="mt-4 px-4 py-2 bg-red-600 text-white border-none rounded cursor-pointer">Dismiss</button>
         </div>
 
         <!-- Editor Mode -->
         <div v-else-if="workspaceStore.isEditing && workspaceStore.currentFile" class="flex-1 flex overflow-hidden p-4">
-          <MarkdownEditor
-            v-model="editContent"
-            :frontmatter="workspaceStore.currentFile.properties"
-            :autosave="false"
-            @save="handleSaveFile"
-            @cancel="handleCancelEdit"
-            class="flex-1"
-          />
+          <MarkdownEditor v-model="editContent" :frontmatter="workspaceStore.currentFile.properties" :autosave="false"
+            @save="handleSaveFile" @cancel="handleCancelEdit" class="flex-1" />
         </div>
 
         <!-- Viewer Mode -->
         <div v-else-if="workspaceStore.currentFile" class="flex-1 flex overflow-hidden p-4">
           <!-- Dynamic View Renderer for .cdx files -->
-          <ViewRenderer
-            v-if="workspaceStore.currentFile.file_type === 'view'"
-            :file-id="workspaceStore.currentFile.id"
-            :workspace-id="workspaceStore.currentWorkspace!.id"
-            class="flex-1"
-          />
+          <ViewRenderer v-if="workspaceStore.currentFile.file_type === 'view'" :file-id="workspaceStore.currentFile.id"
+            :workspace-id="workspaceStore.currentWorkspace!.id" class="flex-1" />
 
           <!-- Markdown Viewer for regular files -->
-          <MarkdownViewer
-            v-else
-            :content="workspaceStore.currentFile.content"
-            :frontmatter="workspaceStore.currentFile.properties"
-            :show-frontmatter="showFrontmatter"
-            @edit="startEdit"
-            @copy="handleCopy"
-            class="flex-1"
-          >
+          <MarkdownViewer v-else :content="workspaceStore.currentFile.content"
+            :frontmatter="workspaceStore.currentFile.properties" :show-frontmatter="showFrontmatter" @edit="startEdit"
+            @copy="handleCopy" class="flex-1">
             <template #toolbar-actions>
-              <button @click="toggleFrontmatter" class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
+              <button @click="toggleFrontmatter"
+                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
                 {{ showFrontmatter ? 'Hide' : 'Show' }} Metadata
               </button>
-              <button @click="toggleProperties" class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
+              <button @click="toggleProperties"
+                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
                 Properties
               </button>
             </template>
@@ -175,66 +156,52 @@
       </main>
 
       <!-- Right: Properties Panel (300px, collapsible) -->
-      <FilePropertiesPanel
-        v-if="showPropertiesPanel && workspaceStore.currentFile"
-        :file="workspaceStore.currentFile"
-        class="w-[300px] min-w-[300px]"
-        @close="showPropertiesPanel = false"
-        @update-properties="handleUpdateProperties"
-        @delete="handleDeleteFile"
-      />
+      <FilePropertiesPanel v-if="showPropertiesPanel && workspaceStore.currentFile" :file="workspaceStore.currentFile"
+        class="w-[300px] min-w-[300px]" @close="showPropertiesPanel = false" @update-properties="handleUpdateProperties"
+        @delete="handleDeleteFile" />
     </div>
 
     <!-- Create Workspace Modal -->
-    <Modal
-      v-model="showCreateWorkspace"
-      title="Create Workspace"
-      confirm-text="Create"
-      hide-actions
-    >
+    <Modal v-model="showCreateWorkspace" title="Create Workspace" confirm-text="Create" hide-actions>
       <form @submit.prevent="handleCreateWorkspace">
         <FormGroup label="Name" v-slot="{ inputId }">
           <input :id="inputId" v-model="newWorkspaceName" required />
         </FormGroup>
         <div class="flex gap-2 justify-end mt-6">
-          <button type="button" @click="showCreateWorkspace = false" class="notebook-button-secondary px-4 py-2 border-none rounded cursor-pointer">Cancel</button>
-          <button type="submit" class="notebook-button px-4 py-2 text-white border-none rounded cursor-pointer transition">Create</button>
+          <button type="button" @click="showCreateWorkspace = false"
+            class="notebook-button-secondary px-4 py-2 border-none rounded cursor-pointer">Cancel</button>
+          <button type="submit"
+            class="notebook-button px-4 py-2 text-white border-none rounded cursor-pointer transition">Create</button>
         </div>
       </form>
     </Modal>
 
     <!-- Create Notebook Modal -->
-    <Modal
-      v-model="showCreateNotebook"
-      title="Create Notebook"
-      confirm-text="Create"
-      hide-actions
-    >
+    <Modal v-model="showCreateNotebook" title="Create Notebook" confirm-text="Create" hide-actions>
       <form @submit.prevent="handleCreateNotebook">
         <FormGroup label="Name" v-slot="{ inputId }">
           <input :id="inputId" v-model="newNotebookName" required />
         </FormGroup>
         <div class="flex gap-2 justify-end mt-6">
-          <button type="button" @click="showCreateNotebook = false" class="notebook-button-secondary px-4 py-2 border-none rounded cursor-pointer">Cancel</button>
-          <button type="submit" class="notebook-button px-4 py-2 text-white border-none rounded cursor-pointer transition">Create</button>
+          <button type="button" @click="showCreateNotebook = false"
+            class="notebook-button-secondary px-4 py-2 border-none rounded cursor-pointer">Cancel</button>
+          <button type="submit"
+            class="notebook-button px-4 py-2 text-white border-none rounded cursor-pointer transition">Create</button>
         </div>
       </form>
     </Modal>
 
     <!-- Create File Modal -->
-    <Modal
-      v-model="showCreateFile"
-      title="Create File"
-      confirm-text="Create"
-      hide-actions
-    >
+    <Modal v-model="showCreateFile" title="Create File" confirm-text="Create" hide-actions>
       <form @submit.prevent="handleCreateFile">
         <FormGroup label="Filename" v-slot="{ inputId }">
           <input :id="inputId" v-model="newFileName" placeholder="example.md" required />
         </FormGroup>
         <div class="flex gap-2 justify-end mt-6">
-          <button type="button" @click="showCreateFile = false" class="notebook-button-secondary px-4 py-2 border-none rounded cursor-pointer">Cancel</button>
-          <button type="submit" class="notebook-button px-4 py-2 text-white border-none rounded cursor-pointer transition">Create</button>
+          <button type="button" @click="showCreateFile = false"
+            class="notebook-button-secondary px-4 py-2 border-none rounded cursor-pointer">Cancel</button>
+          <button type="submit"
+            class="notebook-button px-4 py-2 text-white border-none rounded cursor-pointer transition">Create</button>
         </div>
       </form>
     </Modal>

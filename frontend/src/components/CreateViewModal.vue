@@ -341,8 +341,20 @@ function generateViewContent(): string {
       break;
   }
 
-  // Convert to YAML-like format (simple version)
+  // Convert to YAML format using proper indentation
   const yamlLines = ['---'];
+  
+  function serializeValue(value: any): string {
+    if (typeof value === 'string') {
+      // Check if string needs quoting (contains special chars or looks like a number/boolean)
+      if (value.match(/^(true|false|null|yes|no|on|off|\d+)$/i) || 
+          value.includes(':') || value.includes('#') || value.includes('[') || value.includes('{')) {
+        return `"${value.replace(/"/g, '\\"')}"`;
+      }
+      return value;
+    }
+    return JSON.stringify(value);
+  }
   
   function addToYaml(obj: any, indent = 0) {
     const spaces = '  '.repeat(indent);
@@ -350,21 +362,23 @@ function generateViewContent(): string {
       if (value === null || value === undefined) continue;
       
       if (Array.isArray(value)) {
-        yamlLines.push(`${spaces}${key}:`);
-        value.forEach(item => {
-          if (typeof item === 'object') {
-            yamlLines.push(`${spaces}  -`);
-            addToYaml(item, indent + 2);
-          } else {
-            yamlLines.push(`${spaces}  - ${typeof item === 'string' ? item : JSON.stringify(item)}`);
-          }
-        });
+        if (value.length === 0) {
+          yamlLines.push(`${spaces}${key}: []`);
+        } else {
+          yamlLines.push(`${spaces}${key}:`);
+          value.forEach(item => {
+            if (typeof item === 'object' && item !== null) {
+              yamlLines.push(`${spaces}  - ${JSON.stringify(item)}`);
+            } else {
+              yamlLines.push(`${spaces}  - ${serializeValue(item)}`);
+            }
+          });
+        }
       } else if (typeof value === 'object' && value !== null) {
         yamlLines.push(`${spaces}${key}:`);
         addToYaml(value, indent + 1);
       } else {
-        const valueStr = typeof value === 'string' ? value : JSON.stringify(value);
-        yamlLines.push(`${spaces}${key}: ${valueStr}`);
+        yamlLines.push(`${spaces}${key}: ${serializeValue(value)}`);
       }
     }
   }

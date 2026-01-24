@@ -4,10 +4,24 @@ import json
 import xml.etree.ElementTree as ET
 from typing import Dict, Any, Optional
 from pathlib import Path
+from datetime import datetime, date
 import frontmatter
 
 import logging
 logger = logging.getLogger(__name__)
+
+
+def sanitize_metadata(data: Any) -> Any:
+    """Recursively convert datetime objects to ISO format strings for JSON serialization."""
+    if isinstance(data, datetime):
+        return data.isoformat()
+    elif isinstance(data, date):
+        return data.isoformat()
+    elif isinstance(data, dict):
+        return {k: sanitize_metadata(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [sanitize_metadata(item) for item in data]
+    return data
 
 
 class MetadataParser:
@@ -18,7 +32,9 @@ class MetadataParser:
         """Parse markdown frontmatter."""
         try:
             post = frontmatter.loads(content)
-            return dict(post.metadata), post.content
+            # Sanitize metadata to convert datetime objects to strings for JSON serialization
+            metadata = sanitize_metadata(dict(post.metadata))
+            return metadata, post.content
         except Exception as e:
             logger.error(f"Error parsing frontmatter: {e}")
             return {}, content

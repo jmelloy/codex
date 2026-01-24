@@ -120,3 +120,37 @@ def test_render_markdown_empty_content():
     data = response.json()
     assert "html" in data
     assert data["html"] == ""
+
+
+def test_render_markdown_with_datetime_frontmatter():
+    """Test that datetime values in frontmatter are serialized correctly."""
+    # Login
+    client.post(
+        "/register", json={"username": "testuser_dt", "email": "testdt@example.com", "password": "testpass123"}
+    )
+
+    login_response = client.post("/token", data={"username": "testuser_dt", "password": "testpass123"})
+    token = login_response.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Test markdown with datetime in frontmatter (YAML parses this as datetime object)
+    content = """---
+id: 01K2QB949G
+created: 2025-08-15 10:08:46-07:00
+modified: 2025-08-15
+tags:
+- test
+---
+
+# Test Content"""
+
+    response = client.post("/api/v1/markdown/render", json={"content": content}, headers=headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert "frontmatter" in data
+    assert data["frontmatter"] is not None
+    # Datetime should be serialized as ISO string
+    assert data["frontmatter"]["created"] == "2025-08-15T10:08:46-07:00"
+    # Date should also be serialized as ISO string
+    assert data["frontmatter"]["modified"] == "2025-08-15"

@@ -68,6 +68,16 @@ export interface MarkdownExtension {
   renderer?: any
 }
 
+// Helper function to check if a URL is a local file reference
+const isLocalFileReference = (href: string): boolean => {
+  // Check if it's a markdown or text file
+  if (href.endsWith('.md') || href.endsWith('.txt')) {
+    return true
+  }
+  // Check if it's not an external URL or absolute path
+  return !href.startsWith('http://') && !href.startsWith('https://') && !href.startsWith('/')
+}
+
 // Helper function to resolve file references
 const resolveFileUrl = (href: string): string => {
   // If workspace and notebook IDs are available, resolve the file
@@ -86,12 +96,19 @@ const resolveFileUrl = (href: string): string => {
   return href
 }
 
+// Type for marked renderer token
+interface RendererToken {
+  href: string
+  title?: string | null
+  text: string
+}
+
 // Configure marked with extensions
 const configureMarked = () => {
   // Create a custom renderer for images and links
-  const renderer: any = {
+  const renderer = {
     // Override image rendering to resolve file references
-    image(token: any): string {
+    image(token: RendererToken): string {
       if (token.href) {
         // Resolve the image URL
         const resolvedHref = resolveFileUrl(token.href)
@@ -104,10 +121,10 @@ const configureMarked = () => {
     },
     
     // Override link rendering to resolve file references
-    link(token: any): string {
+    link(token: RendererToken): string {
       if (token.href) {
         // Check if it's a file reference (markdown or other files)
-        if (token.href.endsWith('.md') || token.href.endsWith('.txt') || (!token.href.startsWith('http://') && !token.href.startsWith('https://') && !token.href.startsWith('/'))) {
+        if (isLocalFileReference(token.href)) {
           // For markdown files, we could navigate to them in the app
           // For now, just resolve the URL to view the content
           const resolvedHref = resolveFileUrl(token.href)

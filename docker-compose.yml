@@ -4,7 +4,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     ports:
-      - "${BACKEND_PORT:-8765}:8000"
+      - 8765:8000"
     environment:
       - DATABASE_URL=${DATABASE_URL:-sqlite:///./data/codex_system.db}
       - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}
@@ -31,7 +31,7 @@ services:
       args:
         - VITE_API_BASE_URL=${VITE_API_BASE_URL:-/api}
     ports:
-      - "${FRONTEND_PORT:-80}:80"
+      - 8065:80"
     depends_on:
       backend:
         condition: service_healthy

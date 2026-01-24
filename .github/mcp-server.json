@@ -2,7 +2,7 @@
   "mcpServers": {
     "codex": {
       "command": "python",
-      "args": ["-m", "backend.mcp_server"],
+      "args": ["-m", "codex.mcp_server"],
       "cwd": "${workspaceFolder}",
       "env": {
         "PYTHONPATH": "${workspaceFolder}"

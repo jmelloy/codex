@@ -23,7 +23,7 @@ services:
       # Mount source code for hot-reloading
       - ./backend:/app
       - ./data:/app/data
-    command: uvicorn backend.api.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn codex.main:app --host 0.0.0.0 --port 8000 --reload
     # Disable health check in dev for faster startup
     healthcheck:
       disable: true

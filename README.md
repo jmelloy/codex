@@ -85,7 +85,7 @@ A hierarchical digital laboratory journal system for tracking computational expe
 5. **Run backend**
 
    ```bash
-   uvicorn backend.api.main:app --reload --port 8000
+   uvicorn codex.main:app --reload --port 8000
    ```
 
 6. **Run frontend** (in another terminal)
@@ -103,7 +103,7 @@ A hierarchical digital laboratory journal system for tracking computational expe
 8. **Load test data** (optional, recommended for testing)
 
    ```bash
-   python -m backend.scripts.seed_test_data
+   python -m codex.scripts.seed_test_data
    ```
 
    This creates three test users with sample workspaces and notebooks. See [TEST_CREDENTIALS.md](TEST_CREDENTIALS.md) for login details.
@@ -210,23 +210,23 @@ codex/
 For testing, screenshots, and demonstrations, you can create test users with sample data:
 
 ```bash
-python -m backend.scripts.seed_test_data
+python -m codex.scripts.seed_test_data
 ```
 
 This creates three test accounts with workspaces, notebooks, and markdown files:
 
-| Username | Password | Purpose |
-|----------|----------|---------|
-| `demo` | `demo123456` | Full-featured account with ML notebooks |
-| `testuser` | `testpass123` | Simple account for basic testing |
-| `scientist` | `lab123456` | Scientific research notebooks |
+| Username    | Password      | Purpose                                 |
+| ----------- | ------------- | --------------------------------------- |
+| `demo`      | `demo123456`  | Full-featured account with ML notebooks |
+| `testuser`  | `testpass123` | Simple account for basic testing        |
+| `scientist` | `lab123456`   | Scientific research notebooks           |
 
 See [TEST_CREDENTIALS.md](TEST_CREDENTIALS.md) for complete details.
 
 To clean up test data:
 
 ```bash
-python -m backend.scripts.seed_test_data clean
+python -m codex.scripts.seed_test_data clean
 ```
 
 ### Running Automated Tests
@@ -266,6 +266,7 @@ See `.env.example` for all available configuration options.
 The Codex MCP server allows AI assistants like GitHub Copilot to interact with the application. To set it up:
 
 1. **Install dependencies**:
+
    ```bash
    pip install -e ".[dev]"
    playwright install chromium
@@ -273,12 +274,13 @@ The Codex MCP server allows AI assistants like GitHub Copilot to interact with t
 
 2. **Configure your MCP client** (e.g., GitHub Copilot):
    Point to `.github/mcp-server.json` or add to your settings:
+
    ```json
    {
      "github.copilot.mcp": {
        "codex": {
          "command": "python",
-         "args": ["-m", "backend.mcp_server"],
+         "args": ["-m", "codex.mcp_server"],
          "cwd": "${workspaceFolder}"
        }
      }

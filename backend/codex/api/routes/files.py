@@ -12,11 +12,11 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from backend.api.auth import get_current_active_user
+from codex.api.auth import get_current_active_user
 import logging
-from backend.core.metadata import MetadataParser
-from backend.db.database import get_notebook_session, get_system_session
-from backend.db.models import FileMetadata, Notebook, User, Workspace
+from codex.core.metadata import MetadataParser
+from codex.db.database import get_notebook_session, get_system_session
+from codex.db.models import FileMetadata, Notebook, User, Workspace
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

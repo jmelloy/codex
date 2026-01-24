@@ -5,7 +5,7 @@ import asyncio
 import tempfile
 import shutil
 from pathlib import Path
-from backend.db.database import init_system_db, system_engine
+from codex.db.database import init_system_db, system_engine
 
 
 # Initialize the database once before all tests

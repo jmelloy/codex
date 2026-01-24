@@ -7,14 +7,14 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.api.auth import get_current_active_user
-from backend.core.metadata import MetadataParser
-from backend.db.database import get_system_session
-from backend.db.models import User, Workspace
-from backend.core.logging_config import get_logger
+from codex.api.auth import get_current_active_user
+from codex.core.metadata import MetadataParser
+from codex.db.database import get_system_session
+from codex.db.models import User, Workspace
+import logging
 
 router = APIRouter()
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 # Schemas
@@ -311,7 +311,7 @@ async def update_markdown_file(
         # Commit to git if file is in a notebook
         try:
             # Find which notebook this file belongs to
-            from backend.core.git_manager import GitManager
+            from codex.core.git_manager import GitManager
 
             current_path = full_file_path.parent
             while current_path != workspace_path and current_path != current_path.parent:

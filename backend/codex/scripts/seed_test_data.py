@@ -6,7 +6,7 @@ Creates test users with sample workspaces, notebooks, and markdown files.
 This makes it easy to test the application and take screenshots past the login page.
 
 Usage:
-    python -m backend.scripts.seed_test_data
+    python -m codex.scripts.seed_test_data
 """
 
 import asyncio
@@ -17,10 +17,10 @@ from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from backend.api.auth import get_password_hash
-from backend.db.database import get_system_session, init_system_db, init_notebook_db, DATA_DIRECTORY
-from backend.db.models import User, Workspace, Notebook
-from backend.core.git_manager import GitManager
+from codex.api.auth import get_password_hash
+from codex.db.database import get_system_session, init_system_db, init_notebook_db, DATA_DIRECTORY
+from codex.db.models import User, Workspace, Notebook
+from codex.core.git_manager import GitManager
 
 
 # Test user credentials (documented for easy reference)

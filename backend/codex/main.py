@@ -3,25 +3,21 @@
 import asyncio
 import logging
 import os
+import sys
+import traceback
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlmodel import select
 
-from backend.core.logging_config import setup_logging
-
-from backend.api.routes import (files, markdown, notebooks, query, search,
+from codex.api.routes import (files, markdown, notebooks, query, search,
                                 tasks, users, workspaces)
-from backend.core.watcher import NotebookWatcher
-from backend.db.database import  get_system_session_sync,init_system_db
-from backend.db.models import Notebook, Workspace
-
-# Initialize logging based on environment
-log_level = os.getenv("LOG_LEVEL", "INFO").upper()
-json_logs = os.getenv("JSON_LOGS", "false").lower() == "true"
-setup_logging(level=log_level, json_logs=json_logs)
+from codex.core.watcher import NotebookWatcher
+from codex.db.database import  get_system_session_sync,init_system_db
+from codex.db.models import Notebook, Workspace
 
 logger = logging.getLogger(__name__)
 
@@ -104,7 +100,8 @@ def _start_notebook_watchers_sync():
         session.close()
 
     logger.info(f"Finished starting {len(_active_watchers)} watchers")
-        
+
+
 
 app = FastAPI(
     title="Codex API",
@@ -145,11 +142,23 @@ app.include_router(tasks.router, prefix="/api/v1/tasks", tags=["tasks"])
 app.include_router(markdown.router, prefix="/api/v1/markdown", tags=["markdown"])
 app.include_router(query.router, prefix="/api/v1/query", tags=["query"])
 
-
 if __name__ == "__main__":
     import uvicorn
 
-    debug = os.getenv("DEBUG", "false").lower() == "true"
-    log_level = "debug" if debug else "info"
+    from codex.core.logging import get_logging_config
 
-    uvicorn.run(app, host="0.0.0.0", port=8000, log_level=log_level, reload=debug)
+    debug = os.getenv("DEBUG", "false").lower() == "true"
+    log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+    log_format = os.getenv("LOG_FORMAT", "colored" if debug else "plain").lower()
+    log_sql = os.getenv("LOG_SQL", "false").lower() == "true"
+
+    logging_config = get_logging_config(log_level, log_format, log_sql)
+
+    uvicorn.run(
+        "codex.main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=debug,
+        log_config=logging_config,
+        log_level=log_level.lower(),
+    )

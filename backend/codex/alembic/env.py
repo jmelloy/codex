@@ -2,37 +2,29 @@
 
 import os
 import sys
-from logging.config import fileConfig
 from pathlib import Path
 
-from sqlalchemy import pool, create_engine
-from sqlalchemy.engine import Connection
-
 from alembic import context
+from sqlalchemy import create_engine, pool
+from sqlalchemy.engine import Connection
 
 # Add backend directory to path for imports when running alembic CLI
 backend_dir = Path(__file__).resolve().parent.parent
 if str(backend_dir.parent) not in sys.path:
     sys.path.insert(0, str(backend_dir.parent))
 
+# Import only system models (not notebook models which are in separate databases)
+from codex.db.models.system import (Notebook, Task, User, Workspace,
+                                    WorkspacePermission)
 # Import SQLModel to ensure metadata is populated
 from sqlmodel import SQLModel
-
-# Import only system models (not notebook models which are in separate databases)
-from backend.db.models.system import (
-    User,
-    Workspace,
-    WorkspacePermission,
-    Task,
-    Notebook,
-)
 
 # Alembic Config object
 config = context.config
 
 # Set up logging from alembic.ini
-if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+# if config.config_file_name is not None:
+#     fileConfig(config.config_file_name)
 
 # Set target metadata for autogenerate support
 # Only include system model tables

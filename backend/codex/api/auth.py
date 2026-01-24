@@ -10,8 +10,8 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlmodel import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.db.models import User
-from backend.db.database import get_system_session
+from codex.db.models import User
+from codex.db.database import get_system_session
 import os
 
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")

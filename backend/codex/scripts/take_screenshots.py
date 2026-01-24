@@ -6,9 +6,9 @@ Takes screenshots of different themes and pages for documentation and testing.
 Requires the test data to be seeded first.
 
 Usage:
-    python -m backend.scripts.take_screenshots
-    python -m backend.scripts.take_screenshots --themes-only
-    python -m backend.scripts.take_screenshots --output-dir ./screenshots
+    python -m codex.scripts.take_screenshots
+    python -m codex.scripts.take_screenshots --themes-only
+    python -m codex.scripts.take_screenshots --output-dir ./screenshots
 """
 
 import asyncio

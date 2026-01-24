@@ -7,17 +7,17 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from backend.api.auth import (
+from codex.api.auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
     create_access_token,
     verify_password,
     get_password_hash,
     get_current_active_user,
 )
-from backend.db.database import get_system_session
-from backend.db.models import User
-from backend.api.schemas import UserCreate, UserResponse
-from backend.api.routes.workspaces import create_workspace, WorkspaceCreate
+from codex.db.database import get_system_session
+from codex.db.models import User
+from codex.api.schemas import UserCreate, UserResponse
+from codex.api.routes.workspaces import create_workspace, WorkspaceCreate
 
 router = APIRouter()
 

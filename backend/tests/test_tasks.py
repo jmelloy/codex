@@ -2,7 +2,7 @@
 
 import time
 from fastapi.testclient import TestClient
-from backend.api.main import app
+from codex.main import app
 
 client = TestClient(app)
 

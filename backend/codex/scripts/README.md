@@ -7,6 +7,7 @@ This directory contains scripts and documentation for managing test data in Code
 The following test users are created by the `seed_test_data.py` script:
 
 ### Demo User (Full Featured)
+
 - **Username**: `demo`
 - **Password**: `demo123456`
 - **Email**: `demo@example.com`
@@ -15,6 +16,7 @@ The following test users are created by the `seed_test_data.py` script:
   - Data Analysis notebook with exploratory analysis
 
 ### Test User (Simple)
+
 - **Username**: `testuser`
 - **Password**: `testpass123`
 - **Email**: `test@example.com`
@@ -22,6 +24,7 @@ The following test users are created by the `seed_test_data.py` script:
   - Sample Notebook with getting started guide
 
 ### Scientist User (Research Focused)
+
 - **Username**: `scientist`
 - **Password**: `lab123456`
 - **Email**: `scientist@example.com`
@@ -36,10 +39,11 @@ The following test users are created by the `seed_test_data.py` script:
 Run this command to create test users and sample data:
 
 ```bash
-python -m backend.scripts.seed_test_data
+python -m codex.scripts.seed_test_data
 ```
 
 This will:
+
 1. Create the test users listed above
 2. Create workspaces for each user
 3. Create notebooks with sample content
@@ -51,10 +55,11 @@ This will:
 To remove all test users and their data:
 
 ```bash
-python -m backend.scripts.seed_test_data clean
+python -m codex.scripts.seed_test_data clean
 ```
 
 This will:
+
 1. Delete all test users from the database
 2. Remove workspace directories and all files
 3. Clean up any associated data
@@ -69,29 +74,30 @@ Use the screenshot utility to automatically capture all themes and pages:
 
 ```bash
 # Start the servers first
-uvicorn backend.api.main:app --reload --port 8000
+uvicorn codex.main:app --reload --port 8000
 cd frontend && npm run dev  # In another terminal
 
 # Take all screenshots (themes, pages, workflows, mobile)
-python -m backend.scripts.take_screenshots
+python -m codex.scripts.take_screenshots
 
 # Take only theme screenshots
-python -m backend.scripts.take_screenshots --themes-only
+python -m codex.scripts.take_screenshots --themes-only
 
 # Take only page screenshots
-python -m backend.scripts.take_screenshots --pages-only
+python -m codex.scripts.take_screenshots --pages-only
 
 # Take only workflow screenshots
-python -m backend.scripts.take_screenshots --workflows-only
+python -m codex.scripts.take_screenshots --workflows-only
 
 # Take only mobile screenshots
-python -m backend.scripts.take_screenshots --mobile-only
+python -m codex.scripts.take_screenshots --mobile-only
 
 # Specify custom output directory
-python -m backend.scripts.take_screenshots --output-dir ./docs/images
+python -m codex.scripts.take_screenshots --output-dir ./docs/images
 ```
 
 The screenshot utility will automatically:
+
 - Login with the demo user
 - Capture all 4 themes (cream, manila, white, blueprint)
 - Screenshot all pages (login, register, home, settings)

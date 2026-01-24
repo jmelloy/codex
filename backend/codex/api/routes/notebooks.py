@@ -9,10 +9,10 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from backend.api.auth import get_current_active_user
-from backend.core.watcher import NotebookWatcher
-from backend.db.database import get_system_session, init_notebook_db
-from backend.db.models import Notebook, User, Workspace
+from codex.api.auth import get_current_active_user
+from codex.core.watcher import NotebookWatcher
+from codex.db.database import get_system_session, init_notebook_db
+from codex.db.models import Notebook, User, Workspace
 
 
 class NotebookCreate(BaseModel):
@@ -135,7 +135,7 @@ async def create_notebook(
         init_notebook_db(str(notebook_path))
 
         # Initialize Git repository for the notebook
-        from backend.core.git_manager import GitManager
+        from codex.core.git_manager import GitManager
 
         git_manager = GitManager(str(notebook_path))
 

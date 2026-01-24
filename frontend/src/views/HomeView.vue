@@ -106,15 +106,15 @@
       <!-- Center: Content Pane (flex: 1) -->
       <main class="flex-1 flex flex-col overflow-hidden">
         <!-- Loading State -->
-        <div v-if="workspaceStore.fileLoading" class="flex flex-col items-center justify-center h-full text-gray-500">
+        <div v-if="workspaceStore.fileLoading" class="flex flex-col items-center justify-center h-full text-text-tertiary">
           <span>Loading...</span>
         </div>
 
         <!-- Error State -->
-        <div v-else-if="workspaceStore.error" class="flex flex-col items-center justify-center h-full text-red-600">
+        <div v-else-if="workspaceStore.error" class="flex flex-col items-center justify-center h-full text-error">
           <p>{{ workspaceStore.error }}</p>
           <button @click="workspaceStore.error = null"
-            class="mt-4 px-4 py-2 bg-red-600 text-white border-none rounded cursor-pointer">Dismiss</button>
+            class="mt-4 px-4 py-2 bg-error text-text-inverse border-none rounded cursor-pointer font-medium">Dismiss</button>
         </div>
 
         <!-- Editor Mode -->
@@ -138,7 +138,7 @@
                 Properties
               </button>
             </div>
-            <div class="flex-1 flex items-center justify-center overflow-auto bg-gray-50 rounded-lg">
+            <div class="flex-1 flex items-center justify-center overflow-auto bg-bg-secondary rounded-lg">
               <img
                 :src="currentImageUrl"
                 :alt="workspaceStore.currentFile.title || workspaceStore.currentFile.filename"

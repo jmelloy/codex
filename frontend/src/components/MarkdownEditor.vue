@@ -275,27 +275,27 @@ defineExpose({
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: white;
-  border-radius: 8px;
+  background: var(--color-bg-primary);
+  border-radius: var(--radius-lg);
   overflow: hidden;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--color-border-light);
 }
 
 .editor-toolbar {
   display: flex;
-  gap: 0.5rem;
-  padding: 0.75rem;
-  background: rgba(255, 255, 255, 0.5);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  background: color-mix(in srgb, var(--color-bg-primary) 50%, transparent);
+  border-bottom: 1px solid var(--color-border-light);
   flex-wrap: wrap;
   backdrop-filter: blur(10px);
 }
 
 .toolbar-group {
   display: flex;
-  gap: 0.25rem;
-  padding-right: 0.5rem;
-  border-right: 1px solid #cbd5e0;
+  gap: var(--spacing-xs);
+  padding-right: var(--spacing-sm);
+  border-right: 1px solid var(--color-border-medium);
 }
 
 .toolbar-group:last-child {
@@ -304,25 +304,27 @@ defineExpose({
 }
 
 .editor-toolbar button {
-  padding: 0.375rem 0.75rem;
-  border: 1px solid #cbd5e0;
-  background: white;
-  border-radius: 4px;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--color-border-medium);
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
   transition: all 0.2s;
   min-width: 32px;
 }
 
 .editor-toolbar button:hover {
-  background: #edf2f7;
-  border-color: #a0aec0;
+  background: var(--color-bg-hover);
+  border-color: var(--color-border-dark);
 }
 
 .editor-toolbar button.active {
-  background: #667eea;
-  color: white;
-  border-color: #667eea;
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  border-color: var(--color-primary);
 }
 
 .editor-content {
@@ -334,7 +336,7 @@ defineExpose({
 .editor-content.split-view .editor-pane,
 .editor-content.split-view .preview-pane {
   width: 50%;
-  border-right: 1px solid #e2e8f0;
+  border-right: 1px solid var(--color-border-light);
 }
 
 .editor-content.split-view .preview-pane {
@@ -351,68 +353,69 @@ defineExpose({
 .markdown-textarea {
   width: 100%;
   height: 100%;
-  padding: 1.5rem 1.5rem 1.5rem 80px;
+  padding: var(--spacing-xl) var(--spacing-xl) var(--spacing-xl) 80px;
   border: none;
   outline: none;
-  font-family: Georgia, Palatino, 'Times New Roman', serif;
-  font-size: 1rem;
-  line-height: 24px;
+  font-family: var(--font-serif);
+  font-size: var(--text-base);
+  line-height: var(--grid-size);
   resize: none;
   background: transparent;
   color: var(--notebook-text);
 }
 
 .markdown-textarea::placeholder {
-  color: #a0aec0;
+  color: var(--color-text-placeholder);
+  font-style: italic;
 }
 
 .editor-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.75rem;
-  background: rgba(255, 255, 255, 0.5);
-  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  padding: var(--spacing-md);
+  background: color-mix(in srgb, var(--color-bg-primary) 50%, transparent);
+  border-top: 1px solid var(--color-border-light);
   backdrop-filter: blur(10px);
 }
 
 .editor-stats {
   display: flex;
-  gap: 1rem;
-  font-size: 0.75rem;
-  color: #718096;
+  gap: var(--spacing-lg);
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
 }
 
 .editor-actions {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--spacing-sm);
 }
 
 .editor-actions button {
-  padding: 0.5rem 1rem;
+  padding: var(--spacing-sm) var(--spacing-lg);
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  font-size: 0.875rem;
-  font-weight: 500;
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
   transition: all 0.2s;
 }
 
 .btn-cancel {
-  background: #e2e8f0;
-  color: #2d3748;
+  background: var(--color-bg-disabled);
+  color: var(--color-text-primary);
 }
 
 .btn-cancel:hover {
-  background: #cbd5e0;
+  background: var(--color-border-medium);
 }
 
 .btn-save {
-  background: #667eea;
-  color: white;
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
 }
 
 .btn-save:hover {
-  background: #5a67d8;
+  background: var(--color-primary-hover);
 }
 </style>

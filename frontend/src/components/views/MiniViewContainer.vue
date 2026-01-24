@@ -1,8 +1,8 @@
 <template>
-  <div class="mini-view-container bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+  <div class="mini-view-container bg-white rounded-lg border border-border-light shadow-sm overflow-hidden">
     <!-- Loading State -->
     <div v-if="loading" class="flex items-center justify-center h-48">
-      <div class="text-gray-400 text-sm">Loading...</div>
+      <div class="text-text-tertiary text-sm">Loading...</div>
     </div>
 
     <!-- Error State -->

@@ -2,8 +2,8 @@
   <div class="task-list-view" :class="{ 'compact': config.compact }">
     <!-- Header -->
     <div v-if="!config.compact" class="mb-4">
-      <h2 class="text-xl font-semibold text-gray-800">{{ definition?.title }}</h2>
-      <p v-if="definition?.description" class="text-sm text-gray-600 mt-1">
+      <h2 class="text-xl font-semibold text-text-primary">{{ definition?.title }}</h2>
+      <p v-if="definition?.description" class="text-sm text-text-secondary mt-1">
         {{ definition.description }}
       </p>
     </div>
@@ -13,7 +13,7 @@
       <div
         v-for="task in displayedTasks"
         :key="task.id"
-        class="task-item bg-white rounded-lg border border-gray-200 p-3 hover:shadow-md transition cursor-pointer"
+        class="task-item bg-white rounded-lg border border-border-light p-3 hover:shadow-md transition cursor-pointer"
         :class="getTaskStatusClass(task)"
         @click="handleTaskClick(task)"
       >
@@ -23,18 +23,18 @@
             v-if="config.editable !== false"
             type="checkbox"
             :checked="isTaskCompleted(task)"
-            class="mt-1 h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+            class="mt-1 h-4 w-4 text-blue-600 rounded border-border-medium focus:ring-blue-500"
             @change.stop="toggleTaskStatus(task)"
           />
 
           <div class="flex-1 min-w-0">
-            <div class="font-medium text-gray-900" :class="{ 'line-through text-gray-500': isTaskCompleted(task) }">
+            <div class="font-medium text-text-primary" :class="{ 'line-through text-text-tertiary': isTaskCompleted(task) }">
               {{ task.title || task.filename }}
             </div>
 
             <!-- Details -->
             <div v-if="config.show_details !== false" class="mt-1 space-y-1">
-              <div v-if="task.description" class="text-sm text-gray-600">
+              <div v-if="task.description" class="text-sm text-text-secondary">
                 {{ truncateText(task.description, 100) }}
               </div>
 
@@ -51,7 +51,7 @@
                 <!-- Due Date -->
                 <span
                   v-if="task.properties?.due_date"
-                  class="px-2 py-1 bg-gray-100 text-gray-700 rounded"
+                  class="px-2 py-1 bg-bg-tertiary text-text-primary rounded"
                   :class="{ 'bg-red-100 text-red-700': isOverdue(task) }"
                 >
                   📅 {{ formatDate(task.properties.due_date) }}
@@ -72,7 +72,7 @@
       </div>
 
       <!-- Empty State -->
-      <div v-if="displayedTasks.length === 0" class="text-center py-8 text-gray-400">
+      <div v-if="displayedTasks.length === 0" class="text-center py-8 text-text-tertiary">
         <div class="text-4xl mb-2">✓</div>
         <div class="text-sm">No tasks found</div>
       </div>
@@ -159,7 +159,7 @@ const getPriorityClass = (priority: string): string => {
     medium: 'bg-yellow-100 text-yellow-700',
     low: 'bg-green-100 text-green-700',
   };
-  return classes[priority?.toLowerCase()] || 'bg-gray-100 text-gray-700';
+  return classes[priority?.toLowerCase()] || 'bg-bg-tertiary text-text-primary';
 };
 
 // Toggle task status

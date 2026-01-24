@@ -1,7 +1,7 @@
 <template>
   <div class="view-renderer">
     <div v-if="loading" class="flex items-center justify-center h-64">
-      <div class="text-gray-500">Loading view...</div>
+      <div class="text-text-tertiary">Loading view...</div>
     </div>
 
     <div v-else-if="error" class="p-4 bg-red-50 border border-red-200 rounded-lg">

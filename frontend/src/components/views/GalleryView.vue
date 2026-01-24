@@ -2,11 +2,11 @@
   <div class="gallery-view p-6">
     <!-- Header -->
     <div class="mb-6">
-      <h2 class="text-2xl font-semibold text-gray-800">{{ definition?.title }}</h2>
-      <p v-if="definition?.description" class="text-gray-600 mt-1">
+      <h2 class="text-2xl font-semibold text-text-primary">{{ definition?.title }}</h2>
+      <p v-if="definition?.description" class="text-text-secondary mt-1">
         {{ definition.description }}
       </p>
-      <div class="text-sm text-gray-500 mt-2">
+      <div class="text-sm text-text-tertiary mt-2">
         {{ images.length }} {{ images.length === 1 ? 'image' : 'images' }}
       </div>
     </div>
@@ -19,7 +19,7 @@
       <div
         v-for="(image, index) in images"
         :key="image.id"
-        class="gallery-item group relative cursor-pointer overflow-hidden rounded-lg border border-gray-200 bg-gray-50 hover:shadow-lg transition"
+        class="gallery-item group relative cursor-pointer overflow-hidden rounded-lg border border-border-light bg-bg-hover hover:shadow-lg transition"
         @click="openLightbox(index)"
       >
         <!-- Image -->
@@ -49,7 +49,7 @@
     </div>
 
     <!-- Empty State -->
-    <div v-if="images.length === 0" class="text-center py-12 text-gray-400">
+    <div v-if="images.length === 0" class="text-center py-12 text-text-tertiary">
       <div class="text-4xl mb-2">🖼️</div>
       <div class="text-lg">No images found</div>
     </div>
@@ -63,7 +63,7 @@
       >
         <!-- Close Button -->
         <button
-          class="absolute top-4 right-4 text-white text-4xl hover:text-gray-300 z-10"
+          class="absolute top-4 right-4 text-white text-4xl hover:text-white/80 z-10"
           @click.stop="closeLightbox"
         >
           ×
@@ -72,7 +72,7 @@
         <!-- Previous Button -->
         <button
           v-if="lightboxIndex > 0"
-          class="absolute left-4 text-white text-4xl hover:text-gray-300 z-10"
+          class="absolute left-4 text-white text-4xl hover:text-white/80 z-10"
           @click.stop="previousImage"
         >
           ‹
@@ -81,7 +81,7 @@
         <!-- Next Button -->
         <button
           v-if="lightboxIndex < images.length - 1"
-          class="absolute right-4 text-white text-4xl hover:text-gray-300 z-10"
+          class="absolute right-4 text-white text-4xl hover:text-white/80 z-10"
           @click.stop="nextImage"
         >
           ›
@@ -98,29 +98,29 @@
 
           <!-- Metadata Panel -->
           <div v-if="config.show_metadata !== false" class="bg-white rounded-lg p-4 mt-4 max-w-2xl">
-            <h3 class="text-lg font-semibold text-gray-900">
+            <h3 class="text-lg font-semibold text-text-primary">
               {{ currentImage.title || currentImage.filename }}
             </h3>
-            <p v-if="currentImage.description" class="text-gray-600 mt-2">
+            <p v-if="currentImage.description" class="text-text-secondary mt-2">
               {{ currentImage.description }}
             </p>
 
             <!-- Properties -->
             <div class="grid grid-cols-2 gap-2 mt-3 text-sm">
               <div v-if="currentImage.properties?.date">
-                <span class="font-medium text-gray-700">Date:</span>
+                <span class="font-medium text-text-primary">Date:</span>
                 {{ formatDate(currentImage.properties.date) }}
               </div>
               <div v-if="currentImage.properties?.location">
-                <span class="font-medium text-gray-700">Location:</span>
+                <span class="font-medium text-text-primary">Location:</span>
                 {{ currentImage.properties.location }}
               </div>
               <div v-if="currentImage.properties?.camera">
-                <span class="font-medium text-gray-700">Camera:</span>
+                <span class="font-medium text-text-primary">Camera:</span>
                 {{ currentImage.properties.camera }}
               </div>
               <div v-if="currentImage.size">
-                <span class="font-medium text-gray-700">Size:</span>
+                <span class="font-medium text-text-primary">Size:</span>
                 {{ formatFileSize(currentImage.size) }}
               </div>
             </div>

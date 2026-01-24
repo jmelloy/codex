@@ -3,27 +3,27 @@
     <nav class="bg-primary text-white px-8 py-4 flex justify-between items-center shadow-md">
       <h1 class="m-0 text-2xl">Markdown Editor</h1>
       <div>
-        <router-link to="/" class="text-white no-underline px-4 py-2 bg-white/20 rounded transition hover:bg-white/30">← Back to Home</router-link>
+        <router-link to="/" class="text-white no-underline px-4 py-2 bg-bg-primary/20 rounded transition hover:bg-bg-primary/30">← Back to Home</router-link>
       </div>
     </nav>
 
     <div class="flex flex-1 overflow-hidden">
       <aside class="w-[280px] notebook-sidebar flex flex-col">
-        <div class="flex justify-between items-center px-4 py-4 border-b border-gray-200">
-          <h2 class="m-0 text-base text-gray-700">Documents</h2>
+        <div class="flex justify-between items-center px-4 py-4 border-b border-border-light">
+          <h2 class="m-0 text-base text-text-primary">Documents</h2>
           <button @click="createNew" class="bg-primary text-white border-none w-7 h-7 rounded-full cursor-pointer text-lg flex items-center justify-center transition hover:bg-primary-hover">+</button>
         </div>
         <div class="flex-1 overflow-y-auto">
           <div
             v-for="doc in documents"
             :key="doc.id"
-            :class="['py-3 px-4 cursor-pointer border-b border-gray-50 transition hover:bg-gray-50', { 'bg-gray-100 border-l-4 border-l-primary': currentDocument?.id === doc.id }]"
+            :class="['py-3 px-4 cursor-pointer border-b border-bg-hover transition hover:bg-bg-hover', { 'bg-bg-tertiary border-l-4 border-l-primary': currentDocument?.id === doc.id }]"
             @click="selectDocument(doc)"
           >
-            <div class="font-medium text-gray-700 mb-1 whitespace-nowrap overflow-hidden text-ellipsis">{{ doc.title || 'Untitled' }}</div>
-            <div class="text-xs text-gray-400">{{ formatDate(doc.updatedAt) }}</div>
+            <div class="font-medium text-text-primary mb-1 whitespace-nowrap overflow-hidden text-ellipsis">{{ doc.title || 'Untitled' }}</div>
+            <div class="text-xs text-text-tertiary">{{ formatDate(doc.updatedAt) }}</div>
           </div>
-          <div v-if="documents.length === 0" class="py-8 px-4 text-center text-gray-400 text-sm">
+          <div v-if="documents.length === 0" class="py-8 px-4 text-center text-text-tertiary text-sm">
             No documents yet. Create one to get started!
           </div>
         </div>
@@ -43,7 +43,7 @@
           >
             <template #toolbar-actions>
               <div class="flex gap-2">
-                <button @click="toggleFrontmatterEditor" class="px-4 py-2 border border-gray-300 bg-white rounded cursor-pointer text-sm transition hover:bg-gray-50">
+                <button @click="toggleFrontmatterEditor" class="px-4 py-2 border border-border-medium bg-bg-primary rounded cursor-pointer text-sm transition hover:bg-bg-hover">
                   📋 Metadata
                 </button>
               </div>
@@ -62,10 +62,10 @@
             class="flex-1"
           >
             <template #toolbar-actions>
-              <button @click="toggleFrontmatter" class="px-4 py-2 border border-gray-300 bg-white rounded cursor-pointer text-sm transition hover:bg-gray-50">
+              <button @click="toggleFrontmatter" class="px-4 py-2 border border-border-medium bg-bg-primary rounded cursor-pointer text-sm transition hover:bg-bg-hover">
                 {{ showFrontmatter ? 'Hide' : 'Show' }} Metadata
               </button>
-              <button @click="deleteDocument" class="px-4 py-2 text-red-600 border border-red-600 bg-white rounded cursor-pointer text-sm transition hover:bg-red-600 hover:text-white">
+              <button @click="deleteDocument" class="px-4 py-2 text-red-600 border border-red-600 bg-bg-primary rounded cursor-pointer text-sm transition hover:bg-red-600 hover:text-white">
                 Delete
               </button>
             </template>
@@ -73,8 +73,8 @@
         </div>
 
         <div v-else class="flex flex-col items-center justify-center h-full py-8 text-center">
-          <h2 class="text-gray-700 mb-2">Welcome to Markdown Editor</h2>
-          <p class="text-gray-500 mb-8">Select a document from the sidebar or create a new one to get started.</p>
+          <h2 class="text-text-primary mb-2">Welcome to Markdown Editor</h2>
+          <p class="text-text-secondary mb-8">Select a document from the sidebar or create a new one to get started.</p>
           <button @click="createNew" class="px-6 py-3 bg-primary text-white border-none rounded-md text-base cursor-pointer transition hover:bg-primary-hover">
             Create New Document
           </button>
@@ -99,7 +99,7 @@
         <input :id="inputId" v-model="frontmatterEdit.author" />
       </FormGroup>
       <div class="flex gap-2 justify-end mt-6">
-        <button type="button" @click="showFrontmatterEditor = false" class="px-4 py-2 bg-gray-200 text-gray-700 border-none rounded cursor-pointer text-sm transition hover:bg-gray-300">Cancel</button>
+        <button type="button" @click="showFrontmatterEditor = false" class="px-4 py-2 bg-bg-disabled text-text-primary border-none rounded cursor-pointer text-sm transition hover:bg-border-medium">Cancel</button>
         <button type="button" @click="saveFrontmatter" class="px-4 py-2 bg-primary text-white border-none rounded cursor-pointer text-sm transition hover:bg-primary-hover">Save</button>
       </div>
     </Modal>

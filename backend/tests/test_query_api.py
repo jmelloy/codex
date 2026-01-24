@@ -7,7 +7,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from fastapi.testclient import TestClient
 from sqlmodel import create_engine, Session
-from backend.codex.main import app
+from codex.main import app
 from codex.db.models import FileMetadata, Notebook, Tag, FileTag
 from codex.api.routes.query import (
     parse_sort_field,

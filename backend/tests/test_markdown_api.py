@@ -2,7 +2,7 @@
 
 import pytest
 from fastapi.testclient import TestClient
-from backend.codex.main import app
+from codex.main import app
 
 client = TestClient(app)
 

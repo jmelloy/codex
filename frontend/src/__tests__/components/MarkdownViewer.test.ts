@@ -38,17 +38,20 @@ describe('MarkdownViewer', () => {
 
   it('renders code blocks with syntax highlighting', () => {
     const markdownWithCode = '```javascript\nconst x = 42;\n```'
-    const wrapper = mount(MarkdownViewer, { 
-      props: { 
+    const wrapper = mount(MarkdownViewer, {
+      props: {
         content: markdownWithCode,
-        showToolbar: false 
-      } 
+        showToolbar: false
+      }
     })
-    
+
     const html = wrapper.find('.markdown-content').html()
     expect(html).toContain('<pre>')
     expect(html).toContain('language-javascript')
-    expect(html).toContain('const x')
+    // Syntax highlighting wraps keywords in spans, so check for hljs class
+    expect(html).toContain('hljs')
+    // Check that the code content is present (may be split across highlight spans)
+    expect(wrapper.find('.markdown-content').text()).toContain('const x = 42')
   })
 
   it('shows toolbar when showToolbar is true', () => {

@@ -78,6 +78,8 @@ class NotebookFileHandler(FileSystemEventHandler):
 
                     file_type = "binary" if is_binary else "text"
                     filepath_lower = filepath.lower()
+                    filename_lower = os.path.basename(filepath).lower()
+
                     if filepath.endswith(".md"):
                         file_type = "markdown"
                     elif filepath.endswith(".cdx"):
@@ -96,6 +98,39 @@ class NotebookFileHandler(FileSystemEventHandler):
                         file_type = "video"
                     elif filepath_lower.endswith((".html", ".htm")):
                         file_type = "html"
+                    # Code file types
+                    elif filepath_lower.endswith((".py", ".pyw", ".pyx")):
+                        file_type = "code"
+                    elif filepath_lower.endswith((".js", ".jsx", ".mjs", ".cjs")):
+                        file_type = "code"
+                    elif filepath_lower.endswith((".ts", ".tsx")):
+                        file_type = "code"
+                    elif filepath_lower.endswith((".c", ".h", ".cpp", ".cc", ".cxx", ".hpp", ".hxx")):
+                        file_type = "code"
+                    elif filepath_lower.endswith((".java", ".kt", ".kts", ".scala")):
+                        file_type = "code"
+                    elif filepath_lower.endswith((".go", ".rs", ".swift")):
+                        file_type = "code"
+                    elif filepath_lower.endswith((".rb", ".php", ".pl", ".pm", ".lua")):
+                        file_type = "code"
+                    elif filepath_lower.endswith((".cs", ".fs", ".fsx")):
+                        file_type = "code"
+                    elif filepath_lower.endswith((".sh", ".bash", ".zsh", ".fish", ".ps1", ".bat", ".cmd")):
+                        file_type = "code"
+                    elif filepath_lower.endswith((".css", ".scss", ".sass", ".less")):
+                        file_type = "code"
+                    elif filepath_lower.endswith((".yaml", ".yml", ".toml", ".ini", ".conf", ".cfg")):
+                        file_type = "code"
+                    elif filepath_lower.endswith((".sql", ".graphql", ".gql")):
+                        file_type = "code"
+                    elif filepath_lower.endswith((".r", ".R", ".hs", ".ml", ".clj", ".cljs", ".ex", ".exs", ".erl")):
+                        file_type = "code"
+                    elif filepath_lower.endswith((".vue", ".svelte")):
+                        file_type = "code"
+                    elif filepath_lower.endswith((".diff", ".patch")):
+                        file_type = "code"
+                    elif filename_lower in ("dockerfile", "makefile", "gnumakefile", "cmakelists.txt"):
+                        file_type = "code"
 
                     if file_meta:
                         # Update existing

@@ -105,6 +105,64 @@ export const fileService = {
     return response.data;
   },
 
+  /**
+   * Get a file by its path or filename.
+   * Supports exact path match or filename-only search.
+   */
+  async getByPath(
+    path: string,
+    workspaceId: number,
+    notebookId: number,
+  ): Promise<FileWithContent> {
+    const encodedPath = encodeURIComponent(path);
+    const response = await apiClient.get<FileWithContent>(
+      `/api/v1/files/by-path?path=${encodedPath}&workspace_id=${workspaceId}&notebook_id=${notebookId}`,
+    );
+    return response.data;
+  },
+
+  /**
+   * Get the content URL for a file by path (for binary files like images).
+   */
+  getContentUrlByPath(
+    path: string,
+    workspaceId: number,
+    notebookId: number,
+  ): string {
+    const encodedPath = encodeURIComponent(path);
+    return `/api/v1/files/by-path/content?path=${encodedPath}&workspace_id=${workspaceId}&notebook_id=${notebookId}`;
+  },
+
+  /**
+   * Get the content URL for a file by ID (for binary files like images).
+   */
+  getContentUrl(
+    id: number,
+    workspaceId: number,
+    notebookId: number,
+  ): string {
+    return `/api/v1/files/${id}/content?workspace_id=${workspaceId}&notebook_id=${notebookId}`;
+  },
+
+  /**
+   * Resolve a link to a file, supporting relative paths and filenames.
+   */
+  async resolveLink(
+    link: string,
+    workspaceId: number,
+    notebookId: number,
+    currentFilePath?: string,
+  ): Promise<FileMetadata & { resolved_path: string }> {
+    const response = await apiClient.post<FileMetadata & { resolved_path: string }>(
+      `/api/v1/files/resolve-link?workspace_id=${workspaceId}&notebook_id=${notebookId}`,
+      {
+        link,
+        current_file_path: currentFilePath,
+      },
+    );
+    return response.data;
+  },
+
   async create(
     notebookId: number,
     workspaceId: number,

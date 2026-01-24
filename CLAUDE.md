@@ -64,6 +64,26 @@ frontend/src/
 - See `AGENT_SYSTEM.md` for the task/sandbox system
 - Migrations run automatically on workspace initialization
 
+## Database
+
+Codex uses two SQLite databases:
+
+- **System database** (`codex_system.db`): Users, workspaces, permissions, tasks, notebook metadata
+- **Notebook databases** (per-workspace): File content and properties
+
+Both databases use Alembic for schema migrations:
+
+- **System migrations**: `backend/codex/alembic/versions/` - For users, workspaces, etc.
+- **Notebook migrations**: `backend/codex/notebook_alembic/versions/` - For file storage
+
+Migrations run automatically when initializing workspaces. To add a new migration:
+
+```bash
+# Create new system DB migration
+cd backend/codex/alembic/versions
+# Copy existing migration as template, update revision ID and down_revision
+```
+
 ## Git Workflow
 
 - **Commit and push regularly** when working on a feature branch (not main). This preserves work in progress and allows for easier recovery if something goes wrong.

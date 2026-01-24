@@ -128,10 +128,7 @@ def run_all_migrations(data_directory: str) -> int:
 if __name__ == "__main__":
     import sys
     from codex.db.database import DATA_DIRECTORY
-    from codex.core.logging_config import setup_logging
     
-    setup_logging()
-
     if len(sys.argv) > 1:
         data_dir = sys.argv[1]
     else:

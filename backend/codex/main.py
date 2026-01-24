@@ -7,7 +7,6 @@ import sys
 import traceback
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any
 
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -146,43 +145,20 @@ app.include_router(query.router, prefix="/api/v1/query", tags=["query"])
 if __name__ == "__main__":
     import uvicorn
 
+    from codex.core.logging import get_logging_config
+
     debug = os.getenv("DEBUG", "false").lower() == "true"
     log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+    log_format = os.getenv("LOG_FORMAT", "colored" if debug else "plain").lower()
     log_sql = os.getenv("LOG_SQL", "false").lower() == "true"
 
-    LOGGING_CONFIG: dict[str, Any] = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "formatters": {
-        "default": {
-            "()": "uvicorn.logging.DefaultFormatter",
-            "fmt": '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-            "use_colors": debug,
-        },
-        "access": {
-            "()": "uvicorn.logging.AccessFormatter",
-            "fmt": '%(asctime)s - %(client_addr)s - "%(request_line)s" %(status_code)s',  # noqa: E501
-        },
-    },
-    "handlers": {
-        "default": {
-            "formatter": "default",
-            "class": "logging.StreamHandler",
-            "stream": "ext://sys.stderr",
-        },
-        "access": {
-            "formatter": "access",
-            "class": "logging.StreamHandler",
-            "stream": "ext://sys.stdout",
-        },
-    },
-    "loggers": {
-        "uvicorn": {"handlers": ["default"], "level": "INFO", "propagate": False},
-        "uvicorn.error": {"level": "INFO"},
-        "uvicorn.access": {"handlers": ["access"], "level": "INFO", "propagate": False},
-        "codex": {"handlers": ["default"], "level": log_level, "propagate": False},
-        "sqlalchemy.engine": {"level": "INFO" if  log_sql else "WARNING", "handlers": ["default"], "propagate": False},
-    },
-}
+    logging_config = get_logging_config(log_level, log_format, log_sql)
 
-    uvicorn.run("codex.main:app", host="0.0.0.0", port=8000, reload=debug, log_config=LOGGING_CONFIG, log_level=log_level.lower())
+    uvicorn.run(
+        "codex.main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=debug,
+        log_config=logging_config,
+        log_level=log_level.lower(),
+    )

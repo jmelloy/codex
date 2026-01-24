@@ -77,14 +77,25 @@ class NotebookFileHandler(FileSystemEventHandler):
                     is_binary = is_binary_file(filepath)
 
                     file_type = "binary" if is_binary else "text"
+                    filepath_lower = filepath.lower()
                     if filepath.endswith(".md"):
                         file_type = "markdown"
+                    elif filepath.endswith(".cdx"):
+                        file_type = "view"
                     elif filepath.endswith(".json"):
                         file_type = "json"
                     elif filepath.endswith(".xml"):
                         file_type = "xml"
-                    elif filepath.lower().endswith((".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".svg")):
+                    elif filepath_lower.endswith((".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".svg")):
                         file_type = "image"
+                    elif filepath_lower.endswith(".pdf"):
+                        file_type = "pdf"
+                    elif filepath_lower.endswith((".mp3", ".wav", ".ogg", ".flac", ".aac", ".m4a")):
+                        file_type = "audio"
+                    elif filepath_lower.endswith((".mp4", ".webm", ".ogv", ".mov", ".avi")):
+                        file_type = "video"
+                    elif filepath_lower.endswith((".html", ".htm")):
+                        file_type = "html"
 
                     if file_meta:
                         # Update existing

@@ -289,6 +289,7 @@ async def create_file(
 
         # Determine file type before creating file
         file_type = "text"
+        path_lower = path.lower()
         if path.endswith(".md"):
             file_type = "markdown"
         elif path.endswith(".cdx"):
@@ -297,8 +298,16 @@ async def create_file(
             file_type = "json"
         elif path.endswith(".xml"):
             file_type = "xml"
-        elif path.lower().endswith((".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".svg")):
+        elif path_lower.endswith((".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".svg")):
             file_type = "image"
+        elif path_lower.endswith(".pdf"):
+            file_type = "pdf"
+        elif path_lower.endswith((".mp3", ".wav", ".ogg", ".flac", ".aac", ".m4a")):
+            file_type = "audio"
+        elif path_lower.endswith((".mp4", ".webm", ".ogv", ".mov", ".avi")):
+            file_type = "video"
+        elif path_lower.endswith((".html", ".htm")):
+            file_type = "html"
 
         import hashlib
         from datetime import datetime

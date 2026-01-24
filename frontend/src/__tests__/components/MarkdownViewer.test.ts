@@ -99,4 +99,118 @@ describe('MarkdownViewer', () => {
     
     expect(wrapper.emitted('copy')).toBeTruthy()
   })
+
+  it('resolves image URLs by filename when workspace and notebook context provided', () => {
+    const markdownWithImage = '![Test Image](test-image.png)'
+    const wrapper = mount(MarkdownViewer, {
+      props: {
+        content: markdownWithImage,
+        showToolbar: false,
+        workspaceId: 1,
+        notebookId: 2
+      }
+    })
+
+    const html = wrapper.find('.markdown-content').html()
+    expect(html).toContain('<img')
+    // HTML entities are escaped in the output
+    expect(html).toContain('src="/api/v1/files/by-path/content?path=test-image.png&amp;workspace_id=1&amp;notebook_id=2"')
+    expect(html).toContain('alt="Test Image"')
+  })
+
+  it('resolves link URLs by filename when workspace and notebook context provided', () => {
+    const markdownWithLink = '[Read More](document.md)'
+    const wrapper = mount(MarkdownViewer, {
+      props: {
+        content: markdownWithLink,
+        showToolbar: false,
+        workspaceId: 1,
+        notebookId: 2
+      }
+    })
+
+    const html = wrapper.find('.markdown-content').html()
+    expect(html).toContain('<a')
+    // HTML entities are escaped in the output
+    expect(html).toContain('href="/api/v1/files/by-path/content?path=document.md&amp;workspace_id=1&amp;notebook_id=2"')
+    expect(html).toContain('Read More')
+  })
+
+  it('does not modify absolute URLs in images', () => {
+    const markdownWithAbsoluteImage = '![External](https://example.com/image.png)'
+    const wrapper = mount(MarkdownViewer, {
+      props: {
+        content: markdownWithAbsoluteImage,
+        showToolbar: false,
+        workspaceId: 1,
+        notebookId: 2
+      }
+    })
+
+    const html = wrapper.find('.markdown-content').html()
+    expect(html).toContain('src="https://example.com/image.png"')
+  })
+
+  it('does not modify external URLs in links', () => {
+    const markdownWithExternalLink = '[External Link](https://example.com)'
+    const wrapper = mount(MarkdownViewer, {
+      props: {
+        content: markdownWithExternalLink,
+        showToolbar: false,
+        workspaceId: 1,
+        notebookId: 2
+      }
+    })
+
+    const html = wrapper.find('.markdown-content').html()
+    expect(html).toContain('href="https://example.com"')
+  })
+
+  it('leaves images unchanged when no workspace/notebook context provided', () => {
+    const markdownWithImage = '![Test Image](test-image.png)'
+    const wrapper = mount(MarkdownViewer, {
+      props: {
+        content: markdownWithImage,
+        showToolbar: false
+      }
+    })
+
+    const html = wrapper.find('.markdown-content').html()
+    expect(html).toContain('<img')
+    expect(html).toContain('src="test-image.png"')
+  })
+
+  it('handles images with relative paths', () => {
+    const markdownWithRelativeImage = '![Test Image](./images/test.png)'
+    const wrapper = mount(MarkdownViewer, {
+      props: {
+        content: markdownWithRelativeImage,
+        showToolbar: false,
+        workspaceId: 1,
+        notebookId: 2
+      }
+    })
+
+    const html = wrapper.find('.markdown-content').html()
+    expect(html).toContain('<img')
+    // The path is URL-encoded and HTML entities are escaped
+    expect(html).toContain('src="/api/v1/files/by-path/content?path=.%2Fimages%2Ftest.png&amp;workspace_id=1&amp;notebook_id=2"')
+  })
+
+  it('handles multiple images in the same markdown', () => {
+    const markdownWithMultipleImages = '![Image 1](img1.png)\n\n![Image 2](img2.jpg)'
+    const wrapper = mount(MarkdownViewer, {
+      props: {
+        content: markdownWithMultipleImages,
+        showToolbar: false,
+        workspaceId: 1,
+        notebookId: 2
+      }
+    })
+
+    const html = wrapper.find('.markdown-content').html()
+    // HTML entities are escaped in the output
+    expect(html).toContain('src="/api/v1/files/by-path/content?path=img1.png&amp;workspace_id=1&amp;notebook_id=2"')
+    expect(html).toContain('src="/api/v1/files/by-path/content?path=img2.jpg&amp;workspace_id=1&amp;notebook_id=2"')
+  })
 })

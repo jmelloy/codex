@@ -37,6 +37,9 @@ interface Props {
   showToolbar?: boolean
   showFrontmatter?: boolean
   extensions?: MarkdownExtension[]
+  workspaceId?: number
+  notebookId?: number
+  currentFilePath?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -44,7 +47,10 @@ const props = withDefaults(defineProps<Props>(), {
   editable: true,
   showToolbar: true,
   showFrontmatter: false,
-  extensions: () => []
+  extensions: () => [],
+  workspaceId: undefined,
+  notebookId: undefined,
+  currentFilePath: undefined
 })
 
 // Emits
@@ -62,14 +68,86 @@ export interface MarkdownExtension {
   renderer?: any
 }
 
+// Helper function to check if a URL is a local file reference
+const isLocalFileReference = (href: string): boolean => {
+  // Check if it's a markdown or text file
+  if (href.endsWith('.md') || href.endsWith('.txt')) {
+    return true
+  }
+  // Check if it's not an external URL or absolute path
+  return !href.startsWith('http://') && !href.startsWith('https://') && !href.startsWith('/')
+}
+
+// Helper function to resolve file references
+const resolveFileUrl = (href: string): string => {
+  // If workspace and notebook IDs are available, resolve the file
+  if (props.workspaceId && props.notebookId) {
+    // Check if it's already a full URL or API path
+    if (href.startsWith('http://') || href.startsWith('https://') || href.startsWith('/api/')) {
+      return href
+    }
+    
+    // For relative or filename-only references, use the by-path/content endpoint
+    const encodedPath = encodeURIComponent(href)
+    return `/api/v1/files/by-path/content?path=${encodedPath}&workspace_id=${props.workspaceId}&notebook_id=${props.notebookId}`
+  }
+  
+  // Fallback to original href if no context
+  return href
+}
+
+// Type for marked renderer token
+interface RendererToken {
+  href: string
+  title?: string | null
+  text: string
+}
+
 // Configure marked with extensions
 const configureMarked = () => {
+  // Create a custom renderer for images and links
+  const renderer = {
+    // Override image rendering to resolve file references
+    image(token: RendererToken): string {
+      if (token.href) {
+        // Resolve the image URL
+        const resolvedHref = resolveFileUrl(token.href)
+        // Build the img tag manually
+        const title = token.title ? ` title="${token.title}"` : ''
+        const alt = token.text || ''
+        return `<img src="${resolvedHref}" alt="${alt}"${title}>`
+      }
+      return ''
+    },
+    
+    // Override link rendering to resolve file references
+    link(token: RendererToken): string {
+      if (token.href) {
+        // Check if it's a file reference (markdown or other files)
+        if (isLocalFileReference(token.href)) {
+          // For markdown files, we could navigate to them in the app
+          // For now, just resolve the URL to view the content
+          const resolvedHref = resolveFileUrl(token.href)
+          const title = token.title ? ` title="${token.title}"` : ''
+          const text = token.text || ''
+          return `<a href="${resolvedHref}"${title}>${text}</a>`
+        }
+      }
+      // Use default behavior for external links
+      const title = token.title ? ` title="${token.title}"` : ''
+      const text = token.text || ''
+      return `<a href="${token.href}"${title}>${text}</a>`
+    }
+  }
+  
+  marked.use({ renderer })
+
   marked.setOptions({
     breaks: true,
     gfm: true
   })
 
-  // Apply custom extensions
+  // Apply custom extensions after base renderer
   if (props.extensions && props.extensions.length > 0) {
     props.extensions.forEach(ext => {
       if (ext.renderer) {
@@ -80,6 +158,9 @@ const configureMarked = () => {
     })
   }
 }
+
+// Configure marked with extensions immediately
+configureMarked()
 
 // Theme class for code blocks
 const codeThemeClass = computed(() => {
@@ -156,6 +237,11 @@ onMounted(() => {
 watch(() => props.extensions, () => {
   configureMarked()
 }, { deep: true })
+
+// Watch for context changes (workspace/notebook)
+watch(() => [props.workspaceId, props.notebookId, props.currentFilePath], () => {
+  configureMarked()
+})
 </script>
 
 <style scoped>

@@ -142,6 +142,9 @@ const configureMarked = () => {
   }
 }
 
+// Configure marked with extensions immediately
+configureMarked()
+
 // Theme class for code blocks
 const codeThemeClass = computed(() => {
   return themeStore.theme.className?.includes('dark') ? 'code-theme-dark' : 'code-theme-light'

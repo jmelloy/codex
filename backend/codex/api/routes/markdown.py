@@ -232,7 +232,7 @@ async def create_markdown_file(
         # Commit to git if file is in a notebook
         try:
             # Find which notebook this file belongs to
-            from codex.core.git_manager import GitManager
+            from backend.core.git_manager import GitManager
 
             current_path = full_file_path.parent
             while current_path != workspace_path and current_path != current_path.parent:

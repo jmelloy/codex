@@ -457,25 +457,39 @@ async def clean_test_data():
 
     async for session in get_system_session():
         try:
-            # Delete test users (cascading deletes will handle workspaces)
+            import shutil
+
+            # Delete test users and their data
             for user_data in TEST_USERS:
                 result = await session.execute(select(User).where(User.username == user_data["username"]))
                 user = result.scalar_one_or_none()
 
                 if user:
-                    # Get user's workspaces to delete directories
+                    # Get user's workspaces
                     result = await session.execute(select(Workspace).where(Workspace.owner_id == user.id))
                     workspaces = result.scalars().all()
 
                     for workspace in workspaces:
+                        # Delete notebooks for this workspace first
+                        result = await session.execute(
+                            select(Notebook).where(Notebook.workspace_id == workspace.id)
+                        )
+                        notebooks = result.scalars().all()
+                        for notebook in notebooks:
+                            await session.delete(notebook)
+                            print(f"    📓 Deleted notebook: {notebook.name}")
+
+                        # Delete workspace directory
                         workspace_path = Path(workspace.path)
                         if workspace_path.exists():
-                            import shutil
-
                             shutil.rmtree(workspace_path)
                             print(f"  🗑️  Deleted workspace directory: {workspace_path}")
 
-                    # Delete user (cascading will delete workspaces and notebooks)
+                        # Delete workspace record
+                        await session.delete(workspace)
+                        print(f"  📁 Deleted workspace: {workspace.name}")
+
+                    # Delete user
                     await session.delete(user)
                     print(f"✅ Deleted user: {user.username}")
 

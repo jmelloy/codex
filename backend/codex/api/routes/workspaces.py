@@ -65,6 +65,12 @@ async def get_workspace(
     return workspace
 
 
+async def path_exists_in_db(session: AsyncSession, path: str) -> bool:
+    """Check if a workspace path already exists in the database."""
+    result = await session.execute(select(Workspace).where(Workspace.path == path))
+    return result.scalar_one_or_none() is not None
+
+
 @router.post("/")
 async def create_workspace(
     body: WorkspaceCreate,
@@ -77,16 +83,15 @@ async def create_workspace(
     based on the workspace name.
     """
     name = body.name
-    path = body.path or slugify(name)
-    
-    base_path = Path(DATA_DIRECTORY) / "workspaces"
-    workspace_path = base_path / path
+    base_slug = body.path or slugify(name)
 
-    # Handle name collisions by appending a number
-    
-    while workspace_path.exists():
+    base_path = Path(DATA_DIRECTORY) / "workspaces"
+    workspace_path = base_path / base_slug
+
+    # Handle collisions by checking both filesystem and database
+    while workspace_path.exists() or await path_exists_in_db(session, str(workspace_path)):
         counter = uuid4().hex[:8]
-        slug = f"{path}-{counter}"
+        slug = f"{base_slug}-{counter}"
         workspace_path = base_path / slug
 
     path = str(workspace_path)

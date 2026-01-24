@@ -350,7 +350,7 @@ async def create_file(
         file_meta.file_modified_at = datetime.fromtimestamp(file_stats.st_mtime)
 
         # Commit file to git
-        from codex.core.git_manager import GitManager
+        from backend.core.git_manager import GitManager
 
         git_manager = GitManager(str(notebook_path))
         commit_hash = git_manager.commit(f"Create {os.path.basename(path)}", [str(file_path)])
@@ -444,7 +444,7 @@ async def update_file(
                 file_meta.description = properties["description"]
 
         # Commit file changes to git
-        from codex.core.git_manager import GitManager
+        from backend.core.git_manager import GitManager
 
         git_manager = GitManager(str(notebook_path))
         commit_hash = git_manager.commit(f"Update {file_meta.filename}", [str(file_path)])

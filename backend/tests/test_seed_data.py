@@ -112,7 +112,10 @@ async def test_seed_creates_notebooks():
 async def test_seed_creates_markdown_files():
     """Test that seed_data creates markdown files in notebooks."""
     await init_system_db()
-    
+
+    # Clean up any existing test data first to ensure fresh creation
+    await clean_test_data()
+
     # Run seed script
     await seed_data()
     

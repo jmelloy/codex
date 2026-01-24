@@ -15,7 +15,8 @@ class GitManager:
     """Manager for Git operations in notebooks."""
 
     def __init__(self, notebook_path: str):
-        self.notebook_path = notebook_path
+        # Resolve symlinks to ensure consistent path handling (e.g., /var -> /private/var on macOS)
+        self.notebook_path = str(Path(notebook_path).resolve())
         self.repo: Repo
         self._init_or_get_repo()
 
@@ -93,7 +94,9 @@ class GitManager:
         if not self.repo:
             return
 
-        rel_path = os.path.relpath(filepath, self.notebook_path)
+        # Resolve symlinks for consistent path handling
+        resolved_path = str(Path(filepath).resolve())
+        rel_path = os.path.relpath(resolved_path, self.notebook_path)
 
         # Check if file should be tracked
         if self.is_binary_file(filepath):
@@ -111,8 +114,9 @@ class GitManager:
 
         try:
             if files:
-                # Add specific files
-                rel_paths = [os.path.relpath(f, self.notebook_path) for f in files]
+                # Add specific files (resolve paths to handle symlinks like /var -> /private/var)
+                resolved_files = [str(Path(f).resolve()) for f in files]
+                rel_paths = [os.path.relpath(f, self.notebook_path) for f in resolved_files]
                 filtered_paths = [p for p in rel_paths if not self.is_binary_file(os.path.join(self.notebook_path, p))]
                 if filtered_paths:
                     self.repo.index.add(filtered_paths)
@@ -133,7 +137,8 @@ class GitManager:
         if not self.repo:
             return []
 
-        rel_path = os.path.relpath(filepath, self.notebook_path)
+        resolved_path = str(Path(filepath).resolve())
+        rel_path = os.path.relpath(resolved_path, self.notebook_path)
 
         try:
             commits = list(self.repo.iter_commits(paths=rel_path, max_count=max_count))
@@ -157,7 +162,8 @@ class GitManager:
         if not self.repo:
             return None
 
-        rel_path = os.path.relpath(filepath, self.notebook_path)
+        resolved_path = str(Path(filepath).resolve())
+        rel_path = os.path.relpath(resolved_path, self.notebook_path)
 
         try:
             commit = self.repo.commit(commit_hash)
@@ -172,7 +178,8 @@ class GitManager:
         if not self.repo:
             return None
 
-        rel_path = os.path.relpath(filepath, self.notebook_path)
+        resolved_path = str(Path(filepath).resolve())
+        rel_path = os.path.relpath(resolved_path, self.notebook_path)
 
         try:
             commit1 = self.repo.commit(commit_hash1)
@@ -190,7 +197,8 @@ class GitManager:
         if not self.repo:
             return
 
-        rel_path = os.path.relpath(filepath, self.notebook_path)
+        resolved_path = str(Path(filepath).resolve())
+        rel_path = os.path.relpath(resolved_path, self.notebook_path)
         filename = os.path.basename(filepath)
 
         # Don't commit binary files

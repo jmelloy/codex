@@ -232,6 +232,56 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     return files.value.get(notebookId) || [];
   }
 
+  async function uploadFile(notebookId: number, file: File, path?: string) {
+    if (!currentWorkspace.value) return;
+
+    fileLoading.value = true;
+    error.value = null;
+    try {
+      const newFile = await fileService.upload(
+        notebookId,
+        currentWorkspace.value.id,
+        file,
+        path,
+      );
+      // Refresh file list
+      await fetchFiles(notebookId);
+      return newFile;
+    } catch (e: any) {
+      error.value = e.response?.data?.detail || "Failed to upload file";
+      throw e;
+    } finally {
+      fileLoading.value = false;
+    }
+  }
+
+  async function moveFile(fileId: number, notebookId: number, newPath: string) {
+    if (!currentWorkspace.value) return;
+
+    fileLoading.value = true;
+    error.value = null;
+    try {
+      const movedFile = await fileService.move(
+        fileId,
+        currentWorkspace.value.id,
+        notebookId,
+        newPath,
+      );
+      // Refresh file list
+      await fetchFiles(notebookId);
+      // Update current file if it was the one moved
+      if (currentFile.value?.id === fileId) {
+        currentFile.value = { ...currentFile.value, ...movedFile };
+      }
+      return movedFile;
+    } catch (e: any) {
+      error.value = e.response?.data?.detail || "Failed to move file";
+      throw e;
+    } finally {
+      fileLoading.value = false;
+    }
+  }
+
   return {
     // Workspace state
     workspaces,
@@ -258,6 +308,8 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     saveFile,
     createFile,
     deleteFile,
+    uploadFile,
+    moveFile,
     toggleNotebookExpansion,
     setEditing,
     getFilesForNotebook,

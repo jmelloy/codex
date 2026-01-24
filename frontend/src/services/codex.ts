@@ -140,6 +140,44 @@ export const fileService = {
   async delete(id: number, workspaceId: number): Promise<void> {
     await apiClient.delete(`/api/v1/files/${id}?workspace_id=${workspaceId}`);
   },
+
+  async upload(
+    notebookId: number,
+    workspaceId: number,
+    file: File,
+    path?: string,
+  ): Promise<FileMetadata> {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("notebook_id", String(notebookId));
+    formData.append("workspace_id", String(workspaceId));
+    if (path) {
+      formData.append("path", path);
+    }
+    const response = await apiClient.post<FileMetadata>(
+      "/api/v1/files/upload",
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      },
+    );
+    return response.data;
+  },
+
+  async move(
+    id: number,
+    workspaceId: number,
+    notebookId: number,
+    newPath: string,
+  ): Promise<FileMetadata> {
+    const response = await apiClient.patch<FileMetadata>(
+      `/api/v1/files/${id}/move?workspace_id=${workspaceId}&notebook_id=${notebookId}`,
+      { new_path: newPath },
+    );
+    return response.data;
+  },
 };
 
 export const searchService = {

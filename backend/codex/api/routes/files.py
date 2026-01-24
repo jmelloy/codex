@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -492,5 +492,303 @@ async def update_file(
     except Exception as e:
         logger.error(f"Error updating file in notebook {notebook_path}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error updating file: {str(e)}")
+    finally:
+        nb_session.close()
+
+
+@router.post("/upload")
+async def upload_file(
+    file: UploadFile = File(...),
+    notebook_id: int = Form(...),
+    workspace_id: int = Form(...),
+    path: str = Form(None),
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Upload a binary file."""
+    # Get notebook path from system database
+    notebook_path, _ = await get_notebook_path(notebook_id, workspace_id, current_user, session)
+
+    # Create the file
+    nb_session = get_notebook_session(str(notebook_path))
+    try:
+        # Use provided path or default to filename
+        target_path = path if path else file.filename
+        if not target_path:
+            raise HTTPException(status_code=400, detail="No filename provided")
+
+        file_path = notebook_path / target_path
+
+        # Check if file already exists
+        if file_path.exists():
+            raise HTTPException(status_code=400, detail="File already exists")
+
+        # Create parent directories if needed
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Determine file type
+        file_type = "binary"
+        path_lower = target_path.lower()
+        if path_lower.endswith(".md"):
+            file_type = "markdown"
+        elif path_lower.endswith(".cdx"):
+            file_type = "view"
+        elif path_lower.endswith(".json"):
+            file_type = "json"
+        elif path_lower.endswith(".xml"):
+            file_type = "xml"
+        elif path_lower.endswith((".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".svg")):
+            file_type = "image"
+        elif path_lower.endswith(".pdf"):
+            file_type = "pdf"
+        elif path_lower.endswith((".mp3", ".wav", ".ogg", ".flac", ".aac", ".m4a")):
+            file_type = "audio"
+        elif path_lower.endswith((".mp4", ".webm", ".ogv", ".mov", ".avi")):
+            file_type = "video"
+        elif path_lower.endswith((".html", ".htm")):
+            file_type = "html"
+        elif path_lower.endswith((".txt", ".csv", ".log")):
+            file_type = "text"
+
+        import hashlib
+        from datetime import datetime
+
+        # Read file content
+        content = await file.read()
+        file_hash = hashlib.sha256(content).hexdigest()
+
+        # Create metadata record
+        file_meta = FileMetadata(
+            notebook_id=notebook_id,
+            path=target_path,
+            filename=os.path.basename(target_path),
+            file_type=file_type,
+            size=len(content),
+            hash=file_hash,
+        )
+
+        # Add and commit the metadata record
+        nb_session.add(file_meta)
+        try:
+            nb_session.commit()
+            nb_session.refresh(file_meta)
+        except Exception as commit_error:
+            nb_session.rollback()
+            if "UNIQUE constraint failed" in str(commit_error):
+                existing_result = nb_session.execute(
+                    select(FileMetadata).where(
+                        FileMetadata.notebook_id == notebook_id,
+                        FileMetadata.path == target_path
+                    )
+                )
+                file_meta = existing_result.scalar_one_or_none()
+                if not file_meta:
+                    raise HTTPException(status_code=500, detail="Race condition: file metadata not found")
+            else:
+                raise
+
+        # Write the file to disk
+        with open(file_path, "wb") as f:
+            f.write(content)
+
+        # Update metadata with actual file stats
+        file_stats = os.stat(file_path)
+        file_meta.size = file_stats.st_size
+        file_meta.file_created_at = datetime.fromtimestamp(file_stats.st_ctime)
+        file_meta.file_modified_at = datetime.fromtimestamp(file_stats.st_mtime)
+
+        # Commit file to git
+        from backend.core.git_manager import GitManager
+
+        git_manager = GitManager(str(notebook_path))
+        commit_hash = git_manager.commit(f"Upload {os.path.basename(target_path)}", [str(file_path)])
+        if commit_hash:
+            file_meta.last_commit_hash = commit_hash
+
+        nb_session.commit()
+        nb_session.refresh(file_meta)
+
+        result = {
+            "id": file_meta.id,
+            "notebook_id": file_meta.notebook_id,
+            "path": file_meta.path,
+            "filename": file_meta.filename,
+            "file_type": file_meta.file_type,
+            "size": file_meta.size,
+            "message": "File uploaded successfully",
+        }
+
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error uploading file to notebook {notebook_path}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error uploading file: {str(e)}")
+    finally:
+        nb_session.close()
+
+
+class MoveFileRequest(BaseModel):
+    """Request model for moving/renaming a file."""
+
+    new_path: str
+
+
+@router.patch("/{file_id}/move")
+async def move_file(
+    file_id: int,
+    workspace_id: int,
+    notebook_id: int,
+    request: MoveFileRequest,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Move or rename a file."""
+    new_path = request.new_path
+
+    # Get notebook path from system database
+    notebook_path, _ = await get_notebook_path(notebook_id, workspace_id, current_user, session)
+
+    # Query file from notebook database
+    nb_session = get_notebook_session(str(notebook_path))
+    try:
+        file_result = nb_session.execute(select(FileMetadata).where(FileMetadata.id == file_id))
+        file_meta = file_result.scalar_one_or_none()
+
+        if not file_meta:
+            raise HTTPException(status_code=404, detail="File not found")
+
+        old_file_path = notebook_path / file_meta.path
+        new_file_path = notebook_path / new_path
+
+        if not old_file_path.exists():
+            raise HTTPException(status_code=404, detail="File not found on disk")
+
+        # Check if target already exists
+        if new_file_path.exists() and old_file_path != new_file_path:
+            raise HTTPException(status_code=400, detail="Target path already exists")
+
+        # Create parent directories if needed
+        new_file_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Move the file
+        import shutil
+        shutil.move(str(old_file_path), str(new_file_path))
+
+        # Update metadata
+        from datetime import datetime, timezone
+
+        old_path = file_meta.path
+        file_meta.path = new_path
+        file_meta.filename = os.path.basename(new_path)
+        file_meta.updated_at = datetime.now(timezone.utc)
+
+        # Commit changes to git
+        from backend.core.git_manager import GitManager
+
+        git_manager = GitManager(str(notebook_path))
+        commit_hash = git_manager.commit(
+            f"Move {os.path.basename(old_path)} to {new_path}",
+            [str(new_file_path)]
+        )
+        if commit_hash:
+            file_meta.last_commit_hash = commit_hash
+
+        nb_session.commit()
+        nb_session.refresh(file_meta)
+
+        result = {
+            "id": file_meta.id,
+            "notebook_id": file_meta.notebook_id,
+            "path": file_meta.path,
+            "filename": file_meta.filename,
+            "file_type": file_meta.file_type,
+            "size": file_meta.size,
+            "message": "File moved successfully",
+        }
+
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error moving file in notebook {notebook_path}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error moving file: {str(e)}")
+    finally:
+        nb_session.close()
+
+
+@router.delete("/{file_id}")
+async def delete_file(
+    file_id: int,
+    workspace_id: int,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Delete a file."""
+    # First get the file to find its notebook_id
+    # Verify workspace access
+    result = await session.execute(
+        select(Workspace).where(Workspace.id == workspace_id, Workspace.owner_id == current_user.id)
+    )
+    workspace = result.scalar_one_or_none()
+    if not workspace:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+
+    # Find the file in all notebooks of this workspace
+    notebooks_result = await session.execute(
+        select(Notebook).where(Notebook.workspace_id == workspace_id)
+    )
+    notebooks = notebooks_result.scalars().all()
+
+    file_meta = None
+    nb_session = None
+    notebook_path = None
+
+    for notebook in notebooks:
+        workspace_path = Path(workspace.path)
+        nb_path = workspace_path / notebook.path
+        if not nb_path.exists():
+            continue
+
+        sess = get_notebook_session(str(nb_path))
+        try:
+            file_result = sess.execute(select(FileMetadata).where(FileMetadata.id == file_id))
+            found_file = file_result.scalar_one_or_none()
+            if found_file:
+                file_meta = found_file
+                nb_session = sess
+                notebook_path = nb_path
+                break
+        except Exception:
+            sess.close()
+            continue
+
+    if not file_meta or not nb_session or not notebook_path:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    try:
+        file_path = notebook_path / file_meta.path
+
+        # Delete the file from disk
+        if file_path.exists():
+            os.remove(file_path)
+
+        # Delete from database
+        nb_session.delete(file_meta)
+
+        # Commit deletion to git
+        from backend.core.git_manager import GitManager
+
+        git_manager = GitManager(str(notebook_path))
+        git_manager.commit(f"Delete {file_meta.filename}", [])
+
+        nb_session.commit()
+
+        return {"message": "File deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting file: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error deleting file: {str(e)}")
     finally:
         nb_session.close()

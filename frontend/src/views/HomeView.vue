@@ -58,15 +58,29 @@
                   title="New File">+</button>
               </div>
 
-              <!-- File Tree -->
-              <ul v-if="workspaceStore.expandedNotebooks.has(notebook.id)" class="list-none p-0 m-0">
+              <!-- File Tree with drop zone -->
+              <ul v-if="workspaceStore.expandedNotebooks.has(notebook.id)"
+                class="list-none p-0 m-0"
+                :class="{ 'bg-primary/10': dragOverNotebook === notebook.id }"
+                @dragover.prevent="handleNotebookDragOver($event, notebook.id)"
+                @dragenter.prevent="handleNotebookDragEnter(notebook.id)"
+                @dragleave="handleNotebookDragLeave"
+                @drop.prevent="handleNotebookDrop($event, notebook.id)">
                 <template v-if="notebookFileTrees.get(notebook.id)?.length">
                   <template v-for="node in notebookFileTrees.get(notebook.id)" :key="node.path">
                     <!-- Render folder or file -->
                     <li v-if="node.type === 'folder'">
                       <!-- Folder -->
-                      <div class="folder-item flex items-center py-2 px-4 pl-8 cursor-pointer text-[13px] transition"
-                        @click="toggleFolder(notebook.id, node.path)">
+                      <div
+                        :class="[
+                          'folder-item flex items-center py-2 px-4 pl-8 cursor-pointer text-[13px] transition',
+                          { 'bg-primary/20 border-t-2 border-primary': dragOverFolder === `${notebook.id}:${node.path}` }
+                        ]"
+                        @click="toggleFolder(notebook.id, node.path)"
+                        @dragover.prevent="handleFolderDragOver($event, notebook.id, node.path)"
+                        @dragenter.prevent="handleFolderDragEnter(notebook.id, node.path)"
+                        @dragleave="handleFolderDragLeave"
+                        @drop.prevent.stop="handleFolderDrop($event, notebook.id, node.path)">
                         <span class="text-[10px] mr-2 w-3" style="color: var(--pen-gray)">{{
                           isFolderExpanded(notebook.id, node.path) ? '▼' : '▶' }}</span>
                         <span class="mr-2 text-sm">📁</span>
@@ -78,15 +92,17 @@
                         <FileTreeItem v-for="child in node.children" :key="child.path" :node="child"
                           :notebook-id="notebook.id" :depth="1" :expanded-folders="expandedFolders"
                           :current-file-id="workspaceStore.currentFile?.id" @toggle-folder="toggleFolder"
-                          @select-file="selectFile" />
+                          @select-file="selectFile" @move-file="handleMoveFile" />
                       </ul>
                     </li>
 
                     <!-- Root level file -->
                     <li v-else>
                       <div
-                        :class="['file-item flex items-center py-2 px-4 pl-8 cursor-pointer text-[13px] transition', { 'file-active font-medium': workspaceStore.currentFile?.id === node.file?.id }]"
-                        @click="node.file && selectFile(node.file)">
+                        :class="['file-item flex items-center py-2 px-4 pl-8 cursor-grab text-[13px] transition', { 'file-active font-medium': workspaceStore.currentFile?.id === node.file?.id }]"
+                        draggable="true"
+                        @click="node.file && selectFile(node.file)"
+                        @dragstart="handleFileDragStart($event, node.file!, notebook.id)">
                         <span class="mr-2 text-sm">{{ getFileIcon(node.file) }}</span>
                         <span class="overflow-hidden text-ellipsis whitespace-nowrap">{{ node.file?.title || node.name
                           }}</span>
@@ -95,7 +111,7 @@
                   </template>
                 </template>
                 <li v-else class="py-2 px-4 pl-8 text-xs italic" style="color: var(--pen-gray); opacity: 0.6">
-                  No files yet
+                  {{ dragOverNotebook === notebook.id ? 'Drop files here to upload' : 'No files yet' }}
                 </li>
               </ul>
             </li>
@@ -399,6 +415,10 @@ const editContent = ref('')
 // Folder expansion state - tracks which folder paths are expanded
 const expandedFolders = ref<Map<number, Set<string>>>(new Map())
 
+// Drag-drop state
+const dragOverNotebook = ref<number | null>(null)
+const dragOverFolder = ref<string | null>(null)
+
 // Build file trees for each notebook
 const notebookFileTrees = computed(() => {
   const trees = new Map<number, FileTreeNode[]>()
@@ -504,6 +524,139 @@ function getFileIcon(file: FileMetadata | undefined): string {
 
 function selectFile(file: FileMetadata) {
   workspaceStore.selectFile(file)
+}
+
+// Drag-drop handlers for files within the sidebar
+function handleFileDragStart(event: DragEvent, file: FileMetadata, notebookId: number) {
+  if (!event.dataTransfer) return
+  event.dataTransfer.effectAllowed = 'move'
+  event.dataTransfer.setData('application/x-codex-file', JSON.stringify({
+    fileId: file.id,
+    notebookId: notebookId,
+    filename: file.filename,
+    path: file.path
+  }))
+}
+
+// Folder drag-over handlers
+function handleFolderDragOver(event: DragEvent, _notebookId: number, _folderPath: string) {
+  if (!event.dataTransfer) return
+  const hasFile = event.dataTransfer.types.includes('application/x-codex-file')
+  const hasExternalFile = event.dataTransfer.types.includes('Files')
+  if (hasFile || hasExternalFile) {
+    event.dataTransfer.dropEffect = 'move'
+  }
+}
+
+function handleFolderDragEnter(notebookId: number, folderPath: string) {
+  dragOverFolder.value = `${notebookId}:${folderPath}`
+}
+
+function handleFolderDragLeave() {
+  dragOverFolder.value = null
+}
+
+async function handleFolderDrop(event: DragEvent, notebookId: number, folderPath: string) {
+  dragOverFolder.value = null
+  if (!event.dataTransfer) return
+
+  // Handle external file drop (upload)
+  if (event.dataTransfer.files.length > 0) {
+    await handleFileUpload(event.dataTransfer.files, notebookId, folderPath)
+    return
+  }
+
+  // Handle internal file move
+  const data = event.dataTransfer.getData('application/x-codex-file')
+  if (!data) return
+
+  try {
+    const { fileId, filename } = JSON.parse(data)
+    const newPath = folderPath ? `${folderPath}/${filename}` : filename
+    await handleMoveFile(fileId, newPath)
+  } catch (e) {
+    console.error('Failed to parse drag data:', e)
+  }
+}
+
+// Notebook-level drag handlers (for root-level drops)
+function handleNotebookDragOver(event: DragEvent, _notebookId: number) {
+  if (!event.dataTransfer) return
+  const hasFile = event.dataTransfer.types.includes('application/x-codex-file')
+  const hasExternalFile = event.dataTransfer.types.includes('Files')
+  if (hasFile || hasExternalFile) {
+    event.dataTransfer.dropEffect = 'move'
+  }
+}
+
+function handleNotebookDragEnter(notebookId: number) {
+  dragOverNotebook.value = notebookId
+}
+
+function handleNotebookDragLeave() {
+  dragOverNotebook.value = null
+}
+
+async function handleNotebookDrop(event: DragEvent, notebookId: number) {
+  dragOverNotebook.value = null
+  if (!event.dataTransfer) return
+
+  // Handle external file drop (upload)
+  if (event.dataTransfer.files.length > 0) {
+    await handleFileUpload(event.dataTransfer.files, notebookId, '')
+    return
+  }
+
+  // Handle internal file move to root
+  const data = event.dataTransfer.getData('application/x-codex-file')
+  if (!data) return
+
+  try {
+    const { fileId, filename, path } = JSON.parse(data)
+    // Only move if not already at root
+    if (path !== filename) {
+      await handleMoveFile(fileId, filename)
+    }
+  } catch (e) {
+    console.error('Failed to parse drag data:', e)
+  }
+}
+
+// Handle file upload from drag-drop
+async function handleFileUpload(files: FileList, notebookId: number, folderPath: string) {
+  for (const file of Array.from(files)) {
+    try {
+      const targetPath = folderPath ? `${folderPath}/${file.name}` : file.name
+      await workspaceStore.uploadFile(notebookId, file, targetPath)
+      showToast({ message: `Uploaded ${file.name}` })
+    } catch (e) {
+      console.error(`Failed to upload ${file.name}:`, e)
+      showToast({ message: `Failed to upload ${file.name}`, type: 'error' })
+    }
+  }
+}
+
+// Handle moving a file to a new path
+async function handleMoveFile(fileId: number, newPath: string) {
+  const file = findFileById(fileId)
+  if (!file) return
+
+  try {
+    await workspaceStore.moveFile(fileId, file.notebook_id, newPath)
+    showToast({ message: 'File moved successfully' })
+  } catch (e) {
+    console.error('Failed to move file:', e)
+    showToast({ message: 'Failed to move file', type: 'error' })
+  }
+}
+
+// Helper to find a file by ID across all notebooks
+function findFileById(fileId: number): FileMetadata | undefined {
+  for (const files of workspaceStore.files.values()) {
+    const file = files.find(f => f.id === fileId)
+    if (file) return file
+  }
+  return undefined
 }
 
 function startEdit() {

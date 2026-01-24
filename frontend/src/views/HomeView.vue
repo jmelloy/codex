@@ -322,7 +322,11 @@
 
           <!-- Markdown Viewer for text-based files -->
           <MarkdownViewer v-else :content="workspaceStore.currentFile.content"
-            :frontmatter="workspaceStore.currentFile.properties" :show-frontmatter="false" @edit="startEdit"
+            :frontmatter="workspaceStore.currentFile.properties" 
+            :workspace-id="workspaceStore.currentWorkspace?.id"
+            :notebook-id="workspaceStore.currentNotebook?.id"
+            :current-file-path="workspaceStore.currentFile.path"
+            :show-frontmatter="false" @edit="startEdit"
             @copy="handleCopy" class="flex-1">
             <template #toolbar-actions>
               <button @click="toggleProperties"

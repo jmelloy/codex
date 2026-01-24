@@ -37,6 +37,9 @@ interface Props {
   showToolbar?: boolean
   showFrontmatter?: boolean
   extensions?: MarkdownExtension[]
+  workspaceId?: number
+  notebookId?: number
+  currentFilePath?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -44,7 +47,10 @@ const props = withDefaults(defineProps<Props>(), {
   editable: true,
   showToolbar: true,
   showFrontmatter: false,
-  extensions: () => []
+  extensions: () => [],
+  workspaceId: undefined,
+  notebookId: undefined,
+  currentFilePath: undefined
 })
 
 // Emits
@@ -62,14 +68,69 @@ export interface MarkdownExtension {
   renderer?: any
 }
 
+// Helper function to resolve file references
+const resolveFileUrl = (href: string): string => {
+  // If workspace and notebook IDs are available, resolve the file
+  if (props.workspaceId && props.notebookId) {
+    // Check if it's already a full URL or API path
+    if (href.startsWith('http://') || href.startsWith('https://') || href.startsWith('/api/')) {
+      return href
+    }
+    
+    // For relative or filename-only references, use the by-path/content endpoint
+    const encodedPath = encodeURIComponent(href)
+    return `/api/v1/files/by-path/content?path=${encodedPath}&workspace_id=${props.workspaceId}&notebook_id=${props.notebookId}`
+  }
+  
+  // Fallback to original href if no context
+  return href
+}
+
 // Configure marked with extensions
 const configureMarked = () => {
+  // Create a custom renderer for images and links
+  const renderer: any = {
+    // Override image rendering to resolve file references
+    image(token: any): string {
+      if (token.href) {
+        // Resolve the image URL
+        const resolvedHref = resolveFileUrl(token.href)
+        // Build the img tag manually
+        const title = token.title ? ` title="${token.title}"` : ''
+        const alt = token.text || ''
+        return `<img src="${resolvedHref}" alt="${alt}"${title}>`
+      }
+      return ''
+    },
+    
+    // Override link rendering to resolve file references
+    link(token: any): string {
+      if (token.href) {
+        // Check if it's a file reference (markdown or other files)
+        if (token.href.endsWith('.md') || token.href.endsWith('.txt') || (!token.href.startsWith('http://') && !token.href.startsWith('https://') && !token.href.startsWith('/'))) {
+          // For markdown files, we could navigate to them in the app
+          // For now, just resolve the URL to view the content
+          const resolvedHref = resolveFileUrl(token.href)
+          const title = token.title ? ` title="${token.title}"` : ''
+          const text = token.text || ''
+          return `<a href="${resolvedHref}"${title}>${text}</a>`
+        }
+      }
+      // Use default behavior for external links
+      const title = token.title ? ` title="${token.title}"` : ''
+      const text = token.text || ''
+      return `<a href="${token.href}"${title}>${text}</a>`
+    }
+  }
+  
+  marked.use({ renderer })
+
   marked.setOptions({
     breaks: true,
     gfm: true
   })
 
-  // Apply custom extensions
+  // Apply custom extensions after base renderer
   if (props.extensions && props.extensions.length > 0) {
     props.extensions.forEach(ext => {
       if (ext.renderer) {
@@ -156,6 +217,11 @@ onMounted(() => {
 watch(() => props.extensions, () => {
   configureMarked()
 }, { deep: true })
+
+// Watch for context changes (workspace/notebook)
+watch(() => [props.workspaceId, props.notebookId, props.currentFilePath], () => {
+  configureMarked()
+})
 </script>
 
 <style scoped>

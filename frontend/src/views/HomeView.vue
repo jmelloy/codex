@@ -800,14 +800,14 @@ async function handleCreateFile() {
       content = `---
 type: view
 view_type: kanban
-title: ${newFileName.value.replace('.cdx', '')}
+title: ${newFileName.value.replace(/\.cdx$/, '')}
 description: Dynamic view
 query:
   tags: []
 config: {}
 ---
 
-# ${newFileName.value.replace('.cdx', '')}
+# ${newFileName.value.replace(/\.cdx$/, '')}
 
 Edit the frontmatter above to configure this view.
 `;
@@ -816,7 +816,7 @@ Edit the frontmatter above to configure this view.
       path = newFileName.value.endsWith('.md')
         ? newFileName.value
         : `${newFileName.value}.md`;
-      content = `# ${newFileName.value.replace('.md', '')}\n\nStart writing here...`;
+      content = `# ${newFileName.value.replace(/\.md$/, '')}\n\nStart writing here...`;
     }
     
     await workspaceStore.createFile(

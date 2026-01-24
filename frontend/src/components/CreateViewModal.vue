@@ -207,7 +207,8 @@ function ensureExtension() {
 
 function updateFromTemplate() {
   // Pre-fill some sensible defaults based on view type
-  if (!filename.value || filename.value === '') {
+  // Only auto-fill if filename is empty
+  if (filename.value === '') {
     switch (selectedType.value) {
       case 'kanban':
         filename.value = 'task-board.cdx';

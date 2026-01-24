@@ -4,7 +4,7 @@ import time
 from pathlib import Path
 from uuid import uuid4
 from fastapi.testclient import TestClient
-from backend.codex.main import app
+from codex.main import app
 
 client = TestClient(app)
 

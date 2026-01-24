@@ -149,13 +149,9 @@
 
           <!-- Markdown Viewer for regular files -->
           <MarkdownViewer v-else :content="workspaceStore.currentFile.content"
-            :frontmatter="workspaceStore.currentFile.properties" :show-frontmatter="showFrontmatter" @edit="startEdit"
+            :frontmatter="workspaceStore.currentFile.properties" :show-frontmatter="false" @edit="startEdit"
             @copy="handleCopy" class="flex-1">
             <template #toolbar-actions>
-              <button @click="toggleFrontmatter"
-                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
-                {{ showFrontmatter ? 'Hide' : 'Show' }} Metadata
-              </button>
               <button @click="toggleProperties"
                 class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
                 Properties
@@ -258,7 +254,6 @@ const newFileName = ref('')
 const createFileNotebook = ref<Notebook | null>(null)
 
 // View state
-const showFrontmatter = ref(false)
 const showPropertiesPanel = ref(false)
 const editContent = ref('')
 
@@ -359,10 +354,6 @@ async function handleSaveFile(content: string) {
 
 function handleCopy() {
   showToast({ message: 'Content copied to clipboard!' })
-}
-
-function toggleFrontmatter() {
-  showFrontmatter.value = !showFrontmatter.value
 }
 
 function toggleProperties() {

@@ -84,6 +84,15 @@
         </div>
       </div>
 
+      <!-- Metadata / Frontmatter -->
+      <div class="property-section" v-if="metadata && Object.keys(metadata).length > 0">
+        <h4>Metadata</h4>
+        <div class="property-row" v-for="(value, key) in metadata" :key="key">
+          <span class="property-label">{{ key }}</span>
+          <span class="property-value">{{ formatMetadataValue(value) }}</span>
+        </div>
+      </div>
+
       <!-- Actions -->
       <div class="property-actions">
         <button @click="confirmDelete" class="btn-delete">
@@ -145,6 +154,14 @@ const tags = computed(() => {
   return []
 })
 
+// Get all metadata except standard fields (title, description, tags)
+const metadata = computed(() => {
+  if (!props.file?.properties) return {}
+  
+  const { title, description, tags, ...rest } = props.file.properties
+  return rest
+})
+
 function formatDate(dateStr: string): string {
   try {
     const date = new Date(dateStr)
@@ -166,6 +183,13 @@ function formatSize(bytes: number): string {
   const sizes = ['B', 'KB', 'MB', 'GB']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
+}
+
+function formatMetadataValue(value: any): string {
+  if (value === null || value === undefined) return ''
+  if (Array.isArray(value)) return value.join(', ')
+  if (typeof value === 'object') return JSON.stringify(value)
+  return String(value)
 }
 
 function emitPropertiesUpdate(updates: Record<string, any>) {

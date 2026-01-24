@@ -87,7 +87,7 @@
                       <div
                         :class="['file-item flex items-center py-2 px-4 pl-8 cursor-pointer text-[13px] transition', { 'file-active font-medium': workspaceStore.currentFile?.id === node.file?.id }]"
                         @click="node.file && selectFile(node.file)">
-                        <span class="mr-2 text-sm">📄</span>
+                        <span class="mr-2 text-sm">{{ getFileIcon(node.file) }}</span>
                         <span class="overflow-hidden text-ellipsis whitespace-nowrap">{{ node.file?.title || node.name
                           }}</span>
                       </div>
@@ -133,21 +133,160 @@
           <div v-else-if="workspaceStore.currentFile.file_type === 'image'" class="flex-1 flex flex-col overflow-hidden">
             <div class="flex justify-between items-center mb-4">
               <h2 class="text-xl font-semibold m-0">{{ workspaceStore.currentFile.title || workspaceStore.currentFile.filename }}</h2>
-              <button @click="toggleProperties"
-                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
-                Properties
-              </button>
+              <div class="flex gap-2">
+                <button @click="openInNewTab"
+                  class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
+                  title="Open in new tab">
+                  Open
+                </button>
+                <button @click="toggleProperties"
+                  class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
+                  Properties
+                </button>
+              </div>
             </div>
             <div class="flex-1 flex items-center justify-center overflow-auto bg-bg-secondary rounded-lg">
               <img
-                :src="currentImageUrl"
+                :src="currentContentUrl"
                 :alt="workspaceStore.currentFile.title || workspaceStore.currentFile.filename"
                 class="max-w-full max-h-full object-contain"
               />
             </div>
           </div>
 
-          <!-- Markdown Viewer for regular files -->
+          <!-- PDF Viewer -->
+          <div v-else-if="workspaceStore.currentFile.file_type === 'pdf'" class="flex-1 flex flex-col overflow-hidden">
+            <div class="flex justify-between items-center mb-4">
+              <h2 class="text-xl font-semibold m-0">{{ workspaceStore.currentFile.title || workspaceStore.currentFile.filename }}</h2>
+              <div class="flex gap-2">
+                <button @click="openInNewTab"
+                  class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
+                  title="Open in new tab">
+                  Open
+                </button>
+                <button @click="toggleProperties"
+                  class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
+                  Properties
+                </button>
+              </div>
+            </div>
+            <div class="flex-1 overflow-hidden bg-bg-secondary rounded-lg">
+              <iframe
+                :src="currentContentUrl"
+                class="w-full h-full border-0"
+                :title="workspaceStore.currentFile.title || workspaceStore.currentFile.filename"
+              />
+            </div>
+          </div>
+
+          <!-- Audio Player -->
+          <div v-else-if="workspaceStore.currentFile.file_type === 'audio'" class="flex-1 flex flex-col overflow-hidden">
+            <div class="flex justify-between items-center mb-4">
+              <h2 class="text-xl font-semibold m-0">{{ workspaceStore.currentFile.title || workspaceStore.currentFile.filename }}</h2>
+              <div class="flex gap-2">
+                <button @click="openInNewTab"
+                  class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
+                  title="Open in new tab">
+                  Open
+                </button>
+                <button @click="toggleProperties"
+                  class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
+                  Properties
+                </button>
+              </div>
+            </div>
+            <div class="flex-1 flex items-center justify-center bg-bg-secondary rounded-lg">
+              <div class="text-center">
+                <div class="text-6xl mb-4">🎵</div>
+                <audio
+                  :src="currentContentUrl"
+                  controls
+                  class="w-full max-w-md"
+                >
+                  Your browser does not support the audio element.
+                </audio>
+              </div>
+            </div>
+          </div>
+
+          <!-- Video Player -->
+          <div v-else-if="workspaceStore.currentFile.file_type === 'video'" class="flex-1 flex flex-col overflow-hidden">
+            <div class="flex justify-between items-center mb-4">
+              <h2 class="text-xl font-semibold m-0">{{ workspaceStore.currentFile.title || workspaceStore.currentFile.filename }}</h2>
+              <div class="flex gap-2">
+                <button @click="openInNewTab"
+                  class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
+                  title="Open in new tab">
+                  Open
+                </button>
+                <button @click="toggleProperties"
+                  class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
+                  Properties
+                </button>
+              </div>
+            </div>
+            <div class="flex-1 flex items-center justify-center overflow-auto bg-bg-secondary rounded-lg">
+              <video
+                :src="currentContentUrl"
+                controls
+                class="max-w-full max-h-full"
+              >
+                Your browser does not support the video element.
+              </video>
+            </div>
+          </div>
+
+          <!-- HTML Viewer -->
+          <div v-else-if="workspaceStore.currentFile.file_type === 'html'" class="flex-1 flex flex-col overflow-hidden">
+            <div class="flex justify-between items-center mb-4">
+              <h2 class="text-xl font-semibold m-0">{{ workspaceStore.currentFile.title || workspaceStore.currentFile.filename }}</h2>
+              <div class="flex gap-2">
+                <button @click="openInNewTab"
+                  class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
+                  title="Open in new tab">
+                  Open
+                </button>
+                <button @click="toggleProperties"
+                  class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
+                  Properties
+                </button>
+              </div>
+            </div>
+            <div class="flex-1 overflow-hidden bg-bg-secondary rounded-lg">
+              <iframe
+                :src="currentContentUrl"
+                class="w-full h-full border-0"
+                :title="workspaceStore.currentFile.title || workspaceStore.currentFile.filename"
+                sandbox="allow-scripts allow-same-origin"
+              />
+            </div>
+          </div>
+
+          <!-- Binary file placeholder -->
+          <div v-else-if="workspaceStore.currentFile.file_type === 'binary'" class="flex-1 flex flex-col overflow-hidden">
+            <div class="flex justify-between items-center mb-4">
+              <h2 class="text-xl font-semibold m-0">{{ workspaceStore.currentFile.title || workspaceStore.currentFile.filename }}</h2>
+              <div class="flex gap-2">
+                <a :href="currentContentUrl" download
+                  class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition no-underline">
+                  Download
+                </a>
+                <button @click="toggleProperties"
+                  class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
+                  Properties
+                </button>
+              </div>
+            </div>
+            <div class="flex-1 flex items-center justify-center bg-bg-secondary rounded-lg">
+              <div class="text-center text-text-tertiary">
+                <div class="text-6xl mb-4">📦</div>
+                <p>This is a binary file.</p>
+                <p class="text-sm">Click "Download" to save it to your device.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Markdown Viewer for text-based files -->
           <MarkdownViewer v-else :content="workspaceStore.currentFile.content"
             :frontmatter="workspaceStore.currentFile.properties" :show-frontmatter="false" @edit="startEdit"
             @copy="handleCopy" class="flex-1">
@@ -270,11 +409,18 @@ const notebookFileTrees = computed(() => {
   return trees
 })
 
-// Get image URL for current file
-const currentImageUrl = computed(() => {
+// Get content URL for current file (for binary files like images, PDFs, audio, video)
+const currentContentUrl = computed(() => {
   if (!workspaceStore.currentFile || !workspaceStore.currentWorkspace) return ''
   return `/api/v1/files/${workspaceStore.currentFile.id}/content?workspace_id=${workspaceStore.currentWorkspace.id}&notebook_id=${workspaceStore.currentFile.notebook_id}`
 })
+
+// Open file in a new tab
+function openInNewTab() {
+  if (currentContentUrl.value) {
+    window.open(currentContentUrl.value, '_blank')
+  }
+}
 
 // Sync edit content when file changes
 watch(
@@ -323,6 +469,37 @@ function toggleFolder(notebookId: number, folderPath: string) {
 
 function isFolderExpanded(notebookId: number, folderPath: string): boolean {
   return expandedFolders.value.get(notebookId)?.has(folderPath) || false
+}
+
+function getFileIcon(file: FileMetadata | undefined): string {
+  if (!file) return '📄'
+
+  switch (file.file_type) {
+    case 'view':
+      return '📊' // Chart/view icon for .cdx files
+    case 'markdown':
+      return '📝' // Memo for markdown
+    case 'json':
+      return '📋' // Clipboard for JSON
+    case 'xml':
+      return '🏷️'  // Tag for XML
+    case 'image':
+      return '🖼️' // Picture for images
+    case 'pdf':
+      return '📕' // Book for PDF
+    case 'audio':
+      return '🎵' // Music note for audio
+    case 'video':
+      return '🎬' // Film for video
+    case 'html':
+      return '🌐' // Globe for HTML
+    case 'text':
+      return '📄' // Document for text
+    case 'binary':
+      return '📦' // Package for binary
+    default:
+      return '📄' // Default file icon
+  }
 }
 
 function selectFile(file: FileMetadata) {

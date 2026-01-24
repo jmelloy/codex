@@ -77,6 +77,20 @@ const getFileIcon = (file: FileMetadata | undefined): string => {
       return '📋' // Clipboard for JSON
     case 'xml':
       return '🏷️'  // Tag for XML
+    case 'image':
+      return '🖼️' // Picture for images
+    case 'pdf':
+      return '📕' // Book for PDF
+    case 'audio':
+      return '🎵' // Music note for audio
+    case 'video':
+      return '🎬' // Film for video
+    case 'html':
+      return '🌐' // Globe for HTML
+    case 'text':
+      return '📄' // Document for text
+    case 'binary':
+      return '📦' // Package for binary
     default:
       return '📄' // Default file icon
   }

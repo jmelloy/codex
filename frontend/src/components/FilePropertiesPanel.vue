@@ -154,12 +154,20 @@ const tags = computed(() => {
   return []
 })
 
+// Standard property fields that are handled separately
+const STANDARD_FIELDS = ['title', 'description', 'tags'] as const
+
 // Get all metadata except standard fields (title, description, tags)
 const metadata = computed(() => {
   if (!props.file?.properties) return {}
   
-  const { title, description, tags, ...rest } = props.file.properties
-  return rest
+  const result: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(props.file.properties)) {
+    if (!STANDARD_FIELDS.includes(key as any)) {
+      result[key] = value
+    }
+  }
+  return result
 })
 
 function formatDate(dateStr: string): string {
@@ -185,7 +193,7 @@ function formatSize(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
 }
 
-function formatMetadataValue(value: any): string {
+function formatMetadataValue(value: unknown): string {
   if (value === null || value === undefined) return ''
   if (Array.isArray(value)) return value.join(', ')
   if (typeof value === 'object') return JSON.stringify(value)

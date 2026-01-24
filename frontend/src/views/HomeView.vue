@@ -385,17 +385,31 @@
     <!-- Create File Modal -->
     <Modal v-model="showCreateFile" title="Create File" confirm-text="Create" hide-actions>
       <form @submit.prevent="handleCreateFile">
-        <FormGroup label="Filename" v-slot="{ inputId }">
-          <input :id="inputId" v-model="newFileName" placeholder="example.md" required />
+        <FormGroup label="File Type" v-slot="{ inputId }">
+          <select :id="inputId" v-model="newFileType" class="w-full px-3 py-2 border border-border-medium rounded-md bg-bg-primary text-text-primary">
+            <option value="markdown">📝 Markdown Document</option>
+            <option value="view">📊 Dynamic View</option>
+          </select>
+        </FormGroup>
+        <FormGroup label="Filename" v-slot="{ inputId }" class="mt-4">
+          <div class="flex gap-2">
+            <input :id="inputId" v-model="newFileName" :placeholder="newFileType === 'view' ? 'my-view' : 'example'" required class="flex-1 px-3 py-2 border border-border-medium rounded-md bg-bg-primary text-text-primary" />
+            <span class="px-3 py-2 bg-bg-hover rounded-md text-text-secondary">{{ newFileType === 'view' ? '.cdx' : '.md' }}</span>
+          </div>
         </FormGroup>
         <div class="flex gap-2 justify-end mt-6">
           <button type="button" @click="showCreateFile = false"
             class="notebook-button-secondary px-4 py-2 border-none rounded cursor-pointer">Cancel</button>
-          <button type="submit"
+          <button v-if="newFileType === 'view'" type="button" @click="switchToViewCreator"
+            class="notebook-button px-4 py-2 text-white border-none rounded cursor-pointer transition">Configure View →</button>
+          <button v-else type="submit"
             class="notebook-button px-4 py-2 text-white border-none rounded cursor-pointer transition">Create</button>
         </div>
       </form>
     </Modal>
+
+    <!-- Create View Modal -->
+    <CreateViewModal v-model="showCreateView" @create="handleCreateView" />
   </div>
 </template>
 
@@ -413,6 +427,7 @@ import CodeViewer from '../components/CodeViewer.vue'
 import ViewRenderer from '../components/views/ViewRenderer.vue'
 import FilePropertiesPanel from '../components/FilePropertiesPanel.vue'
 import FileTreeItem from '../components/FileTreeItem.vue'
+import CreateViewModal from '../components/CreateViewModal.vue'
 import { showToast } from '../utils/toast'
 import { buildFileTree, type FileTreeNode } from '../utils/fileTree'
 
@@ -424,11 +439,13 @@ const workspaceStore = useWorkspaceStore()
 const showCreateWorkspace = ref(false)
 const showCreateNotebook = ref(false)
 const showCreateFile = ref(false)
+const showCreateView = ref(false)
 
 // Form state
 const newWorkspaceName = ref('')
 const newNotebookName = ref('')
 const newFileName = ref('')
+const newFileType = ref<'markdown' | 'view'>('markdown')
 const createFileNotebook = ref<Notebook | null>(null)
 
 // View state
@@ -740,11 +757,7 @@ async function handleDeleteFile() {
   }
 }
 
-function startCreateFile(notebook: Notebook) {
-  createFileNotebook.value = notebook
-  newFileName.value = ''
-  showCreateFile.value = true
-}
+
 
 async function handleCreateWorkspace() {
   try {
@@ -775,20 +788,78 @@ async function handleCreateFile() {
   if (!createFileNotebook.value) return
 
   try {
-    const path = newFileName.value.endsWith('.md')
-      ? newFileName.value
-      : `${newFileName.value}.md`
+    let path: string;
+    let content: string;
+    
+    if (newFileType.value === 'view') {
+      // For views, just use the filename as-is with .cdx extension
+      path = newFileName.value.endsWith('.cdx')
+        ? newFileName.value
+        : `${newFileName.value}.cdx`;
+      // Create basic view template
+      content = `---
+type: view
+view_type: kanban
+title: ${newFileName.value.replace('.cdx', '')}
+description: Dynamic view
+query:
+  tags: []
+config: {}
+---
+
+# ${newFileName.value.replace('.cdx', '')}
+
+Edit the frontmatter above to configure this view.
+`;
+    } else {
+      // For markdown, append .md if not present
+      path = newFileName.value.endsWith('.md')
+        ? newFileName.value
+        : `${newFileName.value}.md`;
+      content = `# ${newFileName.value.replace('.md', '')}\n\nStart writing here...`;
+    }
+    
     await workspaceStore.createFile(
       createFileNotebook.value.id,
       path,
-      `# ${newFileName.value.replace('.md', '')}\n\nStart writing here...`
+      content
     )
     showCreateFile.value = false
     newFileName.value = ''
+    newFileType.value = 'markdown'
     createFileNotebook.value = null
   } catch {
     // Error handled in store
   }
+}
+
+function switchToViewCreator() {
+  showCreateFile.value = false
+  showCreateView.value = true
+}
+
+async function handleCreateView(data: { filename: string; content: string }) {
+  if (!createFileNotebook.value) return
+
+  try {
+    await workspaceStore.createFile(
+      createFileNotebook.value.id,
+      data.filename,
+      data.content
+    )
+    showCreateView.value = false
+    createFileNotebook.value = null
+    showToast({ message: 'View created successfully!' })
+  } catch {
+    // Error handled in store
+  }
+}
+
+function startCreateFile(notebook: Notebook) {
+  createFileNotebook.value = notebook
+  newFileName.value = ''
+  newFileType.value = 'markdown'
+  showCreateFile.value = true
 }
 </script>
 

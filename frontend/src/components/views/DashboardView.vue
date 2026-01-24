@@ -2,8 +2,8 @@
   <div class="dashboard-view p-6">
     <!-- Header -->
     <div class="mb-6">
-      <h2 class="text-2xl font-semibold text-gray-800">{{ definition?.title }}</h2>
-      <p v-if="definition?.description" class="text-gray-600 mt-1">
+      <h2 class="text-2xl font-semibold text-text-primary">{{ definition?.title }}</h2>
+      <p v-if="definition?.description" class="text-text-secondary mt-1">
         {{ definition.description }}
       </p>
     </div>
@@ -35,7 +35,7 @@
     </div>
 
     <!-- Empty State -->
-    <div v-if="!definition?.layout || definition.layout.length === 0" class="text-center py-12 text-gray-400">
+    <div v-if="!definition?.layout || definition.layout.length === 0" class="text-center py-12 text-text-tertiary">
       <div class="text-4xl mb-2">📊</div>
       <div class="text-lg">No dashboard layout defined</div>
     </div>

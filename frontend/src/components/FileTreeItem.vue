@@ -2,15 +2,15 @@
   <li v-if="node.type === 'folder'">
     <!-- Folder -->
     <div
-      :class="['flex items-center py-2 cursor-pointer text-[13px] text-gray-600 transition hover:bg-gray-50']"
+      :class="['flex items-center py-2 cursor-pointer text-[13px] text-text-secondary transition hover:bg-bg-hover']"
       :style="{ paddingLeft: `${(depth + 1) * 16 + 32}px` }"
       @click="emit('toggleFolder', notebookId, node.path)"
     >
-      <span class="text-[10px] mr-2 text-gray-500 w-3">{{ isFolderExpanded ? '▼' : '▶' }}</span>
+      <span class="text-[10px] mr-2 text-text-tertiary w-3">{{ isFolderExpanded ? '▼' : '▶' }}</span>
       <span class="mr-2 text-sm">📁</span>
       <span class="overflow-hidden text-ellipsis whitespace-nowrap">{{ node.name }}</span>
     </div>
-    
+
     <!-- Folder contents -->
     <ul v-if="isFolderExpanded && node.children" class="list-none p-0 m-0">
       <FileTreeItem
@@ -26,11 +26,11 @@
       />
     </ul>
   </li>
-  
+
   <!-- File -->
   <li v-else>
     <div
-      :class="['flex items-center py-2 cursor-pointer text-[13px] text-gray-600 transition hover:bg-gray-50', { 'bg-gray-100 text-primary font-medium': currentFileId === node.file?.id }]"
+      :class="['flex items-center py-2 cursor-pointer text-[13px] text-text-secondary transition hover:bg-bg-hover', { 'bg-bg-active text-primary font-medium': currentFileId === node.file?.id }]"
       :style="{ paddingLeft: `${(depth + 1) * 16 + 32}px` }"
       @click="node.file && emit('selectFile', node.file)"
     >

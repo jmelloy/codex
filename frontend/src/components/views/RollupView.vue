@@ -2,8 +2,8 @@
   <div class="rollup-view p-6">
     <!-- Header -->
     <div class="mb-6">
-      <h2 class="text-2xl font-semibold text-gray-800">{{ definition?.title }}</h2>
-      <p v-if="definition?.description" class="text-gray-600 mt-1">
+      <h2 class="text-2xl font-semibold text-text-primary">{{ definition?.title }}</h2>
+      <p v-if="definition?.description" class="text-text-secondary mt-1">
         {{ definition.description }}
       </p>
     </div>
@@ -30,13 +30,13 @@
         <!-- Date Header -->
         <div class="flex items-center gap-3 mb-3">
           <button
-            class="flex items-center gap-2 text-lg font-semibold text-gray-800 hover:text-gray-600"
+            class="flex items-center gap-2 text-lg font-semibold text-text-primary hover:text-text-secondary"
             @click="toggleGroup(date)"
           >
             <span class="text-sm">{{ isGroupExpanded(date) ? '▼' : '▶' }}</span>
             {{ formatGroupDate(date) }}
           </button>
-          <span class="text-sm text-gray-500">{{ group.length }} items</span>
+          <span class="text-sm text-text-tertiary">{{ group.length }} items</span>
         </div>
 
         <!-- Group Content -->
@@ -48,20 +48,20 @@
               :key="section.title"
               class="mb-4"
             >
-              <h4 class="text-sm font-semibold text-gray-700 mb-2">
+              <h4 class="text-sm font-semibold text-text-primary mb-2">
                 {{ section.title }}
               </h4>
               <div class="space-y-2">
                 <div
                   v-for="file in filterSection(group, section)"
                   :key="file.id"
-                  class="bg-white rounded-lg border border-gray-200 p-3 hover:shadow-md transition cursor-pointer"
+                  class="bg-white rounded-lg border border-border-light p-3 hover:shadow-md transition cursor-pointer"
                   @click="handleFileClick(file)"
                 >
-                  <div class="font-medium text-gray-900">
+                  <div class="font-medium text-text-primary">
                     {{ file.title || file.filename }}
                   </div>
-                  <div v-if="file.description" class="text-sm text-gray-600 mt-1">
+                  <div v-if="file.description" class="text-sm text-text-secondary mt-1">
                     {{ file.description }}
                   </div>
                   <div v-if="file.properties?.tags" class="flex flex-wrap gap-1 mt-2">
@@ -74,7 +74,7 @@
                     </span>
                   </div>
                 </div>
-                <div v-if="filterSection(group, section).length === 0" class="text-sm text-gray-400 italic">
+                <div v-if="filterSection(group, section).length === 0" class="text-sm text-text-tertiary italic">
                   No {{ section.title.toLowerCase() }}
                 </div>
               </div>
@@ -86,19 +86,19 @@
             <div
               v-for="file in group"
               :key="file.id"
-              class="bg-white rounded-lg border border-gray-200 p-3 hover:shadow-md transition cursor-pointer"
+              class="bg-white rounded-lg border border-border-light p-3 hover:shadow-md transition cursor-pointer"
               @click="handleFileClick(file)"
             >
               <div class="flex items-start justify-between">
                 <div class="flex-1">
-                  <div class="font-medium text-gray-900">
+                  <div class="font-medium text-text-primary">
                     {{ file.title || file.filename }}
                   </div>
-                  <div v-if="file.description" class="text-sm text-gray-600 mt-1">
+                  <div v-if="file.description" class="text-sm text-text-secondary mt-1">
                     {{ file.description }}
                   </div>
                 </div>
-                <div class="text-xs text-gray-500">
+                <div class="text-xs text-text-tertiary">
                   {{ formatTime(file.created_at) }}
                 </div>
               </div>
@@ -120,7 +120,7 @@
     </div>
 
     <!-- Empty State -->
-    <div v-if="totalFiles === 0" class="text-center py-12 text-gray-400">
+    <div v-if="totalFiles === 0" class="text-center py-12 text-text-tertiary">
       <div class="text-4xl mb-2">📊</div>
       <div class="text-lg">No data to display</div>
     </div>
@@ -309,7 +309,7 @@ const handleFileClick = (file: FileMetadata) => {
 
 <style scoped>
 .rollup-group {
-  border-left: 2px solid #e5e7eb;
+  border-left: 2px solid var(--color-border-light);
   padding-left: 1rem;
 }
 </style>

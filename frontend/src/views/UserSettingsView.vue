@@ -18,9 +18,9 @@
         <h2 class="text-3xl font-bold mb-6">User Settings</h2>
 
         <!-- Theme Settings Section -->
-        <div class="rounded-lg shadow-md p-6 mb-6 border border-gray-300 bg-white/80 backdrop-blur-sm">
-          <h3 class="text-xl font-semibold mb-4">Theme</h3>
-          <p class="mb-6 opacity-80">
+        <div class="rounded-lg shadow-md p-6 mb-6 border border-border-medium bg-bg-primary/80 backdrop-blur-sm">
+          <h3 class="text-xl font-semibold mb-4 text-text-primary">Theme</h3>
+          <p class="mb-6 text-text-secondary">
             Choose your preferred theme. The theme will be applied across all notebooks and pages.
           </p>
 
@@ -33,11 +33,11 @@
                 'p-6 rounded-lg border-2 transition-all text-left relative',
                 theme.name === themeStore.currentTheme
                   ? 'border-primary bg-primary/5 shadow-md'
-                  : 'border-gray-200 hover:border-primary/50 hover:shadow-sm'
+                  : 'border-border-light hover:border-primary/50 hover:shadow-sm'
               ]"
             >
               <!-- Theme Preview Box -->
-              <div :class="['w-full h-24 rounded-md mb-4 border border-gray-300', theme.className]">
+              <div :class="['w-full h-24 rounded-md mb-4 border border-border-medium', theme.className]">
                 <div class="p-3 text-sm font-mono">
                   <div>Sample Text</div>
                   <div class="opacity-70">Preview of {{ theme.label }}</div>
@@ -71,22 +71,22 @@
             </button>
           </div>
 
-          <div v-if="themeSaved" class="mt-4 p-3 bg-green-50 border border-green-200 rounded-md text-green-800 text-sm">
+          <div v-if="themeSaved" class="mt-4 p-3 bg-success-bg border border-success-border rounded-md text-success text-sm font-medium">
             ✓ Theme saved successfully
           </div>
         </div>
 
         <!-- Account Settings Section (Placeholder) -->
-        <div class="rounded-lg shadow-md p-6 border border-gray-300 bg-white/80 backdrop-blur-sm">
-          <h3 class="text-xl font-semibold mb-4">Account</h3>
+        <div class="rounded-lg shadow-md p-6 border border-border-medium bg-bg-primary/80 backdrop-blur-sm">
+          <h3 class="text-xl font-semibold mb-4 text-text-primary">Account</h3>
           <div class="space-y-4">
             <div>
-              <label class="block text-sm font-medium mb-1 opacity-90">Username</label>
+              <label class="block text-sm font-medium mb-1 text-text-secondary">Username</label>
               <input
                 type="text"
                 :value="authStore.user?.username"
                 disabled
-                class="w-full px-3 py-2 border border-gray-300 rounded-md bg-black/5 opacity-60 cursor-not-allowed"
+                class="w-full px-3 py-2 border border-border-medium rounded-md bg-bg-disabled text-text-disabled cursor-not-allowed"
               />
             </div>
             <p class="text-sm opacity-70">
@@ -138,22 +138,22 @@ function handleLogout() {
 <style scoped>
 /* Apply theme-specific styling to the preview boxes */
 .theme-cream {
-  background-color: #fef9f3;
-  color: #1a1a1a;
+  background-color: var(--page-cream);
+  color: var(--pen-black);
 }
 
 .theme-manila {
-  background-color: #f4e8d0;
-  color: #1a1a1a;
+  background-color: var(--page-manila);
+  color: var(--pen-black);
 }
 
 .theme-white {
-  background-color: #ffffff;
-  color: #1a1a1a;
+  background-color: var(--page-white);
+  color: var(--pen-black);
 }
 
 .theme-blueprint {
-  background-color: #1e3a5f;
+  background-color: var(--page-blueprint);
   color: #e0e7ff;
 }
 </style>

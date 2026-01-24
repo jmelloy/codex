@@ -2,8 +2,8 @@
   <div class="corkboard-view relative bg-[#d4a76a] min-h-screen p-8" :style="corkboardBg">
     <!-- Header -->
     <div class="mb-6 bg-white/90 backdrop-blur rounded-lg p-4 shadow-md inline-block">
-      <h2 class="text-2xl font-semibold text-gray-800">{{ definition?.title }}</h2>
-      <p v-if="definition?.description" class="text-gray-600 mt-1">
+      <h2 class="text-2xl font-semibold text-text-primary">{{ definition?.title }}</h2>
+      <p v-if="definition?.description" class="text-text-secondary mt-1">
         {{ definition.description }}
       </p>
     </div>
@@ -12,10 +12,10 @@
     <div v-if="config.layout === 'swimlanes'" class="space-y-6">
       <div v-for="(group, groupKey) in groupedCards" :key="groupKey" class="swimlane">
         <div class="mb-3 bg-white/80 backdrop-blur rounded px-3 py-2 inline-block shadow">
-          <h3 class="font-semibold text-gray-800 text-lg">
+          <h3 class="font-semibold text-text-primary text-lg">
             {{ formatGroupName(groupKey) }}
           </h3>
-          <span class="text-sm text-gray-600 ml-2">{{ group.length }} items</span>
+          <span class="text-sm text-text-secondary ml-2">{{ group.length }} items</span>
         </div>
 
         <div class="flex flex-wrap gap-4">

@@ -138,51 +138,53 @@ watch(() => props.extensions, () => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-md);
 }
 
 .markdown-toolbar {
   display: flex;
-  gap: 0.5rem;
-  padding: 0.75rem;
-  background: rgba(255, 255, 255, 0.5);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  background: color-mix(in srgb, var(--color-bg-primary) 50%, transparent);
+  border-bottom: 1px solid var(--color-border-light);
   align-items: center;
   backdrop-filter: blur(10px);
 }
 
 .markdown-toolbar button {
-  padding: 0.5rem 1rem;
-  border: 1px solid #cbd5e0;
-  background: white;
-  border-radius: 4px;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border: 1px solid var(--color-border-medium);
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
   transition: all 0.2s;
 }
 
 .markdown-toolbar button:hover {
-  background: #edf2f7;
-  border-color: #a0aec0;
+  background: var(--color-bg-hover);
+  border-color: var(--color-border-dark);
 }
 
 .btn-edit {
-  color: #667eea;
-  border-color: #667eea !important;
+  color: var(--color-primary);
+  border-color: var(--color-primary) !important;
 }
 
 .btn-edit:hover {
-  background: #667eea !important;
-  color: white !important;
+  background: var(--color-primary) !important;
+  color: var(--color-text-inverse) !important;
 }
 
 .markdown-content {
   flex: 1;
-  padding: 3rem 4rem;
+  padding: var(--spacing-3xl) 4rem;
   overflow-y: auto;
-  line-height: 1.7;
+  line-height: var(--leading-loose);
 }
 
 .markdown-content.loading {
@@ -190,48 +192,52 @@ watch(() => props.extensions, () => {
 }
 
 .markdown-content :deep(h1) {
-  font-size: 2rem;
-  margin-top: 1.5rem;
-  margin-bottom: 1rem;
-  font-weight: 600;
-  border-bottom: 2px solid #e2e8f0;
-  padding-bottom: 0.5rem;
+  font-size: var(--text-2xl);
+  margin-top: var(--spacing-xl);
+  margin-bottom: var(--spacing-lg);
+  font-weight: var(--font-semibold);
+  border-bottom: 2px solid var(--color-border-light);
+  padding-bottom: var(--spacing-sm);
+  color: var(--color-text-primary);
 }
 
 .markdown-content :deep(h2) {
-  font-size: 1.5rem;
-  margin-top: 1.25rem;
-  margin-bottom: 0.75rem;
-  font-weight: 600;
+  font-size: var(--text-xl);
+  margin-top: var(--spacing-xl);
+  margin-bottom: var(--spacing-md);
+  font-weight: var(--font-semibold);
+  color: var(--color-text-primary);
 }
 
 .markdown-content :deep(h3) {
-  font-size: 1.25rem;
-  margin-top: 1rem;
-  margin-bottom: 0.5rem;
-  font-weight: 600;
+  font-size: var(--text-lg);
+  margin-top: var(--spacing-lg);
+  margin-bottom: var(--spacing-sm);
+  font-weight: var(--font-semibold);
+  color: var(--color-text-primary);
 }
 
 .markdown-content :deep(p) {
-  margin-bottom: 1rem;
-  color: #2d3748;
+  margin-bottom: var(--spacing-lg);
+  color: var(--color-text-primary);
 }
 
 .markdown-content :deep(code) {
-  background: #f7fafc;
+  background: var(--color-bg-secondary);
   padding: 0.2rem 0.4rem;
-  border-radius: 3px;
-  font-family: 'Monaco', 'Courier New', monospace;
-  font-size: 0.875rem;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--color-text-primary);
 }
 
 .markdown-content :deep(pre) {
-  background: #2d3748;
-  color: #e2e8f0;
-  padding: 1rem;
-  border-radius: 6px;
+  background: var(--color-text-primary);
+  color: var(--color-bg-primary);
+  padding: var(--spacing-lg);
+  border-radius: var(--radius-md);
   overflow-x: auto;
-  margin-bottom: 1rem;
+  margin-bottom: var(--spacing-lg);
 }
 
 .markdown-content :deep(pre code) {
@@ -241,25 +247,25 @@ watch(() => props.extensions, () => {
 }
 
 .markdown-content :deep(blockquote) {
-  border-left: 4px solid #667eea;
-  padding-left: 1rem;
+  border-left: 4px solid var(--color-primary);
+  padding-left: var(--spacing-lg);
   margin-left: 0;
-  color: #4a5568;
+  color: var(--color-text-secondary);
   font-style: italic;
 }
 
 .markdown-content :deep(ul),
 .markdown-content :deep(ol) {
-  margin-bottom: 1rem;
-  padding-left: 2rem;
+  margin-bottom: var(--spacing-lg);
+  padding-left: var(--spacing-2xl);
 }
 
 .markdown-content :deep(li) {
-  margin-bottom: 0.25rem;
+  margin-bottom: var(--spacing-xs);
 }
 
 .markdown-content :deep(a) {
-  color: #667eea;
+  color: var(--color-primary);
   text-decoration: none;
 }
 
@@ -270,59 +276,62 @@ watch(() => props.extensions, () => {
 .markdown-content :deep(table) {
   border-collapse: collapse;
   width: 100%;
-  margin-bottom: 1rem;
+  margin-bottom: var(--spacing-lg);
 }
 
 .markdown-content :deep(th),
 .markdown-content :deep(td) {
-  border: 1px solid #e2e8f0;
-  padding: 0.5rem;
+  border: 1px solid var(--color-border-light);
+  padding: var(--spacing-sm);
   text-align: left;
+  color: var(--color-text-primary);
 }
 
 .markdown-content :deep(th) {
-  background: #f7fafc;
-  font-weight: 600;
+  background: var(--color-bg-secondary);
+  font-weight: var(--font-semibold);
 }
 
 .markdown-content :deep(img) {
   max-width: 100%;
   height: auto;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .empty-content,
 .error-content {
-  color: #a0aec0;
+  color: var(--color-text-placeholder);
   text-align: center;
-  padding: 2rem;
+  padding: var(--spacing-2xl);
 }
 
 .error-content {
-  color: #f56565;
+  color: var(--color-error);
 }
 
 .frontmatter-section {
-  padding: 1rem;
-  background: #f7fafc;
-  border-top: 1px solid #e2e8f0;
+  padding: var(--spacing-lg);
+  background: var(--color-bg-secondary);
+  border-top: 1px solid var(--color-border-light);
 }
 
 .frontmatter-section h4 {
-  margin: 0 0 0.5rem;
-  font-size: 0.875rem;
-  color: #4a5568;
+  margin: 0 0 var(--spacing-sm);
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-semibold);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: var(--tracking-wide);
 }
 
 .frontmatter-section pre {
-  background: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 4px;
-  padding: 0.75rem;
-  font-size: 0.75rem;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-md);
+  font-size: var(--text-xs);
   overflow-x: auto;
   margin: 0;
+  color: var(--color-text-primary);
 }
 </style>

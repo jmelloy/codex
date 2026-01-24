@@ -4,20 +4,20 @@
     <div class="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-red-500 shadow-md"></div>
 
     <!-- Title -->
-    <h4 class="font-bold text-gray-900 mb-2 text-sm line-clamp-2">
+    <h4 class="font-bold text-text-primary mb-2 text-sm line-clamp-2">
       {{ file.title || file.filename }}
     </h4>
 
     <!-- Card Fields -->
     <div v-if="config.card_fields" class="space-y-1 text-xs">
       <div v-for="field in config.card_fields" :key="field" v-show="getFieldValue(field)">
-        <span class="font-semibold text-gray-700 capitalize">{{ field }}:</span>
-        <span class="text-gray-600 ml-1">{{ formatValue(getFieldValue(field)) }}</span>
+        <span class="font-semibold text-text-primary capitalize">{{ field }}:</span>
+        <span class="text-text-secondary ml-1">{{ formatValue(getFieldValue(field)) }}</span>
       </div>
     </div>
 
     <!-- Description -->
-    <p v-if="file.description" class="text-xs text-gray-600 mt-2 line-clamp-3">
+    <p v-if="file.description" class="text-xs text-text-secondary mt-2 line-clamp-3">
       {{ file.description }}
     </p>
 
@@ -30,7 +30,7 @@
       >
         {{ tag }}
       </span>
-      <span v-if="file.properties.tags.length > 3" class="text-xs text-gray-500">
+      <span v-if="file.properties.tags.length > 3" class="text-xs text-text-tertiary">
         +{{ file.properties.tags.length - 3 }}
       </span>
     </div>

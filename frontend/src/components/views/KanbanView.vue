@@ -4,14 +4,14 @@
       <div
         v-for="column in columns"
         :key="column.id"
-        class="kanban-column flex-shrink-0 bg-gray-50 rounded-lg p-4 min-w-[300px]"
+        class="kanban-column flex-shrink-0 bg-bg-hover rounded-lg p-4 min-w-[300px]"
       >
         <!-- Column Header -->
         <div class="flex items-center justify-between mb-4">
-          <h3 class="font-semibold text-gray-700">
+          <h3 class="font-semibold text-text-primary">
             {{ column.title }}
           </h3>
-          <span class="text-sm text-gray-500">
+          <span class="text-sm text-text-tertiary">
             {{ getColumnCards(column.id).length }}
           </span>
         </div>
@@ -28,13 +28,13 @@
             v-for="card in getColumnCards(column.id)"
             :key="card.id"
             :draggable="config.drag_drop !== false"
-            class="kanban-card bg-white rounded-md shadow-sm p-3 border border-gray-200 cursor-move hover:shadow-md transition"
+            class="kanban-card bg-white rounded-md shadow-sm p-3 border border-border-light cursor-move hover:shadow-md transition"
             :data-file-id="card.id"
             @dragstart="handleDragStart($event, card)"
             @click="handleCardClick(card)"
           >
             <!-- Card Title -->
-            <div class="font-medium text-gray-900 mb-2">
+            <div class="font-medium text-text-primary mb-2">
               {{ card.title || card.filename }}
             </div>
 
@@ -44,7 +44,7 @@
                 v-for="field in config.card_fields"
                 :key="field"
                 v-show="getCardField(card, field)"
-                class="text-gray-600"
+                class="text-text-secondary"
               >
                 <span class="font-medium capitalize">{{ field }}:</span>
                 {{ formatFieldValue(getCardField(card, field)) }}
@@ -66,7 +66,7 @@
           <!-- Empty State -->
           <div
             v-if="getColumnCards(column.id).length === 0"
-            class="text-center py-8 text-gray-400 text-sm"
+            class="text-center py-8 text-text-tertiary text-sm"
           >
             Drop cards here
           </div>

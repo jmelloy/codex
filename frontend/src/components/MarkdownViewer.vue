@@ -1,5 +1,5 @@
 <template>
-  <div class="markdown-viewer notebook-page" :class="themeStore.theme.className">
+  <div class="markdown-viewer notebook-page" :class="[themeStore.theme.className, codeThemeClass]">
     <div class="markdown-toolbar" v-if="showToolbar">
       <button @click="$emit('edit')" v-if="editable" class="btn-edit">
         Edit
@@ -25,7 +25,6 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { marked } from 'marked'
 import hljs from 'highlight.js'
-import 'highlight.js/styles/github.css'
 import { useThemeStore } from '../stores/theme'
 
 const themeStore = useThemeStore()
@@ -82,12 +81,23 @@ const configureMarked = () => {
   }
 }
 
+// Theme class for code blocks
+const codeThemeClass = computed(() => {
+  return themeStore.theme.className?.includes('dark') ? 'code-theme-dark' : 'code-theme-light'
+})
+
+// Extract language from code block class (e.g., "language-javascript" -> "javascript")
+const extractLanguage = (className: string): string | null => {
+  const match = className.match(/language-(\w+)/)
+  return match && match[1] ? match[1] : null
+}
+
 // Computed
 const renderedHtml = computed(() => {
   if (!props.content) {
     return '<p class="empty-content">No content to display</p>'
   }
-  
+
   try {
     const html = marked(props.content) as string
     // Apply syntax highlighting to code blocks safely
@@ -96,12 +106,27 @@ const renderedHtml = computed(() => {
     const codeBlocks = doc.querySelectorAll('pre code')
     codeBlocks.forEach((block) => {
       const code = block.textContent || ''
-      const highlighted = hljs.highlightAuto(code)
+      const language = extractLanguage(block.className)
+
+      let highlighted
+      if (language) {
+        // Use specified language for highlighting
+        try {
+          highlighted = hljs.highlight(code, { language, ignoreIllegals: true })
+        } catch {
+          // Fallback to auto-detection if language is not supported
+          highlighted = hljs.highlightAuto(code)
+        }
+      } else {
+        // Auto-detect language
+        highlighted = hljs.highlightAuto(code)
+      }
+
       // Create a new element to safely set the highlighted HTML
       const highlightedElement = document.createElement('code')
       highlightedElement.innerHTML = highlighted.value
-      // Copy classes
-      highlightedElement.className = block.className
+      // Copy classes and add hljs class
+      highlightedElement.className = block.className + ' hljs'
       // Replace the code block
       block.parentNode?.replaceChild(highlightedElement, block)
     })
@@ -307,6 +332,104 @@ watch(() => props.extensions, () => {
 
 .error-content {
   color: var(--color-error);
+}
+
+/* Syntax highlighting - Light theme */
+.code-theme-light :deep(.hljs-keyword),
+.code-theme-light :deep(.hljs-selector-tag),
+.code-theme-light :deep(.hljs-literal),
+.code-theme-light :deep(.hljs-section),
+.code-theme-light :deep(.hljs-link) {
+  color: #d73a49;
+}
+
+.code-theme-light :deep(.hljs-string),
+.code-theme-light :deep(.hljs-title),
+.code-theme-light :deep(.hljs-name),
+.code-theme-light :deep(.hljs-type),
+.code-theme-light :deep(.hljs-attribute),
+.code-theme-light :deep(.hljs-symbol),
+.code-theme-light :deep(.hljs-bullet),
+.code-theme-light :deep(.hljs-addition),
+.code-theme-light :deep(.hljs-variable),
+.code-theme-light :deep(.hljs-template-tag),
+.code-theme-light :deep(.hljs-template-variable) {
+  color: #032f62;
+}
+
+.code-theme-light :deep(.hljs-comment),
+.code-theme-light :deep(.hljs-quote),
+.code-theme-light :deep(.hljs-deletion),
+.code-theme-light :deep(.hljs-meta) {
+  color: #6a737d;
+}
+
+.code-theme-light :deep(.hljs-function),
+.code-theme-light :deep(.hljs-title.function_) {
+  color: #6f42c1;
+}
+
+.code-theme-light :deep(.hljs-number),
+.code-theme-light :deep(.hljs-regexp),
+.code-theme-light :deep(.hljs-built_in),
+.code-theme-light :deep(.hljs-class) {
+  color: #005cc5;
+}
+
+.code-theme-light :deep(.hljs-attr) {
+  color: #005cc5;
+}
+
+/* Syntax highlighting - Dark theme */
+.code-theme-dark :deep(.hljs-keyword),
+.code-theme-dark :deep(.hljs-selector-tag),
+.code-theme-dark :deep(.hljs-literal),
+.code-theme-dark :deep(.hljs-section),
+.code-theme-dark :deep(.hljs-link) {
+  color: #ff7b72;
+}
+
+.code-theme-dark :deep(.hljs-string),
+.code-theme-dark :deep(.hljs-title),
+.code-theme-dark :deep(.hljs-name),
+.code-theme-dark :deep(.hljs-type),
+.code-theme-dark :deep(.hljs-attribute),
+.code-theme-dark :deep(.hljs-symbol),
+.code-theme-dark :deep(.hljs-bullet),
+.code-theme-dark :deep(.hljs-addition),
+.code-theme-dark :deep(.hljs-variable),
+.code-theme-dark :deep(.hljs-template-tag),
+.code-theme-dark :deep(.hljs-template-variable) {
+  color: #a5d6ff;
+}
+
+.code-theme-dark :deep(.hljs-comment),
+.code-theme-dark :deep(.hljs-quote),
+.code-theme-dark :deep(.hljs-deletion),
+.code-theme-dark :deep(.hljs-meta) {
+  color: #8b949e;
+}
+
+.code-theme-dark :deep(.hljs-function),
+.code-theme-dark :deep(.hljs-title.function_) {
+  color: #d2a8ff;
+}
+
+.code-theme-dark :deep(.hljs-number),
+.code-theme-dark :deep(.hljs-regexp),
+.code-theme-dark :deep(.hljs-built_in),
+.code-theme-dark :deep(.hljs-class) {
+  color: #79c0ff;
+}
+
+.code-theme-dark :deep(.hljs-attr) {
+  color: #79c0ff;
+}
+
+/* Dark theme code block background */
+.code-theme-dark :deep(pre) {
+  background: #0d1117;
+  color: #c9d1d9;
 }
 
 .frontmatter-section {

@@ -278,6 +278,24 @@
             </div>
           </div>
 
+          <!-- Code Viewer for source code files -->
+          <CodeViewer v-else-if="workspaceStore.currentFile.file_type === 'code'"
+            :content="workspaceStore.currentFile.content"
+            :filename="workspaceStore.currentFile.filename"
+            :show-line-numbers="true"
+            class="flex-1">
+            <template #toolbar-actions>
+              <button @click="startEdit"
+                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
+                Edit
+              </button>
+              <button @click="toggleProperties"
+                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
+                Properties
+              </button>
+            </template>
+          </CodeViewer>
+
           <!-- Binary file placeholder -->
           <div v-else-if="workspaceStore.currentFile.file_type === 'binary'" class="flex-1 flex flex-col overflow-hidden">
             <div class="flex justify-between items-center mb-4">
@@ -387,6 +405,7 @@ import Modal from '../components/Modal.vue'
 import FormGroup from '../components/FormGroup.vue'
 import MarkdownViewer from '../components/MarkdownViewer.vue'
 import MarkdownEditor from '../components/MarkdownEditor.vue'
+import CodeViewer from '../components/CodeViewer.vue'
 import ViewRenderer from '../components/views/ViewRenderer.vue'
 import FilePropertiesPanel from '../components/FilePropertiesPanel.vue'
 import FileTreeItem from '../components/FileTreeItem.vue'
@@ -503,6 +522,8 @@ function getFileIcon(file: FileMetadata | undefined): string {
       return '📋' // Clipboard for JSON
     case 'xml':
       return '🏷️'  // Tag for XML
+    case 'code':
+      return '💻' // Computer for code files
     case 'image':
       return '🖼️' // Picture for images
     case 'pdf':

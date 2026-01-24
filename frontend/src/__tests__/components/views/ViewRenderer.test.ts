@@ -67,6 +67,7 @@ describe('ViewRenderer', () => {
         props: {
           fileId: 1,
           workspaceId: 1,
+          notebookId: 1,
         },
       })
 
@@ -101,12 +102,13 @@ title: My Board
         props: {
           fileId: 1,
           workspaceId: 1,
+          notebookId: 1,
         },
       })
 
       await flushPromises()
 
-      expect(fileService.get).toHaveBeenCalledWith(1, 1)
+      expect(fileService.get).toHaveBeenCalledWith(1, 1, 1)
       expect(viewParser.parseViewDefinition).toHaveBeenCalledWith(
         mockFile.content
       )
@@ -147,6 +149,7 @@ title: My Board
         props: {
           fileId: 1,
           workspaceId: 1,
+          notebookId: 1,
         },
       })
 
@@ -176,6 +179,7 @@ title: My Board
         props: {
           fileId: 1,
           workspaceId: 1,
+          notebookId: 1,
         },
       })
 
@@ -205,6 +209,7 @@ title: My Board
         props: {
           fileId: 1,
           workspaceId: 1,
+          notebookId: 1,
         },
       })
 
@@ -225,6 +230,7 @@ title: My Board
         props: {
           fileId: 1,
           workspaceId: 1,
+          notebookId: 1,
         },
       })
 
@@ -249,6 +255,7 @@ title: My Board
         props: {
           fileId: 1,
           workspaceId: 1,
+          notebookId: 1,
         },
       })
 
@@ -267,6 +274,7 @@ title: My Board
         props: {
           fileId: 1,
           workspaceId: 1,
+          notebookId: 1,
         },
       })
 
@@ -283,6 +291,7 @@ title: My Board
         props: {
           fileId: 1,
           workspaceId: 1,
+          notebookId: 1,
         },
       })
 
@@ -316,6 +325,7 @@ title: My Board
         props: {
           fileId: 1,
           workspaceId: 1,
+          notebookId: 1,
         },
       })
 
@@ -346,6 +356,7 @@ title: My Board
         props: {
           fileId: 1,
           workspaceId: 1,
+          notebookId: 1,
         },
       })
 
@@ -376,6 +387,7 @@ title: My Board
         props: {
           fileId: 1,
           workspaceId: 1,
+          notebookId: 1,
         },
       })
 
@@ -391,6 +403,7 @@ title: My Board
     it('should handle update events from child views', async () => {
       const mockFile = {
         id: 1,
+        notebook_id: 1,
         content: '---\ntype: view\nview_type: kanban\n---',
         properties: { status: 'draft' },
       }
@@ -411,6 +424,7 @@ title: My Board
         props: {
           fileId: 1,
           workspaceId: 1,
+          notebookId: 1,
         },
       })
 
@@ -426,9 +440,10 @@ title: My Board
       await (wrapper.vm as any).handleUpdate(updateEvent)
       await flushPromises()
 
-      expect(fileService.get).toHaveBeenCalledWith(2, 1)
+      expect(fileService.get).toHaveBeenCalledWith(2, 1, 1)
       expect(fileService.update).toHaveBeenCalledWith(
         2,
+        1,
         1,
         mockFile.content,
         {
@@ -440,6 +455,7 @@ title: My Board
     it('should merge properties when updating', async () => {
       const mockFile = {
         id: 2,
+        notebook_id: 1,
         content: '# Content',
         properties: {
           status: 'todo',
@@ -469,6 +485,7 @@ title: My Board
         props: {
           fileId: 1,
           workspaceId: 1,
+          notebookId: 1,
         },
       })
 
@@ -484,6 +501,7 @@ title: My Board
 
       expect(fileService.update).toHaveBeenCalledWith(
         2,
+        1,
         1,
         mockFile.content,
         {
@@ -515,6 +533,7 @@ title: My Board
         props: {
           fileId: 1,
           workspaceId: 1,
+          notebookId: 1,
         },
       })
 
@@ -560,6 +579,7 @@ title: My Board
         props: {
           fileId: 1,
           workspaceId: 1,
+          notebookId: 1,
         },
       })
 
@@ -609,17 +629,18 @@ title: My Board
         props: {
           fileId: 1,
           workspaceId: 1,
+          notebookId: 1,
         },
       })
 
       await flushPromises()
 
-      expect(fileService.get).toHaveBeenCalledWith(1, 1)
+      expect(fileService.get).toHaveBeenCalledWith(1, 1, 1)
 
       await wrapper.setProps({ fileId: 2 })
       await flushPromises()
 
-      expect(fileService.get).toHaveBeenCalledWith(2, 1)
+      expect(fileService.get).toHaveBeenCalledWith(2, 1, 1)
     })
   })
 

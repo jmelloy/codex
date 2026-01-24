@@ -1,6 +1,6 @@
 import { defineStore } from "pinia"
 import { ref, computed } from "vue"
-import { workspaceService } from "../services/codex"
+import { authService } from "../services/auth"
 
 export type ThemeName = "cream" | "manila" | "white" | "blueprint"
 
@@ -43,7 +43,6 @@ const DEFAULT_THEME: ThemeName = "cream"
 
 export const useThemeStore = defineStore("theme", () => {
   const currentTheme = ref<ThemeName>(DEFAULT_THEME)
-  const currentWorkspaceId = ref<number | null>(null)
 
   const theme = computed((): Theme => {
     const found = THEMES.find((t) => t.name === currentTheme.value)
@@ -55,33 +54,26 @@ export const useThemeStore = defineStore("theme", () => {
   async function setTheme(themeName: ThemeName) {
     currentTheme.value = themeName
 
-    // Save to workspace if available
-    if (currentWorkspaceId.value) {
+    // Save to user account if authenticated
+    if (authService.isAuthenticated()) {
       try {
-        const updatedWorkspace = await workspaceService.updateTheme(currentWorkspaceId.value, themeName)
+        const updatedUser = await authService.updateTheme(themeName)
 
-        // Update the workspace store's current workspace object with the new theme
+        // Update the auth store's user object with the new theme
         // Import inside function to avoid circular dependency issues
-        const { useWorkspaceStore } = await import("./workspace")
-        const workspaceStore = useWorkspaceStore()
+        const { useAuthStore } = await import("./auth")
+        const authStore = useAuthStore()
 
-        // Update currentWorkspace if it's the same workspace
-        if (workspaceStore.currentWorkspace?.id === currentWorkspaceId.value) {
-          workspaceStore.currentWorkspace.theme_setting = updatedWorkspace.theme_setting
-        }
-
-        // Also update in the workspaces list
-        const workspaceIndex = workspaceStore.workspaces.findIndex(w => w.id === currentWorkspaceId.value)
-        if (workspaceIndex !== -1 && workspaceStore.workspaces[workspaceIndex]) {
-          workspaceStore.workspaces[workspaceIndex]!.theme_setting = updatedWorkspace.theme_setting
+        if (authStore.user) {
+          authStore.user.theme_setting = updatedUser.theme_setting
         }
       } catch (error) {
-        console.error("Failed to save theme to workspace:", error)
+        console.error("Failed to save theme to user:", error)
         // Fallback to localStorage on error
         saveToLocalStorage(themeName)
       }
     } else {
-      // No workspace, use localStorage
+      // No user logged in, use localStorage
       saveToLocalStorage(themeName)
     }
   }
@@ -106,13 +98,11 @@ export const useThemeStore = defineStore("theme", () => {
     return DEFAULT_THEME
   }
 
-  function loadFromWorkspace(workspaceId: number, themeSetting?: string) {
-    currentWorkspaceId.value = workspaceId
-
+  function loadFromUser(themeSetting?: string) {
     if (themeSetting && THEMES.some((t) => t.name === themeSetting)) {
       currentTheme.value = themeSetting as ThemeName
     } else {
-      // Fallback to localStorage if workspace doesn't have a theme
+      // Fallback to localStorage if user doesn't have a theme
       currentTheme.value = loadFromLocalStorage()
     }
   }
@@ -127,6 +117,6 @@ export const useThemeStore = defineStore("theme", () => {
     availableThemes,
     setTheme,
     initialize,
-    loadFromWorkspace,
+    loadFromUser,
   }
 })

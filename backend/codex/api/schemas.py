@@ -18,6 +18,13 @@ class UserResponse(BaseModel):
     username: str
     email: str
     is_active: bool
+    theme_setting: str | None = None
 
     class Config:
         from_attributes = True
+
+
+class ThemeUpdate(BaseModel):
+    """Schema for updating user theme setting."""
+
+    theme: str

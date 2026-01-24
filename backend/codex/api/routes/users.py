@@ -16,7 +16,7 @@ from codex.api.auth import (
 )
 from codex.db.database import get_system_session
 from codex.db.models import User
-from codex.api.schemas import UserCreate, UserResponse
+from codex.api.schemas import UserCreate, UserResponse, ThemeUpdate
 from codex.api.routes.workspaces import create_workspace, WorkspaceCreate
 
 router = APIRouter()
@@ -79,3 +79,17 @@ async def register(user_data: UserCreate, session: AsyncSession = Depends(get_sy
     await session.commit()
 
     return UserResponse.model_validate(new_user)
+
+
+@router.patch("/users/me/theme")
+async def update_user_theme(
+    body: ThemeUpdate,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+) -> UserResponse:
+    """Update the theme setting for the current user."""
+    current_user.theme_setting = body.theme
+    session.add(current_user)
+    await session.commit()
+    await session.refresh(current_user)
+    return UserResponse.model_validate(current_user)

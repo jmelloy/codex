@@ -5,6 +5,7 @@ export interface User {
   username: string;
   email: string;
   is_active: boolean;
+  theme_setting?: string;
 }
 
 export interface LoginCredentials {
@@ -53,5 +54,10 @@ export const authService = {
 
   isAuthenticated(): boolean {
     return !!localStorage.getItem("access_token");
+  },
+
+  async updateTheme(theme: string): Promise<User> {
+    const response = await apiClient.patch<User>("/users/me/theme", { theme });
+    return response.data;
   },
 };

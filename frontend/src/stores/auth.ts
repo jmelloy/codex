@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
 import { authService, type User } from "../services/auth";
+import { useThemeStore } from "./theme";
 
 export const useAuthStore = defineStore("auth", () => {
   const user = ref<User | null>(null);
@@ -28,6 +29,9 @@ export const useAuthStore = defineStore("auth", () => {
     try {
       user.value = await authService.getCurrentUser();
       isAuthenticated.value = true;
+      // Load theme from user settings
+      const themeStore = useThemeStore();
+      themeStore.loadFromUser(user.value.theme_setting);
     } catch (e) {
       logout();
     }

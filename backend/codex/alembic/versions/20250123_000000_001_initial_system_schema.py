@@ -54,6 +54,7 @@ def upgrade() -> None:
             sa.Column("email", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
             sa.Column("hashed_password", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
             sa.Column("is_active", sa.Boolean(), nullable=False),
+            sa.Column("theme_setting", sqlmodel.sql.sqltypes.AutoString(), nullable=True),
             sa.Column("created_at", sa.DateTime(), nullable=False),
             sa.Column("updated_at", sa.DateTime(), nullable=False),
             sa.PrimaryKeyConstraint("id"),

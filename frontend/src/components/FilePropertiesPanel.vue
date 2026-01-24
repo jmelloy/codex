@@ -156,6 +156,7 @@ const tags = computed(() => {
 
 // Standard property fields that are handled separately
 const STANDARD_FIELDS = ['title', 'description', 'tags'] as const
+type StandardField = typeof STANDARD_FIELDS[number]
 
 // Get all metadata except standard fields (title, description, tags)
 const metadata = computed(() => {
@@ -163,7 +164,7 @@ const metadata = computed(() => {
   
   const result: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(props.file.properties)) {
-    if (!STANDARD_FIELDS.includes(key as any)) {
+    if (!STANDARD_FIELDS.includes(key as StandardField)) {
       result[key] = value
     }
   }

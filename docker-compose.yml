@@ -13,7 +13,7 @@ services:
       - JSON_LOGS=${JSON_LOGS:-true}
       - PYTHONUNBUFFERED=1
     volumes:
-      - codex-data:/app/data
+      - ./data:/app/data
     restart: unless-stopped
     command: >
       sh -c "alembic upgrade head && python -m codex.main"
@@ -42,6 +42,3 @@ services:
       timeout: 10s
       retries: 3
       start_period: 5s
-
-volumes:
-  codex-data:

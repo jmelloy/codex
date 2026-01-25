@@ -133,7 +133,7 @@ async def health():
 
 
 # Include routers
-app.include_router(users.router, tags=["users"])
+app.include_router(users.router, prefix="/api", tags=["users"])
 app.include_router(workspaces.router, prefix="/api/v1/workspaces", tags=["workspaces"])
 app.include_router(notebooks.router, prefix="/api/v1/notebooks", tags=["notebooks"])
 app.include_router(files.router, prefix="/api/v1/files", tags=["files"])

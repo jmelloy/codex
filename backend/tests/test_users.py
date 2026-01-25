@@ -16,17 +16,17 @@ def test_get_current_user():
     email = f"{username}@example.com"
     password = "testpass123"
 
-    register_response = client.post("/register", json={"username": username, "email": email, "password": password})
+    register_response = client.post("/api/register", json={"username": username, "email": email, "password": password})
     assert register_response.status_code == 201
     user_id = register_response.json()["id"]
 
     # Login
-    login_response = client.post("/token", data={"username": username, "password": password})
+    login_response = client.post("/api/token", data={"username": username, "password": password})
     assert login_response.status_code == 200
     token = login_response.json()["access_token"]
 
     # Get current user
-    response = client.get("/users/me", headers={"Authorization": f"Bearer {token}"})
+    response = client.get("/api/users/me", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 200
     user = response.json()
     assert user["id"] == user_id
@@ -39,13 +39,13 @@ def test_get_current_user():
 
 def test_get_current_user_requires_auth():
     """Test that /users/me requires authentication."""
-    response = client.get("/users/me")
+    response = client.get("/api/users/me")
     assert response.status_code == 401
 
 
 def test_get_current_user_invalid_token():
     """Test that /users/me rejects invalid tokens."""
-    response = client.get("/users/me", headers={"Authorization": "Bearer invalid_token_here"})
+    response = client.get("/api/users/me", headers={"Authorization": "Bearer invalid_token_here"})
     assert response.status_code == 401
 
 
@@ -56,17 +56,17 @@ def test_login_wrong_password():
     email = f"{username}@example.com"
     password = "testpass123"
 
-    client.post("/register", json={"username": username, "email": email, "password": password})
+    client.post("/api/register", json={"username": username, "email": email, "password": password})
 
     # Try to login with wrong password
-    response = client.post("/token", data={"username": username, "password": "wrongpassword"})
+    response = client.post("/api/token", data={"username": username, "password": "wrongpassword"})
     assert response.status_code == 401
     assert "Incorrect username or password" in response.json()["detail"]
 
 
 def test_login_nonexistent_user():
     """Test login with non-existent username."""
-    response = client.post("/token", data={"username": "nonexistent_user_12345", "password": "somepassword"})
+    response = client.post("/api/token", data={"username": "nonexistent_user_12345", "password": "somepassword"})
     assert response.status_code == 401
     assert "Incorrect username or password" in response.json()["detail"]
 
@@ -78,10 +78,10 @@ def test_token_format():
     email = f"{username}@example.com"
     password = "testpass123"
 
-    client.post("/register", json={"username": username, "email": email, "password": password})
+    client.post("/api/register", json={"username": username, "email": email, "password": password})
 
     # Login
-    response = client.post("/token", data={"username": username, "password": password})
+    response = client.post("/api/token", data={"username": username, "password": password})
     assert response.status_code == 200
     data = response.json()
     assert "access_token" in data
@@ -103,17 +103,17 @@ async def test_get_current_user_async():
         password = "testpass123"
 
         register_response = await ac.post(
-            "/register", json={"username": username, "email": email, "password": password}
+            "/api/register", json={"username": username, "email": email, "password": password}
         )
         assert register_response.status_code == 201
 
         # Login
-        login_response = await ac.post("/token", data={"username": username, "password": password})
+        login_response = await ac.post("/api/token", data={"username": username, "password": password})
         assert login_response.status_code == 200
         token = login_response.json()["access_token"]
 
         # Get current user
-        response = await ac.get("/users/me", headers={"Authorization": f"Bearer {token}"})
+        response = await ac.get("/api/users/me", headers={"Authorization": f"Bearer {token}"})
         assert response.status_code == 200
         user = response.json()
         assert user["username"] == username
@@ -127,17 +127,17 @@ def test_multiple_logins_same_user():
     email = f"{username}@example.com"
     password = "testpass123"
 
-    client.post("/register", json={"username": username, "email": email, "password": password})
+    client.post("/api/register", json={"username": username, "email": email, "password": password})
 
     # Login multiple times
     tokens = []
     for _ in range(3):
-        login_response = client.post("/token", data={"username": username, "password": password})
+        login_response = client.post("/api/token", data={"username": username, "password": password})
         assert login_response.status_code == 200
         tokens.append(login_response.json()["access_token"])
 
     # All tokens should work
     for token in tokens:
-        response = client.get("/users/me", headers={"Authorization": f"Bearer {token}"})
+        response = client.get("/api/users/me", headers={"Authorization": f"Bearer {token}"})
         assert response.status_code == 200
         assert response.json()["username"] == username

@@ -10,9 +10,9 @@ client = TestClient(app)
 def test_render_markdown_simple():
     """Test basic markdown rendering."""
     # First register and login
-    client.post("/register", json={"username": "testuser_md", "email": "testmd@example.com", "password": "testpass123"})
+    client.post("/api/register", json={"username": "testuser_md", "email": "testmd@example.com", "password": "testpass123"})
 
-    login_response = client.post("/token", data={"username": "testuser_md", "password": "testpass123"})
+    login_response = client.post("/api/token", data={"username": "testuser_md", "password": "testpass123"})
     token = login_response.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 
@@ -30,9 +30,9 @@ def test_render_markdown_simple():
 def test_render_markdown_with_frontmatter():
     """Test markdown rendering with frontmatter."""
     # Login
-    client.post("/register", json={"username": "testuser_fm", "email": "testfm@example.com", "password": "testpass123"})
+    client.post("/api/register", json={"username": "testuser_fm", "email": "testfm@example.com", "password": "testpass123"})
 
-    login_response = client.post("/token", data={"username": "testuser_fm", "password": "testpass123"})
+    login_response = client.post("/api/token", data={"username": "testuser_fm", "password": "testpass123"})
     token = login_response.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 
@@ -66,10 +66,10 @@ def test_list_markdown_files_empty(temp_workspace_dir):
     """Test listing markdown files returns empty list."""
     # Login
     client.post(
-        "/register", json={"username": "testuser_list", "email": "testlist@example.com", "password": "testpass123"}
+        "/api/register", json={"username": "testuser_list", "email": "testlist@example.com", "password": "testpass123"}
     )
 
-    login_response = client.post("/token", data={"username": "testuser_list", "password": "testpass123"})
+    login_response = client.post("/api/token", data={"username": "testuser_list", "password": "testpass123"})
     token = login_response.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 
@@ -106,10 +106,10 @@ def test_render_markdown_empty_content():
     """Test rendering empty markdown content."""
     # Login
     client.post(
-        "/register", json={"username": "testuser_empty", "email": "testempty@example.com", "password": "testpass123"}
+        "/api/register", json={"username": "testuser_empty", "email": "testempty@example.com", "password": "testpass123"}
     )
 
-    login_response = client.post("/token", data={"username": "testuser_empty", "password": "testpass123"})
+    login_response = client.post("/api/token", data={"username": "testuser_empty", "password": "testpass123"})
     token = login_response.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 
@@ -126,10 +126,10 @@ def test_render_markdown_with_datetime_frontmatter():
     """Test that datetime values in frontmatter are serialized correctly."""
     # Login
     client.post(
-        "/register", json={"username": "testuser_dt", "email": "testdt@example.com", "password": "testpass123"}
+        "/api/register", json={"username": "testuser_dt", "email": "testdt@example.com", "password": "testpass123"}
     )
 
-    login_response = client.post("/token", data={"username": "testuser_dt", "password": "testpass123"})
+    login_response = client.post("/api/token", data={"username": "testuser_dt", "password": "testpass123"})
     token = login_response.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 

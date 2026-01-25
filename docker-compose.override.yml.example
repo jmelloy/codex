@@ -39,7 +39,7 @@ services:
     image: node:22-slim
     working_dir: /app
     ports:
-      - "${FRONTEND_DEV_PORT:-5174}:5173"
+      - 5165:5173
     volumes:
       - ./frontend:/app
       - frontend-node-modules:/app/node_modules

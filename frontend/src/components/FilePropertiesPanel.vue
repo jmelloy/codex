@@ -84,12 +84,65 @@
         </div>
       </div>
 
-      <!-- Metadata / Frontmatter -->
-      <div class="property-section" v-if="metadata && Object.keys(metadata).length > 0">
-        <h4>Metadata</h4>
-        <div class="property-row" v-for="(value, key) in metadata" :key="key">
-          <span class="property-label">{{ key }}</span>
-          <span class="property-value">{{ formatMetadataValue(value) }}</span>
+      <!-- Custom Properties (editable) -->
+      <div class="property-section">
+        <h4>Custom Properties</h4>
+
+        <!-- Existing custom properties -->
+        <div class="custom-property-row" v-for="(value, key) in metadata" :key="key">
+          <template v-if="editingProperty === key">
+            <!-- Editing mode -->
+            <input
+              v-model="editPropertyValue"
+              @blur="savePropertyEdit(key as string)"
+              @keyup.enter="savePropertyEdit(key as string)"
+              @keyup.escape="cancelPropertyEdit"
+              class="property-edit-input"
+              ref="editInput"
+            />
+            <div class="property-actions-inline">
+              <button @click="savePropertyEdit(key as string)" class="btn-action btn-save" title="Save">✓</button>
+              <button @click="cancelPropertyEdit" class="btn-action btn-cancel" title="Cancel">✕</button>
+            </div>
+          </template>
+          <template v-else>
+            <!-- Display mode -->
+            <span class="property-label">{{ key }}</span>
+            <span
+              class="property-value editable"
+              @click="startEditProperty(key as string, value)"
+              title="Click to edit"
+            >{{ formatMetadataValue(value) }}</span>
+            <button @click="removeProperty(key as string)" class="btn-remove-property" title="Remove property">×</button>
+          </template>
+        </div>
+
+        <!-- Empty state -->
+        <div v-if="Object.keys(metadata).length === 0" class="empty-properties">
+          No custom properties
+        </div>
+
+        <!-- Add new property -->
+        <div class="add-property-form">
+          <input
+            v-model="newPropertyKey"
+            class="property-key-input"
+            placeholder="Property name"
+            @keyup.enter="focusValueInput"
+          />
+          <input
+            v-model="newPropertyValue"
+            class="property-value-input"
+            placeholder="Value"
+            ref="valueInputRef"
+            @keyup.enter="addProperty"
+          />
+          <button
+            @click="addProperty"
+            class="btn-add-property"
+            :disabled="!newPropertyKey.trim()"
+            title="Add property"
+          >+</button>
         </div>
       </div>
 
@@ -126,6 +179,13 @@ const emit = defineEmits<{
 const editableTitle = ref('')
 const editableDescription = ref('')
 const newTag = ref('')
+
+// Custom property editing state
+const newPropertyKey = ref('')
+const newPropertyValue = ref('')
+const editingProperty = ref<string | null>(null)
+const editPropertyValue = ref('')
+const valueInputRef = ref<HTMLInputElement | null>(null)
 
 // Get current properties or empty object
 const currentProperties = computed(() => {
@@ -237,6 +297,76 @@ function addTag() {
 function removeTag(tagToRemove: string) {
   const currentTags = tags.value
   emitPropertiesUpdate({ tags: currentTags.filter(t => t !== tagToRemove) })
+}
+
+// Custom property management
+function addProperty() {
+  const key = newPropertyKey.value.trim()
+  if (!key) return
+
+  // Parse value - try to detect type
+  let value: unknown = newPropertyValue.value.trim()
+
+  // Try to parse as JSON (for numbers, booleans, arrays, objects)
+  if (value) {
+    try {
+      const parsed = JSON.parse(value as string)
+      value = parsed
+    } catch {
+      // Keep as string if not valid JSON
+    }
+  }
+
+  emitPropertiesUpdate({ [key]: value })
+  newPropertyKey.value = ''
+  newPropertyValue.value = ''
+}
+
+function focusValueInput() {
+  valueInputRef.value?.focus()
+}
+
+function startEditProperty(key: string, value: unknown) {
+  editingProperty.value = key
+  // Format value for editing
+  if (typeof value === 'object') {
+    editPropertyValue.value = JSON.stringify(value)
+  } else {
+    editPropertyValue.value = String(value ?? '')
+  }
+}
+
+function savePropertyEdit(key: string) {
+  if (editingProperty.value !== key) return
+
+  // Parse value - try to detect type
+  let value: unknown = editPropertyValue.value.trim()
+
+  // Try to parse as JSON (for numbers, booleans, arrays, objects)
+  if (value) {
+    try {
+      const parsed = JSON.parse(value as string)
+      value = parsed
+    } catch {
+      // Keep as string if not valid JSON
+    }
+  }
+
+  emitPropertiesUpdate({ [key]: value })
+  editingProperty.value = null
+  editPropertyValue.value = ''
+}
+
+function cancelPropertyEdit() {
+  editingProperty.value = null
+  editPropertyValue.value = ''
+}
+
+function removeProperty(key: string) {
+  // Create new properties object without the removed key
+  const newProperties = { ...currentProperties.value }
+  delete newProperties[key]
+  emit('updateProperties', newProperties)
 }
 
 function confirmDelete() {
@@ -472,5 +602,169 @@ function confirmDelete() {
   height: 100%;
   color: var(--color-text-placeholder);
   font-size: var(--text-sm);
+}
+
+/* Custom Properties Styles */
+.custom-property-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) 0;
+  border-bottom: 1px solid var(--color-bg-secondary);
+}
+
+.custom-property-row .property-label {
+  font-size: var(--text-sm);
+  color: var(--color-text-tertiary);
+  min-width: 80px;
+  flex-shrink: 0;
+}
+
+.custom-property-row .property-value {
+  flex: 1;
+  font-size: var(--text-sm);
+  color: var(--color-text-primary);
+  word-break: break-all;
+  text-align: left;
+}
+
+.custom-property-row .property-value.editable {
+  cursor: pointer;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  transition: background 0.2s;
+}
+
+.custom-property-row .property-value.editable:hover {
+  background: var(--color-bg-secondary);
+}
+
+.property-edit-input {
+  flex: 1;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: 1px solid var(--color-border-focus);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  color: var(--color-text-primary);
+  background: var(--color-bg-primary);
+}
+
+.property-edit-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 20%, transparent);
+}
+
+.property-actions-inline {
+  display: flex;
+  gap: var(--spacing-xs);
+}
+
+.btn-action {
+  background: none;
+  border: none;
+  padding: var(--spacing-xs);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  line-height: 1;
+  border-radius: var(--radius-sm);
+  transition: background 0.2s, color 0.2s;
+}
+
+.btn-save {
+  color: var(--color-success, #22c55e);
+}
+
+.btn-save:hover {
+  background: color-mix(in srgb, var(--color-success, #22c55e) 10%, transparent);
+}
+
+.btn-cancel {
+  color: var(--color-text-tertiary);
+}
+
+.btn-cancel:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-secondary);
+}
+
+.btn-remove-property {
+  background: none;
+  border: none;
+  color: var(--color-text-placeholder);
+  cursor: pointer;
+  padding: var(--spacing-xs);
+  line-height: 1;
+  font-size: var(--text-sm);
+  transition: color 0.2s;
+  opacity: 0;
+  flex-shrink: 0;
+}
+
+.custom-property-row:hover .btn-remove-property {
+  opacity: 1;
+}
+
+.btn-remove-property:hover {
+  color: var(--color-error);
+}
+
+.empty-properties {
+  font-size: var(--text-sm);
+  color: var(--color-text-placeholder);
+  font-style: italic;
+  padding: var(--spacing-md) 0;
+}
+
+.add-property-form {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--color-bg-secondary);
+}
+
+.property-key-input,
+.property-value-input {
+  flex: 1;
+  padding: var(--spacing-sm);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  transition: border-color 0.2s;
+}
+
+.property-key-input {
+  max-width: 40%;
+}
+
+.property-key-input:focus,
+.property-value-input:focus {
+  outline: none;
+  border-color: var(--color-border-focus);
+}
+
+.btn-add-property {
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-lg);
+  font-weight: var(--font-medium);
+  cursor: pointer;
+  transition: background 0.2s;
+  line-height: 1;
+}
+
+.btn-add-property:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+
+.btn-add-property:disabled {
+  background: var(--color-bg-disabled);
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
 }
 </style>

@@ -222,31 +222,40 @@
 
 /* ========== Page Theme Classes ========== */
 
-/* Cream Notebook (Default) */
+/* Cream Notebook (Default) - Classic journal feel */
 .theme-cream {
   --notebook-bg: var(--page-cream);
   --notebook-text: var(--pen-black);
+  --font-sans: 'Georgia', 'Palatino Linotype', 'Book Antiqua', Palatino, serif;
+  --font-serif: 'Georgia', 'Palatino Linotype', 'Book Antiqua', Palatino, serif;
+  --font-mono: 'Courier New', Courier, monospace;
   background-color: var(--notebook-bg);
   color: var(--notebook-text);
 }
 
-/* Manila/Tan Notebook */
+/* Manila/Tan Notebook - Vintage typewriter feel */
 .theme-manila {
   --notebook-bg: var(--page-manila);
   --notebook-text: var(--pen-black);
+  --font-sans: 'American Typewriter', 'Courier New', Courier, monospace;
+  --font-serif: 'American Typewriter', 'Courier New', Courier, monospace;
+  --font-mono: 'Courier New', Courier, monospace;
   background-color: var(--notebook-bg);
   color: var(--notebook-text);
 }
 
-/* White Notebook */
+/* White Notebook - Clean modern feel */
 .theme-white {
   --notebook-bg: var(--page-white);
   --notebook-text: var(--pen-black);
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+  --font-serif: 'Georgia', 'Palatino', 'Times New Roman', serif;
+  --font-mono: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', 'Droid Sans Mono', monospace;
   background-color: var(--notebook-bg);
   color: var(--notebook-text);
 }
 
-/* Blueprint/Dark Notebook */
+/* Blueprint/Dark Notebook - Technical engineering feel */
 .theme-blueprint {
   --notebook-bg: var(--page-blueprint);
   --notebook-text: #e0e7ff;
@@ -258,6 +267,9 @@
   --ruled-line-color: rgba(255, 255, 255, 0.15);
   --page-border: rgba(255, 255, 255, 0.2);
   --page-shadow: rgba(0, 0, 0, 0.3);
+  --font-sans: 'Roboto Mono', 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', monospace;
+  --font-serif: 'Roboto Mono', 'SF Mono', 'Monaco', monospace;
+  --font-mono: 'Roboto Mono', 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', monospace;
 
   /* Dark mode UI colors */
   --color-text-primary: #e2e8f0;

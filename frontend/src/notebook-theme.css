@@ -227,6 +227,7 @@
   --notebook-bg: var(--page-cream);
   --notebook-text: var(--pen-black);
   background-color: var(--notebook-bg);
+  color: var(--notebook-text);
 }
 
 /* Manila/Tan Notebook */
@@ -234,6 +235,7 @@
   --notebook-bg: var(--page-manila);
   --notebook-text: var(--pen-black);
   background-color: var(--notebook-bg);
+  color: var(--notebook-text);
 }
 
 /* White Notebook */
@@ -241,6 +243,7 @@
   --notebook-bg: var(--page-white);
   --notebook-text: var(--pen-black);
   background-color: var(--notebook-bg);
+  color: var(--notebook-text);
 }
 
 /* Blueprint/Dark Notebook */
@@ -280,6 +283,7 @@
   --color-info-bg: rgba(37, 99, 235, 0.1);
 
   background-color: var(--notebook-bg);
+  color: var(--notebook-text);
 }
 
 /* ========== Pen Color Classes ========== */

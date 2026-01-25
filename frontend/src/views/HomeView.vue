@@ -909,10 +909,10 @@ function startCreateFile(notebook: Notebook) {
   color: var(--notebook-accent);
 }
 
-/* Main navbar - explicit styling to prevent theme color inheritance */
+/* Main navbar - uses text-inverse to ensure readability on primary background */
 .main-navbar {
   background-color: var(--color-primary);
-  color: #ffffff;
+  color: var(--color-text-inverse);
   padding: 1rem 2rem;
   display: flex;
   justify-content: space-between;
@@ -922,12 +922,12 @@ function startCreateFile(notebook: Notebook) {
 .main-navbar h1,
 .main-navbar span,
 .main-navbar button {
-  color: #ffffff;
+  color: var(--color-text-inverse);
 }
 
 .navbar-button {
   background-color: rgba(255, 255, 255, 0.2);
-  color: #ffffff;
+  color: var(--color-text-inverse);
   border: none;
   padding: 0.5rem 1rem;
   border-radius: 0.25rem;

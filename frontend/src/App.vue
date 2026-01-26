@@ -29,7 +29,7 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: var(--color-bg-primary);
+  background-color: var(--notebook-bg);
   color: var(--color-text-primary);
 }
 </style>

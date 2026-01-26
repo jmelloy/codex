@@ -22,7 +22,6 @@ from codex.db.database import get_system_session, init_system_db, init_notebook_
 from codex.db.models import User, Workspace, Notebook
 from codex.core.git_manager import GitManager
 
-
 # Test user credentials (documented for easy reference)
 TEST_USERS = [
     {
@@ -471,9 +470,7 @@ async def clean_test_data():
 
                     for workspace in workspaces:
                         # Delete notebooks for this workspace first
-                        result = await session.execute(
-                            select(Notebook).where(Notebook.workspace_id == workspace.id)
-                        )
+                        result = await session.execute(select(Notebook).where(Notebook.workspace_id == workspace.id))
                         notebooks = result.scalars().all()
                         for notebook in notebooks:
                             await session.delete(notebook)

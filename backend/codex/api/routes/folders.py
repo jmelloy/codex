@@ -90,16 +90,12 @@ def write_folder_properties(folder_path: Path, properties: dict[str, Any]) -> No
         f.write(content)
 
 
-def get_folder_files(
-    folder_path: str, notebook_id: int, notebook_path: Path, nb_session
-) -> list[dict]:
+def get_folder_files(folder_path: str, notebook_id: int, notebook_path: Path, nb_session) -> list[dict]:
     """Get files in a specific folder (not recursive)."""
     # Query files that are directly in this folder
     prefix = f"{folder_path}/" if folder_path else ""
 
-    files_result = nb_session.execute(
-        select(FileMetadata).where(FileMetadata.notebook_id == notebook_id)
-    )
+    files_result = nb_session.execute(select(FileMetadata).where(FileMetadata.notebook_id == notebook_id))
     all_files = files_result.scalars().all()
 
     folder_files = []
@@ -113,7 +109,7 @@ def get_folder_files(
             if not f.path.startswith(prefix):
                 continue
             # Get the relative path after the folder prefix
-            relative = f.path[len(prefix):]
+            relative = f.path[len(prefix) :]
             # If there's a / in the relative path, it's in a subfolder
             if "/" in relative:
                 continue
@@ -130,19 +126,21 @@ def get_folder_files(
             except json.JSONDecodeError:
                 properties = None
 
-        folder_files.append({
-            "id": f.id,
-            "notebook_id": f.notebook_id,
-            "path": f.path,
-            "filename": f.filename,
-            "file_type": f.file_type,
-            "size": f.size,
-            "title": f.title,
-            "description": f.description,
-            "properties": properties,
-            "created_at": f.created_at.isoformat() if f.created_at else None,
-            "updated_at": f.updated_at.isoformat() if f.updated_at else None,
-        })
+        folder_files.append(
+            {
+                "id": f.id,
+                "notebook_id": f.notebook_id,
+                "path": f.path,
+                "filename": f.filename,
+                "file_type": f.file_type,
+                "size": f.size,
+                "title": f.title,
+                "description": f.description,
+                "properties": properties,
+                "created_at": f.created_at.isoformat() if f.created_at else None,
+                "updated_at": f.updated_at.isoformat() if f.updated_at else None,
+            }
+        )
 
     return folder_files
 
@@ -328,9 +326,7 @@ async def delete_folder(
     try:
         # Delete all files in folder from database
         prefix = f"{folder_path}/"
-        files_result = nb_session.execute(
-            select(FileMetadata).where(FileMetadata.notebook_id == notebook_id)
-        )
+        files_result = nb_session.execute(select(FileMetadata).where(FileMetadata.notebook_id == notebook_id))
         all_files = files_result.scalars().all()
 
         for f in all_files:

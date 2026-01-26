@@ -49,9 +49,9 @@ class TestNotebookMigrations:
         # Create an old-style database with frontmatter column
         db_path = codex_dir / "notebook.db"
         from sqlalchemy import create_engine
-        
+
         old_engine = create_engine(f"sqlite:///{db_path}")
-        
+
         # Create old schema with frontmatter
         with old_engine.connect() as conn:
             conn.execute(text("""
@@ -98,7 +98,7 @@ class TestNotebookMigrations:
         # Verify migration was applied
         inspector = inspect(engine)
         columns = {col["name"] for col in inspector.get_columns("file_metadata")}
-        
+
         # Should now have 'properties' instead of 'frontmatter'
         assert "properties" in columns
         assert "frontmatter" not in columns

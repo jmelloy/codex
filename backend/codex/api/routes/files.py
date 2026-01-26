@@ -27,10 +27,10 @@ async def get_notebook_path(
     notebook_id: int, workspace_id: int, current_user: User, session: AsyncSession
 ) -> tuple[Path, Notebook]:
     """Helper to get and verify notebook path.
-    
+
     Returns:
         Tuple of (notebook_path, notebook_model)
-    
+
     Raises:
         HTTPException if workspace or notebook not found
     """
@@ -53,10 +53,10 @@ async def get_notebook_path(
     # Get notebook path
     workspace_path = Path(workspace.path)
     notebook_path = workspace_path / notebook.path
-    
+
     if not notebook_path.exists():
         raise HTTPException(status_code=404, detail="Notebook path not found")
-    
+
     return notebook_path, notebook
 
 
@@ -193,16 +193,18 @@ async def list_templates(
                             template_id = template_file.stem
                             ext = properties.get("template_for", template_file.suffix)
 
-                            templates.append({
-                                "id": template_id,
-                                "name": properties.get("name", template_id),
-                                "description": properties.get("description", ""),
-                                "icon": properties.get("icon", "📄"),
-                                "file_extension": ext,
-                                "default_name": properties.get("default_name", f"{{title}}{ext}"),
-                                "content": properties.get("template_content", body),
-                                "source": "notebook",
-                            })
+                            templates.append(
+                                {
+                                    "id": template_id,
+                                    "name": properties.get("name", template_id),
+                                    "description": properties.get("description", ""),
+                                    "icon": properties.get("icon", "📄"),
+                                    "file_extension": ext,
+                                    "default_name": properties.get("default_name", f"{{title}}{ext}"),
+                                    "content": properties.get("template_content", body),
+                                    "source": "notebook",
+                                }
+                            )
                     except Exception as e:
                         logger.warning(f"Failed to parse template {template_file}: {e}")
                         continue
@@ -312,9 +314,7 @@ async def list_files(
     # Query files from notebook database
     nb_session = get_notebook_session(str(notebook_path))
     try:
-        files_result = nb_session.execute(
-            select(FileMetadata).where(FileMetadata.notebook_id == notebook_id)
-        )
+        files_result = nb_session.execute(select(FileMetadata).where(FileMetadata.notebook_id == notebook_id))
         files = files_result.scalars().all()
 
         file_list = []
@@ -421,9 +421,7 @@ async def get_file(
             "content": content,
             "created_at": file_meta.created_at.isoformat() if file_meta.created_at else None,
             "updated_at": file_meta.updated_at.isoformat() if file_meta.updated_at else None,
-            "file_modified_at": (
-                file_meta.file_modified_at.isoformat() if file_meta.file_modified_at else None
-            ),
+            "file_modified_at": (file_meta.file_modified_at.isoformat() if file_meta.file_modified_at else None),
         }
 
         return result
@@ -465,11 +463,7 @@ async def get_file_history(
         git_manager = GitManager(str(notebook_path))
         history = git_manager.get_file_history(str(file_path), max_count=max_count)
 
-        return {
-            "file_id": file_id,
-            "path": file_meta.path,
-            "history": history
-        }
+        return {"file_id": file_id, "path": file_meta.path, "history": history}
     except HTTPException:
         raise
     except Exception as e:
@@ -516,12 +510,7 @@ async def get_file_at_commit(
         if content is None:
             raise HTTPException(status_code=404, detail="File not found at this commit")
 
-        return {
-            "file_id": file_id,
-            "path": file_meta.path,
-            "commit_hash": commit_hash,
-            "content": content
-        }
+        return {"file_id": file_id, "path": file_meta.path, "commit_hash": commit_hash, "content": content}
     except HTTPException:
         raise
     except Exception as e:
@@ -553,20 +542,14 @@ async def get_file_by_path(
     try:
         # First try exact path match
         file_result = nb_session.execute(
-            select(FileMetadata).where(
-                FileMetadata.notebook_id == notebook_id,
-                FileMetadata.path == path
-            )
+            select(FileMetadata).where(FileMetadata.notebook_id == notebook_id, FileMetadata.path == path)
         )
         file_meta = file_result.scalar_one_or_none()
 
         # If not found and path doesn't contain directory separator, try filename match
         if not file_meta and "/" not in path:
             file_result = nb_session.execute(
-                select(FileMetadata).where(
-                    FileMetadata.notebook_id == notebook_id,
-                    FileMetadata.filename == path
-                )
+                select(FileMetadata).where(FileMetadata.notebook_id == notebook_id, FileMetadata.filename == path)
             )
             # Get first match if multiple files have same name
             file_meta = file_result.scalars().first()
@@ -623,9 +606,7 @@ async def get_file_by_path(
             "content": content,
             "created_at": file_meta.created_at.isoformat() if file_meta.created_at else None,
             "updated_at": file_meta.updated_at.isoformat() if file_meta.updated_at else None,
-            "file_modified_at": (
-                file_meta.file_modified_at.isoformat() if file_meta.file_modified_at else None
-            ),
+            "file_modified_at": (file_meta.file_modified_at.isoformat() if file_meta.file_modified_at else None),
         }
 
         return result
@@ -655,20 +636,14 @@ async def get_file_content_by_path(
     try:
         # First try exact path match
         file_result = nb_session.execute(
-            select(FileMetadata).where(
-                FileMetadata.notebook_id == notebook_id,
-                FileMetadata.path == path
-            )
+            select(FileMetadata).where(FileMetadata.notebook_id == notebook_id, FileMetadata.path == path)
         )
         file_meta = file_result.scalar_one_or_none()
 
         # If not found and path doesn't contain directory separator, try filename match
         if not file_meta and "/" not in path:
             file_result = nb_session.execute(
-                select(FileMetadata).where(
-                    FileMetadata.notebook_id == notebook_id,
-                    FileMetadata.filename == path
-                )
+                select(FileMetadata).where(FileMetadata.notebook_id == notebook_id, FileMetadata.filename == path)
             )
             # Get first match if multiple files have same name
             file_meta = file_result.scalars().first()
@@ -699,11 +674,7 @@ async def get_file_content_by_path(
             media_type = "application/octet-stream"
 
         # Return the file
-        return FileResponse(
-            path=str(file_path),
-            media_type=media_type,
-            filename=file_meta.filename
-        )
+        return FileResponse(path=str(file_path), media_type=media_type, filename=file_meta.filename)
     finally:
         nb_session.close()
 
@@ -752,11 +723,7 @@ async def get_file_content(
             media_type = "application/octet-stream"
 
         # Return the file
-        return FileResponse(
-            path=str(file_path),
-            media_type=media_type,
-            filename=file_meta.filename
-        )
+        return FileResponse(path=str(file_path), media_type=media_type, filename=file_meta.filename)
     finally:
         nb_session.close()
 
@@ -783,11 +750,7 @@ async def resolve_link(
 
     # Resolve the link
     try:
-        resolved_path = LinkResolver.resolve_link(
-            request.link,
-            request.current_file_path,
-            notebook_path
-        )
+        resolved_path = LinkResolver.resolve_link(request.link, request.current_file_path, notebook_path)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -796,10 +759,7 @@ async def resolve_link(
     try:
         # First try exact path match
         file_result = nb_session.execute(
-            select(FileMetadata).where(
-                FileMetadata.notebook_id == notebook_id,
-                FileMetadata.path == resolved_path
-            )
+            select(FileMetadata).where(FileMetadata.notebook_id == notebook_id, FileMetadata.path == resolved_path)
         )
         file_meta = file_result.scalar_one_or_none()
 
@@ -807,8 +767,7 @@ async def resolve_link(
         if not file_meta and "/" not in resolved_path:
             file_result = nb_session.execute(
                 select(FileMetadata).where(
-                    FileMetadata.notebook_id == notebook_id,
-                    FileMetadata.filename == resolved_path
+                    FileMetadata.notebook_id == notebook_id, FileMetadata.filename == resolved_path
                 )
             )
             # Get first match if multiple files have same name
@@ -920,10 +879,7 @@ async def create_file(
             if "UNIQUE constraint failed" in str(commit_error):
                 # Query for the existing record created by the watcher
                 existing_result = nb_session.execute(
-                    select(FileMetadata).where(
-                        FileMetadata.notebook_id == notebook_id,
-                        FileMetadata.path == path
-                    )
+                    select(FileMetadata).where(FileMetadata.notebook_id == notebook_id, FileMetadata.path == path)
                 )
                 file_meta = existing_result.scalar_one_or_none()
                 if not file_meta:
@@ -1163,8 +1119,7 @@ async def upload_file(
             if "UNIQUE constraint failed" in str(commit_error):
                 existing_result = nb_session.execute(
                     select(FileMetadata).where(
-                        FileMetadata.notebook_id == notebook_id,
-                        FileMetadata.path == target_path
+                        FileMetadata.notebook_id == notebook_id, FileMetadata.path == target_path
                     )
                 )
                 file_meta = existing_result.scalar_one_or_none()
@@ -1259,6 +1214,7 @@ async def move_file(
 
         # Move the file
         import shutil
+
         shutil.move(str(old_file_path), str(new_file_path))
 
         # Update metadata
@@ -1273,10 +1229,7 @@ async def move_file(
         from backend.core.git_manager import GitManager
 
         git_manager = GitManager(str(notebook_path))
-        commit_hash = git_manager.commit(
-            f"Move {os.path.basename(old_path)} to {new_path}",
-            [str(new_file_path)]
-        )
+        commit_hash = git_manager.commit(f"Move {os.path.basename(old_path)} to {new_path}", [str(new_file_path)])
         if commit_hash:
             file_meta.last_commit_hash = commit_hash
 
@@ -1321,9 +1274,7 @@ async def delete_file(
         raise HTTPException(status_code=404, detail="Workspace not found")
 
     # Find the file in all notebooks of this workspace
-    notebooks_result = await session.execute(
-        select(Notebook).where(Notebook.workspace_id == workspace_id)
-    )
+    notebooks_result = await session.execute(select(Notebook).where(Notebook.workspace_id == workspace_id))
     notebooks = notebooks_result.scalars().all()
 
     file_meta = None

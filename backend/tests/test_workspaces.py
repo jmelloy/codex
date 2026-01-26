@@ -44,7 +44,9 @@ def test_create_workspace_with_path(temp_workspace_dir):
     """Test creating a workspace with explicit path."""
     headers, _ = setup_test_user()
 
-    response = client.post("/api/v1/workspaces/", json={"name": "Test Workspace", "path": temp_workspace_dir}, headers=headers)
+    response = client.post(
+        "/api/v1/workspaces/", json={"name": "Test Workspace", "path": temp_workspace_dir}, headers=headers
+    )
     assert response.status_code == 200
     workspace = response.json()
     assert workspace["name"] == "Test Workspace"

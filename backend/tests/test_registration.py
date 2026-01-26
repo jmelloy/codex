@@ -14,7 +14,8 @@ async def test_user_registration():
         # Test successful registration with unique username
         username = f"testuser_{int(time.time() * 1000)}"
         response = await client.post(
-            "/api/register", json={"username": username, "email": f"{username}@example.com", "password": "testpassword123"}
+            "/api/register",
+            json={"username": username, "email": f"{username}@example.com", "password": "testpassword123"},
         )
         assert response.status_code == 201
         data = response.json()

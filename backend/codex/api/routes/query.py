@@ -318,9 +318,7 @@ async def query_files(
         raise HTTPException(status_code=404, detail="Workspace path not found")
 
     # Query notebooks from system database
-    notebooks_result = await session.execute(
-        select(Notebook).where(Notebook.workspace_id == workspace_id)
-    )
+    notebooks_result = await session.execute(select(Notebook).where(Notebook.workspace_id == workspace_id))
     notebooks = notebooks_result.scalars().all()
 
     # Collect all files from notebooks

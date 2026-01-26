@@ -57,12 +57,12 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-async def get_user_by_username(
-    username: str, session: AsyncSession
-) -> Optional[User]:
+
+async def get_user_by_username(username: str, session: AsyncSession) -> Optional[User]:
     """Retrieve a user by username."""
     result = await session.execute(select(User).where(User.username == username))
     return result.scalar_one_or_none()
+
 
 async def get_current_user(
     token: str = Depends(oauth2_scheme), session: AsyncSession = Depends(get_system_session)

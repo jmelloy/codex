@@ -63,9 +63,9 @@ def cleanup_workspace_dirs():
     existing_dirs = set()
     if workspace_dir.exists():
         existing_dirs = set(workspace_dir.iterdir())
-    
+
     yield
-    
+
     # After test: clean up new workspace directories
     if workspace_dir.exists():
         current_dirs = set(workspace_dir.iterdir())

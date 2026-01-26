@@ -28,7 +28,8 @@ async def get_system_session() -> AsyncGenerator[AsyncSession, None]:
     """Get async database session for system database."""
     async with async_session_maker() as session:
         yield session
-        
+
+
 def get_system_session_sync() -> Session:
     """Get synchronous database session for system database (for use in thread pools)."""
     return Session(system_engine_sync)
@@ -84,13 +85,13 @@ def run_notebook_alembic_migrations(notebook_path: str):
     # Get the notebook database path
     db_path = os.path.join(notebook_path, ".codex", "notebook.db")
     os.makedirs(os.path.dirname(db_path), exist_ok=True)
-    
+
     # Create Alembic config
     alembic_cfg = Config(str(alembic_ini))
 
     # Set the script location relative to alembic.ini
     alembic_cfg.set_main_option("script_location", str(backend_dir / "codex" / "notebook_alembic"))
-    
+
     # Set the database URL for this specific notebook
     alembic_cfg.set_main_option("sqlalchemy.url", f"sqlite:///{db_path}")
 
@@ -99,19 +100,19 @@ def run_notebook_alembic_migrations(notebook_path: str):
     engine = create_engine(f"sqlite:///{db_path}")
     inspector = inspect(engine)
     tables = inspector.get_table_names()
-    
+
     # Check current revision
     with engine.begin() as connection:
         context = MigrationContext.configure(connection)
         current_rev = context.get_current_revision()
-    
+
     engine.dispose()
-    
+
     if current_rev is None and "file_metadata" in tables:
         # Database has tables but no alembic_version - this is a pre-Alembic database
         # Check if it has the old 'frontmatter' column or new 'properties' column
         file_metadata_columns = {col["name"] for col in inspector.get_columns("file_metadata")}
-        
+
         if "frontmatter" in file_metadata_columns:
             # Old database with frontmatter - stamp at revision 001
             # (migration 002 will then rename it to properties)
@@ -119,7 +120,7 @@ def run_notebook_alembic_migrations(notebook_path: str):
         else:
             # Database already has 'properties' column - stamp at head
             command.stamp(alembic_cfg, "head")
-    
+
     # Now run any pending migrations
     command.upgrade(alembic_cfg, "head")
 
@@ -160,7 +161,7 @@ def init_notebook_db(notebook_path: str):
 
     Args:
         notebook_path: Path to the notebook directory
-    
+
     Returns:
         SQLAlchemy engine for the notebook database
     """

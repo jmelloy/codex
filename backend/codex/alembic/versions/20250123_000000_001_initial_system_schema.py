@@ -14,13 +14,13 @@ This migration creates the initial schema for the system database:
 This migration is idempotent - it checks if tables exist before creating them.
 This supports both fresh installations and existing databases that predate Alembic.
 """
+
 from typing import Sequence, Union
 
 from alembic import op
 from sqlalchemy import inspect
 import sqlalchemy as sa
 import sqlmodel
-
 
 # revision identifiers, used by Alembic.
 revision: str = "001"

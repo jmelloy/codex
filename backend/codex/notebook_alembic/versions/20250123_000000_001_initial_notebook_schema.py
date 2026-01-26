@@ -10,6 +10,7 @@ This migration creates the initial schema for per-notebook databases:
 - file_tags: Link table for file tags
 - search_index: Full-text search index for file content
 """
+
 from typing import Sequence, Union
 
 from alembic import op

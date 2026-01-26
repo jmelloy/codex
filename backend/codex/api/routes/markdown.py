@@ -1,6 +1,5 @@
 """Markdown file routes for viewing and editing."""
 
-
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status

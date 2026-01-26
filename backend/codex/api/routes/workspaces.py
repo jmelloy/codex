@@ -16,7 +16,6 @@ from codex.db.database import get_system_session, DATA_DIRECTORY
 from codex.db.models import User, Workspace
 
 
-
 class WorkspaceCreate(BaseModel):
     """Request body for creating a workspace."""
 
@@ -36,6 +35,7 @@ def slugify(name: str) -> str:
     slug = re.sub(r"[^\w\s-]", "", name.lower())
     slug = re.sub(r"[-\s]+", "-", slug).strip("-")
     return slug or "workspace"
+
 
 router = APIRouter()
 

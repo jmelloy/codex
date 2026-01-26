@@ -17,7 +17,7 @@ from pathlib import Path
 
 def migrate_frontmatter_to_properties(db_path: str) -> bool:
     """DEPRECATED: Use Alembic migrations instead (backend/notebook_alembic/).
-    
+
     Migrate the frontmatter column to properties in file_metadata table.
 
     This migration renames the 'frontmatter' column to 'properties' to
@@ -29,7 +29,7 @@ def migrate_frontmatter_to_properties(db_path: str) -> bool:
 
     Returns:
         True if migration was performed, False if already migrated or no table exists
-        
+
     Note:
         This function is kept for backward compatibility but is no longer used
         by init_notebook_db(). Alembic migration 002 handles this migration.
@@ -128,7 +128,7 @@ def run_all_migrations(data_directory: str) -> int:
 if __name__ == "__main__":
     import sys
     from codex.db.database import DATA_DIRECTORY
-    
+
     if len(sys.argv) > 1:
         data_dir = sys.argv[1]
     else:

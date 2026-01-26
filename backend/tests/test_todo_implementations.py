@@ -148,9 +148,7 @@ def test_file_endpoints(temp_workspace_dir):
 
     # Get file by ID
     response = client.get(
-        f"/api/v1/files/{file_id}",
-        params={"workspace_id": workspace_id, "notebook_id": notebook_id},
-        headers=headers
+        f"/api/v1/files/{file_id}", params={"workspace_id": workspace_id, "notebook_id": notebook_id}, headers=headers
     )
     assert response.status_code == 200
     file_content = response.json()
@@ -168,9 +166,7 @@ def test_file_endpoints(temp_workspace_dir):
 
     # Verify update
     response = client.get(
-        f"/api/v1/files/{file_id}",
-        params={"workspace_id": workspace_id, "notebook_id": notebook_id},
-        headers=headers
+        f"/api/v1/files/{file_id}", params={"workspace_id": workspace_id, "notebook_id": notebook_id}, headers=headers
     )
     assert response.status_code == 200
     updated_content = response.json()

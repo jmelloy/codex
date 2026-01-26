@@ -15,11 +15,7 @@ class LinkResolver:
     """
 
     @staticmethod
-    def resolve_link(
-        link: str,
-        current_file_path: Optional[str] = None,
-        notebook_root: Optional[Path] = None
-    ) -> str:
+    def resolve_link(link: str, current_file_path: Optional[str] = None, notebook_root: Optional[Path] = None) -> str:
         """Resolve a link to a target file path.
 
         Args:
@@ -106,11 +102,7 @@ class LinkResolver:
         return resolved
 
     @staticmethod
-    def make_relative_link(
-        target_path: str,
-        from_path: str,
-        use_relative: bool = True
-    ) -> str:
+    def make_relative_link(target_path: str, from_path: str, use_relative: bool = True) -> str:
         """Create a link from one file to another.
 
         Args:

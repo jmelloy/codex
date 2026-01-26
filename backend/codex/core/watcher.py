@@ -183,6 +183,7 @@ class NotebookFileHandler(FileSystemEventHandler):
                                 file_meta.hash = file_hash
                                 file_meta.file_type = file_type
                                 from datetime import datetime, timezone
+
                                 file_meta.updated_at = datetime.now(timezone.utc)
                                 file_meta.file_modified_at = datetime.fromtimestamp(file_stats.st_mtime)
                                 session.commit()
@@ -250,9 +251,7 @@ class NotebookWatcher:
 
         try:
             # Get all existing file records from database
-            result = session.execute(
-                select(FileMetadata).where(FileMetadata.notebook_id == self.notebook_id)
-            )
+            result = session.execute(select(FileMetadata).where(FileMetadata.notebook_id == self.notebook_id))
             existing_files = {f.path: f for f in result.scalars().all()}
 
             # Track which paths we've seen on disk
@@ -316,7 +315,9 @@ class NotebookWatcher:
             deleted_count = len(deleted_paths)
             unchanged_count = len(seen_paths) - new_count - updated_count
             logger.info(f"Scan complete: {len(seen_paths)} files on disk, {len(existing_files)} in database")
-            logger.info(f"  New: {new_count}, Updated: {updated_count}, Deleted: {deleted_count}, Unchanged: {unchanged_count}")
+            logger.info(
+                f"  New: {new_count}, Updated: {updated_count}, Deleted: {deleted_count}, Unchanged: {unchanged_count}"
+            )
 
         except Exception as e:
             logger.error(f"Error during file scan: {e}", exc_info=True)

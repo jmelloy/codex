@@ -14,8 +14,8 @@ if str(backend_dir.parent) not in sys.path:
     sys.path.insert(0, str(backend_dir.parent))
 
 # Import only system models (not notebook models which are in separate databases)
-from codex.db.models.system import (Notebook, Task, User, Workspace,
-                                    WorkspacePermission)
+from codex.db.models.system import Notebook, Task, User, Workspace, WorkspacePermission
+
 # Import SQLModel to ensure metadata is populated
 from sqlmodel import SQLModel
 

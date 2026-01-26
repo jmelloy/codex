@@ -22,20 +22,18 @@ from codex.db.models import User, Workspace, Notebook
 async def test_seed_creates_users():
     """Test that seed_data creates all test users."""
     await init_system_db()
-    
+
     # Clean up any existing test data first
     await clean_test_data()
-    
+
     # Run seed script
     await seed_data()
-    
+
     # Verify users were created
     async for session in get_system_session():
         try:
             for user_data in TEST_USERS:
-                result = await session.execute(
-                    select(User).where(User.username == user_data["username"])
-                )
+                result = await session.execute(select(User).where(User.username == user_data["username"]))
                 user = result.scalar_one_or_none()
                 assert user is not None, f"User {user_data['username']} not created"
                 assert user.email == user_data["email"]
@@ -48,24 +46,20 @@ async def test_seed_creates_users():
 async def test_seed_creates_workspaces():
     """Test that seed_data creates workspaces for each user."""
     await init_system_db()
-    
+
     # Run seed script (should skip existing users)
     await seed_data()
-    
+
     # Verify workspaces were created
     async for session in get_system_session():
         try:
             for user_data in TEST_USERS:
-                result = await session.execute(
-                    select(User).where(User.username == user_data["username"])
-                )
+                result = await session.execute(select(User).where(User.username == user_data["username"]))
                 user = result.scalar_one_or_none()
                 assert user is not None
-                
+
                 # Check workspaces
-                result = await session.execute(
-                    select(Workspace).where(Workspace.owner_id == user.id)
-                )
+                result = await session.execute(select(Workspace).where(Workspace.owner_id == user.id))
                 workspaces = result.scalars().all()
                 assert len(workspaces) >= len(user_data["workspaces"])
         finally:
@@ -76,32 +70,26 @@ async def test_seed_creates_workspaces():
 async def test_seed_creates_notebooks():
     """Test that seed_data creates notebooks in workspaces."""
     await init_system_db()
-    
+
     # Run seed script
     await seed_data()
-    
+
     # Verify notebooks were created
     async for session in get_system_session():
         try:
             # Get demo user
-            result = await session.execute(
-                select(User).where(User.username == "demo")
-            )
+            result = await session.execute(select(User).where(User.username == "demo"))
             user = result.scalar_one_or_none()
             assert user is not None
-            
+
             # Get user's workspaces
-            result = await session.execute(
-                select(Workspace).where(Workspace.owner_id == user.id)
-            )
+            result = await session.execute(select(Workspace).where(Workspace.owner_id == user.id))
             workspaces = result.scalars().all()
             assert len(workspaces) > 0
-            
+
             # Check notebooks exist
             for workspace in workspaces:
-                result = await session.execute(
-                    select(Notebook).where(Notebook.workspace_id == workspace.id)
-                )
+                result = await session.execute(select(Notebook).where(Notebook.workspace_id == workspace.id))
                 notebooks = result.scalars().all()
                 assert len(notebooks) > 0, f"No notebooks in workspace {workspace.name}"
         finally:
@@ -118,16 +106,16 @@ async def test_seed_creates_markdown_files():
 
     # Run seed script
     await seed_data()
-    
+
     # Verify markdown files exist
     workspace_dirs = Path("workspaces").glob("*")
     found_files = False
-    
+
     for workspace_dir in workspace_dirs:
         if workspace_dir.is_dir():
             notebook_dirs = workspace_dir.glob("*")
             for notebook_dir in notebook_dirs:
-                if notebook_dir.is_dir() and not notebook_dir.name.startswith('.'):
+                if notebook_dir.is_dir() and not notebook_dir.name.startswith("."):
                     md_files = list(notebook_dir.glob("*.md"))
                     if md_files:
                         found_files = True
@@ -135,7 +123,7 @@ async def test_seed_creates_markdown_files():
                         content = md_files[0].read_text()
                         assert len(content) > 0
                         assert "---" in content  # Check for frontmatter
-    
+
     assert found_files, "No markdown files found in notebooks"
 
 
@@ -143,18 +131,16 @@ async def test_seed_creates_markdown_files():
 async def test_seed_is_idempotent():
     """Test that running seed_data multiple times doesn't create duplicates."""
     await init_system_db()
-    
+
     # Run seed script twice
     await seed_data()
     await seed_data()
-    
+
     # Verify no duplicate users
     async for session in get_system_session():
         try:
             for user_data in TEST_USERS:
-                result = await session.execute(
-                    select(User).where(User.username == user_data["username"])
-                )
+                result = await session.execute(select(User).where(User.username == user_data["username"]))
                 users = result.scalars().all()
                 assert len(users) == 1, f"Duplicate users found for {user_data['username']}"
         finally:
@@ -165,20 +151,18 @@ async def test_seed_is_idempotent():
 async def test_clean_removes_test_data():
     """Test that clean_test_data removes all test users and data."""
     await init_system_db()
-    
+
     # Ensure data exists
     await seed_data()
-    
+
     # Clean up
     await clean_test_data()
-    
+
     # Verify users were deleted
     async for session in get_system_session():
         try:
             for user_data in TEST_USERS:
-                result = await session.execute(
-                    select(User).where(User.username == user_data["username"])
-                )
+                result = await session.execute(select(User).where(User.username == user_data["username"]))
                 user = result.scalar_one_or_none()
                 assert user is None, f"User {user_data['username']} not deleted"
         finally:
@@ -189,16 +173,14 @@ async def test_clean_removes_test_data():
 async def test_password_hashing():
     """Test that passwords are properly hashed."""
     await init_system_db()
-    
+
     # Run seed script
     await seed_data()
-    
+
     # Verify password is hashed (not plain text)
     async for session in get_system_session():
         try:
-            result = await session.execute(
-                select(User).where(User.username == "demo")
-            )
+            result = await session.execute(select(User).where(User.username == "demo"))
             user = result.scalar_one_or_none()
             assert user is not None
             assert user.hashed_password != "demo123456"
@@ -212,16 +194,16 @@ async def test_password_hashing():
 async def test_workspace_theme_settings():
     """Test that workspaces have theme settings."""
     await init_system_db()
-    
+
     # Run seed script
     await seed_data()
-    
+
     # Verify workspaces have theme settings
     async for session in get_system_session():
         try:
             result = await session.execute(select(Workspace))
             workspaces = result.scalars().all()
-            
+
             for workspace in workspaces:
                 assert workspace.theme_setting is not None
                 assert workspace.theme_setting in ["cream", "manila", "white", "blueprint"]

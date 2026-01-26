@@ -7,13 +7,13 @@ Create Date: 2025-01-24
 This migration adds theme_setting to the users table for existing databases.
 The initial schema (001) already includes this column for fresh installations.
 """
+
 from typing import Sequence, Union
 
 from alembic import op
 from sqlalchemy import inspect
 import sqlalchemy as sa
 import sqlmodel
-
 
 # revision identifiers, used by Alembic.
 revision: str = "002"

@@ -171,6 +171,7 @@ def test_update_task_assignment(temp_workspace_dir):
 
     # Cleanup handled by fixture
 
+
 def test_update_nonexistent_task():
     """Test updating a task that doesn't exist."""
     headers = setup_test_user()

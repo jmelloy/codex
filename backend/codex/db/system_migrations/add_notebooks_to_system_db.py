@@ -29,12 +29,12 @@ def migrate_system_db(db_path: str = "./codex_system.db"):
                 FOREIGN KEY (workspace_id) REFERENCES workspaces (id)
             )
         """)
-        
+
         # Create indexes
         cursor.execute("CREATE INDEX ix_notebooks_workspace_id ON notebooks (workspace_id)")
         cursor.execute("CREATE INDEX ix_notebooks_name ON notebooks (name)")
         cursor.execute("CREATE INDEX ix_notebooks_path ON notebooks (path)")
-        
+
         conn.commit()
         print(f"Added notebooks table to {db_path}")
 

@@ -13,6 +13,7 @@ Note: This migration is only needed for databases that existed before Alembic wa
 For fresh databases created via migration 001, this is a no-op since the table already
 has the 'properties' column.
 """
+
 from typing import Sequence, Union
 
 from alembic import op

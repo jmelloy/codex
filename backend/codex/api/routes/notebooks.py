@@ -140,12 +140,7 @@ async def create_notebook(
         git_manager = GitManager(str(notebook_path))
 
         # Create notebook record in the system database
-        notebook = Notebook(
-            workspace_id=body.workspace_id,
-            name=body.name,
-            path=slug,
-            description=body.description
-        )
+        notebook = Notebook(workspace_id=body.workspace_id, name=body.name, path=slug, description=body.description)
         session.add(notebook)
         await session.commit()
         await session.refresh(notebook)

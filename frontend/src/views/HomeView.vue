@@ -347,9 +347,17 @@
       </main>
 
       <!-- Right: Properties Panel (300px, collapsible) -->
-      <FilePropertiesPanel v-if="showPropertiesPanel && workspaceStore.currentFile" :file="workspaceStore.currentFile"
-        class="w-[300px] min-w-[300px]" @close="showPropertiesPanel = false" @update-properties="handleUpdateProperties"
-        @delete="handleDeleteFile" />
+      <FilePropertiesPanel
+        v-if="showPropertiesPanel && workspaceStore.currentFile && workspaceStore.currentWorkspace"
+        :file="workspaceStore.currentFile"
+        :workspace-id="workspaceStore.currentWorkspace.id"
+        :notebook-id="workspaceStore.currentFile.notebook_id"
+        class="w-[300px] min-w-[300px]"
+        @close="showPropertiesPanel = false"
+        @update-properties="handleUpdateProperties"
+        @delete="handleDeleteFile"
+        @restore="handleRestoreVersion"
+      />
     </div>
 
     <!-- Create Workspace Modal -->
@@ -765,6 +773,18 @@ async function handleUpdateProperties(properties: Record<string, any>) {
       )
     } catch {
       // Error handled in store
+    }
+  }
+}
+
+async function handleRestoreVersion(content: string) {
+  if (workspaceStore.currentFile) {
+    try {
+      await workspaceStore.saveFile(content)
+      editContent.value = content
+      showToast({ message: 'File restored to previous version' })
+    } catch {
+      showToast({ message: 'Failed to restore file', type: 'error' })
     }
   }
 }

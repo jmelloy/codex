@@ -2,18 +2,10 @@
   <div class="properties-panel">
     <div class="panel-header">
       <div class="panel-tabs">
-        <button
-          class="tab-btn"
-          :class="{ active: activeTab === 'properties' }"
-          @click="activeTab = 'properties'"
-        >
+        <button class="tab-btn" :class="{ active: activeTab === 'properties' }" @click="activeTab = 'properties'">
           Properties
         </button>
-        <button
-          class="tab-btn"
-          :class="{ active: activeTab === 'history' }"
-          @click="switchToHistory"
-        >
+        <button class="tab-btn" :class="{ active: activeTab === 'history' }" @click="switchToHistory">
           History
         </button>
       </div>
@@ -24,61 +16,16 @@
       <!-- Title (editable) -->
       <div class="property-group">
         <label>Title</label>
-        <input
-          v-model="editableTitle"
-          @blur="updateTitle"
-          @keyup.enter="updateTitle"
-          class="property-input"
-          placeholder="Untitled"
-        />
+        <input v-model="editableTitle" @blur="updateTitle" @keyup.enter="updateTitle" class="property-input"
+          placeholder="Untitled" />
       </div>
 
       <!-- Description (editable) -->
       <div class="property-group">
         <label>Description</label>
-        <textarea
-          v-model="editableDescription"
-          @blur="updateDescription"
-          class="property-textarea"
-          placeholder="Add a description..."
-          rows="3"
-        ></textarea>
+        <textarea v-model="editableDescription" @blur="updateDescription" class="property-textarea"
+          placeholder="Add a description..." rows="3"></textarea>
       </div>
-
-      <!-- File Info (read-only) -->
-      <div class="property-section">
-        <h4>File Info</h4>
-        <div class="property-row">
-          <span class="property-label">Path</span>
-          <span class="property-value">{{ file.path }}</span>
-        </div>
-        <div class="property-row">
-          <span class="property-label">Filename</span>
-          <span class="property-value">{{ file.filename }}</span>
-        </div>
-        <div class="property-row">
-          <span class="property-label">Type</span>
-          <span class="property-value">{{ file.file_type }}</span>
-        </div>
-        <div class="property-row">
-          <span class="property-label">Size</span>
-          <span class="property-value">{{ formatSize(file.size) }}</span>
-        </div>
-      </div>
-
-      <!-- Dates -->
-      <div class="property-section">
-        <h4>Dates</h4>
-        <div class="property-row">
-          <span class="property-label">Created</span>
-          <span class="property-value">{{ formatDate(file.created_at) }}</span>
-        </div>
-        <div class="property-row">
-          <span class="property-label">Modified</span>
-          <span class="property-value">{{ formatDate(file.updated_at) }}</span>
-        </div>
-      </div>
-
       <!-- Tags (editable) -->
       <div class="property-section">
         <h4>Tags</h4>
@@ -89,12 +36,7 @@
           </span>
         </div>
         <div class="tag-input-wrapper">
-          <input
-            v-model="newTag"
-            @keyup.enter="addTag"
-            class="tag-input"
-            placeholder="Add a tag..."
-          />
+          <input v-model="newTag" @keyup.enter="addTag" class="tag-input" placeholder="Add a tag..." />
           <button @click="addTag" class="tag-add-btn" :disabled="!newTag.trim()">Add</button>
         </div>
       </div>
@@ -107,14 +49,9 @@
         <div class="custom-property-row" v-for="(value, key) in metadata" :key="key">
           <template v-if="editingProperty === key">
             <!-- Editing mode -->
-            <input
-              v-model="editPropertyValue"
-              @blur="savePropertyEdit(key as string)"
-              @keyup.enter="savePropertyEdit(key as string)"
-              @keyup.escape="cancelPropertyEdit"
-              class="property-edit-input"
-              ref="editInput"
-            />
+            <input v-model="editPropertyValue" @blur="savePropertyEdit(key as string)"
+              @keyup.enter="savePropertyEdit(key as string)" @keyup.escape="cancelPropertyEdit"
+              class="property-edit-input" ref="editInput" />
             <div class="property-actions-inline">
               <button @click="savePropertyEdit(key as string)" class="btn-action btn-save" title="Save">✓</button>
               <button @click="cancelPropertyEdit" class="btn-action btn-cancel" title="Cancel">✕</button>
@@ -123,13 +60,45 @@
           <template v-else>
             <!-- Display mode -->
             <span class="property-label">{{ key }}</span>
-            <span
-              class="property-value editable"
-              @click="startEditProperty(key as string, value)"
-              title="Click to edit"
-            >{{ formatMetadataValue(value) }}</span>
-            <button @click="removeProperty(key as string)" class="btn-remove-property" title="Remove property">×</button>
+            <span class="property-value editable" @click="startEditProperty(key as string, value)"
+              title="Click to edit">{{ formatMetadataValue(value) }}</span>
+            <button @click="removeProperty(key as string)" class="btn-remove-property"
+              title="Remove property">×</button>
           </template>
+        </div>
+
+        <!-- File Info (read-only) -->
+        <div class="property-section">
+          <h4>File Info</h4>
+          <div class="property-row">
+            <span class="property-label">Path</span>
+            <span class="property-value">{{ file.path }}</span>
+          </div>
+          <div class="property-row">
+            <span class="property-label">Filename</span>
+            <span class="property-value">{{ file.filename }}</span>
+          </div>
+          <div class="property-row">
+            <span class="property-label">Type</span>
+            <span class="property-value">{{ file.file_type }}</span>
+          </div>
+          <div class="property-row">
+            <span class="property-label">Size</span>
+            <span class="property-value">{{ formatSize(file.size) }}</span>
+          </div>
+        </div>
+
+        <!-- Dates -->
+        <div class="property-section">
+          <h4>Dates</h4>
+          <div class="property-row">
+            <span class="property-label">Created</span>
+            <span class="property-value">{{ formatDate(file.created_at) }}</span>
+          </div>
+          <div class="property-row">
+            <span class="property-label">Modified</span>
+            <span class="property-value">{{ formatDate(file.updated_at) }}</span>
+          </div>
         </div>
 
         <!-- Empty state -->
@@ -139,25 +108,12 @@
 
         <!-- Add new property -->
         <div class="add-property-form">
-          <input
-            v-model="newPropertyKey"
-            class="property-key-input"
-            placeholder="Property name"
-            @keyup.enter="focusValueInput"
-          />
-          <input
-            v-model="newPropertyValue"
-            class="property-value-input"
-            placeholder="Value"
-            ref="valueInputRef"
-            @keyup.enter="addProperty"
-          />
-          <button
-            @click="addProperty"
-            class="btn-add-property"
-            :disabled="!newPropertyKey.trim()"
-            title="Add property"
-          >+</button>
+          <input v-model="newPropertyKey" class="property-key-input" placeholder="Property name"
+            @keyup.enter="focusValueInput" />
+          <input v-model="newPropertyValue" class="property-value-input" placeholder="Value" ref="valueInputRef"
+            @keyup.enter="addProperty" />
+          <button @click="addProperty" class="btn-add-property" :disabled="!newPropertyKey.trim()"
+            title="Add property">+</button>
         </div>
       </div>
 
@@ -182,13 +138,8 @@
         No history available for this file.
       </div>
       <div v-else class="history-list">
-        <div
-          v-for="commit in history"
-          :key="commit.hash"
-          class="history-item"
-          @click="selectCommit(commit)"
-          :class="{ selected: selectedCommit?.hash === commit.hash }"
-        >
+        <div v-for="commit in history" :key="commit.hash" class="history-item" @click="selectCommit(commit)"
+          :class="{ selected: selectedCommit?.hash === commit.hash }">
           <div class="commit-header">
             <span class="commit-hash" :title="commit.hash">{{ commit.hash.substring(0, 7) }}</span>
             <span class="commit-date">{{ formatCommitDate(commit.date) }}</span>
@@ -300,7 +251,7 @@ type StandardField = typeof STANDARD_FIELDS[number]
 // Get all metadata except standard fields (title, description, tags)
 const metadata = computed(() => {
   if (!props.file?.properties) return {}
-  
+
   const result: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(props.file.properties)) {
     if (!STANDARD_FIELDS.includes(key as StandardField)) {
@@ -1013,7 +964,9 @@ watch(
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .history-list {

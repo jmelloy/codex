@@ -92,238 +92,36 @@ class CreateFromTemplateRequest(BaseModel):
     filename: str | None = None  # Optional custom filename, otherwise use template default
 
 
-# Built-in default templates
-DEFAULT_TEMPLATES = [
-    {
-        "id": "blank-note",
-        "name": "Blank Note",
-        "description": "A blank markdown note",
-        "icon": "📝",
-        "file_extension": ".md",
-        "default_name": "{title}.md",
-        "content": "# {title}\n\nStart writing here...\n",
-    },
-    {
-        "id": "daily-journal",
-        "name": "Daily Journal",
-        "description": "A journal entry with today's date",
-        "icon": "📔",
-        "file_extension": ".md",
-        "default_name": "{yyyy}-{mm}-{dd}-journal.md",
-        "content": """---
-title: Journal - {yyyy}-{mm}-{dd}
-date: {yyyy}-{mm}-{dd}
-tags:
-  - journal
----
+def load_default_templates() -> list[dict]:
+    """Load default templates from YAML files in the templates directory."""
+    import yaml
 
-# Journal Entry - {month} {dd}, {yyyy}
+    templates_dir = Path(__file__).parent.parent.parent / "templates"
+    templates = []
 
-## Today's Goals
+    if templates_dir.exists():
+        for template_file in sorted(templates_dir.glob("*.yaml")):
+            try:
+                with open(template_file) as f:
+                    template_data = yaml.safe_load(f)
+                    if template_data and isinstance(template_data, dict):
+                        templates.append(template_data)
+            except Exception as e:
+                logger.warning(f"Failed to load template {template_file}: {e}")
+
+    return templates
 
 
-## Notes
+# Cache for default templates (loaded once)
+_default_templates_cache: list[dict] | None = None
 
 
-## Reflections
-
-""",
-    },
-    {
-        "id": "meeting-notes",
-        "name": "Meeting Notes",
-        "description": "Template for meeting notes",
-        "icon": "🗓️",
-        "file_extension": ".md",
-        "default_name": "{yyyy}-{mm}-{dd}-meeting.md",
-        "content": """---
-title: Meeting Notes - {yyyy}-{mm}-{dd}
-date: {yyyy}-{mm}-{dd}
-tags:
-  - meeting
----
-
-# Meeting Notes - {month} {dd}, {yyyy}
-
-## Attendees
-
--
-
-## Agenda
-
-1.
-
-## Discussion Notes
-
-
-## Action Items
-
-- [ ]
-
-## Next Steps
-
-""",
-    },
-    {
-        "id": "project-doc",
-        "name": "Project Document",
-        "description": "Documentation template for a project",
-        "icon": "📋",
-        "file_extension": ".md",
-        "default_name": "{title}.md",
-        "content": """---
-title: {title}
-tags:
-  - project
-  - documentation
----
-
-# {title}
-
-## Overview
-
-
-## Goals
-
-
-## Requirements
-
-
-## Implementation
-
-
-## References
-
-""",
-    },
-    {
-        "id": "task-board",
-        "name": "Task Board",
-        "description": "Kanban board for managing tasks",
-        "icon": "📊",
-        "file_extension": ".cdx",
-        "default_name": "task-board.cdx",
-        "content": """---
-type: view
-view_type: kanban
-title: Task Board
-description: Kanban board for managing tasks
-query:
-  tags:
-    - task
-config:
-  columns:
-    - {"id": "backlog", "title": "Backlog", "filter": {"status": "backlog"}}
-    - {"id": "todo", "title": "To Do", "filter": {"status": "todo"}}
-    - {"id": "in-progress", "title": "In Progress", "filter": {"status": "in-progress"}}
-    - {"id": "done", "title": "Done", "filter": {"status": "done"}}
-  card_fields:
-    - description
-    - priority
-    - due_date
-  drag_drop: true
-  editable: true
----
-
-# Task Board
-
-This is a dynamic Kanban board view. Edit the frontmatter to customize columns and filters.
-""",
-    },
-    {
-        "id": "task-list",
-        "name": "Task List",
-        "description": "Simple checklist view",
-        "icon": "✅",
-        "file_extension": ".cdx",
-        "default_name": "tasks.cdx",
-        "content": """---
-type: view
-view_type: task-list
-title: Task List
-description: Simple task checklist
-query:
-  tags:
-    - task
-config:
-  compact: true
-  show_details: true
-  editable: true
----
-
-# Task List
-
-This is a dynamic task list view.
-""",
-    },
-    {
-        "id": "photo-gallery",
-        "name": "Photo Gallery",
-        "description": "Display images in a grid layout",
-        "icon": "🖼️",
-        "file_extension": ".cdx",
-        "default_name": "gallery.cdx",
-        "content": """---
-type: view
-view_type: gallery
-title: Photo Gallery
-description: Collection of images
-query:
-  file_types:
-    - image/png
-    - image/jpeg
-    - image/gif
-    - image/webp
-config:
-  layout: grid
-  columns: 4
-  thumbnail_size: 300
-  show_metadata: true
-  lightbox: true
----
-
-# Photo Gallery
-
-This view displays all images in a grid layout.
-""",
-    },
-    {
-        "id": "weekly-rollup",
-        "name": "Weekly Rollup",
-        "description": "Summary grouped by date",
-        "icon": "📈",
-        "file_extension": ".cdx",
-        "default_name": "weekly-rollup.cdx",
-        "content": """---
-type: view
-view_type: rollup
-title: Weekly Rollup
-description: Summary of weekly activity
-config:
-  group_by: created_at
-  group_format: day
-  show_stats: true
----
-
-# Weekly Rollup
-
-This view groups items by creation date.
-""",
-    },
-    {
-        "id": "data-file",
-        "name": "Data File",
-        "description": "JSON data file",
-        "icon": "📦",
-        "file_extension": ".json",
-        "default_name": "{title}.json",
-        "content": """{
-  "name": "{title}",
-  "data": []
-}
-""",
-    },
-]
+def get_default_templates() -> list[dict]:
+    """Get default templates, loading from cache if available."""
+    global _default_templates_cache
+    if _default_templates_cache is None:
+        _default_templates_cache = load_default_templates()
+    return _default_templates_cache
 
 
 def expand_template_pattern(pattern: str, title: str = "untitled") -> str:
@@ -414,11 +212,11 @@ async def list_templates(
         # If we found custom templates, return them along with defaults
         if templates:
             # Add source to defaults
-            defaults_with_source = [{**t, "source": "default"} for t in DEFAULT_TEMPLATES]
+            defaults_with_source = [{**t, "source": "default"} for t in get_default_templates()]
             return {"templates": templates + defaults_with_source}
 
     # Return default templates
-    defaults_with_source = [{**t, "source": "default"} for t in DEFAULT_TEMPLATES]
+    defaults_with_source = [{**t, "source": "default"} for t in get_default_templates()]
     return {"templates": defaults_with_source}
 
 
@@ -466,7 +264,7 @@ async def create_from_template(
 
     # Fall back to default templates
     if not template:
-        for t in DEFAULT_TEMPLATES:
+        for t in get_default_templates():
             if t["id"] == template_id:
                 template = t
                 break

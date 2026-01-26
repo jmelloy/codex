@@ -1,0 +1,24 @@
+id: task-list
+name: Task List
+description: Simple checklist view
+icon: "\u2705"
+file_extension: .cdx
+default_name: tasks.cdx
+content: |
+  ---
+  type: view
+  view_type: task-list
+  title: Task List
+  description: Simple task checklist
+  query:
+    tags:
+      - task
+  config:
+    compact: true
+    show_details: true
+    editable: true
+  ---
+
+  # Task List
+
+  This is a dynamic task list view.

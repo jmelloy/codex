@@ -1,0 +1,32 @@
+id: task-board
+name: Task Board
+description: Kanban board for managing tasks
+icon: "\U0001F4CA"
+file_extension: .cdx
+default_name: task-board.cdx
+content: |
+  ---
+  type: view
+  view_type: kanban
+  title: Task Board
+  description: Kanban board for managing tasks
+  query:
+    tags:
+      - task
+  config:
+    columns:
+      - {"id": "backlog", "title": "Backlog", "filter": {"status": "backlog"}}
+      - {"id": "todo", "title": "To Do", "filter": {"status": "todo"}}
+      - {"id": "in-progress", "title": "In Progress", "filter": {"status": "in-progress"}}
+      - {"id": "done", "title": "Done", "filter": {"status": "done"}}
+    card_fields:
+      - description
+      - priority
+      - due_date
+    drag_drop: true
+    editable: true
+  ---
+
+  # Task Board
+
+  This is a dynamic Kanban board view. Edit the frontmatter to customize columns and filters.

@@ -74,9 +74,10 @@
                       <div
                         :class="[
                           'folder-item flex items-center py-2 px-4 pl-8 cursor-pointer text-[13px] transition',
-                          { 'bg-primary/20 border-t-2 border-primary': dragOverFolder === `${notebook.id}:${node.path}` }
+                          { 'bg-primary/20 border-t-2 border-primary': dragOverFolder === `${notebook.id}:${node.path}` },
+                          { 'folder-active': workspaceStore.currentFolder?.path === node.path && workspaceStore.currentFolder?.notebook_id === notebook.id }
                         ]"
-                        @click="toggleFolder(notebook.id, node.path)"
+                        @click="handleFolderClick($event, notebook.id, node.path)"
                         @dragover.prevent="handleFolderDragOver($event, notebook.id, node.path)"
                         @dragenter.prevent="handleFolderDragEnter(notebook.id, node.path)"
                         @dragleave="handleFolderDragLeave"
@@ -91,7 +92,11 @@
                       <ul v-if="isFolderExpanded(notebook.id, node.path) && node.children" class="list-none p-0 m-0">
                         <FileTreeItem v-for="child in node.children" :key="child.path" :node="child"
                           :notebook-id="notebook.id" :depth="1" :expanded-folders="expandedFolders"
-                          :current-file-id="workspaceStore.currentFile?.id" @toggle-folder="toggleFolder"
+                          :current-file-id="workspaceStore.currentFile?.id"
+                          :current-folder-path="workspaceStore.currentFolder?.path"
+                          :current-folder-notebook-id="workspaceStore.currentFolder?.notebook_id"
+                          @toggle-folder="toggleFolder"
+                          @select-folder="handleSelectFolder"
                           @select-file="selectFile" @move-file="handleMoveFile" />
                       </ul>
                     </li>
@@ -322,7 +327,7 @@
 
           <!-- Markdown Viewer for text-based files -->
           <MarkdownViewer v-else :content="workspaceStore.currentFile.content"
-            :frontmatter="workspaceStore.currentFile.properties" 
+            :frontmatter="workspaceStore.currentFile.properties"
             :workspace-id="workspaceStore.currentWorkspace?.id"
             :notebook-id="workspaceStore.currentNotebook?.id"
             :current-file-path="workspaceStore.currentFile.path"
@@ -335,6 +340,16 @@
               </button>
             </template>
           </MarkdownViewer>
+        </div>
+
+        <!-- Folder View Mode -->
+        <div v-else-if="workspaceStore.currentFolder" class="flex-1 flex overflow-hidden p-4">
+          <FolderView
+            :folder="workspaceStore.currentFolder"
+            class="flex-1"
+            @select-file="selectFile"
+            @toggle-properties="toggleProperties"
+          />
         </div>
 
         <!-- Welcome State -->
@@ -350,6 +365,14 @@
       <FilePropertiesPanel v-if="showPropertiesPanel && workspaceStore.currentFile" :file="workspaceStore.currentFile"
         class="w-[300px] min-w-[300px]" @close="showPropertiesPanel = false" @update-properties="handleUpdateProperties"
         @delete="handleDeleteFile" />
+
+      <!-- Folder Properties Panel -->
+      <FolderPropertiesPanel v-if="showPropertiesPanel && workspaceStore.currentFolder && !workspaceStore.currentFile"
+        :folder="workspaceStore.currentFolder"
+        class="w-[300px] min-w-[300px]"
+        @close="showPropertiesPanel = false"
+        @update-properties="handleUpdateFolderProperties"
+        @delete="handleDeleteFolder" />
     </div>
 
     <!-- Create Workspace Modal -->
@@ -448,6 +471,8 @@ import MarkdownEditor from '../components/MarkdownEditor.vue'
 import CodeViewer from '../components/CodeViewer.vue'
 import ViewRenderer from '../components/views/ViewRenderer.vue'
 import FilePropertiesPanel from '../components/FilePropertiesPanel.vue'
+import FolderPropertiesPanel from '../components/FolderPropertiesPanel.vue'
+import FolderView from '../components/FolderView.vue'
 import FileTreeItem from '../components/FileTreeItem.vue'
 import CreateViewModal from '../components/CreateViewModal.vue'
 import TemplateSelector from '../components/TemplateSelector.vue'
@@ -549,6 +574,35 @@ function toggleFolder(notebookId: number, folderPath: string) {
   } else {
     folders.add(folderPath)
   }
+}
+
+function handleFolderClick(event: MouseEvent, notebookId: number, folderPath: string) {
+  // If clicking on the expand arrow area, just toggle expansion
+  const target = event.target as HTMLElement
+  if (target.classList.contains('text-[10px]') || target.closest('.text-[10px]')) {
+    toggleFolder(notebookId, folderPath)
+    return
+  }
+
+  // Select the folder and show folder view
+  workspaceStore.selectFolder(folderPath, notebookId)
+
+  // Also expand the folder
+  if (!expandedFolders.value.has(notebookId)) {
+    expandedFolders.value.set(notebookId, new Set())
+  }
+  expandedFolders.value.get(notebookId)!.add(folderPath)
+}
+
+function handleSelectFolder(notebookId: number, folderPath: string) {
+  // Select the folder and show folder view
+  workspaceStore.selectFolder(folderPath, notebookId)
+
+  // Also expand the folder
+  if (!expandedFolders.value.has(notebookId)) {
+    expandedFolders.value.set(notebookId, new Set())
+  }
+  expandedFolders.value.get(notebookId)!.add(folderPath)
 }
 
 function isFolderExpanded(notebookId: number, folderPath: string): boolean {
@@ -781,6 +835,29 @@ async function handleDeleteFile() {
   }
 }
 
+async function handleUpdateFolderProperties(properties: Record<string, any>) {
+  if (workspaceStore.currentFolder) {
+    try {
+      await workspaceStore.saveFolderProperties(properties)
+      showToast({ message: 'Folder properties updated' })
+    } catch {
+      // Error handled in store
+    }
+  }
+}
+
+async function handleDeleteFolder() {
+  if (workspaceStore.currentFolder) {
+    try {
+      await workspaceStore.deleteFolder()
+      showPropertiesPanel.value = false
+      showToast({ message: 'Folder deleted' })
+    } catch {
+      // Error handled in store
+    }
+  }
+}
+
 
 
 async function handleCreateWorkspace() {
@@ -983,8 +1060,13 @@ function getPreviewFilename(): string {
   color: var(--pen-gray);
 }
 
-.folder-item:hover {
+.folder-item:hover:not(.folder-active) {
   background: color-mix(in srgb, var(--notebook-text) var(--subtle-hover-opacity), transparent);
+}
+
+.folder-active {
+  background: color-mix(in srgb, var(--notebook-accent) var(--selected-opacity), transparent);
+  color: var(--notebook-accent);
 }
 
 /* File items */

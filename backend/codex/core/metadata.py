@@ -194,3 +194,28 @@ class MetadataParser:
                 f.write(frontmatter.dumps(post))
         except Exception as e:
             logger.error(f"Error writing markdown sidecar: {e}", exc_info=True)
+
+    @staticmethod
+    def resolve_sidecar(filepath: str) -> tuple[str, Optional[str]]:
+        """Check for existence of sidecar files and return the path if found."""
+        
+        suffixes = [".json", ".xml", ".md"]
+
+        for suffix in suffixes:
+            sidecar = f"{filepath}{suffix}"
+            if Path(sidecar).exists():
+                return (filepath, sidecar)
+            
+            sidecar_dot = str(Path(filepath).parent / f".{Path(filepath).name}{suffix}")
+            if Path(sidecar_dot).exists():
+                return (filepath, sidecar_dot)
+            
+            regular_file = filepath.rstrip(suffix)
+            if Path(regular_file).exists():
+                return (regular_file, filepath)
+            
+            dotfile = str(Path(filepath).parent / f".{Path(filepath).name.rstrip(suffix)}")
+            if Path(dotfile).exists():
+                return (dotfile, filepath)
+
+        return (filepath, None)

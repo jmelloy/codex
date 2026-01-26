@@ -1,5 +1,6 @@
 """File system watcher for monitoring changes."""
 
+import json
 import os
 import hashlib
 from pathlib import Path
@@ -7,6 +8,7 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from typing import Optional, Callable
 import logging
+from backend.codex.core.metadata import MetadataParser
 from codex.db.database import get_notebook_session
 from codex.db.models import FileMetadata, Notebook
 from sqlmodel import select
@@ -88,6 +90,7 @@ class NotebookFileHandler(FileSystemEventHandler):
             return
 
         logger.debug(f"Updating metadata for {filepath} due to {event_type} event")
+        session = None
         try:
             session = get_notebook_session(self.notebook_path)
 
@@ -105,14 +108,16 @@ class NotebookFileHandler(FileSystemEventHandler):
                     session.delete(file_meta)
                     session.commit()
             else:
+                filepath, sidecar = MetadataParser.resolve_sidecar(filepath)
                 # File created or modified
                 if os.path.exists(filepath):
                     file_stats = os.stat(filepath)
                     file_hash = calculate_file_hash(filepath)
                     is_binary = is_binary_file(filepath)
-                    
+
                     # Get content type (MIME type)
                     content_type = get_content_type(filepath)
+                    metadata = MetadataParser.extract_all_metadata(filepath)
 
                     if file_meta:
                         # Update existing
@@ -123,6 +128,10 @@ class NotebookFileHandler(FileSystemEventHandler):
 
                         file_meta.updated_at = datetime.now(timezone.utc)
                         file_meta.file_modified_at = datetime.fromtimestamp(file_stats.st_mtime)
+                        file_meta.properties = json.dumps(metadata)
+
+                        if sidecar:
+                            file_meta.sidecar_path = sidecar
                     else:
                         # Create new
                         from datetime import datetime
@@ -135,22 +144,23 @@ class NotebookFileHandler(FileSystemEventHandler):
                             size=file_stats.st_size,
                             hash=file_hash,
                             git_tracked=not is_binary,
+                            properties=json.dumps(metadata),
+                            sidecar_path=sidecar,
                             file_created_at=datetime.fromtimestamp(file_stats.st_ctime),
                             file_modified_at=datetime.fromtimestamp(file_stats.st_mtime),
                         )
                         session.add(file_meta)
 
                     # Auto-commit to git if file should be tracked
-                    if not is_binary:
-                        try:
-                            from codex.core.git_manager import GitManager
-
-                            git_manager = GitManager(self.notebook_path)
-                            commit_hash = git_manager.auto_commit_on_change(filepath)
-                            if commit_hash:
-                                file_meta.last_commit_hash = commit_hash
-                        except Exception as e:
-                            logger.warning(f"Could not commit file to git: {e}")
+                    from codex.core.git_manager import GitManager
+                    git_manager = GitManager(self.notebook_path)
+                    
+                    try:
+                        commit_hash = git_manager.auto_commit_on_change(filepath, sidecar)
+                        if commit_hash:
+                            file_meta.last_commit_hash = commit_hash
+                    except Exception as e:
+                        logger.warning(f"Could not commit file to git: {e}")
 
                     try:
                         session.commit()
@@ -159,7 +169,10 @@ class NotebookFileHandler(FileSystemEventHandler):
                         session.rollback()
                         if "UNIQUE constraint failed" in str(commit_error):
                             # Re-query and update instead
-                            file_meta = get_existing()
+                            result = session.execute(
+                                select(FileMetadata).where(FileMetadata.notebook_id == self.notebook_id, FileMetadata.path == rel_path)
+                            )
+                            file_meta = result.scalar_one_or_none()
                             if file_meta:
                                 file_meta.size = file_stats.st_size
                                 file_meta.hash = file_hash
@@ -178,28 +191,35 @@ class NotebookFileHandler(FileSystemEventHandler):
         except Exception as e:
             logger.error(f"Error updating metadata for {filepath}: {e}", exc_info=True)
         finally:
-            session.close()
+            if session:
+                session.close()
 
     def on_created(self, event):
         """Called when a file or directory is created."""
         if not event.is_directory:
-            self._update_file_metadata(event.src_path, "created")
+            src_path = str(event.src_path)
+            self._update_file_metadata(src_path, "created")
 
     def on_modified(self, event):
         """Called when a file or directory is modified."""
         if not event.is_directory:
-            self._update_file_metadata(event.src_path, "modified")
+            src_path = str(event.src_path)
+            self._update_file_metadata(src_path, "modified")
 
     def on_deleted(self, event):
         """Called when a file or directory is deleted."""
         if not event.is_directory:
-            self._update_file_metadata(event.src_path, "deleted")
+            src_path = str(event.src_path)
+            self._update_file_metadata(src_path, "deleted")
 
     def on_moved(self, event):
         """Called when a file or directory is moved."""
         if not event.is_directory:
-            self._update_file_metadata(event.src_path, "deleted")
-            self._update_file_metadata(event.dest_path, "created")
+            dest_path = str(event.dest_path)
+            src_path = str(event.src_path)
+            self._update_file_metadata(src_path, "deleted")
+            self._update_file_metadata(dest_path, "created")
+            
 
 
 class NotebookWatcher:

@@ -212,7 +212,7 @@ class GitManager:
                 logger.error(f"Error getting diff: {e}")
                 return None
 
-    def auto_commit_on_change(self, filepath: str):
+    def auto_commit_on_change(self, filepath: str, sidecar: Optional[str] = None) -> Optional[str]:
         """Automatically commit a file when it changes."""
         if not self.repo:
             return
@@ -221,11 +221,10 @@ class GitManager:
         rel_path = os.path.relpath(resolved_path, self.notebook_path)
         filename = os.path.basename(filepath)
 
-        # Don't commit binary files
-        if self.is_binary_file(filepath):
-            return
-
         with git_lock_manager.lock(self.notebook_path):
-            self.add_file(filepath)
+            if not self.is_binary_file(filepath):
+                self.add_file(filepath)
+            if sidecar:
+                self.add_file(sidecar)
             commit_hash = self.commit(f"Auto-commit: {filename}")
             return commit_hash

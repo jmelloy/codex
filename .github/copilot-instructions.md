@@ -1,7 +1,5 @@
 # Codex - Copilot Agent Instructions
 
-> **Note**: A `CLAUDE.md` file also exists in the repository root with similar instructions for Claude Code.
-
 ## Repository Overview
 
 **Codex** is a hierarchical digital laboratory journal system for tracking computational experiments, creative iterations, and technical investigations with full provenance and reproducibility. It's structured as Workspace → Notebook → Page → Entry.

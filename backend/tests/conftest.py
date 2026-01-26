@@ -6,7 +6,15 @@ import tempfile
 import shutil
 import os
 from pathlib import Path
+from fastapi.testclient import TestClient
 from codex.db.database import init_system_db, system_engine
+from codex.main import app
+
+
+@pytest.fixture
+def test_client():
+    """Create a fresh TestClient for each test to avoid cookie persistence."""
+    return TestClient(app)
 
 
 @pytest.fixture(autouse=True)

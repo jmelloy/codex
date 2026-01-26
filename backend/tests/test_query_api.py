@@ -5,7 +5,6 @@ import pytest
 from datetime import datetime, timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from fastapi.testclient import TestClient
 from sqlmodel import create_engine, Session
 from codex.main import app
 from codex.db.models import FileMetadata, Notebook, Tag, FileTag
@@ -15,8 +14,6 @@ from codex.api.routes.query import (
     group_files,
     file_to_dict,
 )
-
-client = TestClient(app)
 
 
 class TestHelperFunctions:
@@ -322,16 +319,16 @@ class TestHelperFunctions:
 class TestQueryAPI:
     """Test query API endpoint."""
 
-    def test_query_api_requires_authentication(self):
+    def test_query_api_requires_authentication(self, test_client):
         """Test that query API requires authentication."""
-        response = client.post("/api/v1/query/?workspace_id=1", json={})
+        response = test_client.post("/api/v1/query/?workspace_id=1", json={})
         assert response.status_code == 401
 
-    def test_query_api_accepts_valid_query(self):
+    def test_query_api_accepts_valid_query(self, test_client):
         """Test that query API accepts valid query structure."""
         # This test will need proper authentication setup
         # For now, just test that the endpoint exists and validates input
-        response = client.post(
+        response = test_client.post(
             "/api/v1/query/?workspace_id=1",
             json={
                 "file_types": ["md"],

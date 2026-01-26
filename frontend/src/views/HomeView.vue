@@ -1,10 +1,10 @@
 <template>
   <div class="h-screen flex flex-col w-full">
-    <nav class="bg-primary text-white px-8 py-4 flex justify-between items-center">
+    <nav class="main-navbar">
       <h1 class="text-2xl font-semibold m-0">Codex</h1>
       <div class="flex items-center gap-4">
         <button @click="goToSettings"
-          class="bg-white/20 text-white border-none px-4 py-2 rounded cursor-pointer hover:bg-white/30 transition"
+          class="navbar-button"
           title="User Settings">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block">
@@ -15,7 +15,7 @@
         </button>
         <span>{{ authStore.user?.username }}</span>
         <button @click="handleLogout"
-          class="bg-white/20 text-white border-none px-4 py-2 rounded cursor-pointer hover:bg-white/30 transition">Logout</button>
+          class="navbar-button">Logout</button>
       </div>
     </nav>
 
@@ -907,5 +907,35 @@ function startCreateFile(notebook: Notebook) {
 .file-active {
   background: color-mix(in srgb, var(--notebook-accent) var(--selected-opacity), transparent);
   color: var(--notebook-accent);
+}
+
+/* Main navbar - uses text-inverse to ensure readability on primary background */
+.main-navbar {
+  background-color: var(--color-primary);
+  color: var(--color-text-inverse);
+  padding: 1rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.main-navbar h1,
+.main-navbar span,
+.main-navbar button {
+  color: var(--color-text-inverse);
+}
+
+.navbar-button {
+  background-color: rgba(255, 255, 255, 0.2);
+  color: var(--color-text-inverse);
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.navbar-button:hover {
+  background-color: rgba(255, 255, 255, 0.3);
 }
 </style>

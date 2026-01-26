@@ -46,9 +46,7 @@
     <div
       :class="[
         'flex items-center py-2 cursor-grab text-[13px] text-text-secondary transition hover:bg-bg-hover',
-        {
-          'bg-bg-active text-primary font-medium': currentFileId === node.file?.id,
-        },
+        { 'bg-bg-active text-primary font-medium': currentFileId === node.file?.id },
         { 'opacity-50': isDragging },
       ]"
       :style="{ paddingLeft: `${(depth + 1) * 16 + 32}px` }"
@@ -69,6 +67,7 @@
 import { computed, ref } from "vue"
 import type { FileTreeNode } from "../utils/fileTree"
 import type { FileMetadata } from "../services/codex"
+import { getDisplayType } from "../utils/contentType"
 
 interface Props {
   node: FileTreeNode
@@ -172,7 +171,9 @@ const handleDrop = (event: DragEvent) => {
 const getFileIcon = (file: FileMetadata | undefined): string => {
   if (!file) return "📄"
 
-  switch (file.file_type) {
+  const displayType = getDisplayType(file.content_type)
+
+  switch (displayType) {
     case "view":
       return "📊" // Chart/view icon for .cdx files
     case "markdown":
@@ -192,7 +193,8 @@ const getFileIcon = (file: FileMetadata | undefined): string => {
     case "html":
       return "🌐" // Globe for HTML
     case "text":
-      return "📄" // Document for text
+    case "code":
+      return "📄" // Document for text/code
     case "binary":
       return "📦" // Package for binary
     default:

@@ -2,9 +2,7 @@
   <div class="gallery-view p-6">
     <!-- Header -->
     <div class="mb-6">
-      <h2 class="text-2xl font-semibold text-text-primary">
-        {{ definition?.title }}
-      </h2>
+      <h2 class="text-2xl font-semibold text-text-primary">{{ definition?.title }}</h2>
       <p v-if="definition?.description" class="text-text-secondary mt-1">
         {{ definition.description }}
       </p>
@@ -39,9 +37,7 @@
           v-if="config.show_metadata !== false"
           class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3 text-white opacity-0 group-hover:opacity-100 transition"
         >
-          <div class="font-medium text-sm">
-            {{ image.title || image.filename }}
-          </div>
+          <div class="font-medium text-sm">{{ image.title || image.filename }}</div>
           <div v-if="image.description" class="text-xs mt-1 opacity-90">
             {{ truncateText(image.description, 50) }}
           </div>
@@ -173,9 +169,11 @@ const lightboxIndex = ref(0)
 // Get all image files
 const images = computed(() => {
   if (!props.data?.files) return []
-  // Filter for image files only
+  // Filter for image files only - check if content_type starts with 'image/'
   return props.data.files.filter(
-    (file) => file.file_type === "image" || file.path.match(/\.(jpg|jpeg|png|gif|bmp|webp|svg)$/i)
+    (file) =>
+      file.content_type.startsWith("image/") ||
+      file.path.match(/\.(jpg|jpeg|png|gif|bmp|webp|svg)$/i)
   )
 })
 
@@ -186,6 +184,8 @@ const currentImage = computed(() => {
 
 // Get image URL
 const getImageUrl = (image: FileMetadata): string => {
+  // In a real implementation, this would be an API endpoint that serves the image
+  // For now, we'll use a placeholder or construct a path
   return `/api/v1/files/${image.id}/content?workspace_id=${props.workspaceId}&notebook_id=${image.notebook_id}`
 }
 
@@ -283,7 +283,6 @@ const formatFileSize = (bytes: number): string => {
   from {
     opacity: 0;
   }
-
   to {
     opacity: 1;
   }

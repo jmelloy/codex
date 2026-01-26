@@ -148,8 +148,8 @@ class TestNotebookMigrations:
         with engine.connect() as conn:
             result = conn.execute(text("SELECT version_num FROM alembic_version"))
             version = result.scalar()
-            # Should be at the latest migration (002)
-            assert version == "002"
+            # Should be at the latest migration (003)
+            assert version == "003"
 
         engine.dispose()
 

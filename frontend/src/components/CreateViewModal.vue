@@ -299,26 +299,14 @@ function generateViewContent(): string {
     case "kanban":
       frontmatter.config = {
         columns: [
-          {
-            id: "backlog",
-            title: "Backlog",
-            filter: { [kanbanStatusProperty.value]: "backlog" },
-          },
-          {
-            id: "todo",
-            title: "To Do",
-            filter: { [kanbanStatusProperty.value]: "todo" },
-          },
+          { id: "backlog", title: "Backlog", filter: { [kanbanStatusProperty.value]: "backlog" } },
+          { id: "todo", title: "To Do", filter: { [kanbanStatusProperty.value]: "todo" } },
           {
             id: "in-progress",
             title: "In Progress",
             filter: { [kanbanStatusProperty.value]: "in-progress" },
           },
-          {
-            id: "done",
-            title: "Done",
-            filter: { [kanbanStatusProperty.value]: "done" },
-          },
+          { id: "done", title: "Done", filter: { [kanbanStatusProperty.value]: "done" } },
         ],
         card_fields: ["description", "priority", "due_date"],
         drag_drop: true,
@@ -338,7 +326,7 @@ function generateViewContent(): string {
       if (!frontmatter.query) {
         frontmatter.query = {}
       }
-      frontmatter.query.file_types = ["image/png", "image/jpeg", "image/gif", "image/webp"]
+      frontmatter.query.content_types = ["image/png", "image/jpeg", "image/gif", "image/webp"]
       frontmatter.config = {
         layout: "grid",
         columns: galleryColumns.value,

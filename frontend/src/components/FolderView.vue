@@ -175,7 +175,7 @@
           @click="$emit('selectFile', file)"
         >
           <div class="file-card-icon">
-            <component :is="getFileIcon(file.file_type)" />
+            <component :is="getFileIcon(file.content_type)" />
           </div>
           <div class="file-card-info">
             <span class="file-card-name">{{
@@ -195,12 +195,12 @@
           @click="$emit('selectFile', file)"
         >
           <div class="file-row-icon">
-            <component :is="getFileIcon(file.file_type)" />
+            <component :is="getFileIcon(file.content_type)" />
           </div>
           <div class="file-row-name">
             {{ file.properties?.title || file.title || file.filename }}
           </div>
-          <div class="file-row-type">{{ file.file_type }}</div>
+          <div class="file-row-type">{{ file.content_type }}</div>
           <div class="file-row-size">{{ formatSize(file.size) }}</div>
           <div class="file-row-date">{{ formatDate(file.updated_at) }}</div>
         </div>
@@ -214,7 +214,7 @@
           class="file-compact"
           @click="$emit('selectFile', file)"
         >
-          <component :is="getFileIcon(file.file_type)" class="file-compact-icon" />
+          <component :is="getFileIcon(file.content_type)" class="file-compact-icon" />
           <span class="file-compact-name">{{
             file.properties?.title || file.title || file.filename
           }}</span>
@@ -243,6 +243,7 @@
 <script setup lang="ts">
 import { ref, computed, h } from "vue"
 import type { FolderWithFiles, FileMetadata } from "../services/codex"
+import { getDisplayType } from "../utils/contentType"
 
 interface Props {
   folder: FolderWithFiles
@@ -279,7 +280,7 @@ const sortedFiles = computed(() => {
         comparison = new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime()
         break
       case "type":
-        comparison = a.file_type.localeCompare(b.file_type)
+        comparison = a.content_type.localeCompare(b.content_type)
         break
       case "size":
         comparison = a.size - b.size
@@ -313,7 +314,8 @@ function formatDate(dateStr: string): string {
   }
 }
 
-function getFileIcon(fileType: string) {
+function getFileIcon(contentType: string) {
+  const displayType = getDisplayType(contentType)
   const iconProps = {
     width: 24,
     height: 24,
@@ -323,14 +325,12 @@ function getFileIcon(fileType: string) {
     "stroke-width": 2,
   }
 
-  switch (fileType) {
+  switch (displayType) {
     case "markdown":
     case "text":
       return () =>
         h("svg", iconProps, [
-          h("path", {
-            d: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z",
-          }),
+          h("path", { d: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" }),
           h("polyline", { points: "14 2 14 8 20 8" }),
           h("line", { x1: "16", y1: "13", x2: "8", y2: "13" }),
           h("line", { x1: "16", y1: "17", x2: "8", y2: "17" }),
@@ -339,23 +339,14 @@ function getFileIcon(fileType: string) {
     case "image":
       return () =>
         h("svg", iconProps, [
-          h("rect", {
-            x: "3",
-            y: "3",
-            width: "18",
-            height: "18",
-            rx: "2",
-            ry: "2",
-          }),
+          h("rect", { x: "3", y: "3", width: "18", height: "18", rx: "2", ry: "2" }),
           h("circle", { cx: "8.5", cy: "8.5", r: "1.5" }),
           h("polyline", { points: "21 15 16 10 5 21" }),
         ])
     case "pdf":
       return () =>
         h("svg", iconProps, [
-          h("path", {
-            d: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z",
-          }),
+          h("path", { d: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" }),
           h("polyline", { points: "14 2 14 8 20 8" }),
           h("path", { d: "M10 12h4" }),
           h("path", { d: "M10 16h4" }),
@@ -371,14 +362,7 @@ function getFileIcon(fileType: string) {
       return () =>
         h("svg", iconProps, [
           h("polygon", { points: "23 7 16 12 23 17 23 7" }),
-          h("rect", {
-            x: "1",
-            y: "5",
-            width: "15",
-            height: "14",
-            rx: "2",
-            ry: "2",
-          }),
+          h("rect", { x: "1", y: "5", width: "15", height: "14", rx: "2", ry: "2" }),
         ])
     case "code":
       return () =>
@@ -389,9 +373,7 @@ function getFileIcon(fileType: string) {
     case "json":
       return () =>
         h("svg", iconProps, [
-          h("path", {
-            d: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z",
-          }),
+          h("path", { d: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" }),
           h("polyline", { points: "14 2 14 8 20 8" }),
           h("path", { d: "M8 13h2" }),
           h("path", { d: "M8 17h2" }),
@@ -401,9 +383,7 @@ function getFileIcon(fileType: string) {
     default:
       return () =>
         h("svg", iconProps, [
-          h("path", {
-            d: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z",
-          }),
+          h("path", { d: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" }),
           h("polyline", { points: "14 2 14 8 20 8" }),
         ])
   }

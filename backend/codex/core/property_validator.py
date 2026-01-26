@@ -121,7 +121,7 @@ class PropertyValidator:
                     "paths",
                     "tags",
                     "tags_any",
-                    "file_types",
+                    "content_types",
                     "properties",
                     "properties_exists",
                     "created_after",

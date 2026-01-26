@@ -9,15 +9,25 @@
       <!-- Title (editable) -->
       <div class="property-group">
         <label>Title</label>
-        <input v-model="editableTitle" @blur="updateTitle" @keyup.enter="updateTitle" class="property-input"
-          :placeholder="folder.name" />
+        <input
+          v-model="editableTitle"
+          @blur="updateTitle"
+          @keyup.enter="updateTitle"
+          class="property-input"
+          :placeholder="folder.name"
+        />
       </div>
 
       <!-- Description (editable) -->
       <div class="property-group">
         <label>Description</label>
-        <textarea v-model="editableDescription" @blur="updateDescription" class="property-textarea"
-          placeholder="Add a description..." rows="3"></textarea>
+        <textarea
+          v-model="editableDescription"
+          @blur="updateDescription"
+          class="property-textarea"
+          placeholder="Add a description..."
+          rows="3"
+        ></textarea>
       </div>
 
       <!-- Folder Info (read-only) -->
@@ -60,7 +70,12 @@
           </span>
         </div>
         <div class="tag-input-wrapper">
-          <input v-model="newTag" @keyup.enter="addTag" class="tag-input" placeholder="Add a tag..." />
+          <input
+            v-model="newTag"
+            @keyup.enter="addTag"
+            class="tag-input"
+            placeholder="Add a tag..."
+          />
           <button @click="addTag" class="tag-add-btn" :disabled="!newTag.trim()">Add</button>
         </div>
 
@@ -68,11 +83,20 @@
         <div class="custom-property-row" v-for="(value, key) in metadata" :key="key">
           <template v-if="editingProperty === key">
             <!-- Editing mode -->
-            <input v-model="editPropertyValue" @blur="savePropertyEdit(key as string)"
-              @keyup.enter="savePropertyEdit(key as string)" @keyup.escape="cancelPropertyEdit"
-              class="property-edit-input" ref="editInput" />
+            <input
+              v-model="editPropertyValue"
+              @blur="savePropertyEdit(key as string)"
+              @keyup.enter="savePropertyEdit(key as string)"
+              @keyup.escape="cancelPropertyEdit"
+              class="property-edit-input"
+              ref="editInput"
+            />
             <div class="property-actions-inline">
-              <button @click="savePropertyEdit(key as string)" class="btn-action btn-save" title="Save">
+              <button
+                @click="savePropertyEdit(key as string)"
+                class="btn-action btn-save"
+                title="Save"
+              >
                 ✓
               </button>
               <button @click="cancelPropertyEdit" class="btn-action btn-cancel" title="Cancel">
@@ -83,9 +107,17 @@
           <template v-else>
             <!-- Display mode -->
             <span class="property-label">{{ key }}</span>
-            <span class="property-value editable" @click="startEditProperty(key as string, value)"
-              title="Click to edit">{{ formatMetadataValue(value) }}</span>
-            <button @click="removeProperty(key as string)" class="btn-remove-property" title="Remove property">
+            <span
+              class="property-value editable"
+              @click="startEditProperty(key as string, value)"
+              title="Click to edit"
+              >{{ formatMetadataValue(value) }}</span
+            >
+            <button
+              @click="removeProperty(key as string)"
+              class="btn-remove-property"
+              title="Remove property"
+            >
               ×
             </button>
           </template>
@@ -93,11 +125,25 @@
 
         <!-- Add new property -->
         <div class="add-property-form">
-          <input v-model="newPropertyKey" class="property-key-input" placeholder="Property name"
-            @keyup.enter="focusValueInput" />
-          <input v-model="newPropertyValue" class="property-value-input" placeholder="Value" ref="valueInputRef"
-            @keyup.enter="addProperty" />
-          <button @click="addProperty" class="btn-add-property" :disabled="!newPropertyKey.trim()" title="Add property">
+          <input
+            v-model="newPropertyKey"
+            class="property-key-input"
+            placeholder="Property name"
+            @keyup.enter="focusValueInput"
+          />
+          <input
+            v-model="newPropertyValue"
+            class="property-value-input"
+            placeholder="Value"
+            ref="valueInputRef"
+            @keyup.enter="addProperty"
+          />
+          <button
+            @click="addProperty"
+            class="btn-add-property"
+            :disabled="!newPropertyKey.trim()"
+            title="Add property"
+          >
             +
           </button>
         </div>

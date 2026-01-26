@@ -24,7 +24,7 @@ export interface FileMetadata {
   notebook_id: number
   path: string
   filename: string
-  file_type: string
+  content_type: string // MIME type (e.g., text/markdown, image/jpeg)
   size: number
   title?: string
   description?: string

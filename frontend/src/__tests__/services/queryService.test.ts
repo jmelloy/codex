@@ -79,7 +79,7 @@ describe('Query Service', () => {
 
       const query = {
         tags: ['project', 'important'],
-        file_types: ['md', 'txt'],
+        content_types: ['text/markdown', 'text/plain'],
         properties: { status: 'todo' },
         sort: 'created_at desc',
         limit: 50,

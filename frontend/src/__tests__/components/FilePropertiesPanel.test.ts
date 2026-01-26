@@ -17,7 +17,7 @@ const mockFile = {
   filename: 'test-file.md',
   title: 'Test File',
   description: 'Test description',
-  file_type: 'markdown',
+  content_type: 'text/markdown',
   size: 1024,
   created_at: '2024-01-15T12:00:00Z',
   updated_at: '2024-01-16T12:00:00Z',

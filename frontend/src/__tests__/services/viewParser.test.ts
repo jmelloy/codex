@@ -144,9 +144,9 @@ query:
   tags_any:
     - family
     - friends
-  file_types:
-    - jpg
-    - png
+  content_types:
+    - image/jpeg
+    - image/png
   properties:
     camera: Canon
     location: Beach
@@ -172,7 +172,7 @@ query:
       expect(result.query?.paths).toEqual(['photos/*.jpg'])
       expect(result.query?.tags).toEqual(['vacation'])
       expect(result.query?.tags_any).toEqual(['family', 'friends'])
-      expect(result.query?.file_types).toEqual(['jpg', 'png'])
+      expect(result.query?.content_types).toEqual(['image/jpeg', 'image/png'])
       expect(result.query?.properties).toEqual({
         camera: 'Canon',
         location: 'Beach',

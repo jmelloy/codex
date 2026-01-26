@@ -170,7 +170,6 @@ def get_logging_config(
     Returns:
         Dictionary suitable for logging.config.dictConfig()
     """
-    use_colors = log_format == "colored"
     use_json = log_format == "json"
 
     if use_json:
@@ -183,7 +182,7 @@ def get_logging_config(
     else:
         default_formatter = {
             "()": ColoredFormatter,
-            "fmt": "%(asctime)s - %(levelname)6s %(name)s - %(message)s %(request_id)s",
+            "fmt": "%(asctime)s - %(levelname)s - %(name)s - %(message)s %(request_id)s",
             "datefmt": "%Y-%m-%d %H:%M:%S",
         }
         access_formatter = {
@@ -218,16 +217,13 @@ def get_logging_config(
         },
         "loggers": {
             "root": {
-                "handlers": ["default"],
                 "filters": ["request_id"],
             },
-            "uvicorn": {
+
+            "uvicorn.error": {
                 "handlers": ["default"],
                 "level": "INFO",
                 "propagate": False,
-            },
-            "uvicorn.error": {
-                "level": "INFO",
             },
             "uvicorn.access": {
                 "handlers": ["access"],

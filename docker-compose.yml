@@ -8,9 +8,9 @@ services:
     environment:
       - DATABASE_URL=${DATABASE_URL:-sqlite:///./data/codex_system.db}
       - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}
-      - DEBUG=false
+      - DEBUG=${DEBUG:-false}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
-      - JSON_LOGS=${JSON_LOGS:-true}
+      - LOG_FORMAT=${LOG_FORMAT:-colored}
       - PYTHONUNBUFFERED=1
     volumes:
       - ./data:/app/data

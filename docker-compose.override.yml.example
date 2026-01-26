@@ -13,12 +13,6 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    environment:
-      - DATABASE_URL=sqlite:///./data/codex_system.db
-      - SECRET_KEY=dev-secret-key-not-for-production
-      - DEBUG=true
-      - LOG_LEVEL=DEBUG
-      - JSON_LOGS=false
     volumes:
       # Mount source code for hot-reloading
       - ./backend:/app

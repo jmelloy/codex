@@ -298,7 +298,7 @@ class TestViewDefinitionValidation:
             "view_type": "kanban",
             "query": {
                 "tags": ["project"],
-                "file_types": ["md"],
+                "content_types": ["md"],
                 "sort": "created_at desc",
                 "limit": 50,
             },
@@ -379,7 +379,7 @@ class TestViewDefinitionValidation:
                 "paths": ["*.jpg"],
                 "tags": ["photo"],
                 "tags_any": ["vacation", "family"],
-                "file_types": ["jpg", "png"],
+                "content_types": ["jpg", "png"],
                 "properties": {"camera": "Canon"},
                 "properties_exists": ["location"],
                 "created_after": "2024-01-01",

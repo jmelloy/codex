@@ -159,12 +159,12 @@
       <!-- Viewer Mode -->
       <div v-else-if="workspaceStore.currentFile" class="flex-1 flex overflow-hidden p-4">
         <!-- Dynamic View Renderer for .cdx files -->
-        <ViewRenderer v-if="workspaceStore.currentFile.file_type === 'view'" :file-id="workspaceStore.currentFile.id"
+        <ViewRenderer v-if="getDisplayType(workspaceStore.currentFile.content_type) === 'view'" :file-id="workspaceStore.currentFile.id"
           :workspace-id="workspaceStore.currentWorkspace!.id" :notebook-id="workspaceStore.currentFile.notebook_id"
           class="flex-1" />
 
         <!-- Image Viewer for image files -->
-        <div v-else-if="workspaceStore.currentFile.file_type === 'image'" class="flex-1 flex flex-col overflow-hidden">
+        <div v-else-if="getDisplayType(workspaceStore.currentFile.content_type) === 'image'" class="flex-1 flex flex-col overflow-hidden">
           <FileHeader :file="workspaceStore.currentFile" @toggle-properties="toggleProperties">
             <template #actions>
               <button @click="openInNewTab"
@@ -185,7 +185,7 @@
         </div>
 
         <!-- PDF Viewer -->
-        <div v-else-if="workspaceStore.currentFile.file_type === 'pdf'" class="flex-1 flex flex-col overflow-hidden">
+        <div v-else-if="getDisplayType(workspaceStore.currentFile.content_type) === 'pdf'" class="flex-1 flex flex-col overflow-hidden">
           <FileHeader :file="workspaceStore.currentFile" @toggle-properties="toggleProperties">
             <template #actions>
               <button @click="openInNewTab"
@@ -206,7 +206,7 @@
         </div>
 
         <!-- Audio Player -->
-        <div v-else-if="workspaceStore.currentFile.file_type === 'audio'" class="flex-1 flex flex-col overflow-hidden">
+        <div v-else-if="getDisplayType(workspaceStore.currentFile.content_type) === 'audio'" class="flex-1 flex flex-col overflow-hidden">
           <FileHeader :file="workspaceStore.currentFile" @toggle-properties="toggleProperties">
             <template #actions>
               <button @click="openInNewTab"
@@ -230,7 +230,7 @@
         </div>
 
         <!-- Video Player -->
-        <div v-else-if="workspaceStore.currentFile.file_type === 'video'" class="flex-1 flex flex-col overflow-hidden">
+        <div v-else-if="getDisplayType(workspaceStore.currentFile.content_type) === 'video'" class="flex-1 flex flex-col overflow-hidden">
           <FileHeader :file="workspaceStore.currentFile" @toggle-properties="toggleProperties">
             <template #actions>
               <button @click="openInNewTab"
@@ -252,7 +252,7 @@
         </div>
 
         <!-- HTML Viewer -->
-        <div v-else-if="workspaceStore.currentFile.file_type === 'html'" class="flex-1 flex flex-col overflow-hidden">
+        <div v-else-if="getDisplayType(workspaceStore.currentFile.content_type) === 'html'" class="flex-1 flex flex-col overflow-hidden">
           <FileHeader :file="workspaceStore.currentFile" @toggle-properties="toggleProperties">
             <template #actions>
               <button @click="openInNewTab"
@@ -274,7 +274,7 @@
         </div>
 
         <!-- Code Viewer for source code files -->
-        <div v-else-if="workspaceStore.currentFile.file_type === 'code'" class="flex-1 flex flex-col overflow-hidden">
+        <div v-else-if="getDisplayType(workspaceStore.currentFile.content_type) === 'code'" class="flex-1 flex flex-col overflow-hidden">
           <FileHeader :file="workspaceStore.currentFile" @toggle-properties="toggleProperties">
             <template #actions>
               <button @click="startEdit"
@@ -293,7 +293,7 @@
         </div>
 
         <!-- Binary file placeholder -->
-        <div v-else-if="workspaceStore.currentFile.file_type === 'binary'" class="flex-1 flex flex-col overflow-hidden">
+        <div v-else-if="getDisplayType(workspaceStore.currentFile.content_type) === 'binary'" class="flex-1 flex flex-col overflow-hidden">
           <FileHeader :file="workspaceStore.currentFile" @toggle-properties="toggleProperties">
             <template #actions>
               <a :href="currentContentUrl" download
@@ -446,6 +446,7 @@ import { useAuthStore } from '../stores/auth'
 import { useWorkspaceStore } from '../stores/workspace'
 import type { Workspace, Notebook, FileMetadata, Template } from '../services/codex'
 import { templateService } from '../services/codex'
+import { getDisplayType } from '../utils/contentType'
 import Modal from '../components/Modal.vue'
 import FormGroup from '../components/FormGroup.vue'
 import MarkdownViewer from '../components/MarkdownViewer.vue'
@@ -595,7 +596,9 @@ function isFolderExpanded(notebookId: number, folderPath: string): boolean {
 function getFileIcon(file: FileMetadata | undefined): string {
   if (!file) return '📄'
 
-  switch (file.file_type) {
+  const displayType = getDisplayType(file.content_type)
+  
+  switch (displayType) {
     case 'view':
       return '📊' // Chart/view icon for .cdx files
     case 'markdown':

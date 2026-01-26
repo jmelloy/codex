@@ -19,8 +19,10 @@ if str(backend_dir.parent) not in sys.path:
 config = context.config
 
 # Set up logging from notebook_alembic.ini
-if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+# Only configure file-based logging if explicitly running alembic CLI (not programmatically)
+# This prevents wiping out the application's logging configuration
+if config.config_file_name is not None and config.attributes.get("configure_logger", True):
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 # Create target metadata for notebook tables only
 # We define this explicitly to avoid pulling in system models

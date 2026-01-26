@@ -60,7 +60,7 @@ describe("ViewRenderer", () => {
         () =>
           new Promise(() => {
             /* never resolves */
-          }) as any,
+          }) as any
       )
 
       const wrapper = mount(ViewRenderer, {

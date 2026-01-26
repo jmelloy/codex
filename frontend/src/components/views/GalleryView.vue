@@ -7,7 +7,7 @@
         {{ definition.description }}
       </p>
       <div class="text-sm text-text-tertiary mt-2">
-        {{ images.length }} {{ images.length === 1 ? 'image' : 'images' }}
+        {{ images.length }} {{ images.length === 1 ? "image" : "images" }}
       </div>
     </div>
 
@@ -88,7 +88,10 @@
         </button>
 
         <!-- Image Container -->
-        <div class="flex flex-col items-center justify-center max-w-[90vw] max-h-[90vh]" @click.stop>
+        <div
+          class="flex flex-col items-center justify-center max-w-[90vw] max-h-[90vh]"
+          @click.stop
+        >
           <!-- Image -->
           <img
             :src="getImageUrl(currentImage)"
@@ -148,118 +151,118 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted } from 'vue';
-import type { GalleryConfig, ViewDefinition } from '@/services/viewParser';
-import type { QueryResult } from '@/services/queryService';
-import type { FileMetadata } from '@/services/codex';
+import { computed, ref, onMounted, onUnmounted } from "vue"
+import type { GalleryConfig, ViewDefinition } from "@/services/viewParser"
+import type { QueryResult } from "@/services/queryService"
+import type { FileMetadata } from "@/services/codex"
 
 const props = defineProps<{
-  data: QueryResult | null;
-  config: GalleryConfig;
-  definition?: ViewDefinition;
-  workspaceId: number;
-}>();
+  data: QueryResult | null
+  config: GalleryConfig
+  definition?: ViewDefinition
+  workspaceId: number
+}>()
 
-const lightboxOpen = ref(false);
-const lightboxIndex = ref(0);
+const lightboxOpen = ref(false)
+const lightboxIndex = ref(0)
 
 // Get all image files
 const images = computed(() => {
-  if (!props.data?.files) return [];
+  if (!props.data?.files) return []
   // Filter for image files only - check if content_type starts with 'image/'
   return props.data.files.filter(
     (file) =>
-      file.content_type.startsWith('image/') ||
+      file.content_type.startsWith("image/") ||
       file.path.match(/\.(jpg|jpeg|png|gif|bmp|webp|svg)$/i)
-  );
-});
+  )
+})
 
 const currentImage = computed(() => {
-  if (!lightboxOpen.value || !images.value[lightboxIndex.value]) return null;
-  return images.value[lightboxIndex.value];
-});
+  if (!lightboxOpen.value || !images.value[lightboxIndex.value]) return null
+  return images.value[lightboxIndex.value]
+})
 
 // Get image URL
 const getImageUrl = (image: FileMetadata): string => {
   // In a real implementation, this would be an API endpoint that serves the image
   // For now, we'll use a placeholder or construct a path
-  return `/api/v1/files/${image.id}/content?workspace_id=${props.workspaceId}&notebook_id=${image.notebook_id}`;
-};
+  return `/api/v1/files/${image.id}/content?workspace_id=${props.workspaceId}&notebook_id=${image.notebook_id}`
+}
 
 // Lightbox controls
 const openLightbox = (index: number) => {
-  lightboxIndex.value = index;
-  lightboxOpen.value = true;
-};
+  lightboxIndex.value = index
+  lightboxOpen.value = true
+}
 
 const closeLightbox = () => {
-  lightboxOpen.value = false;
-};
+  lightboxOpen.value = false
+}
 
 const nextImage = () => {
   if (lightboxIndex.value < images.value.length - 1) {
-    lightboxIndex.value++;
+    lightboxIndex.value++
   }
-};
+}
 
 const previousImage = () => {
   if (lightboxIndex.value > 0) {
-    lightboxIndex.value--;
+    lightboxIndex.value--
   }
-};
+}
 
 // Keyboard navigation
 const handleKeyPress = (event: KeyboardEvent) => {
-  if (!lightboxOpen.value) return;
+  if (!lightboxOpen.value) return
 
   switch (event.key) {
-    case 'ArrowLeft':
-      previousImage();
-      break;
-    case 'ArrowRight':
-      nextImage();
-      break;
-    case 'Escape':
-      closeLightbox();
-      break;
+    case "ArrowLeft":
+      previousImage()
+      break
+    case "ArrowRight":
+      nextImage()
+      break
+    case "Escape":
+      closeLightbox()
+      break
   }
-};
+}
 
 onMounted(() => {
-  window.addEventListener('keydown', handleKeyPress);
-});
+  window.addEventListener("keydown", handleKeyPress)
+})
 
 onUnmounted(() => {
-  window.removeEventListener('keydown', handleKeyPress);
-});
+  window.removeEventListener("keydown", handleKeyPress)
+})
 
 // Helpers
 const truncateText = (text: string, maxLength: number): string => {
-  if (text.length <= maxLength) return text;
-  return text.substring(0, maxLength) + '...';
-};
+  if (text.length <= maxLength) return text
+  return text.substring(0, maxLength) + "..."
+}
 
 const formatDate = (dateStr: string): string => {
-  const date = new Date(dateStr);
-  return date.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
-};
+  const date = new Date(dateStr)
+  return date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  })
+}
 
 const formatFileSize = (bytes: number): string => {
-  const units = ['B', 'KB', 'MB', 'GB'];
-  let size = bytes;
-  let unitIndex = 0;
+  const units = ["B", "KB", "MB", "GB"]
+  let size = bytes
+  let unitIndex = 0
 
   while (size >= 1024 && unitIndex < units.length - 1) {
-    size /= 1024;
-    unitIndex++;
+    size /= 1024
+    unitIndex++
   }
 
-  return `${size.toFixed(1)} ${units[unitIndex]}`;
-};
+  return `${size.toFixed(1)} ${units[unitIndex]}`
+}
 </script>
 
 <style scoped>

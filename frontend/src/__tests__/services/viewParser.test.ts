@@ -1,13 +1,13 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from "vitest"
 import {
   parseViewDefinition,
   validateViewDefinition,
   type ViewDefinition,
-} from '../../services/viewParser'
+} from "../../services/viewParser"
 
-describe('View Parser', () => {
-  describe('parseViewDefinition', () => {
-    it('should parse valid view definition with frontmatter', () => {
+describe("View Parser", () => {
+  describe("parseViewDefinition", () => {
+    it("should parse valid view definition with frontmatter", () => {
       const content = `---
 type: view
 view_type: kanban
@@ -29,17 +29,17 @@ This is markdown content after the frontmatter.`
 
       const result = parseViewDefinition(content)
 
-      expect(result.type).toBe('view')
-      expect(result.view_type).toBe('kanban')
-      expect(result.title).toBe('My Kanban Board')
-      expect(result.description).toBe('Task board')
-      expect(result.query?.tags).toEqual(['project'])
+      expect(result.type).toBe("view")
+      expect(result.view_type).toBe("kanban")
+      expect(result.title).toBe("My Kanban Board")
+      expect(result.description).toBe("Task board")
+      expect(result.query?.tags).toEqual(["project"])
       expect(result.query?.limit).toBe(50)
       expect(result.config).toBeDefined()
-      expect(result.content).toContain('Additional content')
+      expect(result.content).toContain("Additional content")
     })
 
-    it('should parse view without markdown content', () => {
+    it("should parse view without markdown content", () => {
       const content = `---
 type: view
 view_type: gallery
@@ -48,17 +48,17 @@ title: Photo Gallery
 
       const result = parseViewDefinition(content)
 
-      expect(result.type).toBe('view')
-      expect(result.view_type).toBe('gallery')
-      expect(result.title).toBe('Photo Gallery')
+      expect(result.type).toBe("view")
+      expect(result.view_type).toBe("gallery")
+      expect(result.title).toBe("Photo Gallery")
       expect(result.content).toBeUndefined()
     })
 
-    it('should throw error when frontmatter is missing', () => {
+    it("should throw error when frontmatter is missing", () => {
       const content = `Just some content without frontmatter`
 
       expect(() => parseViewDefinition(content)).toThrow(
-        'Invalid view definition: missing frontmatter'
+        "Invalid view definition: missing frontmatter"
       )
     })
 
@@ -73,29 +73,27 @@ view_type: kanban
       )
     })
 
-    it('should throw error when view_type is missing', () => {
+    it("should throw error when view_type is missing", () => {
       const content = `---
 type: view
 title: My View
 ---`
 
       expect(() => parseViewDefinition(content)).toThrow(
-        'Not a valid view definition: view_type is required'
+        "Not a valid view definition: view_type is required"
       )
     })
 
-    it('should throw error on invalid YAML', () => {
+    it("should throw error on invalid YAML", () => {
       const content = `---
 type: view
   invalid yaml: [
 ---`
 
-      expect(() => parseViewDefinition(content)).toThrow(
-        'Failed to parse YAML frontmatter'
-      )
+      expect(() => parseViewDefinition(content)).toThrow("Failed to parse YAML frontmatter")
     })
 
-    it('should set default title when not provided', () => {
+    it("should set default title when not provided", () => {
       const content = `---
 type: view
 view_type: gallery
@@ -103,18 +101,11 @@ view_type: gallery
 
       const result = parseViewDefinition(content)
 
-      expect(result.title).toBe('Untitled View')
+      expect(result.title).toBe("Untitled View")
     })
 
-    it('should parse all view types', () => {
-      const viewTypes = [
-        'kanban',
-        'gallery',
-        'rollup',
-        'dashboard',
-        'corkboard',
-        'task-list',
-      ]
+    it("should parse all view types", () => {
+      const viewTypes = ["kanban", "gallery", "rollup", "dashboard", "corkboard", "task-list"]
 
       viewTypes.forEach((viewType) => {
         const content = `---
@@ -128,7 +119,7 @@ title: Test View
       })
     })
 
-    it('should parse complex query with all fields', () => {
+    it("should parse complex query with all fields", () => {
       const content = `---
 type: view
 view_type: gallery
@@ -169,23 +160,23 @@ query:
       const result = parseViewDefinition(content)
 
       expect(result.query?.notebook_ids).toEqual([1, 2])
-      expect(result.query?.paths).toEqual(['photos/*.jpg'])
-      expect(result.query?.tags).toEqual(['vacation'])
-      expect(result.query?.tags_any).toEqual(['family', 'friends'])
-      expect(result.query?.content_types).toEqual(['image/jpeg', 'image/png'])
+      expect(result.query?.paths).toEqual(["photos/*.jpg"])
+      expect(result.query?.tags).toEqual(["vacation"])
+      expect(result.query?.tags_any).toEqual(["family", "friends"])
+      expect(result.query?.content_types).toEqual(["image/jpeg", "image/png"])
       expect(result.query?.properties).toEqual({
-        camera: 'Canon',
-        location: 'Beach',
+        camera: "Canon",
+        location: "Beach",
       })
-      expect(result.query?.properties_exists).toEqual(['gps_coords'])
-      expect(result.query?.created_after).toBe('2024-01-01')
-      expect(result.query?.content_search).toBe('sunset')
-      expect(result.query?.sort).toBe('created_at desc')
+      expect(result.query?.properties_exists).toEqual(["gps_coords"])
+      expect(result.query?.created_after).toBe("2024-01-01")
+      expect(result.query?.content_search).toBe("sunset")
+      expect(result.query?.sort).toBe("created_at desc")
       expect(result.query?.limit).toBe(100)
-      expect(result.query?.group_by).toBe('properties.location')
+      expect(result.query?.group_by).toBe("properties.location")
     })
 
-    it('should parse kanban config', () => {
+    it("should parse kanban config", () => {
       const content = `---
 type: view
 view_type: kanban
@@ -211,14 +202,14 @@ config:
       const config = result.config as any
 
       expect(config.columns).toHaveLength(2)
-      expect(config.columns[0].id).toBe('todo')
-      expect(config.columns[0].filter).toEqual({ status: 'todo' })
-      expect(config.card_fields).toEqual(['title', 'priority'])
+      expect(config.columns[0].id).toBe("todo")
+      expect(config.columns[0].filter).toEqual({ status: "todo" })
+      expect(config.card_fields).toEqual(["title", "priority"])
       expect(config.drag_drop).toBe(true)
       expect(config.editable).toBe(true)
     })
 
-    it('should parse gallery config', () => {
+    it("should parse gallery config", () => {
       const content = `---
 type: view
 view_type: gallery
@@ -234,14 +225,14 @@ config:
       const result = parseViewDefinition(content)
       const config = result.config as any
 
-      expect(config.layout).toBe('grid')
+      expect(config.layout).toBe("grid")
       expect(config.columns).toBe(3)
       expect(config.thumbnail_size).toBe(200)
       expect(config.show_metadata).toBe(true)
       expect(config.lightbox).toBe(true)
     })
 
-    it('should parse dashboard layout', () => {
+    it("should parse dashboard layout", () => {
       const content = `---
 type: view
 view_type: dashboard
@@ -260,14 +251,14 @@ layout:
       const result = parseViewDefinition(content)
 
       expect(result.layout).toHaveLength(1)
-      expect(result.layout![0].type).toBe('row')
+      expect(result.layout![0].type).toBe("row")
       expect(result.layout![0].components).toHaveLength(2)
       expect(result.layout![0].components[0].span).toBe(6)
     })
   })
 
-  describe('template variable processing', () => {
-    it('should replace {{ today }} template', () => {
+  describe("template variable processing", () => {
+    it("should replace {{ today }} template", () => {
       const content = `---
 type: view
 view_type: task-list
@@ -281,12 +272,12 @@ query:
       const result = parseViewDefinition(content)
 
       // Template should be replaced with actual date
-      expect(result.query?.date_after).not.toContain('{{')
+      expect(result.query?.date_after).not.toContain("{{")
       expect(result.query?.date_after).toMatch(/^\d{4}-\d{2}-\d{2}T/)
-      expect(result.query?.date_before).not.toContain('{{')
+      expect(result.query?.date_before).not.toContain("{{")
     })
 
-    it('should replace {{ startOfWeek }} and {{ endOfWeek }}', () => {
+    it("should replace {{ startOfWeek }} and {{ endOfWeek }}", () => {
       const content = `---
 type: view
 view_type: rollup
@@ -298,13 +289,13 @@ query:
 
       const result = parseViewDefinition(content)
 
-      expect(result.query?.created_after).not.toContain('{{')
-      expect(result.query?.created_before).not.toContain('{{')
+      expect(result.query?.created_after).not.toContain("{{")
+      expect(result.query?.created_before).not.toContain("{{")
       expect(result.query?.created_after).toMatch(/^\d{4}-\d{2}-\d{2}T/)
       expect(result.query?.created_before).toMatch(/^\d{4}-\d{2}-\d{2}T/)
     })
 
-    it('should replace {{ startOfMonth }} and {{ endOfMonth }}', () => {
+    it("should replace {{ startOfMonth }} and {{ endOfMonth }}", () => {
       const content = `---
 type: view
 view_type: rollup
@@ -316,11 +307,11 @@ query:
 
       const result = parseViewDefinition(content)
 
-      expect(result.query?.created_after).not.toContain('{{')
-      expect(result.query?.created_before).not.toContain('{{')
+      expect(result.query?.created_after).not.toContain("{{")
+      expect(result.query?.created_before).not.toContain("{{")
     })
 
-    it('should replace {{ now }} template', () => {
+    it("should replace {{ now }} template", () => {
       const content = `---
 type: view
 view_type: task-list
@@ -331,11 +322,11 @@ query:
 
       const result = parseViewDefinition(content)
 
-      expect(result.query?.modified_after).not.toContain('{{')
+      expect(result.query?.modified_after).not.toContain("{{")
       expect(result.query?.modified_after).toMatch(/^\d{4}-\d{2}-\d{2}T/)
     })
 
-    it('should handle templates with whitespace', () => {
+    it("should handle templates with whitespace", () => {
       const content = `---
 type: view
 view_type: task-list
@@ -346,10 +337,10 @@ query:
 
       const result = parseViewDefinition(content)
 
-      expect(result.query?.date_after).not.toContain('{{')
+      expect(result.query?.date_after).not.toContain("{{")
     })
 
-    it('should preserve non-template strings', () => {
+    it("should preserve non-template strings", () => {
       const content = `---
 type: view
 view_type: gallery
@@ -361,10 +352,10 @@ query:
       const result = parseViewDefinition(content)
 
       // Invalid template syntax should be preserved
-      expect(result.query?.content_search).toContain('{{')
+      expect(result.query?.content_search).toContain("{{")
     })
 
-    it('should process templates in nested objects', () => {
+    it("should process templates in nested objects", () => {
       const content = `---
 type: view
 view_type: kanban
@@ -376,10 +367,10 @@ query:
 
       const result = parseViewDefinition(content)
 
-      expect(result.query?.properties?.due_date).not.toContain('{{')
+      expect(result.query?.properties?.due_date).not.toContain("{{")
     })
 
-    it('should process templates in arrays', () => {
+    it("should process templates in arrays", () => {
       const content = `---
 type: view
 view_type: gallery
@@ -391,20 +382,20 @@ query:
 
       const result = parseViewDefinition(content)
 
-      expect(result.query?.paths![0]).not.toContain('{{')
+      expect(result.query?.paths![0]).not.toContain("{{")
     })
   })
 
-  describe('validateViewDefinition', () => {
-    it('should validate correct view definition', () => {
+  describe("validateViewDefinition", () => {
+    it("should validate correct view definition", () => {
       const viewDef: ViewDefinition = {
-        type: 'view',
-        view_type: 'kanban',
-        title: 'Task Board',
+        type: "view",
+        view_type: "kanban",
+        title: "Task Board",
         config: {
           columns: [
-            { id: 'todo', title: 'To Do' },
-            { id: 'done', title: 'Done' },
+            { id: "todo", title: "To Do" },
+            { id: "done", title: "Done" },
           ],
         },
       }
@@ -417,9 +408,9 @@ query:
 
     it('should fail when type is not "view"', () => {
       const viewDef: any = {
-        type: 'page',
-        view_type: 'kanban',
-        title: 'Test',
+        type: "page",
+        view_type: "kanban",
+        title: "Test",
       }
 
       const result = validateViewDefinition(viewDef)
@@ -428,54 +419,54 @@ query:
       expect(result.errors).toContain('View definition must have type="view"')
     })
 
-    it('should fail when view_type is missing', () => {
+    it("should fail when view_type is missing", () => {
       const viewDef: any = {
-        type: 'view',
-        title: 'Test',
+        type: "view",
+        title: "Test",
       }
 
       const result = validateViewDefinition(viewDef)
 
       expect(result.valid).toBe(false)
-      expect(result.errors).toContain('View definition must have view_type')
+      expect(result.errors).toContain("View definition must have view_type")
     })
 
-    it('should fail when view_type is invalid', () => {
+    it("should fail when view_type is invalid", () => {
       const viewDef: ViewDefinition = {
-        type: 'view',
-        view_type: 'invalid-type',
-        title: 'Test',
+        type: "view",
+        view_type: "invalid-type",
+        title: "Test",
       }
 
       const result = validateViewDefinition(viewDef)
 
       expect(result.valid).toBe(false)
       expect(result.errors.length).toBeGreaterThan(0)
-      expect(result.errors[0]).toContain('must be one of')
+      expect(result.errors[0]).toContain("must be one of")
     })
 
-    it('should validate all valid view types', () => {
+    it("should validate all valid view types", () => {
       const validTypes = [
-        'kanban',
-        'gallery',
-        'rollup',
-        'dashboard',
-        'corkboard',
-        'calendar',
-        'task-list',
+        "kanban",
+        "gallery",
+        "rollup",
+        "dashboard",
+        "corkboard",
+        "calendar",
+        "task-list",
       ]
 
       validTypes.forEach((viewType) => {
         const viewDef: ViewDefinition = {
-          type: 'view',
+          type: "view",
           view_type: viewType,
-          title: 'Test',
+          title: "Test",
         }
 
         // Add required fields for specific types
-        if (viewType === 'kanban') {
+        if (viewType === "kanban") {
           viewDef.config = { columns: [] }
-        } else if (viewType === 'dashboard') {
+        } else if (viewType === "dashboard") {
           viewDef.layout = []
         }
 
@@ -484,29 +475,27 @@ query:
       })
     })
 
-    it('should fail when kanban lacks columns', () => {
+    it("should fail when kanban lacks columns", () => {
       const viewDef: ViewDefinition = {
-        type: 'view',
-        view_type: 'kanban',
-        title: 'Task Board',
+        type: "view",
+        view_type: "kanban",
+        title: "Task Board",
         config: {},
       }
 
       const result = validateViewDefinition(viewDef)
 
       expect(result.valid).toBe(false)
-      expect(result.errors).toContain(
-        'Kanban view requires columns array in config'
-      )
+      expect(result.errors).toContain("Kanban view requires columns array in config")
     })
 
-    it('should pass when kanban has columns array', () => {
+    it("should pass when kanban has columns array", () => {
       const viewDef: ViewDefinition = {
-        type: 'view',
-        view_type: 'kanban',
-        title: 'Task Board',
+        type: "view",
+        view_type: "kanban",
+        title: "Task Board",
         config: {
-          columns: [{ id: 'todo', title: 'To Do' }],
+          columns: [{ id: "todo", title: "To Do" }],
         },
       }
 
@@ -515,32 +504,32 @@ query:
       expect(result.valid).toBe(true)
     })
 
-    it('should fail when dashboard lacks layout', () => {
+    it("should fail when dashboard lacks layout", () => {
       const viewDef: ViewDefinition = {
-        type: 'view',
-        view_type: 'dashboard',
-        title: 'Dashboard',
+        type: "view",
+        view_type: "dashboard",
+        title: "Dashboard",
       }
 
       const result = validateViewDefinition(viewDef)
 
       expect(result.valid).toBe(false)
-      expect(result.errors).toContain('Dashboard view requires layout field')
+      expect(result.errors).toContain("Dashboard view requires layout field")
     })
 
-    it('should pass when dashboard has layout', () => {
+    it("should pass when dashboard has layout", () => {
       const viewDef: ViewDefinition = {
-        type: 'view',
-        view_type: 'dashboard',
-        title: 'Dashboard',
+        type: "view",
+        view_type: "dashboard",
+        title: "Dashboard",
         layout: [
           {
-            type: 'row',
+            type: "row",
             components: [
               {
-                type: 'mini-view',
+                type: "mini-view",
                 span: 12,
-                view: 'test.cdx',
+                view: "test.cdx",
               },
             ],
           },
@@ -552,10 +541,10 @@ query:
       expect(result.valid).toBe(true)
     })
 
-    it('should collect multiple validation errors', () => {
+    it("should collect multiple validation errors", () => {
       const viewDef: any = {
-        type: 'invalid',
-        title: 'Test',
+        type: "invalid",
+        title: "Test",
       }
 
       const result = validateViewDefinition(viewDef)

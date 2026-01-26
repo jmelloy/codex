@@ -6,95 +6,189 @@
       <div class="flex items-center px-4 py-4" style="border-bottom: 1px solid var(--page-border)">
         <h1 class="m-0 text-xl font-semibold" style="color: var(--notebook-text)">Codex</h1>
       </div>
-      <div class="flex justify-between items-center px-4 py-4" style="border-bottom: 1px solid var(--page-border)">
-        <h2 class="m-0 text-sm font-semibold uppercase tracking-wide" style="color: var(--pen-gray)">Workspaces</h2>
-        <button @click="showCreateWorkspace = true" title="Create Workspace"
-          class="notebook-button text-white border-none w-6 h-6 rounded-full cursor-pointer text-base flex items-center justify-center transition">+</button>
+      <div
+        class="flex justify-between items-center px-4 py-4"
+        style="border-bottom: 1px solid var(--page-border)"
+      >
+        <h2
+          class="m-0 text-sm font-semibold uppercase tracking-wide"
+          style="color: var(--pen-gray)"
+        >
+          Workspaces
+        </h2>
+        <button
+          @click="showCreateWorkspace = true"
+          title="Create Workspace"
+          class="notebook-button text-white border-none w-6 h-6 rounded-full cursor-pointer text-base flex items-center justify-center transition"
+        >
+          +
+        </button>
       </div>
       <ul class="list-none p-0 m-0 max-h-[150px] overflow-y-auto">
-        <li v-for="workspace in workspaceStore.workspaces" :key="workspace.id"
-          :class="['workspace-item py-2.5 px-4 cursor-pointer text-sm transition', { 'workspace-active font-semibold': workspaceStore.currentWorkspace?.id === workspace.id }]"
-          @click="selectWorkspace(workspace)">
+        <li
+          v-for="workspace in workspaceStore.workspaces"
+          :key="workspace.id"
+          :class="[
+            'workspace-item py-2.5 px-4 cursor-pointer text-sm transition',
+            {
+              'workspace-active font-semibold':
+                workspaceStore.currentWorkspace?.id === workspace.id,
+            },
+          ]"
+          @click="selectWorkspace(workspace)"
+        >
           {{ workspace.name }}
         </li>
       </ul>
 
-      <div v-if="workspaceStore.currentWorkspace" class="flex-1 flex flex-col overflow-hidden"
-        style="border-top: 1px solid var(--page-border)">
-        <div class="flex justify-between items-center px-4 py-4" style="border-bottom: 1px solid var(--page-border)">
-          <h3 class="m-0 text-sm font-semibold uppercase tracking-wide" style="color: var(--pen-gray)">Notebooks</h3>
-          <button @click="showCreateNotebook = true" title="Create Notebook"
-            class="notebook-button text-white border-none w-6 h-6 rounded-full cursor-pointer text-base flex items-center justify-center transition">+</button>
+      <div
+        v-if="workspaceStore.currentWorkspace"
+        class="flex-1 flex flex-col overflow-hidden"
+        style="border-top: 1px solid var(--page-border)"
+      >
+        <div
+          class="flex justify-between items-center px-4 py-4"
+          style="border-bottom: 1px solid var(--page-border)"
+        >
+          <h3
+            class="m-0 text-sm font-semibold uppercase tracking-wide"
+            style="color: var(--pen-gray)"
+          >
+            Notebooks
+          </h3>
+          <button
+            @click="showCreateNotebook = true"
+            title="Create Notebook"
+            class="notebook-button text-white border-none w-6 h-6 rounded-full cursor-pointer text-base flex items-center justify-center transition"
+          >
+            +
+          </button>
         </div>
 
         <!-- Notebook Tree with Files -->
         <ul class="list-none p-0 m-0 overflow-y-auto flex-1">
-          <li v-for="notebook in workspaceStore.notebooks" :key="notebook.id"
-            style="border-bottom: 1px solid var(--page-border)">
+          <li
+            v-for="notebook in workspaceStore.notebooks"
+            :key="notebook.id"
+            style="border-bottom: 1px solid var(--page-border)"
+          >
             <div
-              :class="['notebook-item flex items-center py-2 px-4 cursor-pointer text-sm transition', { 'notebook-active': workspaceStore.currentNotebook?.id === notebook.id }]"
-              @click="toggleNotebook(notebook)">
+              :class="[
+                'notebook-item flex items-center py-2 px-4 cursor-pointer text-sm transition',
+                { 'notebook-active': workspaceStore.currentNotebook?.id === notebook.id },
+              ]"
+              @click="toggleNotebook(notebook)"
+            >
               <span class="text-[10px] mr-2 w-3" style="color: var(--pen-gray)">{{
-                workspaceStore.expandedNotebooks.has(notebook.id) ? '▼' : '▶' }}</span>
+                workspaceStore.expandedNotebooks.has(notebook.id) ? "▼" : "▶"
+              }}</span>
               <span class="flex-1 font-medium">{{ notebook.name }}</span>
-              <button v-if="workspaceStore.expandedNotebooks.has(notebook.id)" @click.stop="startCreateFile(notebook)"
+              <button
+                v-if="workspaceStore.expandedNotebooks.has(notebook.id)"
+                @click.stop="startCreateFile(notebook)"
                 class="notebook-button w-5 h-5 text-sm ml-auto opacity-0 hover:opacity-100 transition text-white border-none rounded-full cursor-pointer flex items-center justify-center"
-                title="New File">+</button>
+                title="New File"
+              >
+                +
+              </button>
             </div>
 
             <!-- File Tree with drop zone -->
-            <ul v-if="workspaceStore.expandedNotebooks.has(notebook.id)" class="list-none p-0 m-0"
+            <ul
+              v-if="workspaceStore.expandedNotebooks.has(notebook.id)"
+              class="list-none p-0 m-0"
               :class="{ 'bg-primary/10': dragOverNotebook === notebook.id }"
               @dragover.prevent="handleNotebookDragOver($event, notebook.id)"
-              @dragenter.prevent="handleNotebookDragEnter(notebook.id)" @dragleave="handleNotebookDragLeave"
-              @drop.prevent="handleNotebookDrop($event, notebook.id)">
+              @dragenter.prevent="handleNotebookDragEnter(notebook.id)"
+              @dragleave="handleNotebookDragLeave"
+              @drop.prevent="handleNotebookDrop($event, notebook.id)"
+            >
               <template v-if="notebookFileTrees.get(notebook.id)?.length">
                 <template v-for="node in notebookFileTrees.get(notebook.id)" :key="node.path">
                   <!-- Render folder or file -->
                   <li v-if="node.type === 'folder'">
                     <!-- Folder -->
-                    <div :class="[
-                      'folder-item flex items-center py-2 px-4 pl-8 cursor-pointer text-[13px] transition',
-                      { 'bg-primary/20 border-t-2 border-primary': dragOverFolder === `${notebook.id}:${node.path}` },
-                      { 'folder-active': workspaceStore.currentFolder?.path === node.path && workspaceStore.currentFolder?.notebook_id === notebook.id }
-                    ]" @click="handleFolderClick($event, notebook.id, node.path)"
+                    <div
+                      :class="[
+                        'folder-item flex items-center py-2 px-4 pl-8 cursor-pointer text-[13px] transition',
+                        {
+                          'bg-primary/20 border-t-2 border-primary':
+                            dragOverFolder === `${notebook.id}:${node.path}`,
+                        },
+                        {
+                          'folder-active':
+                            workspaceStore.currentFolder?.path === node.path &&
+                            workspaceStore.currentFolder?.notebook_id === notebook.id,
+                        },
+                      ]"
+                      @click="handleFolderClick($event, notebook.id, node.path)"
                       @dragover.prevent="handleFolderDragOver($event, notebook.id, node.path)"
                       @dragenter.prevent="handleFolderDragEnter(notebook.id, node.path)"
                       @dragleave="handleFolderDragLeave"
-                      @drop.prevent.stop="handleFolderDrop($event, notebook.id, node.path)">
+                      @drop.prevent.stop="handleFolderDrop($event, notebook.id, node.path)"
+                    >
                       <span class="text-[10px] mr-2 w-3" style="color: var(--pen-gray)">{{
-                        isFolderExpanded(notebook.id, node.path) ? '▼' : '▶' }}</span>
+                        isFolderExpanded(notebook.id, node.path) ? "▼" : "▶"
+                      }}</span>
                       <span class="mr-2 text-sm">📁</span>
-                      <span class="overflow-hidden text-ellipsis whitespace-nowrap">{{ node.name }}</span>
+                      <span class="overflow-hidden text-ellipsis whitespace-nowrap">{{
+                        node.name
+                      }}</span>
                     </div>
 
                     <!-- Folder contents -->
-                    <ul v-if="isFolderExpanded(notebook.id, node.path) && node.children" class="list-none p-0 m-0">
-                      <FileTreeItem v-for="child in node.children" :key="child.path" :node="child"
-                        :notebook-id="notebook.id" :depth="1" :expanded-folders="expandedFolders"
+                    <ul
+                      v-if="isFolderExpanded(notebook.id, node.path) && node.children"
+                      class="list-none p-0 m-0"
+                    >
+                      <FileTreeItem
+                        v-for="child in node.children"
+                        :key="child.path"
+                        :node="child"
+                        :notebook-id="notebook.id"
+                        :depth="1"
+                        :expanded-folders="expandedFolders"
                         :current-file-id="workspaceStore.currentFile?.id"
                         :current-folder-path="workspaceStore.currentFolder?.path"
                         :current-folder-notebook-id="workspaceStore.currentFolder?.notebook_id"
-                        @toggle-folder="toggleFolder" @select-folder="handleSelectFolder" @select-file="selectFile"
-                        @move-file="handleMoveFile" />
+                        @toggle-folder="toggleFolder"
+                        @select-folder="handleSelectFolder"
+                        @select-file="selectFile"
+                        @move-file="handleMoveFile"
+                      />
                     </ul>
                   </li>
 
                   <!-- Root level file -->
                   <li v-else>
                     <div
-                      :class="['file-item flex items-center py-2 px-4 pl-8 cursor-grab text-[13px] transition', { 'file-active font-medium': workspaceStore.currentFile?.id === node.file?.id }]"
-                      draggable="true" @click="node.file && selectFile(node.file)"
-                      @dragstart="handleFileDragStart($event, node.file!, notebook.id)">
+                      :class="[
+                        'file-item flex items-center py-2 px-4 pl-8 cursor-grab text-[13px] transition',
+                        {
+                          'file-active font-medium':
+                            workspaceStore.currentFile?.id === node.file?.id,
+                        },
+                      ]"
+                      draggable="true"
+                      @click="node.file && selectFile(node.file)"
+                      @dragstart="handleFileDragStart($event, node.file!, notebook.id)"
+                    >
                       <span class="mr-2 text-sm">{{ getFileIcon(node.file) }}</span>
-                      <span class="overflow-hidden text-ellipsis whitespace-nowrap">{{ node.file?.title || node.name
+                      <span class="overflow-hidden text-ellipsis whitespace-nowrap">{{
+                        node.file?.title || node.name
                       }}</span>
                     </div>
                   </li>
                 </template>
               </template>
-              <li v-else class="py-2 px-4 pl-8 text-xs italic" style="color: var(--pen-gray); opacity: 0.6">
-                {{ dragOverNotebook === notebook.id ? 'Drop files here to upload' : 'No files yet' }}
+              <li
+                v-else
+                class="py-2 px-4 pl-8 text-xs italic"
+                style="color: var(--pen-gray); opacity: 0.6"
+              >
+                {{
+                  dragOverNotebook === notebook.id ? "Drop files here to upload" : "No files yet"
+                }}
               </li>
             </ul>
           </li>
@@ -105,26 +199,48 @@
       <div class="user-section mt-auto px-4 py-3" style="border-top: 1px solid var(--page-border)">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2 min-w-0">
-            <div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+            <div
+              class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0"
+            >
               <span class="text-sm font-medium" style="color: var(--notebook-accent)">
                 {{ authStore.user?.username?.charAt(0)?.toUpperCase() }}
               </span>
             </div>
-            <span class="text-sm truncate" style="color: var(--notebook-text)">{{ authStore.user?.username }}</span>
+            <span class="text-sm truncate" style="color: var(--notebook-text)">{{
+              authStore.user?.username
+            }}</span>
           </div>
           <div class="flex items-center gap-1">
             <button @click="goToSettings" class="sidebar-icon-button" title="Settings">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
                 <circle cx="12" cy="12" r="3"></circle>
                 <path
-                  d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
-                </path>
+                  d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
+                ></path>
               </svg>
             </button>
             <button @click="handleLogout" class="sidebar-icon-button" title="Logout">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
                 <polyline points="16 17 21 12 16 7"></polyline>
                 <line x1="21" y1="12" x2="9" y2="12"></line>
@@ -138,84 +254,135 @@
     <!-- Center: Content Pane (flex: 1) -->
     <main class="flex-1 flex flex-col overflow-hidden">
       <!-- Loading State -->
-      <div v-if="workspaceStore.fileLoading"
-        class="flex flex-col items-center justify-center h-full text-text-tertiary">
+      <div
+        v-if="workspaceStore.fileLoading"
+        class="flex flex-col items-center justify-center h-full text-text-tertiary"
+      >
         <span>Loading...</span>
       </div>
 
       <!-- Error State -->
-      <div v-else-if="workspaceStore.error" class="flex flex-col items-center justify-center h-full text-error">
+      <div
+        v-else-if="workspaceStore.error"
+        class="flex flex-col items-center justify-center h-full text-error"
+      >
         <p>{{ workspaceStore.error }}</p>
-        <button @click="workspaceStore.error = null"
-          class="mt-4 px-4 py-2 bg-error text-text-inverse border-none rounded cursor-pointer font-medium">Dismiss</button>
+        <button
+          @click="workspaceStore.error = null"
+          class="mt-4 px-4 py-2 bg-error text-text-inverse border-none rounded cursor-pointer font-medium"
+        >
+          Dismiss
+        </button>
       </div>
 
       <!-- Editor Mode -->
-      <div v-else-if="workspaceStore.isEditing && workspaceStore.currentFile" class="flex-1 flex overflow-hidden p-4">
-        <MarkdownEditor v-model="editContent" :frontmatter="workspaceStore.currentFile.properties" :autosave="false"
-          @save="handleSaveFile" @cancel="handleCancelEdit" class="flex-1" />
+      <div
+        v-else-if="workspaceStore.isEditing && workspaceStore.currentFile"
+        class="flex-1 flex overflow-hidden p-4"
+      >
+        <MarkdownEditor
+          v-model="editContent"
+          :frontmatter="workspaceStore.currentFile.properties"
+          :autosave="false"
+          @save="handleSaveFile"
+          @cancel="handleCancelEdit"
+          class="flex-1"
+        />
       </div>
 
       <!-- Viewer Mode -->
       <div v-else-if="workspaceStore.currentFile" class="flex-1 flex overflow-hidden p-4">
         <!-- Dynamic View Renderer for .cdx files -->
-        <ViewRenderer v-if="getDisplayType(workspaceStore.currentFile.content_type) === 'view'" :file-id="workspaceStore.currentFile.id"
-          :workspace-id="workspaceStore.currentWorkspace!.id" :notebook-id="workspaceStore.currentFile.notebook_id"
-          class="flex-1" />
+        <ViewRenderer
+          v-if="getDisplayType(workspaceStore.currentFile.content_type) === 'view'"
+          :file-id="workspaceStore.currentFile.id"
+          :workspace-id="workspaceStore.currentWorkspace!.id"
+          :notebook-id="workspaceStore.currentFile.notebook_id"
+          class="flex-1"
+        />
 
         <!-- Image Viewer for image files -->
-        <div v-else-if="getDisplayType(workspaceStore.currentFile.content_type) === 'image'" class="flex-1 flex flex-col overflow-hidden">
+        <div
+          v-else-if="getDisplayType(workspaceStore.currentFile.content_type) === 'image'"
+          class="flex-1 flex flex-col overflow-hidden"
+        >
           <FileHeader :file="workspaceStore.currentFile" @toggle-properties="toggleProperties">
             <template #actions>
-              <button @click="openInNewTab"
+              <button
+                @click="openInNewTab"
                 class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
-                title="Open in new tab">
+                title="Open in new tab"
+              >
                 Open
               </button>
-              <button @click="toggleProperties"
-                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
+              <button
+                @click="toggleProperties"
+                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
+              >
                 Properties
               </button>
             </template>
           </FileHeader>
-          <div class="flex-1 flex items-center justify-center overflow-auto bg-bg-secondary rounded-lg">
-            <img :src="currentContentUrl" :alt="workspaceStore.currentFile.title || workspaceStore.currentFile.filename"
-              class="max-w-full max-h-full object-contain" />
+          <div
+            class="flex-1 flex items-center justify-center overflow-auto bg-bg-secondary rounded-lg"
+          >
+            <img
+              :src="currentContentUrl"
+              :alt="workspaceStore.currentFile.title || workspaceStore.currentFile.filename"
+              class="max-w-full max-h-full object-contain"
+            />
           </div>
         </div>
 
         <!-- PDF Viewer -->
-        <div v-else-if="getDisplayType(workspaceStore.currentFile.content_type) === 'pdf'" class="flex-1 flex flex-col overflow-hidden">
+        <div
+          v-else-if="getDisplayType(workspaceStore.currentFile.content_type) === 'pdf'"
+          class="flex-1 flex flex-col overflow-hidden"
+        >
           <FileHeader :file="workspaceStore.currentFile" @toggle-properties="toggleProperties">
             <template #actions>
-              <button @click="openInNewTab"
+              <button
+                @click="openInNewTab"
                 class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
-                title="Open in new tab">
+                title="Open in new tab"
+              >
                 Open
               </button>
-              <button @click="toggleProperties"
-                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
+              <button
+                @click="toggleProperties"
+                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
+              >
                 Properties
               </button>
             </template>
           </FileHeader>
           <div class="flex-1 overflow-hidden bg-bg-secondary rounded-lg">
-            <iframe :src="currentContentUrl" class="w-full h-full border-0"
-              :title="workspaceStore.currentFile.title || workspaceStore.currentFile.filename" />
+            <iframe
+              :src="currentContentUrl"
+              class="w-full h-full border-0"
+              :title="workspaceStore.currentFile.title || workspaceStore.currentFile.filename"
+            />
           </div>
         </div>
 
         <!-- Audio Player -->
-        <div v-else-if="getDisplayType(workspaceStore.currentFile.content_type) === 'audio'" class="flex-1 flex flex-col overflow-hidden">
+        <div
+          v-else-if="getDisplayType(workspaceStore.currentFile.content_type) === 'audio'"
+          class="flex-1 flex flex-col overflow-hidden"
+        >
           <FileHeader :file="workspaceStore.currentFile" @toggle-properties="toggleProperties">
             <template #actions>
-              <button @click="openInNewTab"
+              <button
+                @click="openInNewTab"
                 class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
-                title="Open in new tab">
+                title="Open in new tab"
+              >
                 Open
               </button>
-              <button @click="toggleProperties"
-                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
+              <button
+                @click="toggleProperties"
+                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
+              >
                 Properties
               </button>
             </template>
@@ -230,21 +397,30 @@
         </div>
 
         <!-- Video Player -->
-        <div v-else-if="getDisplayType(workspaceStore.currentFile.content_type) === 'video'" class="flex-1 flex flex-col overflow-hidden">
+        <div
+          v-else-if="getDisplayType(workspaceStore.currentFile.content_type) === 'video'"
+          class="flex-1 flex flex-col overflow-hidden"
+        >
           <FileHeader :file="workspaceStore.currentFile" @toggle-properties="toggleProperties">
             <template #actions>
-              <button @click="openInNewTab"
+              <button
+                @click="openInNewTab"
                 class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
-                title="Open in new tab">
+                title="Open in new tab"
+              >
                 Open
               </button>
-              <button @click="toggleProperties"
-                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
+              <button
+                @click="toggleProperties"
+                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
+              >
                 Properties
               </button>
             </template>
           </FileHeader>
-          <div class="flex-1 flex items-center justify-center overflow-auto bg-bg-secondary rounded-lg">
+          <div
+            class="flex-1 flex items-center justify-center overflow-auto bg-bg-secondary rounded-lg"
+          >
             <video :src="currentContentUrl" controls class="max-w-full max-h-full">
               Your browser does not support the video element.
             </video>
@@ -252,56 +428,85 @@
         </div>
 
         <!-- HTML Viewer -->
-        <div v-else-if="getDisplayType(workspaceStore.currentFile.content_type) === 'html'" class="flex-1 flex flex-col overflow-hidden">
+        <div
+          v-else-if="getDisplayType(workspaceStore.currentFile.content_type) === 'html'"
+          class="flex-1 flex flex-col overflow-hidden"
+        >
           <FileHeader :file="workspaceStore.currentFile" @toggle-properties="toggleProperties">
             <template #actions>
-              <button @click="openInNewTab"
+              <button
+                @click="openInNewTab"
                 class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
-                title="Open in new tab">
+                title="Open in new tab"
+              >
                 Open
               </button>
-              <button @click="toggleProperties"
-                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
+              <button
+                @click="toggleProperties"
+                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
+              >
                 Properties
               </button>
             </template>
           </FileHeader>
           <div class="flex-1 overflow-hidden bg-bg-secondary rounded-lg">
-            <iframe :src="currentContentUrl" class="w-full h-full border-0"
+            <iframe
+              :src="currentContentUrl"
+              class="w-full h-full border-0"
               :title="workspaceStore.currentFile.title || workspaceStore.currentFile.filename"
-              sandbox="allow-scripts allow-same-origin" />
+              sandbox="allow-scripts allow-same-origin"
+            />
           </div>
         </div>
 
         <!-- Code Viewer for source code files -->
-        <div v-else-if="getDisplayType(workspaceStore.currentFile.content_type) === 'code'" class="flex-1 flex flex-col overflow-hidden">
+        <div
+          v-else-if="getDisplayType(workspaceStore.currentFile.content_type) === 'code'"
+          class="flex-1 flex flex-col overflow-hidden"
+        >
           <FileHeader :file="workspaceStore.currentFile" @toggle-properties="toggleProperties">
             <template #actions>
-              <button @click="startEdit"
-                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
+              <button
+                @click="startEdit"
+                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
+              >
                 Edit
               </button>
-              <button @click="toggleProperties"
-                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
+              <button
+                @click="toggleProperties"
+                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
+              >
                 Properties
               </button>
             </template>
           </FileHeader>
           <CodeViewer
-            :content="workspaceStore.currentFile.content" :filename="workspaceStore.currentFile.filename"
-            :show-line-numbers="true" :show-toolbar="false" class="flex-1" />
+            :content="workspaceStore.currentFile.content"
+            :filename="workspaceStore.currentFile.filename"
+            :show-line-numbers="true"
+            :show-toolbar="false"
+            class="flex-1"
+          />
         </div>
 
         <!-- Binary file placeholder -->
-        <div v-else-if="getDisplayType(workspaceStore.currentFile.content_type) === 'binary'" class="flex-1 flex flex-col overflow-hidden">
+        <div
+          v-else-if="getDisplayType(workspaceStore.currentFile.content_type) === 'binary'"
+          class="flex-1 flex flex-col overflow-hidden"
+        >
           <FileHeader :file="workspaceStore.currentFile" @toggle-properties="toggleProperties">
             <template #actions>
-              <a :href="currentContentUrl" download
-                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition no-underline">
+              <a
+                :href="currentContentUrl"
+                download
+                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition no-underline"
+              >
                 Download
               </a>
-              <button @click="toggleProperties"
-                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
+              <button
+                @click="toggleProperties"
+                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
+              >
                 Properties
               </button>
             </template>
@@ -318,49 +523,82 @@
         <div v-else class="flex-1 flex flex-col overflow-hidden">
           <FileHeader :file="workspaceStore.currentFile" @toggle-properties="toggleProperties">
             <template #actions>
-              <button @click="startEdit"
-                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
+              <button
+                @click="startEdit"
+                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
+              >
                 Edit
               </button>
-              <button @click="toggleProperties"
-                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
+              <button
+                @click="toggleProperties"
+                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
+              >
                 Properties
               </button>
             </template>
           </FileHeader>
-          <MarkdownViewer :content="workspaceStore.currentFile.content"
-            :frontmatter="workspaceStore.currentFile.properties" :workspace-id="workspaceStore.currentWorkspace?.id"
-            :notebook-id="workspaceStore.currentNotebook?.id" :current-file-path="workspaceStore.currentFile.path"
-            :show-frontmatter="false" :show-toolbar="false" @edit="startEdit" @copy="handleCopy" class="flex-1" />
+          <MarkdownViewer
+            :content="workspaceStore.currentFile.content"
+            :frontmatter="workspaceStore.currentFile.properties"
+            :workspace-id="workspaceStore.currentWorkspace?.id"
+            :notebook-id="workspaceStore.currentNotebook?.id"
+            :current-file-path="workspaceStore.currentFile.path"
+            :show-frontmatter="false"
+            :show-toolbar="false"
+            @edit="startEdit"
+            @copy="handleCopy"
+            class="flex-1"
+          />
         </div>
       </div>
 
       <!-- Folder View Mode -->
       <div v-else-if="workspaceStore.currentFolder" class="flex-1 flex overflow-hidden p-4">
-        <FolderView :folder="workspaceStore.currentFolder" class="flex-1" @select-file="selectFile"
-          @toggle-properties="toggleProperties" />
+        <FolderView
+          :folder="workspaceStore.currentFolder"
+          class="flex-1"
+          @select-file="selectFile"
+          @toggle-properties="toggleProperties"
+        />
       </div>
 
       <!-- Welcome State -->
-      <div v-else class="flex flex-col items-center justify-center h-full text-center" style="color: var(--pen-gray)">
+      <div
+        v-else
+        class="flex flex-col items-center justify-center h-full text-center"
+        style="color: var(--pen-gray)"
+      >
         <h2 class="mb-2" style="color: var(--notebook-text)">Welcome to Codex</h2>
         <p v-if="!workspaceStore.currentWorkspace">Select a workspace to get started</p>
-        <p v-else-if="workspaceStore.notebooks.length === 0">Create a notebook to start adding files</p>
+        <p v-else-if="workspaceStore.notebooks.length === 0">
+          Create a notebook to start adding files
+        </p>
         <p v-else>Select a notebook and file to view its content</p>
       </div>
     </main>
 
     <!-- Right: Properties Panel (300px, collapsible) -->
-    <FilePropertiesPanel v-if="showPropertiesPanel && workspaceStore.currentFile && workspaceStore.currentWorkspace"
-      :file="workspaceStore.currentFile" :workspace-id="workspaceStore.currentWorkspace.id"
-      :notebook-id="workspaceStore.currentFile.notebook_id" class="w-[300px] min-w-[300px]"
-      @close="showPropertiesPanel = false" @update-properties="handleUpdateProperties" @delete="handleDeleteFile"
-      @restore="handleRestoreVersion" />
+    <FilePropertiesPanel
+      v-if="showPropertiesPanel && workspaceStore.currentFile && workspaceStore.currentWorkspace"
+      :file="workspaceStore.currentFile"
+      :workspace-id="workspaceStore.currentWorkspace.id"
+      :notebook-id="workspaceStore.currentFile.notebook_id"
+      class="w-[300px] min-w-[300px]"
+      @close="showPropertiesPanel = false"
+      @update-properties="handleUpdateProperties"
+      @delete="handleDeleteFile"
+      @restore="handleRestoreVersion"
+    />
 
     <!-- Folder Properties Panel -->
-    <FolderPropertiesPanel v-if="showPropertiesPanel && workspaceStore.currentFolder && !workspaceStore.currentFile"
-      :folder="workspaceStore.currentFolder" class="w-[300px] min-w-[300px]" @close="showPropertiesPanel = false"
-      @update-properties="handleUpdateFolderProperties" @delete="handleDeleteFolder" />
+    <FolderPropertiesPanel
+      v-if="showPropertiesPanel && workspaceStore.currentFolder && !workspaceStore.currentFile"
+      :folder="workspaceStore.currentFolder"
+      class="w-[300px] min-w-[300px]"
+      @close="showPropertiesPanel = false"
+      @update-properties="handleUpdateFolderProperties"
+      @delete="handleDeleteFolder"
+    />
   </div>
 
   <!-- Create Workspace Modal -->
@@ -370,10 +608,19 @@
         <input :id="inputId" v-model="newWorkspaceName" required />
       </FormGroup>
       <div class="flex gap-2 justify-end mt-6">
-        <button type="button" @click="showCreateWorkspace = false"
-          class="notebook-button-secondary px-4 py-2 border-none rounded cursor-pointer">Cancel</button>
-        <button type="submit"
-          class="notebook-button px-4 py-2 text-white border-none rounded cursor-pointer transition">Create</button>
+        <button
+          type="button"
+          @click="showCreateWorkspace = false"
+          class="notebook-button-secondary px-4 py-2 border-none rounded cursor-pointer"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          class="notebook-button px-4 py-2 text-white border-none rounded cursor-pointer transition"
+        >
+          Create
+        </button>
       </div>
     </form>
   </Modal>
@@ -385,10 +632,19 @@
         <input :id="inputId" v-model="newNotebookName" required />
       </FormGroup>
       <div class="flex gap-2 justify-end mt-6">
-        <button type="button" @click="showCreateNotebook = false"
-          class="notebook-button-secondary px-4 py-2 border-none rounded cursor-pointer">Cancel</button>
-        <button type="submit"
-          class="notebook-button px-4 py-2 text-white border-none rounded cursor-pointer transition">Create</button>
+        <button
+          type="button"
+          @click="showCreateNotebook = false"
+          class="notebook-button-secondary px-4 py-2 border-none rounded cursor-pointer"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          class="notebook-button px-4 py-2 text-white border-none rounded cursor-pointer transition"
+        >
+          Create
+        </button>
       </div>
     </form>
   </Modal>
@@ -398,16 +654,24 @@
     <form @submit.prevent="handleCreateFile">
       <!-- Template Selection -->
       <div v-if="createFileNotebook && workspaceStore.currentWorkspace" class="mb-4">
-        <TemplateSelector :notebook-id="createFileNotebook.id" :workspace-id="workspaceStore.currentWorkspace.id"
-          v-model="selectedTemplate" @select="handleTemplateSelect" />
+        <TemplateSelector
+          :notebook-id="createFileNotebook.id"
+          :workspace-id="workspaceStore.currentWorkspace.id"
+          v-model="selectedTemplate"
+          @select="handleTemplateSelect"
+        />
       </div>
 
       <!-- Filename input -->
       <div class="border-t border-border-light pt-4 mt-4">
         <FormGroup v-if="selectedTemplate" label="Filename" v-slot="{ inputId }">
           <div class="flex items-center gap-2">
-            <input :id="inputId" v-model="customTitle" :placeholder="getFilenamePlaceholder()"
-              class="flex-1 px-3 py-2 border border-border-medium rounded-md bg-bg-primary text-text-primary" />
+            <input
+              :id="inputId"
+              v-model="customTitle"
+              :placeholder="getFilenamePlaceholder()"
+              class="flex-1 px-3 py-2 border border-border-medium rounded-md bg-bg-primary text-text-primary"
+            />
             <span class="text-text-secondary text-sm">{{ selectedTemplate.file_extension }}</span>
           </div>
           <p class="text-sm text-text-secondary mt-1">
@@ -416,21 +680,42 @@
         </FormGroup>
 
         <FormGroup v-else label="Filename" v-slot="{ inputId }">
-          <input :id="inputId" v-model="newFileName" placeholder="example.md" required
-            class="w-full px-3 py-2 border border-border-medium rounded-md bg-bg-primary text-text-primary" />
-          <p class="text-sm text-text-secondary mt-1">Enter any filename with extension (e.g., notes.md, data.json,
-            script.py)</p>
+          <input
+            :id="inputId"
+            v-model="newFileName"
+            placeholder="example.md"
+            required
+            class="w-full px-3 py-2 border border-border-medium rounded-md bg-bg-primary text-text-primary"
+          />
+          <p class="text-sm text-text-secondary mt-1">
+            Enter any filename with extension (e.g., notes.md, data.json, script.py)
+          </p>
         </FormGroup>
       </div>
 
       <div class="flex gap-2 justify-end mt-6">
-        <button type="button" @click="showCreateFile = false"
-          class="notebook-button-secondary px-4 py-2 border-none rounded cursor-pointer">Cancel</button>
-        <button v-if="!selectedTemplate && newFileName.endsWith('.cdx')" type="button" @click="switchToViewCreator"
-          class="notebook-button px-4 py-2 text-white border-none rounded cursor-pointer transition">Configure View
-          →</button>
-        <button v-else type="submit"
-          class="notebook-button px-4 py-2 text-white border-none rounded cursor-pointer transition">Create</button>
+        <button
+          type="button"
+          @click="showCreateFile = false"
+          class="notebook-button-secondary px-4 py-2 border-none rounded cursor-pointer"
+        >
+          Cancel
+        </button>
+        <button
+          v-if="!selectedTemplate && newFileName.endsWith('.cdx')"
+          type="button"
+          @click="switchToViewCreator"
+          class="notebook-button px-4 py-2 text-white border-none rounded cursor-pointer transition"
+        >
+          Configure View →
+        </button>
+        <button
+          v-else
+          type="submit"
+          class="notebook-button px-4 py-2 text-white border-none rounded cursor-pointer transition"
+        >
+          Create
+        </button>
       </div>
     </form>
   </Modal>
@@ -440,28 +725,28 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, computed } from 'vue'
-import { useRouter } from 'vue-router'
-import { useAuthStore } from '../stores/auth'
-import { useWorkspaceStore } from '../stores/workspace'
-import type { Workspace, Notebook, FileMetadata, Template } from '../services/codex'
-import { templateService } from '../services/codex'
-import { getDisplayType } from '../utils/contentType'
-import Modal from '../components/Modal.vue'
-import FormGroup from '../components/FormGroup.vue'
-import MarkdownViewer from '../components/MarkdownViewer.vue'
-import MarkdownEditor from '../components/MarkdownEditor.vue'
-import CodeViewer from '../components/CodeViewer.vue'
-import ViewRenderer from '../components/views/ViewRenderer.vue'
-import FilePropertiesPanel from '../components/FilePropertiesPanel.vue'
-import FolderPropertiesPanel from '../components/FolderPropertiesPanel.vue'
-import FolderView from '../components/FolderView.vue'
-import FileHeader from '../components/FileHeader.vue'
-import FileTreeItem from '../components/FileTreeItem.vue'
-import CreateViewModal from '../components/CreateViewModal.vue'
-import TemplateSelector from '../components/TemplateSelector.vue'
-import { showToast } from '../utils/toast'
-import { buildFileTree, type FileTreeNode } from '../utils/fileTree'
+import { ref, onMounted, watch, computed } from "vue"
+import { useRouter } from "vue-router"
+import { useAuthStore } from "../stores/auth"
+import { useWorkspaceStore } from "../stores/workspace"
+import type { Workspace, Notebook, FileMetadata, Template } from "../services/codex"
+import { templateService } from "../services/codex"
+import { getDisplayType } from "../utils/contentType"
+import Modal from "../components/Modal.vue"
+import FormGroup from "../components/FormGroup.vue"
+import MarkdownViewer from "../components/MarkdownViewer.vue"
+import MarkdownEditor from "../components/MarkdownEditor.vue"
+import CodeViewer from "../components/CodeViewer.vue"
+import ViewRenderer from "../components/views/ViewRenderer.vue"
+import FilePropertiesPanel from "../components/FilePropertiesPanel.vue"
+import FolderPropertiesPanel from "../components/FolderPropertiesPanel.vue"
+import FolderView from "../components/FolderView.vue"
+import FileHeader from "../components/FileHeader.vue"
+import FileTreeItem from "../components/FileTreeItem.vue"
+import CreateViewModal from "../components/CreateViewModal.vue"
+import TemplateSelector from "../components/TemplateSelector.vue"
+import { showToast } from "../utils/toast"
+import { buildFileTree, type FileTreeNode } from "../utils/fileTree"
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -474,16 +759,16 @@ const showCreateFile = ref(false)
 const showCreateView = ref(false)
 
 // Form state
-const newWorkspaceName = ref('')
-const newNotebookName = ref('')
-const newFileName = ref('')
+const newWorkspaceName = ref("")
+const newNotebookName = ref("")
+const newFileName = ref("")
 const createFileNotebook = ref<Notebook | null>(null)
 const selectedTemplate = ref<Template | null>(null)
-const customTitle = ref('')
+const customTitle = ref("")
 
 // View state
 const showPropertiesPanel = ref(false)
-const editContent = ref('')
+const editContent = ref("")
 
 // Folder expansion state - tracks which folder paths are expanded
 const expandedFolders = ref<Map<number, Set<string>>>(new Map())
@@ -495,7 +780,7 @@ const dragOverFolder = ref<string | null>(null)
 // Build file trees for each notebook
 const notebookFileTrees = computed(() => {
   const trees = new Map<number, FileTreeNode[]>()
-  workspaceStore.notebooks.forEach(notebook => {
+  workspaceStore.notebooks.forEach((notebook) => {
     const files = workspaceStore.getFilesForNotebook(notebook.id)
     trees.set(notebook.id, buildFileTree(files))
   })
@@ -504,14 +789,14 @@ const notebookFileTrees = computed(() => {
 
 // Get content URL for current file (for binary files like images, PDFs, audio, video)
 const currentContentUrl = computed(() => {
-  if (!workspaceStore.currentFile || !workspaceStore.currentWorkspace) return ''
+  if (!workspaceStore.currentFile || !workspaceStore.currentWorkspace) return ""
   return `/api/v1/files/${workspaceStore.currentFile.id}/content?workspace_id=${workspaceStore.currentWorkspace.id}&notebook_id=${workspaceStore.currentFile.notebook_id}`
 })
 
 // Open file in a new tab
 function openInNewTab() {
   if (currentContentUrl.value) {
-    window.open(currentContentUrl.value, '_blank')
+    window.open(currentContentUrl.value, "_blank")
   }
 }
 
@@ -532,11 +817,11 @@ onMounted(async () => {
 
 function handleLogout() {
   authStore.logout()
-  router.push('/login')
+  router.push("/login")
 }
 
 function goToSettings() {
-  router.push('/settings')
+  router.push("/settings")
 }
 
 function selectWorkspace(workspace: Workspace) {
@@ -563,7 +848,7 @@ function toggleFolder(notebookId: number, folderPath: string) {
 function handleFolderClick(event: MouseEvent, notebookId: number, folderPath: string) {
   // If clicking on the expand arrow area, just toggle expansion
   const target = event.target as HTMLElement
-  if (target.classList.contains('text-[10px]') || target.closest('.text-[10px]')) {
+  if (target.classList.contains("text-[10px]") || target.closest(".text-[10px]")) {
     toggleFolder(notebookId, folderPath)
     return
   }
@@ -594,37 +879,37 @@ function isFolderExpanded(notebookId: number, folderPath: string): boolean {
 }
 
 function getFileIcon(file: FileMetadata | undefined): string {
-  if (!file) return '📄'
+  if (!file) return "📄"
 
   const displayType = getDisplayType(file.content_type)
-  
+
   switch (displayType) {
-    case 'view':
-      return '📊' // Chart/view icon for .cdx files
-    case 'markdown':
-      return '📝' // Memo for markdown
-    case 'json':
-      return '📋' // Clipboard for JSON
-    case 'xml':
-      return '🏷️'  // Tag for XML
-    case 'code':
-      return '💻' // Computer for code files
-    case 'image':
-      return '🖼️' // Picture for images
-    case 'pdf':
-      return '📕' // Book for PDF
-    case 'audio':
-      return '🎵' // Music note for audio
-    case 'video':
-      return '🎬' // Film for video
-    case 'html':
-      return '🌐' // Globe for HTML
-    case 'text':
-      return '📄' // Document for text
-    case 'binary':
-      return '📦' // Package for binary
+    case "view":
+      return "📊" // Chart/view icon for .cdx files
+    case "markdown":
+      return "📝" // Memo for markdown
+    case "json":
+      return "📋" // Clipboard for JSON
+    case "xml":
+      return "🏷️" // Tag for XML
+    case "code":
+      return "💻" // Computer for code files
+    case "image":
+      return "🖼️" // Picture for images
+    case "pdf":
+      return "📕" // Book for PDF
+    case "audio":
+      return "🎵" // Music note for audio
+    case "video":
+      return "🎬" // Film for video
+    case "html":
+      return "🌐" // Globe for HTML
+    case "text":
+      return "📄" // Document for text
+    case "binary":
+      return "📦" // Package for binary
     default:
-      return '📄' // Default file icon
+      return "📄" // Default file icon
   }
 }
 
@@ -635,22 +920,25 @@ function selectFile(file: FileMetadata) {
 // Drag-drop handlers for files within the sidebar
 function handleFileDragStart(event: DragEvent, file: FileMetadata, notebookId: number) {
   if (!event.dataTransfer) return
-  event.dataTransfer.effectAllowed = 'move'
-  event.dataTransfer.setData('application/x-codex-file', JSON.stringify({
-    fileId: file.id,
-    notebookId: notebookId,
-    filename: file.filename,
-    path: file.path
-  }))
+  event.dataTransfer.effectAllowed = "move"
+  event.dataTransfer.setData(
+    "application/x-codex-file",
+    JSON.stringify({
+      fileId: file.id,
+      notebookId: notebookId,
+      filename: file.filename,
+      path: file.path,
+    })
+  )
 }
 
 // Folder drag-over handlers
 function handleFolderDragOver(event: DragEvent, _notebookId: number, _folderPath: string) {
   if (!event.dataTransfer) return
-  const hasFile = event.dataTransfer.types.includes('application/x-codex-file')
-  const hasExternalFile = event.dataTransfer.types.includes('Files')
+  const hasFile = event.dataTransfer.types.includes("application/x-codex-file")
+  const hasExternalFile = event.dataTransfer.types.includes("Files")
   if (hasFile || hasExternalFile) {
-    event.dataTransfer.dropEffect = 'move'
+    event.dataTransfer.dropEffect = "move"
   }
 }
 
@@ -673,7 +961,7 @@ async function handleFolderDrop(event: DragEvent, notebookId: number, folderPath
   }
 
   // Handle internal file move
-  const data = event.dataTransfer.getData('application/x-codex-file')
+  const data = event.dataTransfer.getData("application/x-codex-file")
   if (!data) return
 
   try {
@@ -681,17 +969,17 @@ async function handleFolderDrop(event: DragEvent, notebookId: number, folderPath
     const newPath = folderPath ? `${folderPath}/${filename}` : filename
     await handleMoveFile(fileId, newPath)
   } catch (e) {
-    console.error('Failed to parse drag data:', e)
+    console.error("Failed to parse drag data:", e)
   }
 }
 
 // Notebook-level drag handlers (for root-level drops)
 function handleNotebookDragOver(event: DragEvent, _notebookId: number) {
   if (!event.dataTransfer) return
-  const hasFile = event.dataTransfer.types.includes('application/x-codex-file')
-  const hasExternalFile = event.dataTransfer.types.includes('Files')
+  const hasFile = event.dataTransfer.types.includes("application/x-codex-file")
+  const hasExternalFile = event.dataTransfer.types.includes("Files")
   if (hasFile || hasExternalFile) {
-    event.dataTransfer.dropEffect = 'move'
+    event.dataTransfer.dropEffect = "move"
   }
 }
 
@@ -709,12 +997,12 @@ async function handleNotebookDrop(event: DragEvent, notebookId: number) {
 
   // Handle external file drop (upload)
   if (event.dataTransfer.files.length > 0) {
-    await handleFileUpload(event.dataTransfer.files, notebookId, '')
+    await handleFileUpload(event.dataTransfer.files, notebookId, "")
     return
   }
 
   // Handle internal file move to root
-  const data = event.dataTransfer.getData('application/x-codex-file')
+  const data = event.dataTransfer.getData("application/x-codex-file")
   if (!data) return
 
   try {
@@ -724,7 +1012,7 @@ async function handleNotebookDrop(event: DragEvent, notebookId: number) {
       await handleMoveFile(fileId, filename)
     }
   } catch (e) {
-    console.error('Failed to parse drag data:', e)
+    console.error("Failed to parse drag data:", e)
   }
 }
 
@@ -737,7 +1025,7 @@ async function handleFileUpload(files: FileList, notebookId: number, folderPath:
       showToast({ message: `Uploaded ${file.name}` })
     } catch (e) {
       console.error(`Failed to upload ${file.name}:`, e)
-      showToast({ message: `Failed to upload ${file.name}`, type: 'error' })
+      showToast({ message: `Failed to upload ${file.name}`, type: "error" })
     }
   }
 }
@@ -749,17 +1037,17 @@ async function handleMoveFile(fileId: number, newPath: string) {
 
   try {
     await workspaceStore.moveFile(fileId, file.notebook_id, newPath)
-    showToast({ message: 'File moved successfully' })
+    showToast({ message: "File moved successfully" })
   } catch (e) {
-    console.error('Failed to move file:', e)
-    showToast({ message: 'Failed to move file', type: 'error' })
+    console.error("Failed to move file:", e)
+    showToast({ message: "Failed to move file", type: "error" })
   }
 }
 
 // Helper to find a file by ID across all notebooks
 function findFileById(fileId: number): FileMetadata | undefined {
   for (const files of workspaceStore.files.values()) {
-    const file = files.find(f => f.id === fileId)
+    const file = files.find((f) => f.id === fileId)
     if (file) return file
   }
   return undefined
@@ -782,14 +1070,14 @@ function handleCancelEdit() {
 async function handleSaveFile(content: string) {
   try {
     await workspaceStore.saveFile(content)
-    showToast({ message: 'File saved successfully' })
+    showToast({ message: "File saved successfully" })
   } catch {
     // Error handled in store
   }
 }
 
 function handleCopy() {
-  showToast({ message: 'Content copied to clipboard!' })
+  showToast({ message: "Content copied to clipboard!" })
 }
 
 function toggleProperties() {
@@ -799,10 +1087,7 @@ function toggleProperties() {
 async function handleUpdateProperties(properties: Record<string, any>) {
   if (workspaceStore.currentFile) {
     try {
-      await workspaceStore.saveFile(
-        workspaceStore.currentFile.content,
-        properties
-      )
+      await workspaceStore.saveFile(workspaceStore.currentFile.content, properties)
     } catch {
       // Error handled in store
     }
@@ -814,9 +1099,9 @@ async function handleRestoreVersion(content: string) {
     try {
       await workspaceStore.saveFile(content)
       editContent.value = content
-      showToast({ message: 'File restored to previous version' })
+      showToast({ message: "File restored to previous version" })
     } catch {
-      showToast({ message: 'Failed to restore file', type: 'error' })
+      showToast({ message: "Failed to restore file", type: "error" })
     }
   }
 }
@@ -826,7 +1111,7 @@ async function handleDeleteFile() {
     try {
       await workspaceStore.deleteFile(workspaceStore.currentFile.id)
       showPropertiesPanel.value = false
-      showToast({ message: 'File deleted' })
+      showToast({ message: "File deleted" })
     } catch {
       // Error handled in store
     }
@@ -837,7 +1122,7 @@ async function handleUpdateFolderProperties(properties: Record<string, any>) {
   if (workspaceStore.currentFolder) {
     try {
       await workspaceStore.saveFolderProperties(properties)
-      showToast({ message: 'Folder properties updated' })
+      showToast({ message: "Folder properties updated" })
     } catch {
       // Error handled in store
     }
@@ -849,20 +1134,18 @@ async function handleDeleteFolder() {
     try {
       await workspaceStore.deleteFolder()
       showPropertiesPanel.value = false
-      showToast({ message: 'Folder deleted' })
+      showToast({ message: "Folder deleted" })
     } catch {
       // Error handled in store
     }
   }
 }
 
-
-
 async function handleCreateWorkspace() {
   try {
     await workspaceStore.createWorkspace(newWorkspaceName.value)
     showCreateWorkspace.value = false
-    newWorkspaceName.value = ''
+    newWorkspaceName.value = ""
   } catch {
     // Error handled in store
   }
@@ -872,12 +1155,9 @@ async function handleCreateNotebook() {
   if (!workspaceStore.currentWorkspace) return
 
   try {
-    await workspaceStore.createNotebook(
-      workspaceStore.currentWorkspace.id,
-      newNotebookName.value
-    )
+    await workspaceStore.createNotebook(workspaceStore.currentWorkspace.id, newNotebookName.value)
     showCreateNotebook.value = false
-    newNotebookName.value = ''
+    newNotebookName.value = ""
   } catch {
     // Error handled in store
   }
@@ -905,21 +1185,21 @@ async function handleCreateFile() {
       await workspaceStore.selectFile(newFile)
 
       showCreateFile.value = false
-      newFileName.value = ''
-      customTitle.value = ''
+      newFileName.value = ""
+      customTitle.value = ""
       selectedTemplate.value = null
       createFileNotebook.value = null
-      showToast({ message: 'File created from template!' })
+      showToast({ message: "File created from template!" })
       return
     }
 
     // Otherwise, create a blank file with custom content
-    const path = newFileName.value;
-    const baseName = path.replace(/\.[^/.]+$/, '') || path;
+    const path = newFileName.value
+    const baseName = path.replace(/\.[^/.]+$/, "") || path
 
     // Generate default content based on file extension
-    let content: string;
-    if (path.endsWith('.cdx')) {
+    let content: string
+    if (path.endsWith(".cdx")) {
       // Create basic view template
       content = `---
 type: view
@@ -934,24 +1214,20 @@ config: {}
 # ${baseName}
 
 Edit the frontmatter above to configure this view.
-`;
-    } else if (path.endsWith('.md')) {
-      content = `# ${baseName}\n\nStart writing here...`;
-    } else if (path.endsWith('.json')) {
-      content = '{\n  \n}';
+`
+    } else if (path.endsWith(".md")) {
+      content = `# ${baseName}\n\nStart writing here...`
+    } else if (path.endsWith(".json")) {
+      content = "{\n  \n}"
     } else {
       // Default: empty file for other types
-      content = '';
+      content = ""
     }
 
-    await workspaceStore.createFile(
-      createFileNotebook.value.id,
-      path,
-      content
-    )
+    await workspaceStore.createFile(createFileNotebook.value.id, path, content)
     showCreateFile.value = false
-    newFileName.value = ''
-    customTitle.value = ''
+    newFileName.value = ""
+    customTitle.value = ""
     selectedTemplate.value = null
     createFileNotebook.value = null
   } catch {
@@ -968,14 +1244,10 @@ async function handleCreateView(data: { filename: string; content: string }) {
   if (!createFileNotebook.value) return
 
   try {
-    await workspaceStore.createFile(
-      createFileNotebook.value.id,
-      data.filename,
-      data.content
-    )
+    await workspaceStore.createFile(createFileNotebook.value.id, data.filename, data.content)
     showCreateView.value = false
     createFileNotebook.value = null
-    showToast({ message: 'View created successfully!' })
+    showToast({ message: "View created successfully!" })
   } catch {
     // Error handled in store
   }
@@ -983,9 +1255,9 @@ async function handleCreateView(data: { filename: string; content: string }) {
 
 function startCreateFile(notebook: Notebook) {
   createFileNotebook.value = notebook
-  newFileName.value = ''
+  newFileName.value = ""
   selectedTemplate.value = null
-  customTitle.value = ''
+  customTitle.value = ""
   showCreateFile.value = true
 }
 
@@ -993,26 +1265,26 @@ function handleTemplateSelect(template: Template | null) {
   selectedTemplate.value = template
   if (template) {
     // Clear custom filename when a template is selected
-    customTitle.value = ''
+    customTitle.value = ""
   }
 }
 
 function getFilenamePlaceholder(): string {
-  if (!selectedTemplate.value) return 'filename'
+  if (!selectedTemplate.value) return "filename"
   // Extract placeholder from default_name pattern
   const pattern = selectedTemplate.value.default_name
-  if (pattern.includes('{title}')) {
-    return 'Enter title (optional)'
+  if (pattern.includes("{title}")) {
+    return "Enter title (optional)"
   }
   // For date-based patterns, show what the filename will be
-  return templateService.expandPattern(pattern).replace(selectedTemplate.value.file_extension, '')
+  return templateService.expandPattern(pattern).replace(selectedTemplate.value.file_extension, "")
 }
 
 function getPreviewFilename(): string {
-  if (!selectedTemplate.value) return newFileName.value || 'filename.md'
+  if (!selectedTemplate.value) return newFileName.value || "filename.md"
 
   const pattern = selectedTemplate.value.default_name
-  const title = customTitle.value || 'untitled'
+  const title = customTitle.value || "untitled"
 
   return templateService.expandPattern(pattern, title)
 }

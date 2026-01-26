@@ -447,7 +447,6 @@
 
   <!-- Create View Modal -->
   <CreateViewModal v-model="showCreateView" @create="handleCreateView" />
-  </div>
 </template>
 
 <script setup lang="ts">

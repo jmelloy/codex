@@ -4,10 +4,12 @@ import {
   workspaceService,
   notebookService,
   fileService,
+  folderService,
   type Workspace,
   type Notebook,
   type FileMetadata,
   type FileWithContent,
+  type FolderWithFiles,
 } from "../services/codex";
 
 export const useWorkspaceStore = defineStore("workspace", () => {
@@ -24,6 +26,10 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   const isEditing = ref(false);
   const expandedNotebooks = ref<Set<number>>(new Set());
   const fileLoading = ref(false);
+
+  // Folder state
+  const currentFolder = ref<FolderWithFiles | null>(null);
+  const folderLoading = ref(false);
 
   async function fetchWorkspaces() {
     loading.value = true;
@@ -84,9 +90,10 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     if (workspace) {
       fetchNotebooks(workspace.id);
     }
-    // Clear file state when switching workspaces
+    // Clear file and folder state when switching workspaces
     currentNotebook.value = null;
     currentFile.value = null;
+    currentFolder.value = null;
     isEditing.value = false;
     files.value.clear();
     expandedNotebooks.value.clear();
@@ -116,6 +123,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
 
     fileLoading.value = true;
     error.value = null;
+    currentFolder.value = null; // Clear folder selection when selecting a file
     try {
       const fileWithContent = await fileService.get(
         file.id,
@@ -278,6 +286,79 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     }
   }
 
+  // Folder actions
+  async function selectFolder(folderPath: string, notebookId: number) {
+    if (!currentWorkspace.value) return;
+
+    folderLoading.value = true;
+    error.value = null;
+    currentFile.value = null; // Clear current file when selecting folder
+    isEditing.value = false;
+    try {
+      const folder = await folderService.get(
+        folderPath,
+        notebookId,
+        currentWorkspace.value.id,
+      );
+      currentFolder.value = folder;
+    } catch (e: any) {
+      error.value = e.response?.data?.detail || "Failed to load folder";
+    } finally {
+      folderLoading.value = false;
+    }
+  }
+
+  async function saveFolderProperties(properties: Record<string, any>) {
+    if (!currentWorkspace.value || !currentFolder.value) return;
+
+    folderLoading.value = true;
+    error.value = null;
+    try {
+      const updated = await folderService.updateProperties(
+        currentFolder.value.path,
+        currentFolder.value.notebook_id,
+        currentWorkspace.value.id,
+        properties,
+      );
+      // Update currentFolder with new properties
+      currentFolder.value = { ...currentFolder.value, ...updated };
+      // Refresh file list for the notebook
+      await fetchFiles(currentFolder.value.notebook_id);
+    } catch (e: any) {
+      error.value = e.response?.data?.detail || "Failed to save folder properties";
+      throw e;
+    } finally {
+      folderLoading.value = false;
+    }
+  }
+
+  async function deleteFolder() {
+    if (!currentWorkspace.value || !currentFolder.value) return;
+
+    folderLoading.value = true;
+    error.value = null;
+    try {
+      await folderService.delete(
+        currentFolder.value.path,
+        currentFolder.value.notebook_id,
+        currentWorkspace.value.id,
+      );
+      const notebookId = currentFolder.value.notebook_id;
+      currentFolder.value = null;
+      // Refresh file list
+      await fetchFiles(notebookId);
+    } catch (e: any) {
+      error.value = e.response?.data?.detail || "Failed to delete folder";
+      throw e;
+    } finally {
+      folderLoading.value = false;
+    }
+  }
+
+  function clearFolderSelection() {
+    currentFolder.value = null;
+  }
+
   return {
     // Workspace state
     workspaces,
@@ -292,6 +373,9 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     isEditing,
     expandedNotebooks,
     fileLoading,
+    // Folder state
+    currentFolder,
+    folderLoading,
     // Workspace actions
     fetchWorkspaces,
     fetchNotebooks,
@@ -309,5 +393,10 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     toggleNotebookExpansion,
     setEditing,
     getFilesForNotebook,
+    // Folder actions
+    selectFolder,
+    saveFolderProperties,
+    deleteFolder,
+    clearFolderSelection,
   };
 });

@@ -37,6 +37,21 @@ export interface FileWithContent extends FileMetadata {
   content: string;
 }
 
+export interface FolderMetadata {
+  path: string;
+  name: string;
+  notebook_id: number;
+  title?: string;
+  description?: string;
+  properties?: Record<string, any>;
+  file_count: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface FolderWithFiles extends FolderMetadata {
+  files: FileMetadata[];
+}
 export interface FileHistoryEntry {
   hash: string;
   author: string;
@@ -167,11 +182,7 @@ export const fileService = {
   /**
    * Get the content URL for a file by ID (for binary files like images).
    */
-  getContentUrl(
-    id: number,
-    workspaceId: number,
-    notebookId: number,
-  ): string {
+  getContentUrl(id: number, workspaceId: number, notebookId: number): string {
     return `/api/v1/files/${id}/content?workspace_id=${workspaceId}&notebook_id=${notebookId}`;
   },
 
@@ -184,7 +195,9 @@ export const fileService = {
     notebookId: number,
     currentFilePath?: string,
   ): Promise<FileMetadata & { resolved_path: string }> {
-    const response = await apiClient.post<FileMetadata & { resolved_path: string }>(
+    const response = await apiClient.post<
+      FileMetadata & { resolved_path: string }
+    >(
       `/api/v1/files/resolve-link?workspace_id=${workspaceId}&notebook_id=${notebookId}`,
       {
         link,
@@ -365,6 +378,56 @@ export const templateService = {
       .replace(/{month}/g, month)
       .replace(/{mon}/g, mon)
       .replace(/{title}/g, title);
+  },
+};
+
+export const folderService = {
+  /**
+   * Get folder metadata and contents.
+   * The folder metadata is stored in a .file within the folder.
+   */
+  async get(
+    path: string,
+    notebookId: number,
+    workspaceId: number,
+  ): Promise<FolderWithFiles> {
+    const encodedPath = encodeURIComponent(path);
+    const response = await apiClient.get<FolderWithFiles>(
+      `/api/v1/folders/${encodedPath}?notebook_id=${notebookId}&workspace_id=${workspaceId}`,
+    );
+    return response.data;
+  },
+
+  /**
+   * Update folder properties.
+   * This updates the .file within the folder.
+   */
+  async updateProperties(
+    path: string,
+    notebookId: number,
+    workspaceId: number,
+    properties: Record<string, any>,
+  ): Promise<FolderMetadata> {
+    const encodedPath = encodeURIComponent(path);
+    const response = await apiClient.put<FolderMetadata>(
+      `/api/v1/folders/${encodedPath}?notebook_id=${notebookId}&workspace_id=${workspaceId}`,
+      { properties },
+    );
+    return response.data;
+  },
+
+  /**
+   * Delete a folder and all its contents.
+   */
+  async delete(
+    path: string,
+    notebookId: number,
+    workspaceId: number,
+  ): Promise<void> {
+    const encodedPath = encodeURIComponent(path);
+    await apiClient.delete(
+      `/api/v1/folders/${encodedPath}?notebook_id=${notebookId}&workspace_id=${workspaceId}`,
+    );
   },
 };
 

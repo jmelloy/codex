@@ -4,10 +4,11 @@
     <div
       :class="[
         'flex items-center py-2 cursor-pointer text-[13px] text-text-secondary transition hover:bg-bg-hover',
-        { 'bg-primary/20 border-t-2 border-primary': isDragOver }
+        { 'bg-primary/20 border-t-2 border-primary': isDragOver },
+        { 'bg-bg-active text-primary font-medium': isSelectedFolder }
       ]"
       :style="{ paddingLeft: `${(depth + 1) * 16 + 32}px` }"
-      @click="emit('toggleFolder', notebookId, node.path)"
+      @click="handleFolderClick"
       @dragover.prevent="handleDragOver"
       @dragenter.prevent="handleDragEnter"
       @dragleave="handleDragLeave"
@@ -28,7 +29,10 @@
         :depth="depth + 1"
         :expanded-folders="expandedFolders"
         :current-file-id="currentFileId"
+        :current-folder-path="currentFolderPath"
+        :current-folder-notebook-id="currentFolderNotebookId"
         @toggle-folder="(nid: number, path: string) => emit('toggleFolder', nid, path)"
+        @select-folder="(nid: number, path: string) => emit('selectFolder', nid, path)"
         @select-file="(file: FileMetadata) => emit('selectFile', file)"
         @move-file="(fileId: number, targetPath: string) => emit('moveFile', fileId, targetPath)"
       />
@@ -66,12 +70,15 @@ interface Props {
   depth: number
   expandedFolders: Map<number, Set<string>>
   currentFileId?: number
+  currentFolderPath?: string
+  currentFolderNotebookId?: number
 }
 
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
   toggleFolder: [notebookId: number, path: string]
+  selectFolder: [notebookId: number, path: string]
   selectFile: [file: FileMetadata]
   moveFile: [fileId: number, targetPath: string]
 }>()
@@ -83,6 +90,18 @@ const isFolderExpanded = computed(() => {
   if (props.node.type !== 'folder') return false
   return props.expandedFolders.get(props.notebookId)?.has(props.node.path) || false
 })
+
+const isSelectedFolder = computed(() => {
+  if (props.node.type !== 'folder') return false
+  return props.currentFolderPath === props.node.path && props.currentFolderNotebookId === props.notebookId
+})
+
+const handleFolderClick = () => {
+  // Toggle folder expansion
+  emit('toggleFolder', props.notebookId, props.node.path)
+  // Also select the folder to show folder view
+  emit('selectFolder', props.notebookId, props.node.path)
+}
 
 // Drag handlers for files
 const handleDragStart = (event: DragEvent) => {

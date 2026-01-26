@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlmodel import select
 
-from codex.api.routes import (files, markdown, notebooks, query, search,
+from codex.api.routes import (files, folders, markdown, notebooks, query, search,
                                 tasks, users, workspaces)
 from codex.core.watcher import NotebookWatcher
 from codex.db.database import  get_system_session_sync,init_system_db
@@ -137,6 +137,7 @@ app.include_router(users.router, prefix="/api", tags=["users"])
 app.include_router(workspaces.router, prefix="/api/v1/workspaces", tags=["workspaces"])
 app.include_router(notebooks.router, prefix="/api/v1/notebooks", tags=["notebooks"])
 app.include_router(files.router, prefix="/api/v1/files", tags=["files"])
+app.include_router(folders.router, prefix="/api/v1/folders", tags=["folders"])
 app.include_router(search.router, prefix="/api/v1/search", tags=["search"])
 app.include_router(tasks.router, prefix="/api/v1/tasks", tags=["tasks"])
 app.include_router(markdown.router, prefix="/api/v1/markdown", tags=["markdown"])

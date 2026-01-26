@@ -78,9 +78,11 @@ docker compose -f docker-compose.prod.yml up -d
 
 The system uses two types of SQLite databases:
 
-1. **System Database** (`codex_system.db`): Stores users, workspaces, workspace permissions, tasks, and notebook registrations. Managed by Alembic migrations in `backend/codex/alembic/`.
+1. **System Database** (`codex_system.db`): Stores users, workspaces, workspace permissions, tasks, and notebook registrations. Managed by Alembic migrations in `backend/codex/migrations/workspace/`.
 
-2. **Notebook Databases** (`.codex/notebook.db` per notebook): Stores file metadata, tags, and search indexes for each notebook. Managed by separate Alembic migrations in `backend/codex/notebook_alembic/`.
+2. **Notebook Databases** (`.codex/notebook.db` per notebook): Stores file metadata, tags, and search indexes for each notebook. Managed by separate Alembic migrations in `backend/codex/migrations/notebook/`.
+
+Both migration paths are configured in a single unified `backend/alembic.ini` file with named sections `[alembic:workspace]` and `[alembic:notebook]`.
 
 ### Key Backend Components
 

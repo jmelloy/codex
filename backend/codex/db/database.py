@@ -51,11 +51,11 @@ def run_alembic_migrations():
     if not alembic_ini.exists():
         raise FileNotFoundError(f"alembic.ini not found at {alembic_ini}")
 
-    # Create Alembic config and run migrations
-    alembic_cfg = Config(str(alembic_ini))
+    # Create Alembic config for workspace migrations using the workspace section
+    alembic_cfg = Config(str(alembic_ini), ini_section="alembic:workspace")
 
     # Set the script location relative to alembic.ini
-    alembic_cfg.set_main_option("script_location", str(backend_dir / "codex" / "alembic"))
+    alembic_cfg.set_main_option("script_location", str(backend_dir / "codex" / "migrations" / "workspace"))
 
     # Run upgrade to head
     command.upgrade(alembic_cfg, "head")
@@ -72,54 +72,57 @@ def run_notebook_alembic_migrations(notebook_path: str):
     """
     from alembic.config import Config
     from alembic import command
-    from sqlalchemy import inspect, create_engine
+    from sqlalchemy import inspect, create_engine, text
     from alembic.runtime.migration import MigrationContext
 
-    # Find notebook_alembic.ini relative to this file - now it's in backend/ not backend/codex/
+    # Find alembic.ini relative to this file - now it's in backend/ not backend/codex/
     backend_dir = Path(__file__).parent.parent.parent
-    alembic_ini = backend_dir / "notebook_alembic.ini"
+    alembic_ini = backend_dir / "alembic.ini"
 
     if not alembic_ini.exists():
-        raise FileNotFoundError(f"notebook_alembic.ini not found at {alembic_ini}")
+        raise FileNotFoundError(f"alembic.ini not found at {alembic_ini}")
 
     # Get the notebook database path
     db_path = os.path.join(notebook_path, ".codex", "notebook.db")
     os.makedirs(os.path.dirname(db_path), exist_ok=True)
 
-    # Create Alembic config
-    alembic_cfg = Config(str(alembic_ini))
+    # Create Alembic config for notebook migrations using the notebook section
+    alembic_cfg = Config(str(alembic_ini), ini_section="alembic:notebook")
+
+    # Disable logger configuration to prevent wiping out application logging
+    alembic_cfg.attributes["configure_logger"] = False
 
     # Set the script location relative to alembic.ini
-    alembic_cfg.set_main_option("script_location", str(backend_dir / "codex" / "notebook_alembic"))
+    alembic_cfg.set_main_option("script_location", str(backend_dir / "codex" / "migrations" / "notebook"))
 
     # Set the database URL for this specific notebook
     alembic_cfg.set_main_option("sqlalchemy.url", f"sqlite:///{db_path}")
 
-    # Check if this is an existing database that needs to be stamped
-    # (has tables but no alembic_version)
-    engine = create_engine(f"sqlite:///{db_path}")
-    inspector = inspect(engine)
-    tables = inspector.get_table_names()
-
-    # Check current revision
-    with engine.begin() as connection:
-        context = MigrationContext.configure(connection)
-        current_rev = context.get_current_revision()
-
-    engine.dispose()
-
-    if current_rev is None and "file_metadata" in tables:
-        # Database has tables but no alembic_version - this is a pre-Alembic database
-        # Check if it has the old 'frontmatter' column or new 'properties' column
-        file_metadata_columns = {col["name"] for col in inspector.get_columns("file_metadata")}
-
-        if "frontmatter" in file_metadata_columns:
-            # Old database with frontmatter - stamp at revision 001
-            # (migration 002 will then rename it to properties)
-            command.stamp(alembic_cfg, "001")
-        else:
-            # Database already has 'properties' column - stamp at head
-            command.stamp(alembic_cfg, "head")
+    # Check if this is a pre-Alembic database that needs stamping
+    temp_engine = create_engine(f"sqlite:///{db_path}")
+    inspector = inspect(temp_engine)
+    
+    # Check if alembic_version table exists
+    has_alembic_version = "alembic_version" in inspector.get_table_names()
+    
+    # Check if file_metadata table exists (pre-Alembic database)
+    has_file_metadata = "file_metadata" in inspector.get_table_names()
+    
+    if has_file_metadata and not has_alembic_version:
+        # This is a pre-Alembic database - check which schema version it has
+        with temp_engine.connect() as conn:
+            # Check if file_metadata has 'frontmatter' or 'properties' column
+            columns = {col['name'] for col in inspector.get_columns('file_metadata')}
+            
+            if 'frontmatter' in columns:
+                # Old schema with frontmatter column - stamp at revision 001
+                # so that migration 002 will run to rename it
+                command.stamp(alembic_cfg, "001")
+            elif 'properties' in columns:
+                # Already has properties column - stamp at head
+                command.stamp(alembic_cfg, "head")
+    
+    temp_engine.dispose()
 
     # Now run any pending migrations
     command.upgrade(alembic_cfg, "head")

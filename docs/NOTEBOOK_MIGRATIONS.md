@@ -6,21 +6,21 @@ This document describes the implementation of Alembic migrations for per-noteboo
 
 ## Architecture
 
-### Dual Alembic Setup
+### Unified Alembic Setup
 
-The project now has two separate Alembic environments:
+The project uses a single unified Alembic configuration with two named sections:
 
-1. **System Database** (`backend/alembic/`)
-   - Configuration: `backend/alembic.ini`
+1. **Workspace (System) Database** (`backend/codex/migrations/workspace/`)
+   - Configuration: `backend/alembic.ini` section `[alembic:workspace]`
    - Manages: users, workspaces, permissions, tasks, notebook metadata
    - Database: `codex_system.db`
 
-2. **Notebook Databases** (`backend/notebook_alembic/`)
-   - Configuration: `backend/notebook_alembic.ini`
+2. **Notebook Databases** (`backend/codex/migrations/notebook/`)
+   - Configuration: `backend/alembic.ini` section `[alembic:notebook]`
    - Manages: file_metadata, tags, file_tags, search_index
    - Database: per-notebook `.codex/notebook.db` files
 
-### Why Separate Environments?
+### Why Separate Migration Paths?
 
 - Each notebook has its own database file
 - The same migrations need to run on multiple database instances
@@ -29,19 +29,25 @@ The project now has two separate Alembic environments:
 
 ## Implementation Details
 
-### New Files Created
+### Directory Structure
 
 ```
 backend/
-├── notebook_alembic.ini                # Alembic configuration for notebooks
-├── notebook_alembic/
-│   ├── env.py                          # Alembic environment setup
-│   ├── script.py.mako                  # Migration template
-│   └── versions/
-│       ├── 20250123_000000_001_initial_notebook_schema.py       # Migration 001
-│       └── 20250123_000001_002_rename_frontmatter_to_properties.py  # Migration 002
-└── tests/
-    └── test_notebook_migrations.py     # Comprehensive test suite
+├── alembic.ini                         # Unified Alembic configuration
+│   ├── [alembic:workspace]             # Workspace migration settings
+│   └── [alembic:notebook]              # Notebook migration settings
+└── codex/
+    └── migrations/
+        ├── workspace/
+        │   ├── env.py                  # Workspace environment setup
+        │   ├── script.py.mako          # Migration template
+        │   └── versions/               # Workspace migration files
+        └── notebook/
+            ├── env.py                  # Notebook environment setup
+            ├── script.py.mako          # Migration template
+            └── versions/               # Notebook migration files
+                ├── 20250123_000000_001_initial_notebook_schema.py
+                └── 20250123_000001_002_rename_frontmatter_to_properties.py
 ```
 
 ### Migration Strategy
@@ -129,9 +135,18 @@ engine = init_notebook_db("/path/to/notebook")
 
 ### Running Migrations Manually (CLI)
 
+For workspace (system) migrations:
+
 ```bash
 # From backend directory
-python -m alembic -c notebook_alembic.ini \
+python -m alembic -c alembic.ini -n workspace upgrade head
+```
+
+For notebook migrations:
+
+```bash
+# From backend directory
+python -m alembic -c alembic.ini -n notebook \
   -x sqlalchemy.url=sqlite:////path/to/notebook/.codex/notebook.db \
   upgrade head
 ```
@@ -162,7 +177,8 @@ with engine.connect() as conn:
 ### Legacy Code (Deprecated)
 
 - `backend/db/migrations.py`: Kept for reference, marked as deprecated
-- `backend/db/system_migrations/`: Old manual migrations, marked as deprecated with README
+- System migrations are now in `backend/codex/migrations/workspace/`
+- Notebook migrations are now in `backend/codex/migrations/notebook/`
 
 ### Existing Notebooks
 
@@ -176,14 +192,21 @@ Pre-Alembic notebooks are automatically detected and migrated:
 
 ### Adding a New Migration
 
-1. Generate migration template:
+1. Generate migration template for workspace:
 
    ```bash
    cd backend
-   python -m alembic -c notebook_alembic.ini revision -m "add_new_column"
+   python -m alembic -c alembic.ini -n workspace revision -m "add_new_column"
    ```
 
-2. Edit the generated file in `backend/notebook_alembic/versions/`
+   Or for notebook:
+
+   ```bash
+   cd backend
+   python -m alembic -c alembic.ini -n notebook revision -m "add_new_column"
+   ```
+
+2. Edit the generated file in `backend/codex/migrations/workspace/versions/` or `backend/codex/migrations/notebook/versions/`
 
 3. Test the migration:
 
@@ -226,7 +249,7 @@ SELECT version_num FROM alembic_version;
 Manually stamp if needed:
 
 ```bash
-python -m alembic -c notebook_alembic.ini \
+python -m alembic -c alembic.ini -n notebook \
   -x sqlalchemy.url=sqlite:////path/to/notebook/.codex/notebook.db \
   stamp head
 ```
@@ -243,5 +266,6 @@ This shouldn't happen with the current implementation. If it does:
 
 - [Alembic Documentation](https://alembic.sqlalchemy.org/)
 - [SQLModel Documentation](https://sqlmodel.tiangolo.com/)
-- System database migrations: `backend/alembic/`
+- Workspace (system) migrations: `backend/codex/migrations/workspace/`
+- Notebook migrations: `backend/codex/migrations/notebook/`
 - Original manual migrations (deprecated): `backend/db/migrations.py`

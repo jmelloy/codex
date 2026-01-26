@@ -1,25 +1,25 @@
 """Tests for markdown API endpoints."""
 
 import pytest
-from fastapi.testclient import TestClient
+
 from codex.main import app
 
-client = TestClient(app)
 
 
-def test_render_markdown_simple():
+
+def test_render_markdown_simple(test_client):
     """Test basic markdown rendering."""
     # First register and login
-    client.post(
+    test_client.post(
         "/api/register", json={"username": "testuser_md", "email": "testmd@example.com", "password": "testpass123"}
     )
 
-    login_response = client.post("/api/token", data={"username": "testuser_md", "password": "testpass123"})
+    login_response = test_client.post("/api/token", data={"username": "testuser_md", "password": "testpass123"})
     token = login_response.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 
     # Test markdown rendering
-    response = client.post(
+    response = test_client.post(
         "/api/v1/markdown/render", json={"content": "# Hello World\n\nThis is **bold** text."}, headers=headers
     )
 
@@ -29,14 +29,14 @@ def test_render_markdown_simple():
     assert data["html"] is not None
 
 
-def test_render_markdown_with_frontmatter():
+def test_render_markdown_with_frontmatter(test_client):
     """Test markdown rendering with frontmatter."""
     # Login
-    client.post(
+    test_client.post(
         "/api/register", json={"username": "testuser_fm", "email": "testfm@example.com", "password": "testpass123"}
     )
 
-    login_response = client.post("/api/token", data={"username": "testuser_fm", "password": "testpass123"})
+    login_response = test_client.post("/api/token", data={"username": "testuser_fm", "password": "testpass123"})
     token = login_response.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 
@@ -53,7 +53,7 @@ tags:
 
 This is a test document."""
 
-    response = client.post("/api/v1/markdown/render", json={"content": content}, headers=headers)
+    response = test_client.post("/api/v1/markdown/render", json={"content": content}, headers=headers)
 
     assert response.status_code == 200
     data = response.json()
@@ -66,26 +66,26 @@ This is a test document."""
     assert "markdown" in data["frontmatter"]["tags"]
 
 
-def test_list_markdown_files_empty(temp_workspace_dir):
+def test_list_markdown_files_empty(test_client, temp_workspace_dir):
     """Test listing markdown files returns empty list."""
     # Login
-    client.post(
+    test_client.post(
         "/api/register", json={"username": "testuser_list", "email": "testlist@example.com", "password": "testpass123"}
     )
 
-    login_response = client.post("/api/token", data={"username": "testuser_list", "password": "testpass123"})
+    login_response = test_client.post("/api/token", data={"username": "testuser_list", "password": "testpass123"})
     token = login_response.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 
     # Create a workspace first
-    workspace_response = client.post(
+    workspace_response = test_client.post(
         "/api/v1/workspaces/", json={"name": "Test Workspace", "path": temp_workspace_dir}, headers=headers
     )
     assert workspace_response.status_code == 200
     workspace_id = workspace_response.json()["id"]
 
     # Test listing files
-    response = client.get(f"/api/v1/markdown/{workspace_id}/files", headers=headers)
+    response = test_client.get(f"/api/v1/markdown/{workspace_id}/files", headers=headers)
 
     assert response.status_code == 200
     data = response.json()
@@ -95,31 +95,31 @@ def test_list_markdown_files_empty(temp_workspace_dir):
     # Cleanup handled by fixture
 
 
-def test_markdown_endpoints_require_auth():
+def test_markdown_endpoints_require_auth(test_client):
     """Test that markdown endpoints require authentication."""
     # Try to render without auth
-    response = client.post("/api/v1/markdown/render", json={"content": "# Test"})
+    response = test_client.post("/api/v1/markdown/render", json={"content": "# Test"})
     assert response.status_code == 401
 
     # Try to list files without auth
-    response = client.get("/api/v1/markdown/1/files")
+    response = test_client.get("/api/v1/markdown/1/files")
     assert response.status_code == 401
 
 
-def test_render_markdown_empty_content():
+def test_render_markdown_empty_content(test_client):
     """Test rendering empty markdown content."""
     # Login
-    client.post(
+    test_client.post(
         "/api/register",
         json={"username": "testuser_empty", "email": "testempty@example.com", "password": "testpass123"},
     )
 
-    login_response = client.post("/api/token", data={"username": "testuser_empty", "password": "testpass123"})
+    login_response = test_client.post("/api/token", data={"username": "testuser_empty", "password": "testpass123"})
     token = login_response.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 
     # Test empty content
-    response = client.post("/api/v1/markdown/render", json={"content": ""}, headers=headers)
+    response = test_client.post("/api/v1/markdown/render", json={"content": ""}, headers=headers)
 
     assert response.status_code == 200
     data = response.json()
@@ -127,14 +127,14 @@ def test_render_markdown_empty_content():
     assert data["html"] == ""
 
 
-def test_render_markdown_with_datetime_frontmatter():
+def test_render_markdown_with_datetime_frontmatter(test_client):
     """Test that datetime values in frontmatter are serialized correctly."""
     # Login
-    client.post(
+    test_client.post(
         "/api/register", json={"username": "testuser_dt", "email": "testdt@example.com", "password": "testpass123"}
     )
 
-    login_response = client.post("/api/token", data={"username": "testuser_dt", "password": "testpass123"})
+    login_response = test_client.post("/api/token", data={"username": "testuser_dt", "password": "testpass123"})
     token = login_response.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 
@@ -149,7 +149,7 @@ tags:
 
 # Test Content"""
 
-    response = client.post("/api/v1/markdown/render", json={"content": content}, headers=headers)
+    response = test_client.post("/api/v1/markdown/render", json={"content": content}, headers=headers)
 
     assert response.status_code == 200
     data = response.json()

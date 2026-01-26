@@ -322,12 +322,12 @@ class TestHelperFunctions:
 class TestQueryAPI:
     """Test query API endpoint."""
 
-    def test_query_api_requires_authentication(self):
+    def test_query_api_requires_authentication(self, test_client):
         """Test that query API requires authentication."""
         response = client.post("/api/v1/query/?workspace_id=1", json={})
         assert response.status_code == 401
 
-    def test_query_api_accepts_valid_query(self):
+    def test_query_api_accepts_valid_query(self, test_client):
         """Test that query API accepts valid query structure."""
         # This test will need proper authentication setup
         # For now, just test that the endpoint exists and validates input

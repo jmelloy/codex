@@ -110,20 +110,20 @@
 
       <!-- Action Buttons -->
       <div class="flex gap-2 justify-end mt-6">
-        <button 
+        <BaseButton 
           type="button" 
+          variant="secondary"
           @click="$emit('update:modelValue', false)"
-          class="px-4 py-2 border border-border-medium bg-bg-primary text-text-primary rounded cursor-pointer hover:bg-bg-hover transition"
         >
           Cancel
-        </button>
-        <button 
+        </BaseButton>
+        <BaseButton 
           type="submit"
+          variant="primary"
           :disabled="!selectedType || !filename || !title"
-          class="px-4 py-2 bg-primary text-white border-none rounded cursor-pointer transition hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Create View
-        </button>
+        </BaseButton>
       </div>
     </form>
   </Modal>
@@ -133,6 +133,7 @@
 import { ref, computed } from 'vue';
 import Modal from './Modal.vue';
 import FormGroup from './FormGroup.vue';
+import BaseButton from './base/BaseButton.vue';
 
 const props = defineProps<{
   modelValue: boolean;

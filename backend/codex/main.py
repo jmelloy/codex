@@ -13,11 +13,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlmodel import select
 
-from codex.api.routes import (files, folders, markdown, notebooks, query, search,
-                                tasks, users, workspaces)
+from codex.api.routes import files, folders, markdown, notebooks, query, search, tasks, users, workspaces
 from codex.core.watcher import NotebookWatcher
-from codex.db.database import  get_system_session_sync,init_system_db
+from codex.db.database import get_system_session_sync, init_system_db
 from codex.db.models import Notebook, Workspace
+
+from contextvars import ContextVar
+from ulid import ULID
+
+request_id_var: ContextVar[str] = ContextVar("request_id", default="")
 
 logger = logging.getLogger(__name__)
 
@@ -28,9 +32,8 @@ _active_watchers: list[NotebookWatcher] = []
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize database on startup."""
-    
+
     await init_system_db()
-    
 
     try:
         # Run blocking file I/O in thread pool
@@ -38,9 +41,7 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Error starting notebook watcher: {e}", exc_info=True)
 
-    
     yield
-    
 
     # Stop all watchers on shutdown
     for watcher in _active_watchers:
@@ -65,9 +66,7 @@ def _start_notebook_watchers_sync():
         for nb in notebooks:
             try:
                 # Get the workspace to compute full notebook path
-                workspace_result = session.execute(
-                    select(Workspace).where(Workspace.id == nb.workspace_id)
-                )
+                workspace_result = session.execute(select(Workspace).where(Workspace.id == nb.workspace_id))
                 workspace = workspace_result.scalar_one_or_none()
 
                 if workspace is None:
@@ -102,13 +101,20 @@ def _start_notebook_watchers_sync():
     logger.info(f"Finished starting {len(_active_watchers)} watchers")
 
 
-
 app = FastAPI(
     title="Codex API",
     description="A hierarchical digital laboratory journal system",
     version="0.1.0",
     lifespan=lifespan,
 )
+
+@app.middleware("http")
+async def add_request_id(request: Request, call_next):
+    request_id = request.headers.get("X-Request-ID", str(ULID()))
+    request_id_var.set(request_id)
+    response = await call_next(request)
+    response.headers["X-Request-ID"] = request_id
+    return response
 
 # CORS middleware
 app.add_middleware(

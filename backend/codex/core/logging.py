@@ -6,18 +6,21 @@ import os
 import sys
 from datetime import datetime, timezone
 from typing import Any
+from contextvars import ContextVar
 
 # ANSI color codes
 COLORS = {
-    "DEBUG": "\033[36m",     # Cyan
-    "INFO": "\033[32m",      # Green
-    "WARNING": "\033[33m",   # Yellow
-    "ERROR": "\033[31m",     # Red
+    "DEBUG": "\033[36m",  # Cyan
+    "INFO": "\033[32m",  # Green
+    "WARNING": "\033[33m",  # Yellow
+    "ERROR": "\033[31m",  # Red
     "CRITICAL": "\033[35m",  # Magenta
 }
 RESET = "\033[0m"
 BOLD = "\033[1m"
 DIM = "\033[2m"
+
+LIGHT_GRAY = "\033[37m"
 
 class ColoredFormatter(logging.Formatter):
     """A formatter that adds colors to log output for terminal display."""
@@ -29,7 +32,7 @@ class ColoredFormatter(logging.Formatter):
         use_colors: bool = True,
     ):
         super().__init__(fmt, datefmt)
-        self.use_colors = use_colors 
+        self.use_colors = use_colors
 
     def format(self, record: logging.LogRecord) -> str:
         # Save original values
@@ -41,6 +44,7 @@ class ColoredFormatter(logging.Formatter):
             color = COLORS.get(record.levelname, "")
             record.levelname = f"{color}{BOLD}{record.levelname:8}{RESET}"
             record.name = f"{DIM}{record.name}{RESET}"
+            record.request_id = f"{LIGHT_GRAY}{getattr(record, 'request_id', '')}{RESET}"
 
         result = super().format(record)
 
@@ -48,6 +52,7 @@ class ColoredFormatter(logging.Formatter):
         record.levelname = original_levelname
         record.name = original_name
         record.msg = original_msg
+        record.request_id = getattr(record, "request_id", "")
 
         return result
 
@@ -61,6 +66,7 @@ class JSONFormatter(logging.Formatter):
             "level": record.levelname,
             "logger": record.name,
             "message": record.getMessage(),
+            "request_id": getattr(record, "request_id", ""),
         }
 
         # Add location info
@@ -77,11 +83,28 @@ class JSONFormatter(logging.Formatter):
 
         # Add extra fields
         extra_keys = set(record.__dict__.keys()) - {
-            "name", "msg", "args", "created", "filename", "funcName",
-            "levelname", "levelno", "lineno", "module", "msecs",
-            "pathname", "process", "processName", "relativeCreated",
-            "stack_info", "exc_info", "exc_text", "thread", "threadName",
-            "taskName", "message",
+            "name",
+            "msg",
+            "args",
+            "created",
+            "filename",
+            "funcName",
+            "levelname",
+            "levelno",
+            "lineno",
+            "module",
+            "msecs",
+            "pathname",
+            "process",
+            "processName",
+            "relativeCreated",
+            "stack_info",
+            "exc_info",
+            "exc_text",
+            "thread",
+            "threadName",
+            "taskName",
+            "message",
         }
         for key in extra_keys:
             log_data[key] = getattr(record, key)
@@ -119,11 +142,18 @@ class AccessFormatter(logging.Formatter):
             else:
                 status_colored = str(status_code)
 
-            return f'{DIM}{timestamp}{RESET} {client_addr} "{request_line}" {status_colored}'
+            return f'{timestamp} {DIM}{record.name}{RESET} {client_addr} "{request_line}" {status_colored} {getattr(record, "request_id", "")}'
         else:
-            return f'{timestamp} {client_addr} "{request_line}" {status_code}'
+            return f'{timestamp} {client_addr} "{request_line}" {status_code} {getattr(record, "request_id", "")}'
 
 
+class RequestIdFilter(logging.Filter):
+    """Logging filter that adds request ID from context variable."""
+    def filter(self, record):
+        from codex.main import request_id_var
+        record.request_id = request_id_var.get()
+        return True
+    
 def get_logging_config(
     log_level: str = "INFO",
     log_format: str = "colored",
@@ -152,8 +182,8 @@ def get_logging_config(
         }
     else:
         default_formatter = {
-            "()":  ColoredFormatter,
-            "fmt": '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            "()": ColoredFormatter,
+            "fmt": "%(asctime)s - %(levelname)6s %(name)s - %(message)s request_id=%(request_id)s",
             "datefmt": "%Y-%m-%d %H:%M:%S",
         }
         access_formatter = {
@@ -167,19 +197,30 @@ def get_logging_config(
             "default": default_formatter,
             "access": access_formatter,
         },
+        "filters": {
+            "request_id": {
+                "()": "codex.core.logging.RequestIdFilter",
+            }
+        },
         "handlers": {
             "default": {
                 "formatter": "default",
                 "class": "logging.StreamHandler",
                 "stream": "ext://sys.stderr",
+                "filters": ["request_id"],
             },
             "access": {
                 "formatter": "access",
                 "class": "logging.StreamHandler",
                 "stream": "ext://sys.stdout",
+                "filters": ["request_id"],
             },
         },
         "loggers": {
+            "root": {
+                "handlers": ["default"],
+                "filters": ["request_id"],
+            },
             "uvicorn": {
                 "handlers": ["default"],
                 "level": "INFO",

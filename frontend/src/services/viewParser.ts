@@ -12,7 +12,7 @@ export interface ViewQuery {
   // Filtering
   tags?: string[];
   tags_any?: string[];
-  file_types?: string[];
+  content_types?: string[];  // MIME types
 
   // Property filtering
   properties?: Record<string, any>;

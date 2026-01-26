@@ -63,6 +63,7 @@
 import { computed, ref } from 'vue'
 import type { FileTreeNode } from '../utils/fileTree'
 import type { FileMetadata } from '../services/codex'
+import { getDisplayType } from '../utils/contentType'
 
 interface Props {
   node: FileTreeNode
@@ -160,7 +161,9 @@ const handleDrop = (event: DragEvent) => {
 const getFileIcon = (file: FileMetadata | undefined): string => {
   if (!file) return '📄'
 
-  switch (file.file_type) {
+  const displayType = getDisplayType(file.content_type)
+  
+  switch (displayType) {
     case 'view':
       return '📊' // Chart/view icon for .cdx files
     case 'markdown':
@@ -180,7 +183,8 @@ const getFileIcon = (file: FileMetadata | undefined): string => {
     case 'html':
       return '🌐' // Globe for HTML
     case 'text':
-      return '📄' // Document for text
+    case 'code':
+      return '📄' // Document for text/code
     case 'binary':
       return '📦' // Package for binary
     default:

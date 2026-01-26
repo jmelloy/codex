@@ -14,7 +14,7 @@
             <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
             <polyline points="13 2 13 9 20 9"/>
           </svg>
-          {{ file.file_type }}
+          {{ file.content_type }}
         </span>
         <span class="meta-item">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -46,6 +46,7 @@
 <script setup lang="ts">
 import { computed, h } from 'vue'
 import type { FileMetadata } from '../services/codex'
+import { getDisplayType } from '../utils/contentType'
 
 interface Props {
   file: FileMetadata
@@ -83,9 +84,10 @@ function formatDate(dateStr: string): string {
 }
 
 const fileIcon = computed(() => {
+  const displayType = getDisplayType(props.file.content_type)
   const iconProps = { width: 48, height: 48, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.5 }
 
-  switch (props.file.file_type) {
+  switch (displayType) {
     case 'markdown':
     case 'text':
       return () => h('svg', iconProps, [

@@ -301,7 +301,7 @@ function generateViewContent(): string {
       if (!frontmatter.query) {
         frontmatter.query = {};
       }
-      frontmatter.query.file_types = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
+      frontmatter.query.content_types = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
       frontmatter.config = {
         layout: 'grid',
         columns: galleryColumns.value,

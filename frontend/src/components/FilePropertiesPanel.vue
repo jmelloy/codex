@@ -80,7 +80,7 @@
           </div>
           <div class="property-row">
             <span class="property-label">Type</span>
-            <span class="property-value">{{ file.file_type }}</span>
+            <span class="property-value">{{ file.content_type }}</span>
           </div>
           <div class="property-row">
             <span class="property-label">Size</span>

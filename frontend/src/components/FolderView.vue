@@ -105,7 +105,7 @@
           @click="$emit('selectFile', file)"
         >
           <div class="file-card-icon">
-            <component :is="getFileIcon(file.file_type)" />
+            <component :is="getFileIcon(file.content_type)" />
           </div>
           <div class="file-card-info">
             <span class="file-card-name">{{ file.properties?.title || file.title || file.filename }}</span>
@@ -123,10 +123,10 @@
           @click="$emit('selectFile', file)"
         >
           <div class="file-row-icon">
-            <component :is="getFileIcon(file.file_type)" />
+            <component :is="getFileIcon(file.content_type)" />
           </div>
           <div class="file-row-name">{{ file.properties?.title || file.title || file.filename }}</div>
-          <div class="file-row-type">{{ file.file_type }}</div>
+          <div class="file-row-type">{{ file.content_type }}</div>
           <div class="file-row-size">{{ formatSize(file.size) }}</div>
           <div class="file-row-date">{{ formatDate(file.updated_at) }}</div>
         </div>
@@ -140,7 +140,7 @@
           class="file-compact"
           @click="$emit('selectFile', file)"
         >
-          <component :is="getFileIcon(file.file_type)" class="file-compact-icon" />
+          <component :is="getFileIcon(file.content_type)" class="file-compact-icon" />
           <span class="file-compact-name">{{ file.properties?.title || file.title || file.filename }}</span>
         </div>
       </template>
@@ -159,6 +159,7 @@
 <script setup lang="ts">
 import { ref, computed, h } from 'vue'
 import type { FolderWithFiles, FileMetadata } from '../services/codex'
+import { getDisplayType } from '../utils/contentType'
 
 interface Props {
   folder: FolderWithFiles
@@ -195,7 +196,7 @@ const sortedFiles = computed(() => {
         comparison = new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime()
         break
       case 'type':
-        comparison = a.file_type.localeCompare(b.file_type)
+        comparison = a.content_type.localeCompare(b.content_type)
         break
       case 'size':
         comparison = a.size - b.size
@@ -229,10 +230,11 @@ function formatDate(dateStr: string): string {
   }
 }
 
-function getFileIcon(fileType: string) {
+function getFileIcon(contentType: string) {
+  const displayType = getDisplayType(contentType)
   const iconProps = { width: 24, height: 24, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2 }
 
-  switch (fileType) {
+  switch (displayType) {
     case 'markdown':
     case 'text':
       return () => h('svg', iconProps, [

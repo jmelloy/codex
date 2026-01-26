@@ -166,10 +166,10 @@ const lightboxIndex = ref(0);
 // Get all image files
 const images = computed(() => {
   if (!props.data?.files) return [];
-  // Filter for image files only
+  // Filter for image files only - check if content_type starts with 'image/'
   return props.data.files.filter(
     (file) =>
-      file.file_type === 'image' ||
+      file.content_type.startsWith('image/') ||
       file.path.match(/\.(jpg|jpeg|png|gif|bmp|webp|svg)$/i)
   );
 });

@@ -52,6 +52,25 @@ export interface FolderMetadata {
 export interface FolderWithFiles extends FolderMetadata {
   files: FileMetadata[];
 }
+export interface FileHistoryEntry {
+  hash: string;
+  author: string;
+  date: string;
+  message: string;
+}
+
+export interface FileHistory {
+  file_id: number;
+  path: string;
+  history: FileHistoryEntry[];
+}
+
+export interface FileAtCommit {
+  file_id: number;
+  path: string;
+  commit_hash: string;
+  content: string;
+}
 
 export interface Template {
   id: string;
@@ -163,11 +182,7 @@ export const fileService = {
   /**
    * Get the content URL for a file by ID (for binary files like images).
    */
-  getContentUrl(
-    id: number,
-    workspaceId: number,
-    notebookId: number,
-  ): string {
+  getContentUrl(id: number, workspaceId: number, notebookId: number): string {
     return `/api/v1/files/${id}/content?workspace_id=${workspaceId}&notebook_id=${notebookId}`;
   },
 
@@ -180,7 +195,9 @@ export const fileService = {
     notebookId: number,
     currentFilePath?: string,
   ): Promise<FileMetadata & { resolved_path: string }> {
-    const response = await apiClient.post<FileMetadata & { resolved_path: string }>(
+    const response = await apiClient.post<
+      FileMetadata & { resolved_path: string }
+    >(
       `/api/v1/files/resolve-link?workspace_id=${workspaceId}&notebook_id=${notebookId}`,
       {
         link,
@@ -260,6 +277,36 @@ export const fileService = {
     const response = await apiClient.patch<FileMetadata>(
       `/api/v1/files/${id}/move?workspace_id=${workspaceId}&notebook_id=${notebookId}`,
       { new_path: newPath },
+    );
+    return response.data;
+  },
+
+  /**
+   * Get git history for a file.
+   */
+  async getHistory(
+    id: number,
+    workspaceId: number,
+    notebookId: number,
+    maxCount: number = 20,
+  ): Promise<FileHistory> {
+    const response = await apiClient.get<FileHistory>(
+      `/api/v1/files/${id}/history?workspace_id=${workspaceId}&notebook_id=${notebookId}&max_count=${maxCount}`,
+    );
+    return response.data;
+  },
+
+  /**
+   * Get file content at a specific commit.
+   */
+  async getAtCommit(
+    id: number,
+    workspaceId: number,
+    notebookId: number,
+    commitHash: string,
+  ): Promise<FileAtCommit> {
+    const response = await apiClient.get<FileAtCommit>(
+      `/api/v1/files/${id}/history/${commitHash}?workspace_id=${workspaceId}&notebook_id=${notebookId}`,
     );
     return response.data;
   },

@@ -1,459 +1,452 @@
 <template>
-  <div class="h-screen flex flex-col w-full">
-    <nav class="main-navbar">
-      <h1 class="text-2xl font-semibold m-0">Codex</h1>
-      <div class="flex items-center gap-4">
-        <button @click="goToSettings"
-          class="navbar-button"
-          title="User Settings">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block">
-            <circle cx="12" cy="12" r="3"></circle>
-            <path d="M12 1v6m0 6v6m9-9h-6m-6 0H3"></path>
-          </svg>
-          Settings
-        </button>
-        <span>{{ authStore.user?.username }}</span>
-        <button @click="handleLogout"
-          class="navbar-button">Logout</button>
+  <div class="h-screen flex w-full">
+    <!-- Left: File Browser Sidebar (280px) -->
+    <aside class="w-[280px] min-w-[280px] notebook-sidebar flex flex-col overflow-hidden">
+      <!-- Codex Header -->
+      <div class="flex items-center px-4 py-4" style="border-bottom: 1px solid var(--page-border)">
+        <h1 class="m-0 text-xl font-semibold" style="color: var(--notebook-text)">Codex</h1>
       </div>
-    </nav>
+      <div class="flex justify-between items-center px-4 py-4" style="border-bottom: 1px solid var(--page-border)">
+        <h2 class="m-0 text-sm font-semibold uppercase tracking-wide" style="color: var(--pen-gray)">Workspaces</h2>
+        <button @click="showCreateWorkspace = true" title="Create Workspace"
+          class="notebook-button text-white border-none w-6 h-6 rounded-full cursor-pointer text-base flex items-center justify-center transition">+</button>
+      </div>
+      <ul class="list-none p-0 m-0 max-h-[150px] overflow-y-auto">
+        <li v-for="workspace in workspaceStore.workspaces" :key="workspace.id"
+          :class="['workspace-item py-2.5 px-4 cursor-pointer text-sm transition', { 'workspace-active font-semibold': workspaceStore.currentWorkspace?.id === workspace.id }]"
+          @click="selectWorkspace(workspace)">
+          {{ workspace.name }}
+        </li>
+      </ul>
 
-    <div class="flex flex-1 overflow-hidden">
-      <!-- Left: File Browser Sidebar (280px) -->
-      <aside class="w-[280px] min-w-[280px] notebook-sidebar flex flex-col overflow-hidden">
+      <div v-if="workspaceStore.currentWorkspace" class="flex-1 flex flex-col overflow-hidden"
+        style="border-top: 1px solid var(--page-border)">
         <div class="flex justify-between items-center px-4 py-4" style="border-bottom: 1px solid var(--page-border)">
-          <h2 class="m-0 text-sm font-semibold uppercase tracking-wide" style="color: var(--pen-gray)">Workspaces</h2>
-          <button @click="showCreateWorkspace = true" title="Create Workspace"
+          <h3 class="m-0 text-sm font-semibold uppercase tracking-wide" style="color: var(--pen-gray)">Notebooks</h3>
+          <button @click="showCreateNotebook = true" title="Create Notebook"
             class="notebook-button text-white border-none w-6 h-6 rounded-full cursor-pointer text-base flex items-center justify-center transition">+</button>
         </div>
-        <ul class="list-none p-0 m-0 max-h-[150px] overflow-y-auto">
-          <li v-for="workspace in workspaceStore.workspaces" :key="workspace.id"
-            :class="['workspace-item py-2.5 px-4 cursor-pointer text-sm transition', { 'workspace-active font-semibold': workspaceStore.currentWorkspace?.id === workspace.id }]"
-            @click="selectWorkspace(workspace)">
-            {{ workspace.name }}
+
+        <!-- Notebook Tree with Files -->
+        <ul class="list-none p-0 m-0 overflow-y-auto flex-1">
+          <li v-for="notebook in workspaceStore.notebooks" :key="notebook.id"
+            style="border-bottom: 1px solid var(--page-border)">
+            <div
+              :class="['notebook-item flex items-center py-2 px-4 cursor-pointer text-sm transition', { 'notebook-active': workspaceStore.currentNotebook?.id === notebook.id }]"
+              @click="toggleNotebook(notebook)">
+              <span class="text-[10px] mr-2 w-3" style="color: var(--pen-gray)">{{
+                workspaceStore.expandedNotebooks.has(notebook.id) ? '▼' : '▶' }}</span>
+              <span class="flex-1 font-medium">{{ notebook.name }}</span>
+              <button v-if="workspaceStore.expandedNotebooks.has(notebook.id)" @click.stop="startCreateFile(notebook)"
+                class="notebook-button w-5 h-5 text-sm ml-auto opacity-0 hover:opacity-100 transition text-white border-none rounded-full cursor-pointer flex items-center justify-center"
+                title="New File">+</button>
+            </div>
+
+            <!-- File Tree with drop zone -->
+            <ul v-if="workspaceStore.expandedNotebooks.has(notebook.id)" class="list-none p-0 m-0"
+              :class="{ 'bg-primary/10': dragOverNotebook === notebook.id }"
+              @dragover.prevent="handleNotebookDragOver($event, notebook.id)"
+              @dragenter.prevent="handleNotebookDragEnter(notebook.id)" @dragleave="handleNotebookDragLeave"
+              @drop.prevent="handleNotebookDrop($event, notebook.id)">
+              <template v-if="notebookFileTrees.get(notebook.id)?.length">
+                <template v-for="node in notebookFileTrees.get(notebook.id)" :key="node.path">
+                  <!-- Render folder or file -->
+                  <li v-if="node.type === 'folder'">
+                    <!-- Folder -->
+                    <div :class="[
+                      'folder-item flex items-center py-2 px-4 pl-8 cursor-pointer text-[13px] transition',
+                      { 'bg-primary/20 border-t-2 border-primary': dragOverFolder === `${notebook.id}:${node.path}` },
+                      { 'folder-active': workspaceStore.currentFolder?.path === node.path && workspaceStore.currentFolder?.notebook_id === notebook.id }
+                    ]" @click="handleFolderClick($event, notebook.id, node.path)"
+                      @dragover.prevent="handleFolderDragOver($event, notebook.id, node.path)"
+                      @dragenter.prevent="handleFolderDragEnter(notebook.id, node.path)"
+                      @dragleave="handleFolderDragLeave"
+                      @drop.prevent.stop="handleFolderDrop($event, notebook.id, node.path)">
+                      <span class="text-[10px] mr-2 w-3" style="color: var(--pen-gray)">{{
+                        isFolderExpanded(notebook.id, node.path) ? '▼' : '▶' }}</span>
+                      <span class="mr-2 text-sm">📁</span>
+                      <span class="overflow-hidden text-ellipsis whitespace-nowrap">{{ node.name }}</span>
+                    </div>
+
+                    <!-- Folder contents -->
+                    <ul v-if="isFolderExpanded(notebook.id, node.path) && node.children" class="list-none p-0 m-0">
+                      <FileTreeItem v-for="child in node.children" :key="child.path" :node="child"
+                        :notebook-id="notebook.id" :depth="1" :expanded-folders="expandedFolders"
+                        :current-file-id="workspaceStore.currentFile?.id"
+                        :current-folder-path="workspaceStore.currentFolder?.path"
+                        :current-folder-notebook-id="workspaceStore.currentFolder?.notebook_id"
+                        @toggle-folder="toggleFolder" @select-folder="handleSelectFolder" @select-file="selectFile"
+                        @move-file="handleMoveFile" />
+                    </ul>
+                  </li>
+
+                  <!-- Root level file -->
+                  <li v-else>
+                    <div
+                      :class="['file-item flex items-center py-2 px-4 pl-8 cursor-grab text-[13px] transition', { 'file-active font-medium': workspaceStore.currentFile?.id === node.file?.id }]"
+                      draggable="true" @click="node.file && selectFile(node.file)"
+                      @dragstart="handleFileDragStart($event, node.file!, notebook.id)">
+                      <span class="mr-2 text-sm">{{ getFileIcon(node.file) }}</span>
+                      <span class="overflow-hidden text-ellipsis whitespace-nowrap">{{ node.file?.title || node.name
+                      }}</span>
+                    </div>
+                  </li>
+                </template>
+              </template>
+              <li v-else class="py-2 px-4 pl-8 text-xs italic" style="color: var(--pen-gray); opacity: 0.6">
+                {{ dragOverNotebook === notebook.id ? 'Drop files here to upload' : 'No files yet' }}
+              </li>
+            </ul>
           </li>
         </ul>
+      </div>
 
-        <div v-if="workspaceStore.currentWorkspace" class="flex-1 flex flex-col overflow-hidden"
-          style="border-top: 1px solid var(--page-border)">
-          <div class="flex justify-between items-center px-4 py-4" style="border-bottom: 1px solid var(--page-border)">
-            <h3 class="m-0 text-sm font-semibold uppercase tracking-wide" style="color: var(--pen-gray)">Notebooks</h3>
-            <button @click="showCreateNotebook = true" title="Create Notebook"
-              class="notebook-button text-white border-none w-6 h-6 rounded-full cursor-pointer text-base flex items-center justify-center transition">+</button>
+      <!-- User Section at Bottom -->
+      <div class="user-section mt-auto px-4 py-3" style="border-top: 1px solid var(--page-border)">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2 min-w-0">
+            <div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+              <span class="text-sm font-medium" style="color: var(--notebook-accent)">
+                {{ authStore.user?.username?.charAt(0)?.toUpperCase() }}
+              </span>
+            </div>
+            <span class="text-sm truncate" style="color: var(--notebook-text)">{{ authStore.user?.username }}</span>
           </div>
-
-          <!-- Notebook Tree with Files -->
-          <ul class="list-none p-0 m-0 overflow-y-auto flex-1">
-            <li v-for="notebook in workspaceStore.notebooks" :key="notebook.id"
-              style="border-bottom: 1px solid var(--page-border)">
-              <div
-                :class="['notebook-item flex items-center py-2 px-4 cursor-pointer text-sm transition', { 'notebook-active': workspaceStore.currentNotebook?.id === notebook.id }]"
-                @click="toggleNotebook(notebook)">
-                <span class="text-[10px] mr-2 w-3" style="color: var(--pen-gray)">{{
-                  workspaceStore.expandedNotebooks.has(notebook.id) ? '▼' : '▶' }}</span>
-                <span class="flex-1 font-medium">{{ notebook.name }}</span>
-                <button v-if="workspaceStore.expandedNotebooks.has(notebook.id)" @click.stop="startCreateFile(notebook)"
-                  class="notebook-button w-5 h-5 text-sm ml-auto opacity-0 hover:opacity-100 transition text-white border-none rounded-full cursor-pointer flex items-center justify-center"
-                  title="New File">+</button>
-              </div>
-
-              <!-- File Tree with drop zone -->
-              <ul v-if="workspaceStore.expandedNotebooks.has(notebook.id)"
-                class="list-none p-0 m-0"
-                :class="{ 'bg-primary/10': dragOverNotebook === notebook.id }"
-                @dragover.prevent="handleNotebookDragOver($event, notebook.id)"
-                @dragenter.prevent="handleNotebookDragEnter(notebook.id)"
-                @dragleave="handleNotebookDragLeave"
-                @drop.prevent="handleNotebookDrop($event, notebook.id)">
-                <template v-if="notebookFileTrees.get(notebook.id)?.length">
-                  <template v-for="node in notebookFileTrees.get(notebook.id)" :key="node.path">
-                    <!-- Render folder or file -->
-                    <li v-if="node.type === 'folder'">
-                      <!-- Folder -->
-                      <div
-                        :class="[
-                          'folder-item flex items-center py-2 px-4 pl-8 cursor-pointer text-[13px] transition',
-                          { 'bg-primary/20 border-t-2 border-primary': dragOverFolder === `${notebook.id}:${node.path}` },
-                          { 'folder-active': workspaceStore.currentFolder?.path === node.path && workspaceStore.currentFolder?.notebook_id === notebook.id }
-                        ]"
-                        @click="handleFolderClick($event, notebook.id, node.path)"
-                        @dragover.prevent="handleFolderDragOver($event, notebook.id, node.path)"
-                        @dragenter.prevent="handleFolderDragEnter(notebook.id, node.path)"
-                        @dragleave="handleFolderDragLeave"
-                        @drop.prevent.stop="handleFolderDrop($event, notebook.id, node.path)">
-                        <span class="text-[10px] mr-2 w-3" style="color: var(--pen-gray)">{{
-                          isFolderExpanded(notebook.id, node.path) ? '▼' : '▶' }}</span>
-                        <span class="mr-2 text-sm">📁</span>
-                        <span class="overflow-hidden text-ellipsis whitespace-nowrap">{{ node.name }}</span>
-                      </div>
-
-                      <!-- Folder contents -->
-                      <ul v-if="isFolderExpanded(notebook.id, node.path) && node.children" class="list-none p-0 m-0">
-                        <FileTreeItem v-for="child in node.children" :key="child.path" :node="child"
-                          :notebook-id="notebook.id" :depth="1" :expanded-folders="expandedFolders"
-                          :current-file-id="workspaceStore.currentFile?.id"
-                          :current-folder-path="workspaceStore.currentFolder?.path"
-                          :current-folder-notebook-id="workspaceStore.currentFolder?.notebook_id"
-                          @toggle-folder="toggleFolder"
-                          @select-folder="handleSelectFolder"
-                          @select-file="selectFile" @move-file="handleMoveFile" />
-                      </ul>
-                    </li>
-
-                    <!-- Root level file -->
-                    <li v-else>
-                      <div
-                        :class="['file-item flex items-center py-2 px-4 pl-8 cursor-grab text-[13px] transition', { 'file-active font-medium': workspaceStore.currentFile?.id === node.file?.id }]"
-                        draggable="true"
-                        @click="node.file && selectFile(node.file)"
-                        @dragstart="handleFileDragStart($event, node.file!, notebook.id)">
-                        <span class="mr-2 text-sm">{{ getFileIcon(node.file) }}</span>
-                        <span class="overflow-hidden text-ellipsis whitespace-nowrap">{{ node.file?.title || node.name
-                          }}</span>
-                      </div>
-                    </li>
-                  </template>
-                </template>
-                <li v-else class="py-2 px-4 pl-8 text-xs italic" style="color: var(--pen-gray); opacity: 0.6">
-                  {{ dragOverNotebook === notebook.id ? 'Drop files here to upload' : 'No files yet' }}
-                </li>
-              </ul>
-            </li>
-          </ul>
+          <div class="flex items-center gap-1">
+            <button @click="goToSettings" class="sidebar-icon-button" title="Settings">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path
+                  d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
+                </path>
+              </svg>
+            </button>
+            <button @click="handleLogout" class="sidebar-icon-button" title="Logout">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                <polyline points="16 17 21 12 16 7"></polyline>
+                <line x1="21" y1="12" x2="9" y2="12"></line>
+              </svg>
+            </button>
+          </div>
         </div>
-      </aside>
+      </div>
+    </aside>
 
-      <!-- Center: Content Pane (flex: 1) -->
-      <main class="flex-1 flex flex-col overflow-hidden">
-        <!-- Loading State -->
-        <div v-if="workspaceStore.fileLoading" class="flex flex-col items-center justify-center h-full text-text-tertiary">
-          <span>Loading...</span>
-        </div>
+    <!-- Center: Content Pane (flex: 1) -->
+    <main class="flex-1 flex flex-col overflow-hidden">
+      <!-- Loading State -->
+      <div v-if="workspaceStore.fileLoading"
+        class="flex flex-col items-center justify-center h-full text-text-tertiary">
+        <span>Loading...</span>
+      </div>
 
-        <!-- Error State -->
-        <div v-else-if="workspaceStore.error" class="flex flex-col items-center justify-center h-full text-error">
-          <p>{{ workspaceStore.error }}</p>
-          <button @click="workspaceStore.error = null"
-            class="mt-4 px-4 py-2 bg-error text-text-inverse border-none rounded cursor-pointer font-medium">Dismiss</button>
-        </div>
+      <!-- Error State -->
+      <div v-else-if="workspaceStore.error" class="flex flex-col items-center justify-center h-full text-error">
+        <p>{{ workspaceStore.error }}</p>
+        <button @click="workspaceStore.error = null"
+          class="mt-4 px-4 py-2 bg-error text-text-inverse border-none rounded cursor-pointer font-medium">Dismiss</button>
+      </div>
 
-        <!-- Editor Mode -->
-        <div v-else-if="workspaceStore.isEditing && workspaceStore.currentFile" class="flex-1 flex overflow-hidden p-4">
-          <MarkdownEditor v-model="editContent" :frontmatter="workspaceStore.currentFile.properties" :autosave="false"
-            @save="handleSaveFile" @cancel="handleCancelEdit" class="flex-1" />
-        </div>
+      <!-- Editor Mode -->
+      <div v-else-if="workspaceStore.isEditing && workspaceStore.currentFile" class="flex-1 flex overflow-hidden p-4">
+        <MarkdownEditor v-model="editContent" :frontmatter="workspaceStore.currentFile.properties" :autosave="false"
+          @save="handleSaveFile" @cancel="handleCancelEdit" class="flex-1" />
+      </div>
 
-        <!-- Viewer Mode -->
-        <div v-else-if="workspaceStore.currentFile" class="flex-1 flex overflow-hidden p-4">
-          <!-- Dynamic View Renderer for .cdx files -->
-          <ViewRenderer v-if="workspaceStore.currentFile.file_type === 'view'" :file-id="workspaceStore.currentFile.id"
-            :workspace-id="workspaceStore.currentWorkspace!.id" :notebook-id="workspaceStore.currentFile.notebook_id" class="flex-1" />
+      <!-- Viewer Mode -->
+      <div v-else-if="workspaceStore.currentFile" class="flex-1 flex overflow-hidden p-4">
+        <!-- Dynamic View Renderer for .cdx files -->
+        <ViewRenderer v-if="workspaceStore.currentFile.file_type === 'view'" :file-id="workspaceStore.currentFile.id"
+          :workspace-id="workspaceStore.currentWorkspace!.id" :notebook-id="workspaceStore.currentFile.notebook_id"
+          class="flex-1" />
 
-          <!-- Image Viewer for image files -->
-          <div v-else-if="workspaceStore.currentFile.file_type === 'image'" class="flex-1 flex flex-col overflow-hidden">
-            <div class="flex justify-between items-center mb-4">
-              <h2 class="text-xl font-semibold m-0">{{ workspaceStore.currentFile.title || workspaceStore.currentFile.filename }}</h2>
-              <div class="flex gap-2">
-                <button @click="openInNewTab"
-                  class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
-                  title="Open in new tab">
-                  Open
-                </button>
-                <button @click="toggleProperties"
-                  class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
-                  Properties
-                </button>
-              </div>
-            </div>
-            <div class="flex-1 flex items-center justify-center overflow-auto bg-bg-secondary rounded-lg">
-              <img
-                :src="currentContentUrl"
-                :alt="workspaceStore.currentFile.title || workspaceStore.currentFile.filename"
-                class="max-w-full max-h-full object-contain"
-              />
-            </div>
-          </div>
-
-          <!-- PDF Viewer -->
-          <div v-else-if="workspaceStore.currentFile.file_type === 'pdf'" class="flex-1 flex flex-col overflow-hidden">
-            <div class="flex justify-between items-center mb-4">
-              <h2 class="text-xl font-semibold m-0">{{ workspaceStore.currentFile.title || workspaceStore.currentFile.filename }}</h2>
-              <div class="flex gap-2">
-                <button @click="openInNewTab"
-                  class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
-                  title="Open in new tab">
-                  Open
-                </button>
-                <button @click="toggleProperties"
-                  class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
-                  Properties
-                </button>
-              </div>
-            </div>
-            <div class="flex-1 overflow-hidden bg-bg-secondary rounded-lg">
-              <iframe
-                :src="currentContentUrl"
-                class="w-full h-full border-0"
-                :title="workspaceStore.currentFile.title || workspaceStore.currentFile.filename"
-              />
-            </div>
-          </div>
-
-          <!-- Audio Player -->
-          <div v-else-if="workspaceStore.currentFile.file_type === 'audio'" class="flex-1 flex flex-col overflow-hidden">
-            <div class="flex justify-between items-center mb-4">
-              <h2 class="text-xl font-semibold m-0">{{ workspaceStore.currentFile.title || workspaceStore.currentFile.filename }}</h2>
-              <div class="flex gap-2">
-                <button @click="openInNewTab"
-                  class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
-                  title="Open in new tab">
-                  Open
-                </button>
-                <button @click="toggleProperties"
-                  class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
-                  Properties
-                </button>
-              </div>
-            </div>
-            <div class="flex-1 flex items-center justify-center bg-bg-secondary rounded-lg">
-              <div class="text-center">
-                <div class="text-6xl mb-4">🎵</div>
-                <audio
-                  :src="currentContentUrl"
-                  controls
-                  class="w-full max-w-md"
-                >
-                  Your browser does not support the audio element.
-                </audio>
-              </div>
-            </div>
-          </div>
-
-          <!-- Video Player -->
-          <div v-else-if="workspaceStore.currentFile.file_type === 'video'" class="flex-1 flex flex-col overflow-hidden">
-            <div class="flex justify-between items-center mb-4">
-              <h2 class="text-xl font-semibold m-0">{{ workspaceStore.currentFile.title || workspaceStore.currentFile.filename }}</h2>
-              <div class="flex gap-2">
-                <button @click="openInNewTab"
-                  class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
-                  title="Open in new tab">
-                  Open
-                </button>
-                <button @click="toggleProperties"
-                  class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
-                  Properties
-                </button>
-              </div>
-            </div>
-            <div class="flex-1 flex items-center justify-center overflow-auto bg-bg-secondary rounded-lg">
-              <video
-                :src="currentContentUrl"
-                controls
-                class="max-w-full max-h-full"
-              >
-                Your browser does not support the video element.
-              </video>
-            </div>
-          </div>
-
-          <!-- HTML Viewer -->
-          <div v-else-if="workspaceStore.currentFile.file_type === 'html'" class="flex-1 flex flex-col overflow-hidden">
-            <div class="flex justify-between items-center mb-4">
-              <h2 class="text-xl font-semibold m-0">{{ workspaceStore.currentFile.title || workspaceStore.currentFile.filename }}</h2>
-              <div class="flex gap-2">
-                <button @click="openInNewTab"
-                  class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
-                  title="Open in new tab">
-                  Open
-                </button>
-                <button @click="toggleProperties"
-                  class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
-                  Properties
-                </button>
-              </div>
-            </div>
-            <div class="flex-1 overflow-hidden bg-bg-secondary rounded-lg">
-              <iframe
-                :src="currentContentUrl"
-                class="w-full h-full border-0"
-                :title="workspaceStore.currentFile.title || workspaceStore.currentFile.filename"
-                sandbox="allow-scripts allow-same-origin"
-              />
-            </div>
-          </div>
-
-          <!-- Code Viewer for source code files -->
-          <CodeViewer v-else-if="workspaceStore.currentFile.file_type === 'code'"
-            :content="workspaceStore.currentFile.content"
-            :filename="workspaceStore.currentFile.filename"
-            :show-line-numbers="true"
-            class="flex-1">
-            <template #toolbar-actions>
-              <button @click="startEdit"
-                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
-                Edit
+        <!-- Image Viewer for image files -->
+        <div v-else-if="workspaceStore.currentFile.file_type === 'image'" class="flex-1 flex flex-col overflow-hidden">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-semibold m-0">{{ workspaceStore.currentFile.title ||
+              workspaceStore.currentFile.filename
+              }}</h2>
+            <div class="flex gap-2">
+              <button @click="openInNewTab"
+                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
+                title="Open in new tab">
+                Open
               </button>
               <button @click="toggleProperties"
                 class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
                 Properties
               </button>
-            </template>
-          </CodeViewer>
-
-          <!-- Binary file placeholder -->
-          <div v-else-if="workspaceStore.currentFile.file_type === 'binary'" class="flex-1 flex flex-col overflow-hidden">
-            <div class="flex justify-between items-center mb-4">
-              <h2 class="text-xl font-semibold m-0">{{ workspaceStore.currentFile.title || workspaceStore.currentFile.filename }}</h2>
-              <div class="flex gap-2">
-                <a :href="currentContentUrl" download
-                  class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition no-underline">
-                  Download
-                </a>
-                <button @click="toggleProperties"
-                  class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
-                  Properties
-                </button>
-              </div>
-            </div>
-            <div class="flex-1 flex items-center justify-center bg-bg-secondary rounded-lg">
-              <div class="text-center text-text-tertiary">
-                <div class="text-6xl mb-4">📦</div>
-                <p>This is a binary file.</p>
-                <p class="text-sm">Click "Download" to save it to your device.</p>
-              </div>
             </div>
           </div>
+          <div class="flex-1 flex items-center justify-center overflow-auto bg-bg-secondary rounded-lg">
+            <img :src="currentContentUrl" :alt="workspaceStore.currentFile.title || workspaceStore.currentFile.filename"
+              class="max-w-full max-h-full object-contain" />
+          </div>
+        </div>
 
-          <!-- Markdown Viewer for text-based files -->
-          <MarkdownViewer v-else :content="workspaceStore.currentFile.content"
-            :frontmatter="workspaceStore.currentFile.properties"
-            :workspace-id="workspaceStore.currentWorkspace?.id"
-            :notebook-id="workspaceStore.currentNotebook?.id"
-            :current-file-path="workspaceStore.currentFile.path"
-            :show-frontmatter="false" @edit="startEdit"
-            @copy="handleCopy" class="flex-1">
-            <template #toolbar-actions>
+        <!-- PDF Viewer -->
+        <div v-else-if="workspaceStore.currentFile.file_type === 'pdf'" class="flex-1 flex flex-col overflow-hidden">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-semibold m-0">{{ workspaceStore.currentFile.title ||
+              workspaceStore.currentFile.filename
+              }}</h2>
+            <div class="flex gap-2">
+              <button @click="openInNewTab"
+                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
+                title="Open in new tab">
+                Open
+              </button>
               <button @click="toggleProperties"
                 class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
                 Properties
               </button>
-            </template>
-          </MarkdownViewer>
-        </div>
-
-        <!-- Folder View Mode -->
-        <div v-else-if="workspaceStore.currentFolder" class="flex-1 flex overflow-hidden p-4">
-          <FolderView
-            :folder="workspaceStore.currentFolder"
-            class="flex-1"
-            @select-file="selectFile"
-            @toggle-properties="toggleProperties"
-          />
-        </div>
-
-        <!-- Welcome State -->
-        <div v-else class="flex flex-col items-center justify-center h-full text-center" style="color: var(--pen-gray)">
-          <h2 class="mb-2" style="color: var(--notebook-text)">Welcome to Codex</h2>
-          <p v-if="!workspaceStore.currentWorkspace">Select a workspace to get started</p>
-          <p v-else-if="workspaceStore.notebooks.length === 0">Create a notebook to start adding files</p>
-          <p v-else>Select a notebook and file to view its content</p>
-        </div>
-      </main>
-
-      <!-- Right: Properties Panel (300px, collapsible) -->
-      <FilePropertiesPanel v-if="showPropertiesPanel && workspaceStore.currentFile" :file="workspaceStore.currentFile"
-        class="w-[300px] min-w-[300px]" @close="showPropertiesPanel = false" @update-properties="handleUpdateProperties"
-        @delete="handleDeleteFile" />
-
-      <!-- Folder Properties Panel -->
-      <FolderPropertiesPanel v-if="showPropertiesPanel && workspaceStore.currentFolder && !workspaceStore.currentFile"
-        :folder="workspaceStore.currentFolder"
-        class="w-[300px] min-w-[300px]"
-        @close="showPropertiesPanel = false"
-        @update-properties="handleUpdateFolderProperties"
-        @delete="handleDeleteFolder" />
-    </div>
-
-    <!-- Create Workspace Modal -->
-    <Modal v-model="showCreateWorkspace" title="Create Workspace" confirm-text="Create" hide-actions>
-      <form @submit.prevent="handleCreateWorkspace">
-        <FormGroup label="Name" v-slot="{ inputId }">
-          <input :id="inputId" v-model="newWorkspaceName" required />
-        </FormGroup>
-        <div class="flex gap-2 justify-end mt-6">
-          <button type="button" @click="showCreateWorkspace = false"
-            class="notebook-button-secondary px-4 py-2 border-none rounded cursor-pointer">Cancel</button>
-          <button type="submit"
-            class="notebook-button px-4 py-2 text-white border-none rounded cursor-pointer transition">Create</button>
-        </div>
-      </form>
-    </Modal>
-
-    <!-- Create Notebook Modal -->
-    <Modal v-model="showCreateNotebook" title="Create Notebook" confirm-text="Create" hide-actions>
-      <form @submit.prevent="handleCreateNotebook">
-        <FormGroup label="Name" v-slot="{ inputId }">
-          <input :id="inputId" v-model="newNotebookName" required />
-        </FormGroup>
-        <div class="flex gap-2 justify-end mt-6">
-          <button type="button" @click="showCreateNotebook = false"
-            class="notebook-button-secondary px-4 py-2 border-none rounded cursor-pointer">Cancel</button>
-          <button type="submit"
-            class="notebook-button px-4 py-2 text-white border-none rounded cursor-pointer transition">Create</button>
-        </div>
-      </form>
-    </Modal>
-
-    <!-- Create File Modal -->
-    <Modal v-model="showCreateFile" title="Create File" confirm-text="Create" hide-actions>
-      <form @submit.prevent="handleCreateFile">
-        <!-- Template Selection -->
-        <div v-if="createFileNotebook && workspaceStore.currentWorkspace" class="mb-4">
-          <TemplateSelector
-            :notebook-id="createFileNotebook.id"
-            :workspace-id="workspaceStore.currentWorkspace.id"
-            v-model="selectedTemplate"
-            @select="handleTemplateSelect"
-          />
-        </div>
-
-        <!-- Filename input -->
-        <div class="border-t border-border-light pt-4 mt-4">
-          <FormGroup v-if="selectedTemplate" label="Filename" v-slot="{ inputId }">
-            <div class="flex items-center gap-2">
-              <input
-                :id="inputId"
-                v-model="customTitle"
-                :placeholder="getFilenamePlaceholder()"
-                class="flex-1 px-3 py-2 border border-border-medium rounded-md bg-bg-primary text-text-primary"
-              />
-              <span class="text-text-secondary text-sm">{{ selectedTemplate.file_extension }}</span>
             </div>
-            <p class="text-sm text-text-secondary mt-1">
-              Will create: <code class="bg-bg-hover px-1 rounded">{{ getPreviewFilename() }}</code>
-            </p>
-          </FormGroup>
-
-          <FormGroup v-else label="Filename" v-slot="{ inputId }">
-            <input :id="inputId" v-model="newFileName" placeholder="example.md" required class="w-full px-3 py-2 border border-border-medium rounded-md bg-bg-primary text-text-primary" />
-            <p class="text-sm text-text-secondary mt-1">Enter any filename with extension (e.g., notes.md, data.json, script.py)</p>
-          </FormGroup>
+          </div>
+          <div class="flex-1 overflow-hidden bg-bg-secondary rounded-lg">
+            <iframe :src="currentContentUrl" class="w-full h-full border-0"
+              :title="workspaceStore.currentFile.title || workspaceStore.currentFile.filename" />
+          </div>
         </div>
 
-        <div class="flex gap-2 justify-end mt-6">
-          <button type="button" @click="showCreateFile = false"
-            class="notebook-button-secondary px-4 py-2 border-none rounded cursor-pointer">Cancel</button>
-          <button v-if="!selectedTemplate && newFileName.endsWith('.cdx')" type="button" @click="switchToViewCreator"
-            class="notebook-button px-4 py-2 text-white border-none rounded cursor-pointer transition">Configure View →</button>
-          <button v-else type="submit"
-            class="notebook-button px-4 py-2 text-white border-none rounded cursor-pointer transition">Create</button>
+        <!-- Audio Player -->
+        <div v-else-if="workspaceStore.currentFile.file_type === 'audio'" class="flex-1 flex flex-col overflow-hidden">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-semibold m-0">{{ workspaceStore.currentFile.title ||
+              workspaceStore.currentFile.filename
+              }}</h2>
+            <div class="flex gap-2">
+              <button @click="openInNewTab"
+                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
+                title="Open in new tab">
+                Open
+              </button>
+              <button @click="toggleProperties"
+                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
+                Properties
+              </button>
+            </div>
+          </div>
+          <div class="flex-1 flex items-center justify-center bg-bg-secondary rounded-lg">
+            <div class="text-center">
+              <div class="text-6xl mb-4">🎵</div>
+              <audio :src="currentContentUrl" controls class="w-full max-w-md">
+                Your browser does not support the audio element.
+              </audio>
+            </div>
+          </div>
         </div>
-      </form>
-    </Modal>
 
-    <!-- Create View Modal -->
-    <CreateViewModal v-model="showCreateView" @create="handleCreateView" />
+        <!-- Video Player -->
+        <div v-else-if="workspaceStore.currentFile.file_type === 'video'" class="flex-1 flex flex-col overflow-hidden">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-semibold m-0">{{ workspaceStore.currentFile.title ||
+              workspaceStore.currentFile.filename
+              }}</h2>
+            <div class="flex gap-2">
+              <button @click="openInNewTab"
+                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
+                title="Open in new tab">
+                Open
+              </button>
+              <button @click="toggleProperties"
+                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
+                Properties
+              </button>
+            </div>
+          </div>
+          <div class="flex-1 flex items-center justify-center overflow-auto bg-bg-secondary rounded-lg">
+            <video :src="currentContentUrl" controls class="max-w-full max-h-full">
+              Your browser does not support the video element.
+            </video>
+          </div>
+        </div>
+
+        <!-- HTML Viewer -->
+        <div v-else-if="workspaceStore.currentFile.file_type === 'html'" class="flex-1 flex flex-col overflow-hidden">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-semibold m-0">{{ workspaceStore.currentFile.title ||
+              workspaceStore.currentFile.filename
+              }}</h2>
+            <div class="flex gap-2">
+              <button @click="openInNewTab"
+                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
+                title="Open in new tab">
+                Open
+              </button>
+              <button @click="toggleProperties"
+                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
+                Properties
+              </button>
+            </div>
+          </div>
+          <div class="flex-1 overflow-hidden bg-bg-secondary rounded-lg">
+            <iframe :src="currentContentUrl" class="w-full h-full border-0"
+              :title="workspaceStore.currentFile.title || workspaceStore.currentFile.filename"
+              sandbox="allow-scripts allow-same-origin" />
+          </div>
+        </div>
+
+        <!-- Code Viewer for source code files -->
+        <CodeViewer v-else-if="workspaceStore.currentFile.file_type === 'code'"
+          :content="workspaceStore.currentFile.content" :filename="workspaceStore.currentFile.filename"
+          :show-line-numbers="true" class="flex-1">
+          <template #toolbar-actions>
+            <button @click="startEdit"
+              class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
+              Edit
+            </button>
+            <button @click="toggleProperties"
+              class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
+              Properties
+            </button>
+          </template>
+        </CodeViewer>
+
+        <!-- Binary file placeholder -->
+        <div v-else-if="workspaceStore.currentFile.file_type === 'binary'" class="flex-1 flex flex-col overflow-hidden">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-semibold m-0">{{ workspaceStore.currentFile.title ||
+              workspaceStore.currentFile.filename
+              }}</h2>
+            <div class="flex gap-2">
+              <a :href="currentContentUrl" download
+                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition no-underline">
+                Download
+              </a>
+              <button @click="toggleProperties"
+                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
+                Properties
+              </button>
+            </div>
+          </div>
+          <div class="flex-1 flex items-center justify-center bg-bg-secondary rounded-lg">
+            <div class="text-center text-text-tertiary">
+              <div class="text-6xl mb-4">📦</div>
+              <p>This is a binary file.</p>
+              <p class="text-sm">Click "Download" to save it to your device.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Markdown Viewer for text-based files -->
+        <MarkdownViewer v-else :content="workspaceStore.currentFile.content"
+          :frontmatter="workspaceStore.currentFile.properties" :workspace-id="workspaceStore.currentWorkspace?.id"
+          :notebook-id="workspaceStore.currentNotebook?.id" :current-file-path="workspaceStore.currentFile.path"
+          :show-frontmatter="false" @edit="startEdit" @copy="handleCopy" class="flex-1">
+          <template #toolbar-actions>
+            <button @click="toggleProperties"
+              class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
+              Properties
+            </button>
+          </template>
+        </MarkdownViewer>
+      </div>
+
+      <!-- Folder View Mode -->
+      <div v-else-if="workspaceStore.currentFolder" class="flex-1 flex overflow-hidden p-4">
+        <FolderView :folder="workspaceStore.currentFolder" class="flex-1" @select-file="selectFile"
+          @toggle-properties="toggleProperties" />
+      </div>
+
+      <!-- Welcome State -->
+      <div v-else class="flex flex-col items-center justify-center h-full text-center" style="color: var(--pen-gray)">
+        <h2 class="mb-2" style="color: var(--notebook-text)">Welcome to Codex</h2>
+        <p v-if="!workspaceStore.currentWorkspace">Select a workspace to get started</p>
+        <p v-else-if="workspaceStore.notebooks.length === 0">Create a notebook to start adding files</p>
+        <p v-else>Select a notebook and file to view its content</p>
+      </div>
+    </main>
+
+    <!-- Right: Properties Panel (300px, collapsible) -->
+    <FilePropertiesPanel v-if="showPropertiesPanel && workspaceStore.currentFile && workspaceStore.currentWorkspace"
+      :file="workspaceStore.currentFile" :workspace-id="workspaceStore.currentWorkspace.id"
+      :notebook-id="workspaceStore.currentFile.notebook_id" class="w-[300px] min-w-[300px]"
+      @close="showPropertiesPanel = false" @update-properties="handleUpdateProperties" @delete="handleDeleteFile"
+      @restore="handleRestoreVersion" />
+
+    <!-- Folder Properties Panel -->
+    <FolderPropertiesPanel v-if="showPropertiesPanel && workspaceStore.currentFolder && !workspaceStore.currentFile"
+      :folder="workspaceStore.currentFolder" class="w-[300px] min-w-[300px]" @close="showPropertiesPanel = false"
+      @update-properties="handleUpdateFolderProperties" @delete="handleDeleteFolder" />
+  </div>
+
+  <!-- Create Workspace Modal -->
+  <Modal v-model="showCreateWorkspace" title="Create Workspace" confirm-text="Create" hide-actions>
+    <form @submit.prevent="handleCreateWorkspace">
+      <FormGroup label="Name" v-slot="{ inputId }">
+        <input :id="inputId" v-model="newWorkspaceName" required />
+      </FormGroup>
+      <div class="flex gap-2 justify-end mt-6">
+        <button type="button" @click="showCreateWorkspace = false"
+          class="notebook-button-secondary px-4 py-2 border-none rounded cursor-pointer">Cancel</button>
+        <button type="submit"
+          class="notebook-button px-4 py-2 text-white border-none rounded cursor-pointer transition">Create</button>
+      </div>
+    </form>
+  </Modal>
+
+  <!-- Create Notebook Modal -->
+  <Modal v-model="showCreateNotebook" title="Create Notebook" confirm-text="Create" hide-actions>
+    <form @submit.prevent="handleCreateNotebook">
+      <FormGroup label="Name" v-slot="{ inputId }">
+        <input :id="inputId" v-model="newNotebookName" required />
+      </FormGroup>
+      <div class="flex gap-2 justify-end mt-6">
+        <button type="button" @click="showCreateNotebook = false"
+          class="notebook-button-secondary px-4 py-2 border-none rounded cursor-pointer">Cancel</button>
+        <button type="submit"
+          class="notebook-button px-4 py-2 text-white border-none rounded cursor-pointer transition">Create</button>
+      </div>
+    </form>
+  </Modal>
+
+  <!-- Create File Modal -->
+  <Modal v-model="showCreateFile" title="Create File" confirm-text="Create" hide-actions>
+    <form @submit.prevent="handleCreateFile">
+      <!-- Template Selection -->
+      <div v-if="createFileNotebook && workspaceStore.currentWorkspace" class="mb-4">
+        <TemplateSelector :notebook-id="createFileNotebook.id" :workspace-id="workspaceStore.currentWorkspace.id"
+          v-model="selectedTemplate" @select="handleTemplateSelect" />
+      </div>
+
+      <!-- Filename input -->
+      <div class="border-t border-border-light pt-4 mt-4">
+        <FormGroup v-if="selectedTemplate" label="Filename" v-slot="{ inputId }">
+          <div class="flex items-center gap-2">
+            <input :id="inputId" v-model="customTitle" :placeholder="getFilenamePlaceholder()"
+              class="flex-1 px-3 py-2 border border-border-medium rounded-md bg-bg-primary text-text-primary" />
+            <span class="text-text-secondary text-sm">{{ selectedTemplate.file_extension }}</span>
+          </div>
+          <p class="text-sm text-text-secondary mt-1">
+            Will create: <code class="bg-bg-hover px-1 rounded">{{ getPreviewFilename() }}</code>
+          </p>
+        </FormGroup>
+
+        <FormGroup v-else label="Filename" v-slot="{ inputId }">
+          <input :id="inputId" v-model="newFileName" placeholder="example.md" required
+            class="w-full px-3 py-2 border border-border-medium rounded-md bg-bg-primary text-text-primary" />
+          <p class="text-sm text-text-secondary mt-1">Enter any filename with extension (e.g., notes.md, data.json,
+            script.py)</p>
+        </FormGroup>
+      </div>
+
+      <div class="flex gap-2 justify-end mt-6">
+        <button type="button" @click="showCreateFile = false"
+          class="notebook-button-secondary px-4 py-2 border-none rounded cursor-pointer">Cancel</button>
+        <button v-if="!selectedTemplate && newFileName.endsWith('.cdx')" type="button" @click="switchToViewCreator"
+          class="notebook-button px-4 py-2 text-white border-none rounded cursor-pointer transition">Configure View
+          →</button>
+        <button v-else type="submit"
+          class="notebook-button px-4 py-2 text-white border-none rounded cursor-pointer transition">Create</button>
+      </div>
+    </form>
+  </Modal>
+
+  <!-- Create View Modal -->
+  <CreateViewModal v-model="showCreateView" @create="handleCreateView" />
   </div>
 </template>
 
@@ -823,6 +816,18 @@ async function handleUpdateProperties(properties: Record<string, any>) {
   }
 }
 
+async function handleRestoreVersion(content: string) {
+  if (workspaceStore.currentFile) {
+    try {
+      await workspaceStore.saveFile(content)
+      editContent.value = content
+      showToast({ message: 'File restored to previous version' })
+    } catch {
+      showToast({ message: 'Failed to restore file', type: 'error' })
+    }
+  }
+}
+
 async function handleDeleteFile() {
   if (workspaceStore.currentFile) {
     try {
@@ -1083,33 +1088,26 @@ function getPreviewFilename(): string {
   color: var(--notebook-accent);
 }
 
-/* Main navbar - uses text-inverse to ensure readability on primary background */
-.main-navbar {
-  background-color: var(--color-primary);
-  color: var(--color-text-inverse);
-  padding: 1rem 2rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+/* User section at bottom of sidebar */
+.user-section {
+  background: color-mix(in srgb, var(--notebook-bg) 90%, var(--notebook-text) 10%);
 }
 
-.main-navbar h1,
-.main-navbar span,
-.main-navbar button {
-  color: var(--color-text-inverse);
-}
-
-.navbar-button {
-  background-color: rgba(255, 255, 255, 0.2);
-  color: var(--color-text-inverse);
+.sidebar-icon-button {
+  background: transparent;
   border: none;
-  padding: 0.5rem 1rem;
+  padding: 0.375rem;
   border-radius: 0.25rem;
   cursor: pointer;
-  transition: background-color 0.2s;
+  color: var(--pen-gray);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s, color 0.2s;
 }
 
-.navbar-button:hover {
-  background-color: rgba(255, 255, 255, 0.3);
+.sidebar-icon-button:hover {
+  background: color-mix(in srgb, var(--notebook-text) 10%, transparent);
+  color: var(--notebook-text);
 }
 </style>

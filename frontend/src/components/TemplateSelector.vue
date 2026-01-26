@@ -128,69 +128,61 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from "vue";
-import {
-  templateService,
-  type Template,
-} from "../services/codex";
+import { ref, computed, onMounted, watch } from "vue"
+import { templateService, type Template } from "../services/codex"
 
 const props = defineProps<{
-  notebookId: number;
-  workspaceId: number;
-  modelValue?: Template | null;
-}>();
+  notebookId: number
+  workspaceId: number
+  modelValue?: Template | null
+}>()
 
 const emit = defineEmits<{
-  (e: "update:modelValue", value: Template | null): void;
-  (e: "select", template: Template | null): void;
-}>();
+  (e: "update:modelValue", value: Template | null): void
+  (e: "select", template: Template | null): void
+}>()
 
-const templates = ref<Template[]>([]);
-const loading = ref(false);
-const error = ref<string | null>(null);
-const selectedTemplate = ref<Template | null>(props.modelValue || null);
-const filterExtension = ref<string | null>(null);
+const templates = ref<Template[]>([])
+const loading = ref(false)
+const error = ref<string | null>(null)
+const selectedTemplate = ref<Template | null>(props.modelValue || null)
+const filterExtension = ref<string | null>(null)
 
 // Get unique file extensions from templates
 const availableExtensions = computed(() => {
-  const extensions = new Set<string>();
-  templates.value.forEach((t) => extensions.add(t.file_extension));
-  return Array.from(extensions).sort();
-});
+  const extensions = new Set<string>()
+  templates.value.forEach((t) => extensions.add(t.file_extension))
+  return Array.from(extensions).sort()
+})
 
 // Filter templates by extension
 const filteredTemplates = computed(() => {
   if (!filterExtension.value) {
-    return templates.value;
+    return templates.value
   }
-  return templates.value.filter(
-    (t) => t.file_extension === filterExtension.value
-  );
-});
+  return templates.value.filter((t) => t.file_extension === filterExtension.value)
+})
 
 // Expand the default filename pattern for preview
 function expandedFilename(template: Template): string {
-  return templateService.expandPattern(template.default_name, "untitled");
+  return templateService.expandPattern(template.default_name, "untitled")
 }
 
 function selectTemplate(template: Template | null) {
-  selectedTemplate.value = template;
-  emit("update:modelValue", template);
-  emit("select", template);
+  selectedTemplate.value = template
+  emit("update:modelValue", template)
+  emit("select", template)
 }
 
 async function fetchTemplates() {
-  loading.value = true;
-  error.value = null;
+  loading.value = true
+  error.value = null
   try {
-    templates.value = await templateService.list(
-      props.notebookId,
-      props.workspaceId
-    );
+    templates.value = await templateService.list(props.notebookId, props.workspaceId)
   } catch (e: any) {
-    error.value = e.response?.data?.detail || "Failed to load templates";
+    error.value = e.response?.data?.detail || "Failed to load templates"
   } finally {
-    loading.value = false;
+    loading.value = false
   }
 }
 
@@ -199,25 +191,25 @@ watch(
   () => [props.notebookId, props.workspaceId],
   () => {
     if (props.notebookId && props.workspaceId) {
-      fetchTemplates();
+      fetchTemplates()
     }
   },
   { immediate: true }
-);
+)
 
 // Sync external model value
 watch(
   () => props.modelValue,
   (newVal) => {
-    selectedTemplate.value = newVal || null;
+    selectedTemplate.value = newVal || null
   }
-);
+)
 
 onMounted(() => {
   if (props.notebookId && props.workspaceId) {
-    fetchTemplates();
+    fetchTemplates()
   }
-});
+})
 </script>
 
 <style scoped>

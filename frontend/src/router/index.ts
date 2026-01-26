@@ -1,9 +1,9 @@
-import { createRouter, createWebHistory } from "vue-router";
-import { useAuthStore } from "../stores/auth";
-import HomeView from "../views/HomeView.vue";
-import LoginView from "../views/LoginView.vue";
-import RegisterView from "../views/RegisterView.vue";
-import UserSettingsView from "../views/UserSettingsView.vue";
+import { createRouter, createWebHistory } from "vue-router"
+import { useAuthStore } from "../stores/auth"
+import HomeView from "../views/HomeView.vue"
+import LoginView from "../views/LoginView.vue"
+import RegisterView from "../views/RegisterView.vue"
+import UserSettingsView from "../views/UserSettingsView.vue"
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -36,21 +36,18 @@ const router = createRouter({
       component: RegisterView,
     },
   ],
-});
+})
 
 router.beforeEach(async (to, _from, next) => {
-  const authStore = useAuthStore();
+  const authStore = useAuthStore()
 
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    next("/login");
-  } else if (
-    (to.path === "/login" || to.path === "/register") &&
-    authStore.isAuthenticated
-  ) {
-    next("/");
+    next("/login")
+  } else if ((to.path === "/login" || to.path === "/register") && authStore.isAuthenticated) {
+    next("/")
   } else {
-    next();
+    next()
   }
-});
+})
 
-export default router;
+export default router

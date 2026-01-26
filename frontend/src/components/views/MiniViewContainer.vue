@@ -1,5 +1,7 @@
 <template>
-  <div class="mini-view-container bg-white rounded-lg border border-border-light shadow-sm overflow-hidden">
+  <div
+    class="mini-view-container bg-white rounded-lg border border-border-light shadow-sm overflow-hidden"
+  >
     <!-- Loading State -->
     <div v-if="loading" class="flex items-center justify-center h-48">
       <div class="text-text-tertiary text-sm">Loading...</div>
@@ -11,8 +13,13 @@
     </div>
 
     <!-- View Renderer -->
-    <ViewRenderer v-else-if="viewFileId && notebookId" :file-id="viewFileId" :workspace-id="workspaceId"
-      :notebook-id="notebookId" :compact="true" />
+    <ViewRenderer
+      v-else-if="viewFileId && notebookId"
+      :file-id="viewFileId"
+      :workspace-id="workspaceId"
+      :notebook-id="notebookId"
+      :compact="true"
+    />
 
     <!-- Not Found State -->
     <div v-else class="p-4 bg-yellow-50">
@@ -22,20 +29,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
-import ViewRenderer from './ViewRenderer.vue';
-import { fileService, notebookService } from '@/services/codex';
+import { ref, watch } from "vue"
+import ViewRenderer from "./ViewRenderer.vue"
+import { fileService, notebookService } from "@/services/codex"
 
 const props = defineProps<{
-  viewPath: string;
-  workspaceId: number;
-  span: number;
-}>();
+  viewPath: string
+  workspaceId: number
+  span: number
+}>()
 
-const viewFileId = ref<number | null>(null);
-const notebookId = ref<number | null>(null);
-const loading = ref(true);
-const error = ref<string | null>(null);
+const viewFileId = ref<number | null>(null)
+const notebookId = ref<number | null>(null)
+const loading = ref(true)
+const error = ref<string | null>(null)
 
 /**
  * Resolve view path to file ID
@@ -44,48 +51,48 @@ const error = ref<string | null>(null);
  * - Absolute path like "/notebook/tasks/today.cdx"
  */
 const resolveViewPath = async () => {
-  loading.value = true;
-  error.value = null;
+  loading.value = true
+  error.value = null
 
   try {
     // Get all notebooks in workspace
-    const notebooks = await notebookService.list(props.workspaceId);
+    const notebooks = await notebookService.list(props.workspaceId)
 
     // Search through notebooks for the file
     for (const notebook of notebooks) {
       try {
-        const files = await fileService.list(notebook.id, props.workspaceId);
+        const files = await fileService.list(notebook.id, props.workspaceId)
 
         // Look for file matching the path
         const matchingFile = files.find((file) => {
           // Check if the file path ends with the view path
           return (
             file.path === props.viewPath ||
-            file.path.endsWith('/' + props.viewPath) ||
+            file.path.endsWith("/" + props.viewPath) ||
             file.path.endsWith(props.viewPath)
-          );
-        });
+          )
+        })
 
         if (matchingFile) {
-          viewFileId.value = matchingFile.id;
-          notebookId.value = notebook.id;
-          return;
+          viewFileId.value = matchingFile.id
+          notebookId.value = notebook.id
+          return
         }
       } catch (err) {
-        console.warn(`Failed to search notebook ${notebook.id}:`, err);
+        console.warn(`Failed to search notebook ${notebook.id}:`, err)
       }
     }
 
-    error.value = `View file not found: ${props.viewPath}`;
+    error.value = `View file not found: ${props.viewPath}`
   } catch (err: any) {
-    error.value = `Failed to resolve view path: ${err.message}`;
+    error.value = `Failed to resolve view path: ${err.message}`
   } finally {
-    loading.value = false;
+    loading.value = false
   }
-};
+}
 
 // Resolve path when component mounts or viewPath changes
-watch(() => props.viewPath, resolveViewPath, { immediate: true });
+watch(() => props.viewPath, resolveViewPath, { immediate: true })
 </script>
 
 <style scoped>

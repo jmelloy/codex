@@ -3,8 +3,16 @@
     <!-- Folder Header -->
     <div class="folder-header">
       <div class="folder-icon">
-        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="48"
+          height="48"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+        >
+          <path
+            d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"
+          />
         </svg>
       </div>
       <div class="folder-info">
@@ -14,24 +22,40 @@
         </p>
         <div class="folder-meta">
           <span class="meta-item">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
-              <polyline points="13 2 13 9 20 9"/>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
+              <polyline points="13 2 13 9 20 9" />
             </svg>
             {{ folder.file_count }} items
           </span>
           <span class="meta-item">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"
+              />
             </svg>
             {{ folder.path }}
           </span>
         </div>
       </div>
       <div class="folder-actions">
-        <button @click="$emit('toggleProperties')" class="properties-btn">
-          Properties
-        </button>
+        <button @click="$emit('toggleProperties')" class="properties-btn">Properties</button>
       </div>
     </div>
 
@@ -43,11 +67,19 @@
           :class="['view-mode-btn', { active: viewMode === 'grid' }]"
           title="Grid view"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="3" y="3" width="7" height="7"/>
-            <rect x="14" y="3" width="7" height="7"/>
-            <rect x="14" y="14" width="7" height="7"/>
-            <rect x="3" y="14" width="7" height="7"/>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <rect x="3" y="3" width="7" height="7" />
+            <rect x="14" y="3" width="7" height="7" />
+            <rect x="14" y="14" width="7" height="7" />
+            <rect x="3" y="14" width="7" height="7" />
           </svg>
         </button>
         <button
@@ -55,13 +87,21 @@
           :class="['view-mode-btn', { active: viewMode === 'list' }]"
           title="List view"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="8" y1="6" x2="21" y2="6"/>
-            <line x1="8" y1="12" x2="21" y2="12"/>
-            <line x1="8" y1="18" x2="21" y2="18"/>
-            <line x1="3" y1="6" x2="3.01" y2="6"/>
-            <line x1="3" y1="12" x2="3.01" y2="12"/>
-            <line x1="3" y1="18" x2="3.01" y2="18"/>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <line x1="8" y1="6" x2="21" y2="6" />
+            <line x1="8" y1="12" x2="21" y2="12" />
+            <line x1="8" y1="18" x2="21" y2="18" />
+            <line x1="3" y1="6" x2="3.01" y2="6" />
+            <line x1="3" y1="12" x2="3.01" y2="12" />
+            <line x1="3" y1="18" x2="3.01" y2="18" />
           </svg>
         </button>
         <button
@@ -69,10 +109,18 @@
           :class="['view-mode-btn', { active: viewMode === 'compact' }]"
           title="Compact view"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="3" y1="12" x2="21" y2="12"/>
-            <line x1="3" y1="6" x2="21" y2="6"/>
-            <line x1="3" y1="18" x2="21" y2="18"/>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="3" y1="6" x2="21" y2="6" />
+            <line x1="3" y1="18" x2="21" y2="18" />
           </svg>
         </button>
       </div>
@@ -83,12 +131,34 @@
           <option value="type">Type</option>
           <option value="size">Size</option>
         </select>
-        <button @click="sortAsc = !sortAsc" class="sort-direction-btn" :title="sortAsc ? 'Ascending' : 'Descending'">
-          <svg v-if="sortAsc" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="18 15 12 9 6 15"/>
+        <button
+          @click="sortAsc = !sortAsc"
+          class="sort-direction-btn"
+          :title="sortAsc ? 'Ascending' : 'Descending'"
+        >
+          <svg
+            v-if="sortAsc"
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polyline points="18 15 12 9 6 15" />
           </svg>
-          <svg v-else xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="6 9 12 15 18 9"/>
+          <svg
+            v-else
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polyline points="6 9 12 15 18 9" />
           </svg>
         </button>
       </div>
@@ -108,7 +178,9 @@
             <component :is="getFileIcon(file.file_type)" />
           </div>
           <div class="file-card-info">
-            <span class="file-card-name">{{ file.properties?.title || file.title || file.filename }}</span>
+            <span class="file-card-name">{{
+              file.properties?.title || file.title || file.filename
+            }}</span>
             <span class="file-card-meta">{{ formatSize(file.size) }}</span>
           </div>
         </div>
@@ -125,7 +197,9 @@
           <div class="file-row-icon">
             <component :is="getFileIcon(file.file_type)" />
           </div>
-          <div class="file-row-name">{{ file.properties?.title || file.title || file.filename }}</div>
+          <div class="file-row-name">
+            {{ file.properties?.title || file.title || file.filename }}
+          </div>
           <div class="file-row-type">{{ file.file_type }}</div>
           <div class="file-row-size">{{ formatSize(file.size) }}</div>
           <div class="file-row-date">{{ formatDate(file.updated_at) }}</div>
@@ -141,15 +215,25 @@
           @click="$emit('selectFile', file)"
         >
           <component :is="getFileIcon(file.file_type)" class="file-compact-icon" />
-          <span class="file-compact-name">{{ file.properties?.title || file.title || file.filename }}</span>
+          <span class="file-compact-name">{{
+            file.properties?.title || file.title || file.filename
+          }}</span>
         </div>
       </template>
     </div>
 
     <!-- Empty State -->
     <div v-else class="empty-state">
-      <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="64"
+        height="64"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1"
+      >
+        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
       </svg>
       <p>This folder is empty</p>
     </div>
@@ -157,8 +241,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, h } from 'vue'
-import type { FolderWithFiles, FileMetadata } from '../services/codex'
+import { ref, computed, h } from "vue"
+import type { FolderWithFiles, FileMetadata } from "../services/codex"
 
 interface Props {
   folder: FolderWithFiles
@@ -171,8 +255,8 @@ defineEmits<{
   toggleProperties: []
 }>()
 
-const viewMode = ref<'grid' | 'list' | 'compact'>('grid')
-const sortBy = ref<'name' | 'date' | 'type' | 'size'>('name')
+const viewMode = ref<"grid" | "list" | "compact">("grid")
+const sortBy = ref<"name" | "date" | "type" | "size">("name")
 const sortAsc = ref(true)
 
 const displayTitle = computed(() => {
@@ -186,18 +270,18 @@ const sortedFiles = computed(() => {
     let comparison = 0
 
     switch (sortBy.value) {
-      case 'name':
+      case "name":
         const nameA = a.properties?.title || a.title || a.filename
         const nameB = b.properties?.title || b.title || b.filename
         comparison = nameA.localeCompare(nameB)
         break
-      case 'date':
+      case "date":
         comparison = new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime()
         break
-      case 'type':
+      case "type":
         comparison = a.file_type.localeCompare(b.file_type)
         break
-      case 'size':
+      case "size":
         comparison = a.size - b.size
         break
     }
@@ -209,20 +293,20 @@ const sortedFiles = computed(() => {
 })
 
 function formatSize(bytes: number): string {
-  if (bytes === 0) return '0 B'
+  if (bytes === 0) return "0 B"
   const k = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB']
+  const sizes = ["B", "KB", "MB", "GB"]
   const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i]
 }
 
 function formatDate(dateStr: string): string {
   try {
     const date = new Date(dateStr)
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
     })
   } catch {
     return dateStr
@@ -230,61 +314,98 @@ function formatDate(dateStr: string): string {
 }
 
 function getFileIcon(fileType: string) {
-  const iconProps = { width: 24, height: 24, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2 }
+  const iconProps = {
+    width: 24,
+    height: 24,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    "stroke-width": 2,
+  }
 
   switch (fileType) {
-    case 'markdown':
-    case 'text':
-      return () => h('svg', iconProps, [
-        h('path', { d: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z' }),
-        h('polyline', { points: '14 2 14 8 20 8' }),
-        h('line', { x1: '16', y1: '13', x2: '8', y2: '13' }),
-        h('line', { x1: '16', y1: '17', x2: '8', y2: '17' }),
-        h('polyline', { points: '10 9 9 9 8 9' }),
-      ])
-    case 'image':
-      return () => h('svg', iconProps, [
-        h('rect', { x: '3', y: '3', width: '18', height: '18', rx: '2', ry: '2' }),
-        h('circle', { cx: '8.5', cy: '8.5', r: '1.5' }),
-        h('polyline', { points: '21 15 16 10 5 21' }),
-      ])
-    case 'pdf':
-      return () => h('svg', iconProps, [
-        h('path', { d: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z' }),
-        h('polyline', { points: '14 2 14 8 20 8' }),
-        h('path', { d: 'M10 12h4' }),
-        h('path', { d: 'M10 16h4' }),
-      ])
-    case 'audio':
-      return () => h('svg', iconProps, [
-        h('path', { d: 'M9 18V5l12-2v13' }),
-        h('circle', { cx: '6', cy: '18', r: '3' }),
-        h('circle', { cx: '18', cy: '16', r: '3' }),
-      ])
-    case 'video':
-      return () => h('svg', iconProps, [
-        h('polygon', { points: '23 7 16 12 23 17 23 7' }),
-        h('rect', { x: '1', y: '5', width: '15', height: '14', rx: '2', ry: '2' }),
-      ])
-    case 'code':
-      return () => h('svg', iconProps, [
-        h('polyline', { points: '16 18 22 12 16 6' }),
-        h('polyline', { points: '8 6 2 12 8 18' }),
-      ])
-    case 'json':
-      return () => h('svg', iconProps, [
-        h('path', { d: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z' }),
-        h('polyline', { points: '14 2 14 8 20 8' }),
-        h('path', { d: 'M8 13h2' }),
-        h('path', { d: 'M8 17h2' }),
-        h('path', { d: 'M14 13h2' }),
-        h('path', { d: 'M14 17h2' }),
-      ])
+    case "markdown":
+    case "text":
+      return () =>
+        h("svg", iconProps, [
+          h("path", {
+            d: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z",
+          }),
+          h("polyline", { points: "14 2 14 8 20 8" }),
+          h("line", { x1: "16", y1: "13", x2: "8", y2: "13" }),
+          h("line", { x1: "16", y1: "17", x2: "8", y2: "17" }),
+          h("polyline", { points: "10 9 9 9 8 9" }),
+        ])
+    case "image":
+      return () =>
+        h("svg", iconProps, [
+          h("rect", {
+            x: "3",
+            y: "3",
+            width: "18",
+            height: "18",
+            rx: "2",
+            ry: "2",
+          }),
+          h("circle", { cx: "8.5", cy: "8.5", r: "1.5" }),
+          h("polyline", { points: "21 15 16 10 5 21" }),
+        ])
+    case "pdf":
+      return () =>
+        h("svg", iconProps, [
+          h("path", {
+            d: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z",
+          }),
+          h("polyline", { points: "14 2 14 8 20 8" }),
+          h("path", { d: "M10 12h4" }),
+          h("path", { d: "M10 16h4" }),
+        ])
+    case "audio":
+      return () =>
+        h("svg", iconProps, [
+          h("path", { d: "M9 18V5l12-2v13" }),
+          h("circle", { cx: "6", cy: "18", r: "3" }),
+          h("circle", { cx: "18", cy: "16", r: "3" }),
+        ])
+    case "video":
+      return () =>
+        h("svg", iconProps, [
+          h("polygon", { points: "23 7 16 12 23 17 23 7" }),
+          h("rect", {
+            x: "1",
+            y: "5",
+            width: "15",
+            height: "14",
+            rx: "2",
+            ry: "2",
+          }),
+        ])
+    case "code":
+      return () =>
+        h("svg", iconProps, [
+          h("polyline", { points: "16 18 22 12 16 6" }),
+          h("polyline", { points: "8 6 2 12 8 18" }),
+        ])
+    case "json":
+      return () =>
+        h("svg", iconProps, [
+          h("path", {
+            d: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z",
+          }),
+          h("polyline", { points: "14 2 14 8 20 8" }),
+          h("path", { d: "M8 13h2" }),
+          h("path", { d: "M8 17h2" }),
+          h("path", { d: "M14 13h2" }),
+          h("path", { d: "M14 17h2" }),
+        ])
     default:
-      return () => h('svg', iconProps, [
-        h('path', { d: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z' }),
-        h('polyline', { points: '14 2 14 8 20 8' }),
-      ])
+      return () =>
+        h("svg", iconProps, [
+          h("path", {
+            d: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z",
+          }),
+          h("polyline", { points: "14 2 14 8 20 8" }),
+        ])
   }
 }
 </script>

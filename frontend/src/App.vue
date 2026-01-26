@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { watchEffect } from 'vue'
-import { useThemeStore } from './stores/theme'
+import { watchEffect } from "vue"
+import { useThemeStore } from "./stores/theme"
 
 const themeStore = useThemeStore()
 
 // Apply theme class to document body
 watchEffect(() => {
   // Remove any existing theme classes
-  document.body.classList.remove('theme-cream', 'theme-manila', 'theme-white', 'theme-blueprint')
+  document.body.classList.remove("theme-cream", "theme-manila", "theme-white", "theme-blueprint")
   // Add current theme class
   document.body.classList.add(themeStore.theme.className)
 })

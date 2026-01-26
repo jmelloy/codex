@@ -77,108 +77,108 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-import type { KanbanConfig } from '@/services/viewParser';
-import type { QueryResult } from '@/services/queryService';
-import type { FileMetadata } from '@/services/codex';
+import { computed, ref } from "vue"
+import type { KanbanConfig } from "@/services/viewParser"
+import type { QueryResult } from "@/services/queryService"
+import type { FileMetadata } from "@/services/codex"
 
 const props = defineProps<{
-  data: QueryResult | null;
-  config: KanbanConfig;
-  workspaceId: number;
-}>();
+  data: QueryResult | null
+  config: KanbanConfig
+  workspaceId: number
+}>()
 
 const emit = defineEmits<{
-  (e: 'update', event: { fileId: number; updates: Record<string, any> }): void;
-  (e: 'refresh'): void;
-}>();
+  (e: "update", event: { fileId: number; updates: Record<string, any> }): void
+  (e: "refresh"): void
+}>()
 
-const draggedCard = ref<FileMetadata | null>(null);
+const draggedCard = ref<FileMetadata | null>(null)
 
 // Get columns from config
-const columns = computed(() => props.config.columns || []);
+const columns = computed(() => props.config.columns || [])
 
 // Get files for a specific column
 const getColumnCards = (columnId: string) => {
-  if (!props.data?.files) return [];
+  if (!props.data?.files) return []
 
-  const column = columns.value.find((c) => c.id === columnId);
-  if (!column) return [];
+  const column = columns.value.find((c) => c.id === columnId)
+  if (!column) return []
 
   // Filter files based on column filter
   if (column.filter) {
     return props.data.files.filter((file) => {
-      if (!file.properties) return false;
+      if (!file.properties) return false
 
       // Check if all filter conditions match
       return Object.entries(column.filter || {}).every(([key, value]) => {
-        return file.properties?.[key] === value;
-      });
-    });
+        return file.properties?.[key] === value
+      })
+    })
   }
 
-  return props.data.files;
-};
+  return props.data.files
+}
 
 // Get field value from card
 const getCardField = (card: FileMetadata, field: string) => {
   // Check direct properties
-  if (field === 'title') return card.title;
-  if (field === 'description') return card.description;
-  if (field === 'filename') return card.filename;
+  if (field === "title") return card.title
+  if (field === "description") return card.description
+  if (field === "filename") return card.filename
 
   // Check properties object
-  return card.properties?.[field];
-};
+  return card.properties?.[field]
+}
 
 // Format field value for display
 const formatFieldValue = (value: any): string => {
-  if (value === null || value === undefined) return '';
-  if (Array.isArray(value)) return value.join(', ');
-  if (typeof value === 'object') return JSON.stringify(value);
-  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
-  return String(value);
-};
+  if (value === null || value === undefined) return ""
+  if (Array.isArray(value)) return value.join(", ")
+  if (typeof value === "object") return JSON.stringify(value)
+  if (typeof value === "boolean") return value ? "Yes" : "No"
+  return String(value)
+}
 
 // Drag and drop handlers
 const handleDragStart = (event: DragEvent, card: FileMetadata) => {
-  draggedCard.value = card;
+  draggedCard.value = card
   if (event.dataTransfer) {
-    event.dataTransfer.effectAllowed = 'move';
-    event.dataTransfer.setData('text/plain', String(card.id));
+    event.dataTransfer.effectAllowed = "move"
+    event.dataTransfer.setData("text/plain", String(card.id))
   }
-};
+}
 
 const handleDragOver = (event: DragEvent) => {
   if (event.dataTransfer) {
-    event.dataTransfer.dropEffect = 'move';
+    event.dataTransfer.dropEffect = "move"
   }
-};
+}
 
 const handleDrop = (event: DragEvent, columnId: string) => {
-  event.preventDefault();
+  event.preventDefault()
 
-  if (!draggedCard.value || !props.config.drag_drop) return;
+  if (!draggedCard.value || !props.config.drag_drop) return
 
-  const targetColumn = columns.value.find((c) => c.id === columnId);
-  if (!targetColumn || !targetColumn.filter) return;
+  const targetColumn = columns.value.find((c) => c.id === columnId)
+  if (!targetColumn || !targetColumn.filter) return
 
   // Update the card's properties based on column filter
-  const updates = { ...targetColumn.filter };
+  const updates = { ...targetColumn.filter }
 
-  emit('update', {
+  emit("update", {
     fileId: draggedCard.value.id,
     updates,
-  });
+  })
 
-  draggedCard.value = null;
-};
+  draggedCard.value = null
+}
 
 // Handle card click
 const handleCardClick = (card: FileMetadata) => {
   // Open file in editor (TODO: implement navigation)
-  console.log('Card clicked:', card);
-};
+  console.log("Card clicked:", card)
+}
 </script>
 
 <style scoped>

@@ -1,8 +1,10 @@
 <template>
-  <div class="task-list-view" :class="{ 'compact': config.compact }">
+  <div class="task-list-view" :class="{ compact: config.compact }">
     <!-- Header -->
     <div v-if="!config.compact" class="mb-4">
-      <h2 class="text-xl font-semibold text-text-primary">{{ definition?.title }}</h2>
+      <h2 class="text-xl font-semibold text-text-primary">
+        {{ definition?.title }}
+      </h2>
       <p v-if="definition?.description" class="text-sm text-text-secondary mt-1">
         {{ definition.description }}
       </p>
@@ -28,7 +30,12 @@
           />
 
           <div class="flex-1 min-w-0">
-            <div class="font-medium text-text-primary" :class="{ 'line-through text-text-tertiary': isTaskCompleted(task) }">
+            <div
+              class="font-medium text-text-primary"
+              :class="{
+                'line-through text-text-tertiary': isTaskCompleted(task),
+              }"
+            >
               {{ task.title || task.filename }}
             </div>
 
@@ -91,115 +98,115 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-import type { TaskListConfig, ViewDefinition } from '@/services/viewParser';
-import type { QueryResult } from '@/services/queryService';
-import type { FileMetadata } from '@/services/codex';
+import { computed, ref } from "vue"
+import type { TaskListConfig, ViewDefinition } from "@/services/viewParser"
+import type { QueryResult } from "@/services/queryService"
+import type { FileMetadata } from "@/services/codex"
 
 const props = defineProps<{
-  data: QueryResult | null;
-  config: TaskListConfig;
-  definition?: ViewDefinition;
-  workspaceId: number;
-}>();
+  data: QueryResult | null
+  config: TaskListConfig
+  definition?: ViewDefinition
+  workspaceId: number
+}>()
 
 const emit = defineEmits<{
-  (e: 'update', event: { fileId: number; updates: Record<string, any> }): void;
-  (e: 'refresh'): void;
-}>();
+  (e: "update", event: { fileId: number; updates: Record<string, any> }): void
+  (e: "refresh"): void
+}>()
 
-const showAll = ref(false);
+const showAll = ref(false)
 
 // Get all tasks
-const allTasks = computed(() => props.data?.files || []);
+const allTasks = computed(() => props.data?.files || [])
 
 // Get displayed tasks (respecting max_items if in compact mode)
 const displayedTasks = computed(() => {
-  const max = props.config.max_items;
+  const max = props.config.max_items
   if (max && !showAll.value) {
-    return allTasks.value.slice(0, max);
+    return allTasks.value.slice(0, max)
   }
-  return allTasks.value;
-});
+  return allTasks.value
+})
 
 const hasMoreTasks = computed(() => {
-  const max = props.config.max_items;
-  return max && !showAll.value && allTasks.value.length > max;
-});
+  const max = props.config.max_items
+  return max && !showAll.value && allTasks.value.length > max
+})
 
 const remainingTasksCount = computed(() => {
-  const max = props.config.max_items || 0;
-  return allTasks.value.length - max;
-});
+  const max = props.config.max_items || 0
+  return allTasks.value.length - max
+})
 
 // Check if task is completed
 const isTaskCompleted = (task: FileMetadata): boolean => {
-  const status = task.properties?.status;
-  return status === 'done' || status === 'completed';
-};
+  const status = task.properties?.status
+  return status === "done" || status === "completed"
+}
 
 // Check if task is overdue
 const isOverdue = (task: FileMetadata): boolean => {
-  if (!task.properties?.due_date) return false;
-  const dueDate = new Date(task.properties.due_date);
-  return dueDate < new Date() && !isTaskCompleted(task);
-};
+  if (!task.properties?.due_date) return false
+  const dueDate = new Date(task.properties.due_date)
+  return dueDate < new Date() && !isTaskCompleted(task)
+}
 
 // Get task status class
 const getTaskStatusClass = (task: FileMetadata): string => {
-  if (isTaskCompleted(task)) return 'opacity-60';
-  if (isOverdue(task)) return 'border-red-300 bg-red-50';
-  return '';
-};
+  if (isTaskCompleted(task)) return "opacity-60"
+  if (isOverdue(task)) return "border-red-300 bg-red-50"
+  return ""
+}
 
 // Get priority class
 const getPriorityClass = (priority: string): string => {
   const classes: Record<string, string> = {
-    high: 'bg-red-100 text-red-700',
-    medium: 'bg-yellow-100 text-yellow-700',
-    low: 'bg-green-100 text-green-700',
-  };
-  return classes[priority?.toLowerCase()] || 'bg-bg-tertiary text-text-primary';
-};
+    high: "bg-red-100 text-red-700",
+    medium: "bg-yellow-100 text-yellow-700",
+    low: "bg-green-100 text-green-700",
+  }
+  return classes[priority?.toLowerCase()] || "bg-bg-tertiary text-text-primary"
+}
 
 // Toggle task status
 const toggleTaskStatus = (task: FileMetadata) => {
-  const currentStatus = task.properties?.status;
-  const newStatus = currentStatus === 'done' ? 'todo' : 'done';
+  const currentStatus = task.properties?.status
+  const newStatus = currentStatus === "done" ? "todo" : "done"
 
-  emit('update', {
+  emit("update", {
     fileId: task.id,
     updates: { status: newStatus },
-  });
-};
+  })
+}
 
 // Handle task click
 const handleTaskClick = (task: FileMetadata) => {
-  console.log('Task clicked:', task);
+  console.log("Task clicked:", task)
   // TODO: Open task in editor or modal
-};
+}
 
 // Format date
 const formatDate = (dateStr: string): string => {
-  const date = new Date(dateStr);
-  const today = new Date();
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
+  const date = new Date(dateStr)
+  const today = new Date()
+  const tomorrow = new Date(today)
+  tomorrow.setDate(tomorrow.getDate() + 1)
 
   if (date.toDateString() === today.toDateString()) {
-    return 'Today';
+    return "Today"
   } else if (date.toDateString() === tomorrow.toDateString()) {
-    return 'Tomorrow';
+    return "Tomorrow"
   } else {
-    return date.toLocaleDateString();
+    return date.toLocaleDateString()
   }
-};
+}
 
 // Truncate text
 const truncateText = (text: string, maxLength: number): string => {
-  if (text.length <= maxLength) return text;
-  return text.substring(0, maxLength) + '...';
-};
+  if (text.length <= maxLength) return text
+  return text.substring(0, maxLength) + "..."
+}
 </script>
 
 <style scoped>

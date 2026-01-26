@@ -1,7 +1,9 @@
 <template>
   <div class="note-card-content p-4">
     <!-- Pin -->
-    <div class="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-red-500 shadow-md"></div>
+    <div
+      class="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-red-500 shadow-md"
+    ></div>
 
     <!-- Title -->
     <h4 class="font-bold text-text-primary mb-2 text-sm line-clamp-2">
@@ -38,26 +40,26 @@
 </template>
 
 <script setup lang="ts">
-import type { FileMetadata } from '@/services/codex';
-import type { CorkboardConfig } from '@/services/viewParser';
+import type { FileMetadata } from "@/services/codex"
+import type { CorkboardConfig } from "@/services/viewParser"
 
 const props = defineProps<{
-  file: FileMetadata;
-  config: CorkboardConfig;
-}>();
+  file: FileMetadata
+  config: CorkboardConfig
+}>()
 
 const getFieldValue = (field: string): any => {
-  if (field === 'title') return props.file.title;
-  if (field === 'description') return props.file.description;
-  return props.file.properties?.[field];
-};
+  if (field === "title") return props.file.title
+  if (field === "description") return props.file.description
+  return props.file.properties?.[field]
+}
 
 const formatValue = (value: any): string => {
-  if (value === null || value === undefined) return '';
-  if (Array.isArray(value)) return value.join(', ');
-  if (typeof value === 'object') return JSON.stringify(value);
-  return String(value);
-};
+  if (value === null || value === undefined) return ""
+  if (Array.isArray(value)) return value.join(", ")
+  if (typeof value === "object") return JSON.stringify(value)
+  return String(value)
+}
 </script>
 
 <style scoped>

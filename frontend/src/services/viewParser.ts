@@ -2,99 +2,99 @@
  * View parser service for parsing .cdx dynamic view definitions
  */
 
-import * as yaml from 'js-yaml';
+import * as yaml from "js-yaml"
 
 export interface ViewQuery {
   // Scope
-  notebook_ids?: number[];
-  paths?: string[];
+  notebook_ids?: number[]
+  paths?: string[]
 
   // Filtering
-  tags?: string[];
-  tags_any?: string[];
-  file_types?: string[];
+  tags?: string[]
+  tags_any?: string[]
+  file_types?: string[]
 
   // Property filtering
-  properties?: Record<string, any>;
-  properties_exists?: string[];
+  properties?: Record<string, any>
+  properties_exists?: string[]
 
   // Date filtering
-  created_after?: string;
-  created_before?: string;
-  modified_after?: string;
-  modified_before?: string;
+  created_after?: string
+  created_before?: string
+  modified_after?: string
+  modified_before?: string
 
   // Date properties
-  date_property?: string;
-  date_after?: string;
-  date_before?: string;
+  date_property?: string
+  date_after?: string
+  date_before?: string
 
   // Content filtering
-  content_search?: string;
+  content_search?: string
 
   // Sorting & pagination
-  sort?: string;
-  limit?: number;
-  offset?: number;
+  sort?: string
+  limit?: number
+  offset?: number
 
   // Aggregation
-  group_by?: string;
+  group_by?: string
 }
 
 export interface KanbanColumn {
-  id: string;
-  title: string;
-  filter?: Record<string, any>;
+  id: string
+  title: string
+  filter?: Record<string, any>
 }
 
 export interface KanbanConfig {
-  columns: KanbanColumn[];
-  card_fields?: string[];
-  drag_drop?: boolean;
-  editable?: boolean;
+  columns: KanbanColumn[]
+  card_fields?: string[]
+  drag_drop?: boolean
+  editable?: boolean
 }
 
 export interface GalleryConfig {
-  layout?: 'grid' | 'masonry';
-  columns?: number;
-  thumbnail_size?: number;
-  show_metadata?: boolean;
-  lightbox?: boolean;
+  layout?: "grid" | "masonry"
+  columns?: number
+  thumbnail_size?: number
+  show_metadata?: boolean
+  lightbox?: boolean
 }
 
 export interface RollupConfig {
-  group_by: string;
-  group_format?: 'day' | 'week' | 'month';
-  show_stats?: boolean;
+  group_by: string
+  group_format?: "day" | "week" | "month"
+  show_stats?: boolean
   sections?: Array<{
-    title: string;
-    filter?: Record<string, any>;
-  }>;
+    title: string
+    filter?: Record<string, any>
+  }>
 }
 
 export interface DashboardRow {
-  type: 'row';
+  type: "row"
   components: Array<{
-    type: 'mini-view';
-    span: number;
-    view: string;
-  }>;
+    type: "mini-view"
+    span: number
+    view: string
+  }>
 }
 
 export interface TaskListConfig {
-  compact?: boolean;
-  show_details?: boolean;
-  max_items?: number;
-  editable?: boolean;
+  compact?: boolean
+  show_details?: boolean
+  max_items?: number
+  editable?: boolean
 }
 
 export interface CorkboardConfig {
-  group_by?: string;
-  card_style?: 'notecard' | 'sticky';
-  layout?: 'freeform' | 'swimlanes';
-  draggable?: boolean;
-  editable?: boolean;
-  card_fields?: string[];
+  group_by?: string
+  card_style?: "notecard" | "sticky"
+  layout?: "freeform" | "swimlanes"
+  draggable?: boolean
+  editable?: boolean
+  card_fields?: string[]
 }
 
 export type ViewConfig =
@@ -103,17 +103,17 @@ export type ViewConfig =
   | RollupConfig
   | TaskListConfig
   | CorkboardConfig
-  | Record<string, any>;
+  | Record<string, any>
 
 export interface ViewDefinition {
-  type: 'view';
-  view_type: string;
-  title: string;
-  description?: string;
-  query?: ViewQuery;
-  config?: ViewConfig;
-  layout?: DashboardRow[];
-  content?: string; // Markdown content after frontmatter
+  type: "view"
+  view_type: string
+  title: string
+  description?: string
+  query?: ViewQuery
+  config?: ViewConfig
+  layout?: DashboardRow[]
+  content?: string // Markdown content after frontmatter
 }
 
 /**
@@ -121,44 +121,44 @@ export interface ViewDefinition {
  */
 export function parseViewDefinition(content: string): ViewDefinition {
   // Extract frontmatter and content
-  const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
+  const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/)
 
   if (!frontmatterMatch) {
-    throw new Error('Invalid view definition: missing frontmatter');
+    throw new Error("Invalid view definition: missing frontmatter")
   }
 
-  const [, frontmatterText, markdownContent] = frontmatterMatch;
+  const [, frontmatterText, markdownContent] = frontmatterMatch
 
   // Parse YAML frontmatter
-  let data: any;
+  let data: any
   try {
-    data = yaml.load(frontmatterText as string) as any;
+    data = yaml.load(frontmatterText as string) as any
   } catch (error) {
-    throw new Error(`Failed to parse YAML frontmatter: ${error}`);
+    throw new Error(`Failed to parse YAML frontmatter: ${error}`)
   }
 
   // Validate required fields
-  if (data.type !== 'view') {
-    throw new Error('Not a valid view definition: type must be "view"');
+  if (data.type !== "view") {
+    throw new Error('Not a valid view definition: type must be "view"')
   }
 
   if (!data.view_type) {
-    throw new Error('Not a valid view definition: view_type is required');
+    throw new Error("Not a valid view definition: view_type is required")
   }
 
   // Process template variables in query
-  const query = data.query ? processQueryTemplates(data.query) : undefined;
+  const query = data.query ? processQueryTemplates(data.query) : undefined
 
   return {
     type: data.type,
     view_type: data.view_type,
-    title: data.title || 'Untitled View',
+    title: data.title || "Untitled View",
     description: data.description,
     query,
     config: data.config || {},
     layout: data.layout,
     content: markdownContent?.trim() || undefined,
-  };
+  }
 }
 
 /**
@@ -166,58 +166,58 @@ export function parseViewDefinition(content: string): ViewDefinition {
  * Supports: {{ today }}, {{ startOfWeek }}, {{ endOfWeek }}, etc.
  */
 function processQueryTemplates(query: ViewQuery): ViewQuery {
-  const templateValues = getTemplateValues();
+  const templateValues = getTemplateValues()
 
   const processValue = (value: any): any => {
-    if (typeof value === 'string') {
+    if (typeof value === "string") {
       // Replace template variables
       return value.replace(/\{\{\s*(\w+)\s*\}\}/g, (match, key) => {
-        return templateValues[key] || match;
-      });
+        return templateValues[key] || match
+      })
     } else if (Array.isArray(value)) {
-      return value.map(processValue);
-    } else if (typeof value === 'object' && value !== null) {
-      const result: any = {};
+      return value.map(processValue)
+    } else if (typeof value === "object" && value !== null) {
+      const result: any = {}
       for (const [k, v] of Object.entries(value)) {
-        result[k] = processValue(v);
+        result[k] = processValue(v)
       }
-      return result;
+      return result
     }
-    return value;
-  };
+    return value
+  }
 
-  return processValue(query);
+  return processValue(query)
 }
 
 /**
  * Get template variable values
  */
 function getTemplateValues(): Record<string, string> {
-  const now = new Date();
+  const now = new Date()
 
   // Get start of week (Sunday)
-  const startOfWeek = new Date(now);
-  startOfWeek.setDate(now.getDate() - now.getDay());
-  startOfWeek.setHours(0, 0, 0, 0);
+  const startOfWeek = new Date(now)
+  startOfWeek.setDate(now.getDate() - now.getDay())
+  startOfWeek.setHours(0, 0, 0, 0)
 
   // Get end of week (Saturday)
-  const endOfWeek = new Date(startOfWeek);
-  endOfWeek.setDate(startOfWeek.getDate() + 6);
-  endOfWeek.setHours(23, 59, 59, 999);
+  const endOfWeek = new Date(startOfWeek)
+  endOfWeek.setDate(startOfWeek.getDate() + 6)
+  endOfWeek.setHours(23, 59, 59, 999)
 
   // Get start of month
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
 
   // Get end of month
-  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-  endOfMonth.setHours(23, 59, 59, 999);
+  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+  endOfMonth.setHours(23, 59, 59, 999)
 
   // Get today start/end
-  const todayStart = new Date(now);
-  todayStart.setHours(0, 0, 0, 0);
+  const todayStart = new Date(now)
+  todayStart.setHours(0, 0, 0, 0)
 
-  const todayEnd = new Date(now);
-  todayEnd.setHours(23, 59, 59, 999);
+  const todayEnd = new Date(now)
+  todayEnd.setHours(23, 59, 59, 999)
 
   return {
     today: now.toISOString(),
@@ -228,56 +228,55 @@ function getTemplateValues(): Record<string, string> {
     startOfMonth: startOfMonth.toISOString(),
     endOfMonth: endOfMonth.toISOString(),
     now: now.toISOString(),
-  };
+  }
 }
 
 /**
  * Validate a view definition
  */
-export function validateViewDefinition(
-  viewDef: ViewDefinition
-): { valid: boolean; errors: string[] } {
-  const errors: string[] = [];
+export function validateViewDefinition(viewDef: ViewDefinition): {
+  valid: boolean
+  errors: string[]
+} {
+  const errors: string[] = []
 
   // Check required fields
-  if (viewDef.type !== 'view') {
-    errors.push('View definition must have type="view"');
+  if (viewDef.type !== "view") {
+    errors.push('View definition must have type="view"')
   }
 
   if (!viewDef.view_type) {
-    errors.push('View definition must have view_type');
+    errors.push("View definition must have view_type")
   }
 
   // Check valid view types
   const validViewTypes = [
-    'kanban',
-    'gallery',
-    'rollup',
-    'dashboard',
-    'corkboard',
-    'calendar',
-    'task-list',
-  ];
+    "kanban",
+    "gallery",
+    "rollup",
+    "dashboard",
+    "corkboard",
+    "calendar",
+    "task-list",
+  ]
   if (viewDef.view_type && !validViewTypes.includes(viewDef.view_type)) {
-    errors.push(
-      `view_type must be one of: ${validViewTypes.join(', ')}`
-    );
+    errors.push(`view_type must be one of: ${validViewTypes.join(", ")}`)
   }
 
   // View-specific validation
-  if (viewDef.view_type === 'kanban' && viewDef.config) {
-    const config = viewDef.config as KanbanConfig;
+  if (viewDef.view_type === "kanban" && viewDef.config) {
+    const config = viewDef.config as KanbanConfig
     if (!config.columns || !Array.isArray(config.columns)) {
-      errors.push('Kanban view requires columns array in config');
+      errors.push("Kanban view requires columns array in config")
     }
   }
 
-  if (viewDef.view_type === 'dashboard' && !viewDef.layout) {
-    errors.push('Dashboard view requires layout field');
+  if (viewDef.view_type === "dashboard" && !viewDef.layout) {
+    errors.push("Dashboard view requires layout field")
   }
 
   return {
     valid: errors.length === 0,
     errors,
-  };
+  }
 }

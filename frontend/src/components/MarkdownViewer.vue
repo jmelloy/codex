@@ -1,18 +1,14 @@
 <template>
   <div class="markdown-viewer notebook-page" :class="[themeStore.theme.className, codeThemeClass]">
     <div class="markdown-toolbar" v-if="showToolbar">
-      <button @click="$emit('edit')" v-if="editable" class="btn-edit">
-        Edit
-      </button>
-      <button @click="copyContent" class="btn-copy">
-        Copy
-      </button>
+      <button @click="$emit('edit')" v-if="editable" class="btn-edit">Edit</button>
+      <button @click="copyContent" class="btn-copy">Copy</button>
       <slot name="toolbar-actions"></slot>
     </div>
     <div
       class="markdown-content notebook-content"
       v-html="renderedHtml"
-      :class="{ 'loading': isLoading }"
+      :class="{ loading: isLoading }"
     ></div>
     <div v-if="showFrontmatter && frontmatter" class="frontmatter-section">
       <h4>Metadata</h4>
@@ -22,10 +18,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
-import { marked } from 'marked'
-import hljs from 'highlight.js'
-import { useThemeStore } from '../stores/theme'
+import { ref, computed, watch, onMounted } from "vue"
+import { marked } from "marked"
+import hljs from "highlight.js"
+import { useThemeStore } from "../stores/theme"
 
 const themeStore = useThemeStore()
 
@@ -43,14 +39,14 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  content: '',
+  content: "",
   editable: true,
   showToolbar: true,
   showFrontmatter: false,
   extensions: () => [],
   workspaceId: undefined,
   notebookId: undefined,
-  currentFilePath: undefined
+  currentFilePath: undefined,
 })
 
 // Emits
@@ -71,11 +67,11 @@ export interface MarkdownExtension {
 // Helper function to check if a URL is a local file reference
 const isLocalFileReference = (href: string): boolean => {
   // Check if it's a markdown or text file
-  if (href.endsWith('.md') || href.endsWith('.txt')) {
+  if (href.endsWith(".md") || href.endsWith(".txt")) {
     return true
   }
   // Check if it's not an external URL or absolute path
-  return !href.startsWith('http://') && !href.startsWith('https://') && !href.startsWith('/')
+  return !href.startsWith("http://") && !href.startsWith("https://") && !href.startsWith("/")
 }
 
 // Helper function to resolve file references
@@ -83,15 +79,15 @@ const resolveFileUrl = (href: string): string => {
   // If workspace and notebook IDs are available, resolve the file
   if (props.workspaceId && props.notebookId) {
     // Check if it's already a full URL or API path
-    if (href.startsWith('http://') || href.startsWith('https://') || href.startsWith('/api/')) {
+    if (href.startsWith("http://") || href.startsWith("https://") || href.startsWith("/api/")) {
       return href
     }
-    
+
     // For relative or filename-only references, use the by-path/content endpoint
     const encodedPath = encodeURIComponent(href)
     return `/api/v1/files/by-path/content?path=${encodedPath}&workspace_id=${props.workspaceId}&notebook_id=${props.notebookId}`
   }
-  
+
   // Fallback to original href if no context
   return href
 }
@@ -113,13 +109,13 @@ const configureMarked = () => {
         // Resolve the image URL
         const resolvedHref = resolveFileUrl(token.href)
         // Build the img tag manually
-        const title = token.title ? ` title="${token.title}"` : ''
-        const alt = token.text || ''
+        const title = token.title ? ` title="${token.title}"` : ""
+        const alt = token.text || ""
         return `<img src="${resolvedHref}" alt="${alt}"${title}>`
       }
-      return ''
+      return ""
     },
-    
+
     // Override link rendering to resolve file references
     link(token: RendererToken): string {
       if (token.href) {
@@ -128,31 +124,31 @@ const configureMarked = () => {
           // For markdown files, we could navigate to them in the app
           // For now, just resolve the URL to view the content
           const resolvedHref = resolveFileUrl(token.href)
-          const title = token.title ? ` title="${token.title}"` : ''
-          const text = token.text || ''
+          const title = token.title ? ` title="${token.title}"` : ""
+          const text = token.text || ""
           return `<a href="${resolvedHref}"${title}>${text}</a>`
         }
       }
       // Use default behavior for external links
-      const title = token.title ? ` title="${token.title}"` : ''
-      const text = token.text || ''
+      const title = token.title ? ` title="${token.title}"` : ""
+      const text = token.text || ""
       return `<a href="${token.href}"${title}>${text}</a>`
-    }
+    },
   }
-  
+
   marked.use({ renderer })
 
   marked.setOptions({
     breaks: true,
-    gfm: true
+    gfm: true,
   })
 
   // Apply custom extensions after base renderer
   if (props.extensions && props.extensions.length > 0) {
-    props.extensions.forEach(ext => {
+    props.extensions.forEach((ext) => {
       if (ext.renderer) {
         marked.use({
-          renderer: ext.renderer
+          renderer: ext.renderer,
         })
       }
     })
@@ -164,7 +160,7 @@ configureMarked()
 
 // Theme class for code blocks
 const codeThemeClass = computed(() => {
-  return themeStore.theme.className?.includes('dark') ? 'code-theme-dark' : 'code-theme-light'
+  return themeStore.theme.className?.includes("dark") ? "code-theme-dark" : "code-theme-light"
 })
 
 // Extract language from code block class (e.g., "language-javascript" -> "javascript")
@@ -183,17 +179,20 @@ const renderedHtml = computed(() => {
     const html = marked(props.content) as string
     // Apply syntax highlighting to code blocks safely
     const parser = new DOMParser()
-    const doc = parser.parseFromString(html, 'text/html')
-    const codeBlocks = doc.querySelectorAll('pre code')
+    const doc = parser.parseFromString(html, "text/html")
+    const codeBlocks = doc.querySelectorAll("pre code")
     codeBlocks.forEach((block) => {
-      const code = block.textContent || ''
+      const code = block.textContent || ""
       const language = extractLanguage(block.className)
 
       let highlighted
       if (language) {
         // Use specified language for highlighting
         try {
-          highlighted = hljs.highlight(code, { language, ignoreIllegals: true })
+          highlighted = hljs.highlight(code, {
+            language,
+            ignoreIllegals: true,
+          })
         } catch {
           // Fallback to auto-detection if language is not supported
           highlighted = hljs.highlightAuto(code)
@@ -204,16 +203,16 @@ const renderedHtml = computed(() => {
       }
 
       // Create a new element to safely set the highlighted HTML
-      const highlightedElement = document.createElement('code')
+      const highlightedElement = document.createElement("code")
       highlightedElement.innerHTML = highlighted.value
       // Copy classes and add hljs class
-      highlightedElement.className = block.className + ' hljs'
+      highlightedElement.className = block.className + " hljs"
       // Replace the code block
       block.parentNode?.replaceChild(highlightedElement, block)
     })
     return doc.body.innerHTML
   } catch (e) {
-    console.error('Markdown parsing error:', e)
+    console.error("Markdown parsing error:", e)
     return '<p class="error-content">Error rendering markdown</p>'
   }
 })
@@ -222,9 +221,9 @@ const renderedHtml = computed(() => {
 const copyContent = async () => {
   try {
     await navigator.clipboard.writeText(props.content)
-    emit('copy')
+    emit("copy")
   } catch (e) {
-    console.error('Copy failed:', e)
+    console.error("Copy failed:", e)
   }
 }
 
@@ -234,14 +233,21 @@ onMounted(() => {
 })
 
 // Watch for extension changes
-watch(() => props.extensions, () => {
-  configureMarked()
-}, { deep: true })
+watch(
+  () => props.extensions,
+  () => {
+    configureMarked()
+  },
+  { deep: true }
+)
 
 // Watch for context changes (workspace/notebook)
-watch(() => [props.workspaceId, props.notebookId, props.currentFilePath], () => {
-  configureMarked()
-})
+watch(
+  () => [props.workspaceId, props.notebookId, props.currentFilePath],
+  () => {
+    configureMarked()
+  }
+)
 </script>
 
 <style scoped>

@@ -13,6 +13,7 @@ This directory contains comprehensive test suites for the Codex frontend applica
 The tests are organized by type:
 
 ### Components (`components/`)
+
 - **App.test.ts** - Main app component tests (2 tests)
 - **FormGroup.test.ts** - Form group wrapper component tests (7 tests)
 - **Modal.test.ts** - Modal dialog component tests (15 tests)
@@ -21,28 +22,32 @@ The tests are organized by type:
 - **FilePropertiesPanel.test.ts** - File properties panel tests (26 tests)
 
 ### Services (`services/`)
+
 - **api.test.ts** - API client configuration tests (4 tests)
 
 ### Stores (`stores/`)
+
 - **auth.test.ts** - Authentication store tests (11 tests)
 
 ### Utilities (`utils/`)
+
 - **date.test.ts** - Date formatting utility tests (5 tests)
 - **validation.test.ts** - Form validation utility tests (13 tests)
 
 ### Views (`views/`)
+
 - **LoginView.test.ts** - Login page tests (8 tests)
 - **RegisterView.test.ts** - Registration page tests (8 tests)
 
 ### Coverage by Module
 
-| Module | Statements | Branches | Functions | Lines |
-|--------|-----------|----------|-----------|-------|
-| Components | 78.08% | 79.72% | 64.28% | 80.19% |
-| Services | 20% | 33.33% | 0% | 20% |
-| Stores | 100% | 100% | 100% | 100% |
-| Utils | 100% | 100% | 100% | 100% |
-| Views | 55.17% | 73.33% | 80% | 53.57% |
+| Module     | Statements | Branches | Functions | Lines  |
+| ---------- | ---------- | -------- | --------- | ------ |
+| Components | 78.08%     | 79.72%   | 64.28%    | 80.19% |
+| Services   | 20%        | 33.33%   | 0%        | 20%    |
+| Stores     | 100%       | 100%     | 100%      | 100%   |
+| Utils      | 100%       | 100%     | 100%      | 100%   |
+| Views      | 55.17%     | 73.33%   | 80%       | 53.57% |
 
 ## Test Framework
 
@@ -80,16 +85,16 @@ npm run coverage
 ### Component Tests
 
 ```typescript
-import { describe, it, expect } from 'vitest'
-import { mount } from '@vue/test-utils'
-import MyComponent from '../MyComponent.vue'
+import { describe, it, expect } from "vitest"
+import { mount } from "@vue/test-utils"
+import MyComponent from "../MyComponent.vue"
 
-describe('MyComponent', () => {
-  it('renders properly', () => {
-    const wrapper = mount(MyComponent, { 
-      props: { msg: 'Hello' } 
+describe("MyComponent", () => {
+  it("renders properly", () => {
+    const wrapper = mount(MyComponent, {
+      props: { msg: "Hello" },
     })
-    expect(wrapper.text()).toContain('Hello')
+    expect(wrapper.text()).toContain("Hello")
   })
 })
 ```
@@ -97,11 +102,11 @@ describe('MyComponent', () => {
 ### Service Tests
 
 ```typescript
-import { describe, it, expect } from 'vitest'
-import { myService } from '../../services/myService'
+import { describe, it, expect } from "vitest"
+import { myService } from "../../services/myService"
 
-describe('myService', () => {
-  it('should perform operation', () => {
+describe("myService", () => {
+  it("should perform operation", () => {
     const result = myService.doSomething()
     expect(result).toBe(expectedValue)
   })

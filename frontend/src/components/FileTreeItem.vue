@@ -107,8 +107,10 @@ const isSelectedFolder = computed(() => {
 const handleFolderClick = () => {
   // Toggle folder expansion
   emit("toggleFolder", props.notebookId, props.node.path)
-  // Also select the folder to show folder view
-  emit("selectFolder", props.notebookId, props.node.path)
+  // Only select the folder (show folder view) when expanding, not when collapsing
+  if (!isFolderExpanded.value) {
+    emit("selectFolder", props.notebookId, props.node.path)
+  }
 }
 
 // Drag handlers for files

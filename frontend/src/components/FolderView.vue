@@ -34,7 +34,7 @@
               <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
               <polyline points="13 2 13 9 20 9" />
             </svg>
-            {{ folder.file_count }} items
+            {{ totalItemCount }} items
           </span>
           <span class="meta-item">
             <svg
@@ -165,9 +165,37 @@
     </div>
 
     <!-- Files Grid/List -->
-    <div v-if="sortedFiles.length > 0" :class="['files-container', viewMode]">
+    <div v-if="hasContent" :class="['files-container', viewMode]">
       <!-- Grid View -->
       <template v-if="viewMode === 'grid'">
+        <!-- Subfolders -->
+        <div
+          v-for="subfolder in subfolders"
+          :key="'folder-' + subfolder.path"
+          class="file-card folder-card"
+          @click="$emit('selectFolder', subfolder)"
+        >
+          <div class="file-card-icon folder-icon-color">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+            >
+              <path
+                d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"
+              />
+            </svg>
+          </div>
+          <div class="file-card-info">
+            <span class="file-card-name">{{
+              subfolder.properties?.title || subfolder.title || subfolder.name
+            }}</span>
+            <span class="file-card-meta">Folder</span>
+          </div>
+        </div>
+        <!-- Files -->
         <div
           v-for="file in sortedFiles"
           :key="file.id"
@@ -188,6 +216,34 @@
 
       <!-- List View -->
       <template v-else-if="viewMode === 'list'">
+        <!-- Subfolders -->
+        <div
+          v-for="subfolder in subfolders"
+          :key="'folder-' + subfolder.path"
+          class="file-row folder-row"
+          @click="$emit('selectFolder', subfolder)"
+        >
+          <div class="file-row-icon folder-icon-color">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+            >
+              <path
+                d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"
+              />
+            </svg>
+          </div>
+          <div class="file-row-name">
+            {{ subfolder.properties?.title || subfolder.title || subfolder.name }}
+          </div>
+          <div class="file-row-type">Folder</div>
+          <div class="file-row-size">-</div>
+          <div class="file-row-date">{{ formatDate(subfolder.updated_at || '') }}</div>
+        </div>
+        <!-- Files -->
         <div
           v-for="file in sortedFiles"
           :key="file.id"
@@ -208,6 +264,30 @@
 
       <!-- Compact View -->
       <template v-else>
+        <!-- Subfolders -->
+        <div
+          v-for="subfolder in subfolders"
+          :key="'folder-' + subfolder.path"
+          class="file-compact folder-compact"
+          @click="$emit('selectFolder', subfolder)"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            class="file-compact-icon folder-icon-color"
+          >
+            <path
+              d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"
+            />
+          </svg>
+          <span class="file-compact-name">{{
+            subfolder.properties?.title || subfolder.title || subfolder.name
+          }}</span>
+        </div>
+        <!-- Files -->
         <div
           v-for="file in sortedFiles"
           :key="file.id"
@@ -242,7 +322,7 @@
 
 <script setup lang="ts">
 import { ref, computed, h } from "vue"
-import type { FolderWithFiles, FileMetadata } from "../services/codex"
+import type { FolderWithFiles, FileMetadata, SubfolderMetadata } from "../services/codex"
 import { getDisplayType } from "../utils/contentType"
 
 interface Props {
@@ -253,6 +333,7 @@ const props = defineProps<Props>()
 
 defineEmits<{
   selectFile: [file: FileMetadata]
+  selectFolder: [folder: SubfolderMetadata]
   toggleProperties: []
 }>()
 
@@ -262,6 +343,16 @@ const sortAsc = ref(true)
 
 const displayTitle = computed(() => {
   return props.folder.properties?.title || props.folder.title || props.folder.name
+})
+
+const subfolders = computed(() => props.folder.subfolders || [])
+
+const hasContent = computed(() => {
+  return props.folder.files.length > 0 || subfolders.value.length > 0
+})
+
+const totalItemCount = computed(() => {
+  return props.folder.files.length + subfolders.value.length
 })
 
 const sortedFiles = computed(() => {
@@ -689,6 +780,17 @@ function getFileIcon(contentType: string) {
   font-size: var(--text-sm);
   color: var(--color-text-primary);
   white-space: nowrap;
+}
+
+/* Folder Items */
+.folder-icon-color {
+  color: var(--color-primary);
+}
+
+.folder-card:hover,
+.folder-row:hover,
+.folder-compact:hover {
+  border-color: var(--color-primary);
 }
 
 /* Empty State */

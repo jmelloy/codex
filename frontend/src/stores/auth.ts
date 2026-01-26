@@ -14,7 +14,7 @@ export const useAuthStore = defineStore("auth", () => {
     error.value = null
     try {
       const response = await authService.login({ username, password })
-      localStorage.setItem("access_token", response.access_token)
+      authService.saveToken(response.access_token)
       isAuthenticated.value = true
       await fetchCurrentUser()
     } catch (e: any) {

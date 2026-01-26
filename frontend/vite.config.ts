@@ -18,6 +18,14 @@ export default defineConfig({
     watch: {
       usePolling: true, // Needed for Docker on some systems
     },
+    proxy: {
+      // Proxy API requests to the backend server
+      // Use VITE_PROXY_TARGET for Docker (http://backend:8000) or default to localhost
+      "/api": {
+        target: process.env.VITE_PROXY_TARGET || "http://localhost:8000",
+        changeOrigin: true,
+      },
+    },
   },
   // @ts-ignore - Vitest config: There's a known type conflict between vite and vitest versions
   // of defineConfig. Using @ts-ignore is the recommended workaround per Vitest documentation.

@@ -24,6 +24,29 @@ export interface TokenResponse {
   token_type: string
 }
 
+// Helper to set the access token cookie (for browser-initiated requests like <img src>)
+function setTokenCookie(token: string) {
+  // Set cookie with SameSite=Strict for security, path=/ for all routes
+  document.cookie = `access_token=${token}; path=/; SameSite=Strict`
+}
+
+// Helper to remove the access token cookie
+function removeTokenCookie() {
+  document.cookie = "access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT"
+}
+
+// Helper to save token to both localStorage and cookie
+function saveToken(token: string) {
+  localStorage.setItem("access_token", token)
+  setTokenCookie(token)
+}
+
+// Helper to clear token from both localStorage and cookie
+function clearToken() {
+  localStorage.removeItem("access_token")
+  removeTokenCookie()
+}
+
 export const authService = {
   async login(credentials: LoginCredentials): Promise<TokenResponse> {
     const params = new URLSearchParams()
@@ -49,12 +72,21 @@ export const authService = {
   },
 
   logout() {
-    localStorage.removeItem("access_token")
+    clearToken()
   },
 
   isAuthenticated(): boolean {
-    return !!localStorage.getItem("access_token")
+    const token = localStorage.getItem("access_token")
+    if (token) {
+      // Ensure cookie is in sync (for existing sessions before cookie support)
+      setTokenCookie(token)
+      return true
+    }
+    return false
   },
+
+  // Save token (use this instead of directly setting localStorage)
+  saveToken,
 
   async updateTheme(theme: string): Promise<User> {
     const response = await apiClient.patch<User>("/api/users/me/theme", {

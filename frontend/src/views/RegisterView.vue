@@ -167,7 +167,7 @@ const handleRegister = async () => {
       password: form.value.password,
     })
 
-    localStorage.setItem("access_token", tokenResponse.access_token)
+    authService.saveToken(tokenResponse.access_token)
     await authStore.fetchCurrentUser()
 
     // Redirect to home

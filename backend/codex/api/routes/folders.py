@@ -145,6 +145,38 @@ def get_folder_files(folder_path: str, notebook_id: int, notebook_path: Path, nb
     return folder_files
 
 
+def get_subfolders(folder_path: str, notebook_path: Path) -> list[dict]:
+    """Get immediate subfolders in a folder."""
+    full_folder_path = notebook_path / folder_path if folder_path else notebook_path
+
+    subfolders = []
+    for item in full_folder_path.iterdir():
+        # Skip hidden folders (including .codex)
+        if item.name.startswith("."):
+            continue
+        if item.is_dir():
+            subfolder_path = f"{folder_path}/{item.name}" if folder_path else item.name
+            # Read subfolder properties if available
+            properties = read_folder_properties(item)
+            folder_stats = item.stat()
+
+            subfolders.append(
+                {
+                    "path": subfolder_path,
+                    "name": item.name,
+                    "title": properties.get("title") if properties else None,
+                    "description": properties.get("description") if properties else None,
+                    "properties": properties,
+                    "created_at": datetime.fromtimestamp(folder_stats.st_ctime, tz=timezone.utc).isoformat(),
+                    "updated_at": datetime.fromtimestamp(folder_stats.st_mtime, tz=timezone.utc).isoformat(),
+                }
+            )
+
+    # Sort by name
+    subfolders.sort(key=lambda x: x["name"].lower())
+    return subfolders
+
+
 @router.get("/{folder_path:path}")
 async def get_folder(
     folder_path: str,
@@ -190,6 +222,9 @@ async def get_folder(
         files = get_folder_files(folder_path, notebook_id, notebook_path, nb_session)
         file_count = len(files)
 
+        # Get subfolders
+        subfolders = get_subfolders(folder_path, notebook_path)
+
         # Build response
         folder_name = os.path.basename(folder_path) if folder_path else ""
 
@@ -202,6 +237,7 @@ async def get_folder(
             "properties": properties,
             "file_count": file_count,
             "files": files,
+            "subfolders": subfolders,
             "created_at": datetime.fromtimestamp(folder_stats.st_ctime, tz=timezone.utc).isoformat(),
             "updated_at": datetime.fromtimestamp(folder_stats.st_mtime, tz=timezone.utc).isoformat(),
         }

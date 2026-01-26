@@ -112,6 +112,31 @@
           </template>
         </div>
 
+        <!-- Add new property -->
+        <div class="add-property-form">
+          <input
+            v-model="newPropertyKey"
+            class="property-key-input"
+            placeholder="Property name"
+            @keyup.enter="focusValueInput"
+          />
+          <input
+            v-model="newPropertyValue"
+            class="property-value-input"
+            placeholder="Value"
+            ref="valueInputRef"
+            @keyup.enter="addProperty"
+          />
+          <button
+            @click="addProperty"
+            class="btn-add-property"
+            :disabled="!newPropertyKey.trim()"
+            title="Add property"
+          >
+            +
+          </button>
+        </div>
+
         <!-- File Info (read-only) -->
         <div class="property-section">
           <h4>File Info</h4>
@@ -144,36 +169,6 @@
             <span class="property-label">Modified</span>
             <span class="property-value">{{ formatDate(file.updated_at) }}</span>
           </div>
-        </div>
-
-        <!-- Empty state -->
-        <div v-if="Object.keys(metadata).length === 0" class="empty-properties">
-          No custom properties
-        </div>
-
-        <!-- Add new property -->
-        <div class="add-property-form">
-          <input
-            v-model="newPropertyKey"
-            class="property-key-input"
-            placeholder="Property name"
-            @keyup.enter="focusValueInput"
-          />
-          <input
-            v-model="newPropertyValue"
-            class="property-value-input"
-            placeholder="Value"
-            ref="valueInputRef"
-            @keyup.enter="addProperty"
-          />
-          <button
-            @click="addProperty"
-            class="btn-add-property"
-            :disabled="!newPropertyKey.trim()"
-            title="Add property"
-          >
-            +
-          </button>
         </div>
       </div>
 
@@ -295,7 +290,7 @@ watch(
       editableDescription.value = newFile.properties?.description || newFile.description || ""
     }
   },
-  { immediate: true }
+  { immediate: true },
 )
 
 const tags = computed(() => {
@@ -307,7 +302,7 @@ const tags = computed(() => {
 
 // Standard property fields that are handled separately
 const STANDARD_FIELDS = ["title", "description", "tags"] as const
-type StandardField = typeof STANDARD_FIELDS[number]
+type StandardField = (typeof STANDARD_FIELDS)[number]
 
 // Get all metadata except standard fields (title, description, tags)
 const metadata = computed(() => {
@@ -510,7 +505,7 @@ async function selectCommit(commit: FileHistoryEntry) {
       props.file!.id,
       props.workspaceId,
       props.notebookId,
-      commit.hash
+      commit.hash,
     )
     commitContent.value = result.content
   } catch (error: any) {
@@ -573,7 +568,7 @@ watch(
     if (activeTab.value === "history") {
       loadHistory()
     }
-  }
+  },
 )
 </script>
 
@@ -676,7 +671,9 @@ watch(
   color: var(--color-text-primary);
   background: var(--color-bg-primary);
   font-family: var(--font-sans);
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
 }
 
 .property-input:focus,
@@ -895,7 +892,9 @@ watch(
   font-size: var(--text-sm);
   line-height: 1;
   border-radius: var(--radius-sm);
-  transition: background 0.2s, color 0.2s;
+  transition:
+    background 0.2s,
+    color 0.2s;
 }
 
 .btn-save {

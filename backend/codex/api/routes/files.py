@@ -73,7 +73,7 @@ class CreateFileRequest(BaseModel):
 class UpdateFileRequest(BaseModel):
     """Request model for updating a file."""
 
-    content: str
+    content: str | None = None  # Optional for binary files where only properties are updated
     properties: dict[str, Any] | None = None  # Unified properties from frontmatter
 
 
@@ -928,8 +928,13 @@ async def update_file(
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_system_session),
 ):
-    """Update a file."""
+    """Update a file.
+
+    For text files, both content and properties can be updated.
+    For binary files (images, etc.), only properties can be updated (content should be null).
+    """
     content = request.content
+    properties = request.properties
 
     # Get notebook path from system database
     notebook_path, _ = await get_notebook_path(notebook_id, workspace_id, current_user, session)
@@ -949,30 +954,40 @@ async def update_file(
         if not file_path.exists():
             raise HTTPException(status_code=404, detail="File not found on disk")
 
-        # Prepare content with frontmatter if properties provided
-        final_content = content
-        properties = request.properties
-        if properties and file_meta.content_type in ["text/markdown", "application/x-codex-view"]:
-            # Write frontmatter to file
-            final_content = MetadataParser.write_frontmatter(content, properties)
-
-        # Write new content
-        with open(file_path, "w") as f:
-            f.write(final_content)
-
-        # Update metadata
-        import hashlib
         from datetime import datetime, timezone
 
-        file_hash = hashlib.sha256(final_content.encode()).hexdigest()
-        file_stats = os.stat(file_path)
+        # Handle content update if provided
+        if content is not None:
+            # Prepare content with frontmatter if properties provided
+            final_content = content
+            if properties and file_meta.content_type in ["text/markdown", "application/x-codex-view"]:
+                # Write frontmatter to file
+                final_content = MetadataParser.write_frontmatter(content, properties)
 
-        file_meta.size = file_stats.st_size
-        file_meta.hash = file_hash
+            # Write new content
+            with open(file_path, "w") as f:
+                f.write(final_content)
+
+            # Update metadata
+            import hashlib
+
+            file_hash = hashlib.sha256(final_content.encode()).hexdigest()
+            file_stats = os.stat(file_path)
+
+            file_meta.size = file_stats.st_size
+            file_meta.hash = file_hash
+            file_meta.file_modified_at = datetime.fromtimestamp(file_stats.st_mtime)
+
+            # Commit file changes to git
+            from codex.core.git_manager import GitManager
+
+            git_manager = GitManager(str(notebook_path))
+            commit_hash = git_manager.commit(f"Update {file_meta.filename}", [str(file_path)])
+            if commit_hash:
+                file_meta.last_commit_hash = commit_hash
+
+        # Update properties cache and indexed fields (works for both text and binary files)
         file_meta.updated_at = datetime.now(timezone.utc)
-        file_meta.file_modified_at = datetime.fromtimestamp(file_stats.st_mtime)
-
-        # Update properties cache and indexed fields
         if properties is not None:
             file_meta.properties = json.dumps(properties)
             # Extract title/description for indexed search
@@ -980,14 +995,6 @@ async def update_file(
                 file_meta.title = properties["title"]
             if "description" in properties:
                 file_meta.description = properties["description"]
-
-        # Commit file changes to git
-        from codex.core.git_manager import GitManager
-
-        git_manager = GitManager(str(notebook_path))
-        commit_hash = git_manager.commit(f"Update {file_meta.filename}", [str(file_path)])
-        if commit_hash:
-            file_meta.last_commit_hash = commit_hash
 
         nb_session.commit()
         nb_session.refresh(file_meta)

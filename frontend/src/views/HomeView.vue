@@ -447,6 +447,7 @@
           :folder="workspaceStore.currentFolder"
           class="flex-1"
           @select-file="selectFile"
+          @select-folder="handleSelectSubfolder"
           @toggle-properties="toggleProperties"
         />
       </div>
@@ -767,6 +768,14 @@ function handleSelectFolder(notebookId: number, folderPath: string) {
     expandedFolders.value.set(notebookId, new Set())
   }
   expandedFolders.value.get(notebookId)!.add(folderPath)
+}
+
+function handleSelectSubfolder(subfolder: { path: string }) {
+  // Get the notebook_id from the current folder
+  if (workspaceStore.currentFolder) {
+    const notebookId = workspaceStore.currentFolder.notebook_id
+    handleSelectFolder(notebookId, subfolder.path)
+  }
 }
 
 function isFolderExpanded(notebookId: number, folderPath: string): boolean {

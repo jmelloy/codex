@@ -11,6 +11,7 @@ vi.mock("../../services/auth", () => ({
     register: vi.fn(),
     logout: vi.fn(),
     isAuthenticated: vi.fn(),
+    saveToken: vi.fn(),
   },
 }))
 
@@ -57,7 +58,7 @@ describe("Auth Store", () => {
       username: "testuser",
       password: "password",
     })
-    expect(localStorage.getItem("access_token")).toBe("test-token")
+    expect(authService.saveToken).toHaveBeenCalledWith("test-token")
     expect(store.isAuthenticated).toBe(true)
     expect(store.user).toEqual(mockUser)
     expect(store.loading).toBe(false)

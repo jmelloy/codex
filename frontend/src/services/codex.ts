@@ -49,8 +49,19 @@ export interface FolderMetadata {
   updated_at?: string
 }
 
+export interface SubfolderMetadata {
+  path: string
+  name: string
+  title?: string
+  description?: string
+  properties?: Record<string, any>
+  created_at?: string
+  updated_at?: string
+}
+
 export interface FolderWithFiles extends FolderMetadata {
   files: FileMetadata[]
+  subfolders?: SubfolderMetadata[]
 }
 export interface FileHistoryEntry {
   hash: string
@@ -209,15 +220,21 @@ export const fileService = {
     id: number,
     workspaceId: number,
     notebookId: number,
-    content: string,
+    content?: string | null,
     properties?: Record<string, any>
   ): Promise<FileMetadata> {
+    // Only include content in body if it's a string (not null/undefined)
+    // This allows updating just properties on binary files like images
+    const body: { content?: string; properties?: Record<string, any> } = {}
+    if (typeof content === "string") {
+      body.content = content
+    }
+    if (properties !== undefined) {
+      body.properties = properties
+    }
     const response = await apiClient.put<FileMetadata>(
       `/api/v1/files/${id}?workspace_id=${workspaceId}&notebook_id=${notebookId}`,
-      {
-        content,
-        properties,
-      }
+      body
     )
     return response.data
   },

@@ -385,14 +385,43 @@
     <!-- Create File Modal -->
     <Modal v-model="showCreateFile" title="Create File" confirm-text="Create" hide-actions>
       <form @submit.prevent="handleCreateFile">
-        <FormGroup label="Filename" v-slot="{ inputId }">
-          <input :id="inputId" v-model="newFileName" placeholder="example.md" required class="w-full px-3 py-2 border border-border-medium rounded-md bg-bg-primary text-text-primary" />
-          <p class="text-sm text-text-secondary mt-1">Enter any filename with extension (e.g., notes.md, data.json, script.py)</p>
-        </FormGroup>
+        <!-- Template Selection -->
+        <div v-if="createFileNotebook && workspaceStore.currentWorkspace" class="mb-4">
+          <TemplateSelector
+            :notebook-id="createFileNotebook.id"
+            :workspace-id="workspaceStore.currentWorkspace.id"
+            v-model="selectedTemplate"
+            @select="handleTemplateSelect"
+          />
+        </div>
+
+        <!-- Filename input -->
+        <div class="border-t border-border-light pt-4 mt-4">
+          <FormGroup v-if="selectedTemplate" label="Filename" v-slot="{ inputId }">
+            <div class="flex items-center gap-2">
+              <input
+                :id="inputId"
+                v-model="customTitle"
+                :placeholder="getFilenamePlaceholder()"
+                class="flex-1 px-3 py-2 border border-border-medium rounded-md bg-bg-primary text-text-primary"
+              />
+              <span class="text-text-secondary text-sm">{{ selectedTemplate.file_extension }}</span>
+            </div>
+            <p class="text-sm text-text-secondary mt-1">
+              Will create: <code class="bg-bg-hover px-1 rounded">{{ getPreviewFilename() }}</code>
+            </p>
+          </FormGroup>
+
+          <FormGroup v-else label="Filename" v-slot="{ inputId }">
+            <input :id="inputId" v-model="newFileName" placeholder="example.md" required class="w-full px-3 py-2 border border-border-medium rounded-md bg-bg-primary text-text-primary" />
+            <p class="text-sm text-text-secondary mt-1">Enter any filename with extension (e.g., notes.md, data.json, script.py)</p>
+          </FormGroup>
+        </div>
+
         <div class="flex gap-2 justify-end mt-6">
           <button type="button" @click="showCreateFile = false"
             class="notebook-button-secondary px-4 py-2 border-none rounded cursor-pointer">Cancel</button>
-          <button v-if="newFileName.endsWith('.cdx')" type="button" @click="switchToViewCreator"
+          <button v-if="!selectedTemplate && newFileName.endsWith('.cdx')" type="button" @click="switchToViewCreator"
             class="notebook-button px-4 py-2 text-white border-none rounded cursor-pointer transition">Configure View →</button>
           <button v-else type="submit"
             class="notebook-button px-4 py-2 text-white border-none rounded cursor-pointer transition">Create</button>
@@ -410,7 +439,8 @@ import { ref, onMounted, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useWorkspaceStore } from '../stores/workspace'
-import type { Workspace, Notebook, FileMetadata } from '../services/codex'
+import type { Workspace, Notebook, FileMetadata, Template } from '../services/codex'
+import { templateService } from '../services/codex'
 import Modal from '../components/Modal.vue'
 import FormGroup from '../components/FormGroup.vue'
 import MarkdownViewer from '../components/MarkdownViewer.vue'
@@ -420,6 +450,7 @@ import ViewRenderer from '../components/views/ViewRenderer.vue'
 import FilePropertiesPanel from '../components/FilePropertiesPanel.vue'
 import FileTreeItem from '../components/FileTreeItem.vue'
 import CreateViewModal from '../components/CreateViewModal.vue'
+import TemplateSelector from '../components/TemplateSelector.vue'
 import { showToast } from '../utils/toast'
 import { buildFileTree, type FileTreeNode } from '../utils/fileTree'
 
@@ -438,6 +469,8 @@ const newWorkspaceName = ref('')
 const newNotebookName = ref('')
 const newFileName = ref('')
 const createFileNotebook = ref<Notebook | null>(null)
+const selectedTemplate = ref<Template | null>(null)
+const customTitle = ref('')
 
 // View state
 const showPropertiesPanel = ref(false)
@@ -776,9 +809,36 @@ async function handleCreateNotebook() {
 }
 
 async function handleCreateFile() {
-  if (!createFileNotebook.value) return
+  if (!createFileNotebook.value || !workspaceStore.currentWorkspace) return
 
   try {
+    // If a template is selected, use the template service
+    if (selectedTemplate.value) {
+      const filename = customTitle.value
+        ? customTitle.value + selectedTemplate.value.file_extension
+        : undefined
+
+      const newFile = await templateService.createFromTemplate(
+        createFileNotebook.value.id,
+        workspaceStore.currentWorkspace.id,
+        selectedTemplate.value.id,
+        filename
+      )
+
+      // Refresh file list and select the new file
+      await workspaceStore.fetchFiles(createFileNotebook.value.id)
+      await workspaceStore.selectFile(newFile)
+
+      showCreateFile.value = false
+      newFileName.value = ''
+      customTitle.value = ''
+      selectedTemplate.value = null
+      createFileNotebook.value = null
+      showToast({ message: 'File created from template!' })
+      return
+    }
+
+    // Otherwise, create a blank file with custom content
     const path = newFileName.value;
     const baseName = path.replace(/\.[^/.]+$/, '') || path;
 
@@ -816,6 +876,8 @@ Edit the frontmatter above to configure this view.
     )
     showCreateFile.value = false
     newFileName.value = ''
+    customTitle.value = ''
+    selectedTemplate.value = null
     createFileNotebook.value = null
   } catch {
     // Error handled in store
@@ -847,7 +909,37 @@ async function handleCreateView(data: { filename: string; content: string }) {
 function startCreateFile(notebook: Notebook) {
   createFileNotebook.value = notebook
   newFileName.value = ''
+  selectedTemplate.value = null
+  customTitle.value = ''
   showCreateFile.value = true
+}
+
+function handleTemplateSelect(template: Template | null) {
+  selectedTemplate.value = template
+  if (template) {
+    // Clear custom filename when a template is selected
+    customTitle.value = ''
+  }
+}
+
+function getFilenamePlaceholder(): string {
+  if (!selectedTemplate.value) return 'filename'
+  // Extract placeholder from default_name pattern
+  const pattern = selectedTemplate.value.default_name
+  if (pattern.includes('{title}')) {
+    return 'Enter title (optional)'
+  }
+  // For date-based patterns, show what the filename will be
+  return templateService.expandPattern(pattern).replace(selectedTemplate.value.file_extension, '')
+}
+
+function getPreviewFilename(): string {
+  if (!selectedTemplate.value) return newFileName.value || 'filename.md'
+
+  const pattern = selectedTemplate.value.default_name
+  const title = customTitle.value || 'untitled'
+
+  return templateService.expandPattern(pattern, title)
 }
 </script>
 

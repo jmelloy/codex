@@ -83,6 +83,222 @@ class ResolveLinkRequest(BaseModel):
     current_file_path: str | None = None
 
 
+class CreateFromTemplateRequest(BaseModel):
+    """Request model for creating a file from a template."""
+
+    notebook_id: int
+    workspace_id: int
+    template_id: str
+    filename: str | None = None  # Optional custom filename, otherwise use template default
+
+
+def load_default_templates() -> list[dict]:
+    """Load default templates from YAML files in the templates directory."""
+    import yaml
+
+    templates_dir = Path(__file__).parent.parent.parent / "templates"
+    templates = []
+
+    if templates_dir.exists():
+        for template_file in sorted(templates_dir.glob("*.yaml")):
+            try:
+                with open(template_file) as f:
+                    template_data = yaml.safe_load(f)
+                    if template_data and isinstance(template_data, dict):
+                        templates.append(template_data)
+            except Exception as e:
+                logger.warning(f"Failed to load template {template_file}: {e}")
+
+    return templates
+
+
+# Cache for default templates (loaded once)
+_default_templates_cache: list[dict] | None = None
+
+
+def get_default_templates() -> list[dict]:
+    """Get default templates, loading from cache if available."""
+    global _default_templates_cache
+    if _default_templates_cache is None:
+        _default_templates_cache = load_default_templates()
+    return _default_templates_cache
+
+
+def expand_template_pattern(pattern: str, title: str = "untitled") -> str:
+    """Expand date patterns and title in a template string.
+
+    Supported patterns:
+    - {yyyy}: 4-digit year
+    - {yy}: 2-digit year
+    - {mm}: 2-digit month
+    - {dd}: 2-digit day
+    - {month}: Full month name
+    - {mon}: Abbreviated month name
+    - {title}: The provided title
+    """
+    from datetime import datetime
+
+    now = datetime.now()
+
+    replacements = {
+        "{yyyy}": now.strftime("%Y"),
+        "{yy}": now.strftime("%y"),
+        "{mm}": now.strftime("%m"),
+        "{dd}": now.strftime("%d"),
+        "{month}": now.strftime("%B"),
+        "{mon}": now.strftime("%b"),
+        "{title}": title,
+    }
+
+    result = pattern
+    for key, value in replacements.items():
+        result = result.replace(key, value)
+
+    return result
+
+
+@router.get("/templates")
+async def list_templates(
+    notebook_id: int,
+    workspace_id: int,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """List available templates for a notebook.
+
+    Returns templates from the .templates folder if it exists,
+    otherwise returns the default built-in templates.
+    """
+    notebook_path, _ = await get_notebook_path(notebook_id, workspace_id, current_user, session)
+
+    templates_dir = notebook_path / ".templates"
+
+    # Check if notebook has a .templates folder
+    if templates_dir.exists() and templates_dir.is_dir():
+        # Load templates from the .templates folder
+        templates = []
+        nb_session = get_notebook_session(str(notebook_path))
+        try:
+            for template_file in templates_dir.iterdir():
+                if template_file.is_file() and not template_file.name.startswith("."):
+                    try:
+                        with open(template_file) as f:
+                            content = f.read()
+
+                        # Parse frontmatter to get template metadata
+                        properties, body = MetadataParser.parse_frontmatter(content)
+
+                        # Template must have type: template in frontmatter
+                        if properties and properties.get("type") == "template":
+                            template_id = template_file.stem
+                            ext = properties.get("template_for", template_file.suffix)
+
+                            templates.append({
+                                "id": template_id,
+                                "name": properties.get("name", template_id),
+                                "description": properties.get("description", ""),
+                                "icon": properties.get("icon", "📄"),
+                                "file_extension": ext,
+                                "default_name": properties.get("default_name", f"{{title}}{ext}"),
+                                "content": properties.get("template_content", body),
+                                "source": "notebook",
+                            })
+                    except Exception as e:
+                        logger.warning(f"Failed to parse template {template_file}: {e}")
+                        continue
+        finally:
+            nb_session.close()
+
+        # If we found custom templates, return them along with defaults
+        if templates:
+            # Add source to defaults
+            defaults_with_source = [{**t, "source": "default"} for t in get_default_templates()]
+            return {"templates": templates + defaults_with_source}
+
+    # Return default templates
+    defaults_with_source = [{**t, "source": "default"} for t in get_default_templates()]
+    return {"templates": defaults_with_source}
+
+
+@router.post("/from-template")
+async def create_from_template(
+    request: CreateFromTemplateRequest,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Create a new file from a template.
+
+    Expands date patterns in filename and content.
+    """
+    notebook_id = request.notebook_id
+    workspace_id = request.workspace_id
+    template_id = request.template_id
+    custom_filename = request.filename
+
+    # Get notebook path
+    notebook_path, _ = await get_notebook_path(notebook_id, workspace_id, current_user, session)
+
+    # Find the template
+    template = None
+
+    # First check .templates folder
+    templates_dir = notebook_path / ".templates"
+    if templates_dir.exists():
+        for template_file in templates_dir.iterdir():
+            if template_file.stem == template_id:
+                try:
+                    with open(template_file) as f:
+                        content = f.read()
+                    properties, body = MetadataParser.parse_frontmatter(content)
+                    if properties and properties.get("type") == "template":
+                        ext = properties.get("template_for", template_file.suffix)
+                        template = {
+                            "id": template_id,
+                            "file_extension": ext,
+                            "default_name": properties.get("default_name", f"{{title}}{ext}"),
+                            "content": properties.get("template_content", body),
+                        }
+                        break
+                except Exception:
+                    continue
+
+    # Fall back to default templates
+    if not template:
+        for t in get_default_templates():
+            if t["id"] == template_id:
+                template = t
+                break
+
+    if not template:
+        raise HTTPException(status_code=404, detail=f"Template not found: {template_id}")
+
+    # Determine filename
+    if custom_filename:
+        # Use custom filename, ensure it has the right extension
+        filename = custom_filename
+        if not filename.endswith(template["file_extension"]):
+            filename += template["file_extension"]
+    else:
+        # Generate from pattern
+        filename = expand_template_pattern(template["default_name"])
+
+    # Extract title from filename for content expansion
+    title = os.path.splitext(filename)[0]
+
+    # Expand patterns in content
+    content = expand_template_pattern(template["content"], title)
+
+    # Create the file using existing create_file logic
+    create_request = CreateFileRequest(
+        notebook_id=notebook_id,
+        workspace_id=workspace_id,
+        path=filename,
+        content=content,
+    )
+
+    return await create_file(create_request, current_user, session)
+
+
 @router.get("/")
 async def list_files(
     notebook_id: int,

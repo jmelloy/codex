@@ -22,7 +22,7 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 # The metadata file name stored in each folder
-FOLDER_METADATA_FILE = ".folder"
+FOLDER_METADATA_FILE = ".metadata"
 
 
 async def get_notebook_path(

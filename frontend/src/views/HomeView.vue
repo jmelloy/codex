@@ -294,27 +294,47 @@
       <div v-else-if="workspaceStore.currentFile" class="flex-1 flex overflow-hidden p-4">
         <!-- Dynamic View Renderer for .cdx files -->
         <ViewRenderer
-          v-if="getDisplayType(workspaceStore.currentFile.content_type) === 'view'"
+          v-if="displayType === 'view'"
           :file-id="workspaceStore.currentFile.id"
           :workspace-id="workspaceStore.currentWorkspace!.id"
           :notebook-id="workspaceStore.currentFile.notebook_id"
           class="flex-1"
         />
 
-        <!-- Image Viewer for image files -->
-        <div
-          v-else-if="getDisplayType(workspaceStore.currentFile.content_type) === 'image'"
-          class="flex-1 flex flex-col overflow-hidden"
-        >
+        <!-- All other file types use a consistent header + content pattern -->
+        <div v-else class="flex-1 flex flex-col overflow-hidden">
           <FileHeader :file="workspaceStore.currentFile" @toggle-properties="toggleProperties">
             <template #actions>
+              <!-- Media files (image, pdf, audio, video, html) get Open button -->
               <button
+                v-if="['image', 'pdf', 'audio', 'video', 'html'].includes(displayType)"
                 @click="openInNewTab"
                 class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
                 title="Open in new tab"
               >
                 Open
               </button>
+
+              <!-- Editable files (code, markdown) get Edit button -->
+              <button
+                v-else-if="['code', 'markdown'].includes(displayType)"
+                @click="startEdit"
+                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
+              >
+                Edit
+              </button>
+
+              <!-- Binary files get Download link -->
+              <a
+                v-else-if="displayType === 'binary'"
+                :href="currentContentUrl"
+                download
+                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition no-underline"
+              >
+                Download
+              </a>
+
+              <!-- All files get Properties button -->
               <button
                 @click="toggleProperties"
                 class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
@@ -323,7 +343,10 @@
               </button>
             </template>
           </FileHeader>
+
+          <!-- Image Viewer -->
           <div
+            v-if="displayType === 'image'"
             class="flex-1 flex items-center justify-center overflow-auto bg-bg-secondary rounded-lg"
           >
             <img
@@ -332,124 +355,46 @@
               class="max-w-full max-h-full object-contain"
             />
           </div>
-        </div>
 
-        <!-- PDF Viewer -->
-        <div
-          v-else-if="getDisplayType(workspaceStore.currentFile.content_type) === 'pdf'"
-          class="flex-1 flex flex-col overflow-hidden"
-        >
-          <FileHeader :file="workspaceStore.currentFile" @toggle-properties="toggleProperties">
-            <template #actions>
-              <button
-                @click="openInNewTab"
-                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
-                title="Open in new tab"
-              >
-                Open
-              </button>
-              <button
-                @click="toggleProperties"
-                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
-              >
-                Properties
-              </button>
-            </template>
-          </FileHeader>
-          <div class="flex-1 overflow-hidden bg-bg-secondary rounded-lg">
+          <!-- PDF Viewer -->
+          <div
+            v-else-if="displayType === 'pdf'"
+            class="flex-1 overflow-hidden bg-bg-secondary rounded-lg"
+          >
             <iframe
               :src="currentContentUrl"
               class="w-full h-full border-0"
               :title="workspaceStore.currentFile.title || workspaceStore.currentFile.filename"
             />
           </div>
-        </div>
 
-        <!-- Audio Player -->
-        <div
-          v-else-if="getDisplayType(workspaceStore.currentFile.content_type) === 'audio'"
-          class="flex-1 flex flex-col overflow-hidden"
-        >
-          <FileHeader :file="workspaceStore.currentFile" @toggle-properties="toggleProperties">
-            <template #actions>
-              <button
-                @click="openInNewTab"
-                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
-                title="Open in new tab"
-              >
-                Open
-              </button>
-              <button
-                @click="toggleProperties"
-                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
-              >
-                Properties
-              </button>
-            </template>
-          </FileHeader>
-          <div class="flex-1 flex items-center justify-center bg-bg-secondary rounded-lg">
+          <!-- Audio Player -->
+          <div
+            v-else-if="displayType === 'audio'"
+            class="flex-1 flex items-center justify-center bg-bg-secondary rounded-lg"
+          >
             <div class="text-center">
               <audio :src="currentContentUrl" controls class="w-full max-w-md">
                 Your browser does not support the audio element.
               </audio>
             </div>
           </div>
-        </div>
 
-        <!-- Video Player -->
-        <div
-          v-else-if="getDisplayType(workspaceStore.currentFile.content_type) === 'video'"
-          class="flex-1 flex flex-col overflow-hidden"
-        >
-          <FileHeader :file="workspaceStore.currentFile" @toggle-properties="toggleProperties">
-            <template #actions>
-              <button
-                @click="openInNewTab"
-                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
-                title="Open in new tab"
-              >
-                Open
-              </button>
-              <button
-                @click="toggleProperties"
-                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
-              >
-                Properties
-              </button>
-            </template>
-          </FileHeader>
+          <!-- Video Player -->
           <div
+            v-else-if="displayType === 'video'"
             class="flex-1 flex items-center justify-center overflow-auto bg-bg-secondary rounded-lg"
           >
             <video :src="currentContentUrl" controls class="max-w-full max-h-full">
               Your browser does not support the video element.
             </video>
           </div>
-        </div>
 
-        <!-- HTML Viewer -->
-        <div
-          v-else-if="getDisplayType(workspaceStore.currentFile.content_type) === 'html'"
-          class="flex-1 flex flex-col overflow-hidden"
-        >
-          <FileHeader :file="workspaceStore.currentFile" @toggle-properties="toggleProperties">
-            <template #actions>
-              <button
-                @click="openInNewTab"
-                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
-                title="Open in new tab"
-              >
-                Open
-              </button>
-              <button
-                @click="toggleProperties"
-                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
-              >
-                Properties
-              </button>
-            </template>
-          </FileHeader>
-          <div class="flex-1 overflow-hidden bg-bg-secondary rounded-lg">
+          <!-- HTML Viewer -->
+          <div
+            v-else-if="displayType === 'html'"
+            class="flex-1 overflow-hidden bg-bg-secondary rounded-lg"
+          >
             <iframe
               :src="currentContentUrl"
               class="w-full h-full border-0"
@@ -457,87 +402,31 @@
               sandbox="allow-scripts allow-same-origin"
             />
           </div>
-        </div>
 
-        <!-- Code Viewer for source code files -->
-        <div
-          v-else-if="getDisplayType(workspaceStore.currentFile.content_type) === 'code'"
-          class="flex-1 flex flex-col overflow-hidden"
-        >
-          <FileHeader :file="workspaceStore.currentFile" @toggle-properties="toggleProperties">
-            <template #actions>
-              <button
-                @click="startEdit"
-                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
-              >
-                Edit
-              </button>
-              <button
-                @click="toggleProperties"
-                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
-              >
-                Properties
-              </button>
-            </template>
-          </FileHeader>
+          <!-- Code Viewer -->
           <CodeViewer
+            v-else-if="displayType === 'code'"
             :content="workspaceStore.currentFile.content"
             :filename="workspaceStore.currentFile.filename"
             :show-line-numbers="true"
             :show-toolbar="false"
             class="flex-1"
           />
-        </div>
 
-        <!-- Binary file placeholder -->
-        <div
-          v-else-if="getDisplayType(workspaceStore.currentFile.content_type) === 'binary'"
-          class="flex-1 flex flex-col overflow-hidden"
-        >
-          <FileHeader :file="workspaceStore.currentFile" @toggle-properties="toggleProperties">
-            <template #actions>
-              <a
-                :href="currentContentUrl"
-                download
-                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition no-underline"
-              >
-                Download
-              </a>
-              <button
-                @click="toggleProperties"
-                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
-              >
-                Properties
-              </button>
-            </template>
-          </FileHeader>
-          <div class="flex-1 flex items-center justify-center bg-bg-secondary rounded-lg">
+          <!-- Binary file placeholder -->
+          <div
+            v-else-if="displayType === 'binary'"
+            class="flex-1 flex items-center justify-center bg-bg-secondary rounded-lg"
+          >
             <div class="text-center text-text-tertiary">
               <p>This is a binary file.</p>
               <p class="text-sm">Click "Download" to save it to your device.</p>
             </div>
           </div>
-        </div>
 
-        <!-- Markdown Viewer for text-based files -->
-        <div v-else class="flex-1 flex flex-col overflow-hidden">
-          <FileHeader :file="workspaceStore.currentFile" @toggle-properties="toggleProperties">
-            <template #actions>
-              <button
-                @click="startEdit"
-                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
-              >
-                Edit
-              </button>
-              <button
-                @click="toggleProperties"
-                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
-              >
-                Properties
-              </button>
-            </template>
-          </FileHeader>
+          <!-- Markdown Viewer (default) -->
           <MarkdownViewer
+            v-else
             :content="workspaceStore.currentFile.content"
             :frontmatter="workspaceStore.currentFile.properties"
             :workspace-id="workspaceStore.currentWorkspace?.id"
@@ -793,6 +682,12 @@ const currentContentUrl = computed(() => {
   return `/api/v1/files/${workspaceStore.currentFile.id}/content?workspace_id=${workspaceStore.currentWorkspace.id}&notebook_id=${workspaceStore.currentFile.notebook_id}`
 })
 
+// Get display type for current file
+const displayType = computed(() => {
+  if (!workspaceStore.currentFile) return "markdown"
+  return getDisplayType(workspaceStore.currentFile.content_type)
+})
+
 // Open file in a new tab
 function openInNewTab() {
   if (currentContentUrl.value) {
@@ -808,7 +703,7 @@ watch(
       editContent.value = file.content
     }
   },
-  { immediate: true }
+  { immediate: true },
 )
 
 onMounted(async () => {
@@ -928,7 +823,7 @@ function handleFileDragStart(event: DragEvent, file: FileMetadata, notebookId: n
       notebookId: notebookId,
       filename: file.filename,
       path: file.path,
-    })
+    }),
   )
 }
 
@@ -1177,7 +1072,7 @@ async function handleCreateFile() {
         createFileNotebook.value.id,
         workspaceStore.currentWorkspace.id,
         selectedTemplate.value.id,
-        filename
+        filename,
       )
 
       // Refresh file list and select the new file
@@ -1368,7 +1263,9 @@ function getPreviewFilename(): string {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background-color 0.2s, color 0.2s;
+  transition:
+    background-color 0.2s,
+    color 0.2s;
 }
 
 .sidebar-icon-button:hover {

@@ -26,7 +26,7 @@ export function getDisplayType(contentType: string): string {
   }
 
   // Text-based types
-  if (contentType === "text/markdown") {
+  if (contentType === "text/markdown" || contentType === "markdown") {
     return "markdown"
   }
 

@@ -1105,7 +1105,7 @@ async def upload_file(
         file_meta.file_modified_at = datetime.fromtimestamp(file_stats.st_mtime)
 
         # Commit file to git
-        from backend.core.git_manager import GitManager
+        from codex.core.git_manager import GitManager
 
         git_manager = GitManager(str(notebook_path))
         commit_hash = git_manager.commit(f"Upload {os.path.basename(target_path)}", [str(file_path)])
@@ -1192,7 +1192,7 @@ async def move_file(
         file_meta.updated_at = datetime.now(timezone.utc)
 
         # Commit changes to git
-        from backend.core.git_manager import GitManager
+        from codex.core.git_manager import GitManager
 
         git_manager = GitManager(str(notebook_path))
         commit_hash = git_manager.commit(f"Move {os.path.basename(old_path)} to {new_path}", [str(new_file_path)])
@@ -1280,7 +1280,7 @@ async def delete_file(
         nb_session.delete(file_meta)
 
         # Commit deletion to git
-        from backend.core.git_manager import GitManager
+        from codex.core.git_manager import GitManager
 
         git_manager = GitManager(str(notebook_path))
         git_manager.commit(f"Delete {file_meta.filename}", [])

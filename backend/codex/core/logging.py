@@ -182,7 +182,7 @@ def get_logging_config(
     else:
         default_formatter = {
             "()": ColoredFormatter,
-            "fmt": "%(asctime)s - %(levelname)s - %(name)s - %(message)s %(request_id)s",
+            "fmt": "%(asctime)s - %(name)s - %(levelname)s - %(message)s %(request_id)s",
             "datefmt": "%Y-%m-%d %H:%M:%S",
         }
         access_formatter = {

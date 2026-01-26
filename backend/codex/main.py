@@ -15,7 +15,7 @@ from sqlmodel import select
 
 from codex.api.routes import files, folders, markdown, notebooks, query, search, tasks, users, workspaces
 from codex.core.watcher import NotebookWatcher
-from codex.db.database import get_system_session_sync, init_system_db
+from codex.db.database import get_system_session_sync, init_system_db, init_notebook_db
 from codex.db.models import Notebook, Workspace
 
 from contextvars import ContextVar
@@ -85,6 +85,13 @@ def _start_notebook_watchers_sync():
 
                 if not codex_db_path.exists():
                     logger.debug(f"No .codex/notebook.db found at {codex_db_path}, skipping")
+                    continue
+
+                # Ensure notebook database schema is up to date before starting watcher
+                try:
+                    init_notebook_db(str(notebook_path))
+                except Exception as e:
+                    logger.error(f"Failed to initialize notebook database for {nb.name}: {e}")
                     continue
 
                 logger.info(f"Starting watcher for: {nb.name} (id={nb.id})")

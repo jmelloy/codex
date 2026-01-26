@@ -3,12 +3,12 @@ python = "3.13"
 node = "22"
 
 [env]
-_.python.venv = { path = ".venv", create = true }
+_.python.venv = { path = "backend/.venv", create = true }
 
 [tasks.install]
 description = "Install all dependencies"
 run = """
-pushd backend && pip install -e ".[dev]" && popd
+pip install -e ".[dev]" 
 pushd frontend && npm install && popd
 """
 
@@ -19,7 +19,7 @@ run = "docker compose up -d"
 [tasks.test]
 description = "Run all tests"
 run = """
-pushd backend && pytest tests/ -v || popd
+pytest tests/ -v 
 pushd frontend && npm run test || popd
 """
 

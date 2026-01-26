@@ -83,6 +83,424 @@ class ResolveLinkRequest(BaseModel):
     current_file_path: str | None = None
 
 
+class CreateFromTemplateRequest(BaseModel):
+    """Request model for creating a file from a template."""
+
+    notebook_id: int
+    workspace_id: int
+    template_id: str
+    filename: str | None = None  # Optional custom filename, otherwise use template default
+
+
+# Built-in default templates
+DEFAULT_TEMPLATES = [
+    {
+        "id": "blank-note",
+        "name": "Blank Note",
+        "description": "A blank markdown note",
+        "icon": "📝",
+        "file_extension": ".md",
+        "default_name": "{title}.md",
+        "content": "# {title}\n\nStart writing here...\n",
+    },
+    {
+        "id": "daily-journal",
+        "name": "Daily Journal",
+        "description": "A journal entry with today's date",
+        "icon": "📔",
+        "file_extension": ".md",
+        "default_name": "{yyyy}-{mm}-{dd}-journal.md",
+        "content": """---
+title: Journal - {yyyy}-{mm}-{dd}
+date: {yyyy}-{mm}-{dd}
+tags:
+  - journal
+---
+
+# Journal Entry - {month} {dd}, {yyyy}
+
+## Today's Goals
+
+
+## Notes
+
+
+## Reflections
+
+""",
+    },
+    {
+        "id": "meeting-notes",
+        "name": "Meeting Notes",
+        "description": "Template for meeting notes",
+        "icon": "🗓️",
+        "file_extension": ".md",
+        "default_name": "{yyyy}-{mm}-{dd}-meeting.md",
+        "content": """---
+title: Meeting Notes - {yyyy}-{mm}-{dd}
+date: {yyyy}-{mm}-{dd}
+tags:
+  - meeting
+---
+
+# Meeting Notes - {month} {dd}, {yyyy}
+
+## Attendees
+
+-
+
+## Agenda
+
+1.
+
+## Discussion Notes
+
+
+## Action Items
+
+- [ ]
+
+## Next Steps
+
+""",
+    },
+    {
+        "id": "project-doc",
+        "name": "Project Document",
+        "description": "Documentation template for a project",
+        "icon": "📋",
+        "file_extension": ".md",
+        "default_name": "{title}.md",
+        "content": """---
+title: {title}
+tags:
+  - project
+  - documentation
+---
+
+# {title}
+
+## Overview
+
+
+## Goals
+
+
+## Requirements
+
+
+## Implementation
+
+
+## References
+
+""",
+    },
+    {
+        "id": "task-board",
+        "name": "Task Board",
+        "description": "Kanban board for managing tasks",
+        "icon": "📊",
+        "file_extension": ".cdx",
+        "default_name": "task-board.cdx",
+        "content": """---
+type: view
+view_type: kanban
+title: Task Board
+description: Kanban board for managing tasks
+query:
+  tags:
+    - task
+config:
+  columns:
+    - {"id": "backlog", "title": "Backlog", "filter": {"status": "backlog"}}
+    - {"id": "todo", "title": "To Do", "filter": {"status": "todo"}}
+    - {"id": "in-progress", "title": "In Progress", "filter": {"status": "in-progress"}}
+    - {"id": "done", "title": "Done", "filter": {"status": "done"}}
+  card_fields:
+    - description
+    - priority
+    - due_date
+  drag_drop: true
+  editable: true
+---
+
+# Task Board
+
+This is a dynamic Kanban board view. Edit the frontmatter to customize columns and filters.
+""",
+    },
+    {
+        "id": "task-list",
+        "name": "Task List",
+        "description": "Simple checklist view",
+        "icon": "✅",
+        "file_extension": ".cdx",
+        "default_name": "tasks.cdx",
+        "content": """---
+type: view
+view_type: task-list
+title: Task List
+description: Simple task checklist
+query:
+  tags:
+    - task
+config:
+  compact: true
+  show_details: true
+  editable: true
+---
+
+# Task List
+
+This is a dynamic task list view.
+""",
+    },
+    {
+        "id": "photo-gallery",
+        "name": "Photo Gallery",
+        "description": "Display images in a grid layout",
+        "icon": "🖼️",
+        "file_extension": ".cdx",
+        "default_name": "gallery.cdx",
+        "content": """---
+type: view
+view_type: gallery
+title: Photo Gallery
+description: Collection of images
+query:
+  file_types:
+    - image/png
+    - image/jpeg
+    - image/gif
+    - image/webp
+config:
+  layout: grid
+  columns: 4
+  thumbnail_size: 300
+  show_metadata: true
+  lightbox: true
+---
+
+# Photo Gallery
+
+This view displays all images in a grid layout.
+""",
+    },
+    {
+        "id": "weekly-rollup",
+        "name": "Weekly Rollup",
+        "description": "Summary grouped by date",
+        "icon": "📈",
+        "file_extension": ".cdx",
+        "default_name": "weekly-rollup.cdx",
+        "content": """---
+type: view
+view_type: rollup
+title: Weekly Rollup
+description: Summary of weekly activity
+config:
+  group_by: created_at
+  group_format: day
+  show_stats: true
+---
+
+# Weekly Rollup
+
+This view groups items by creation date.
+""",
+    },
+    {
+        "id": "data-file",
+        "name": "Data File",
+        "description": "JSON data file",
+        "icon": "📦",
+        "file_extension": ".json",
+        "default_name": "{title}.json",
+        "content": """{
+  "name": "{title}",
+  "data": []
+}
+""",
+    },
+]
+
+
+def expand_template_pattern(pattern: str, title: str = "untitled") -> str:
+    """Expand date patterns and title in a template string.
+
+    Supported patterns:
+    - {yyyy}: 4-digit year
+    - {yy}: 2-digit year
+    - {mm}: 2-digit month
+    - {dd}: 2-digit day
+    - {month}: Full month name
+    - {mon}: Abbreviated month name
+    - {title}: The provided title
+    """
+    from datetime import datetime
+
+    now = datetime.now()
+
+    replacements = {
+        "{yyyy}": now.strftime("%Y"),
+        "{yy}": now.strftime("%y"),
+        "{mm}": now.strftime("%m"),
+        "{dd}": now.strftime("%d"),
+        "{month}": now.strftime("%B"),
+        "{mon}": now.strftime("%b"),
+        "{title}": title,
+    }
+
+    result = pattern
+    for key, value in replacements.items():
+        result = result.replace(key, value)
+
+    return result
+
+
+@router.get("/templates")
+async def list_templates(
+    notebook_id: int,
+    workspace_id: int,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """List available templates for a notebook.
+
+    Returns templates from the .templates folder if it exists,
+    otherwise returns the default built-in templates.
+    """
+    notebook_path, _ = await get_notebook_path(notebook_id, workspace_id, current_user, session)
+
+    templates_dir = notebook_path / ".templates"
+
+    # Check if notebook has a .templates folder
+    if templates_dir.exists() and templates_dir.is_dir():
+        # Load templates from the .templates folder
+        templates = []
+        nb_session = get_notebook_session(str(notebook_path))
+        try:
+            for template_file in templates_dir.iterdir():
+                if template_file.is_file() and not template_file.name.startswith("."):
+                    try:
+                        with open(template_file) as f:
+                            content = f.read()
+
+                        # Parse frontmatter to get template metadata
+                        properties, body = MetadataParser.parse_frontmatter(content)
+
+                        # Template must have type: template in frontmatter
+                        if properties and properties.get("type") == "template":
+                            template_id = template_file.stem
+                            ext = properties.get("template_for", template_file.suffix)
+
+                            templates.append({
+                                "id": template_id,
+                                "name": properties.get("name", template_id),
+                                "description": properties.get("description", ""),
+                                "icon": properties.get("icon", "📄"),
+                                "file_extension": ext,
+                                "default_name": properties.get("default_name", f"{{title}}{ext}"),
+                                "content": properties.get("template_content", body),
+                                "source": "notebook",
+                            })
+                    except Exception as e:
+                        logger.warning(f"Failed to parse template {template_file}: {e}")
+                        continue
+        finally:
+            nb_session.close()
+
+        # If we found custom templates, return them along with defaults
+        if templates:
+            # Add source to defaults
+            defaults_with_source = [{**t, "source": "default"} for t in DEFAULT_TEMPLATES]
+            return {"templates": templates + defaults_with_source}
+
+    # Return default templates
+    defaults_with_source = [{**t, "source": "default"} for t in DEFAULT_TEMPLATES]
+    return {"templates": defaults_with_source}
+
+
+@router.post("/from-template")
+async def create_from_template(
+    request: CreateFromTemplateRequest,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Create a new file from a template.
+
+    Expands date patterns in filename and content.
+    """
+    notebook_id = request.notebook_id
+    workspace_id = request.workspace_id
+    template_id = request.template_id
+    custom_filename = request.filename
+
+    # Get notebook path
+    notebook_path, _ = await get_notebook_path(notebook_id, workspace_id, current_user, session)
+
+    # Find the template
+    template = None
+
+    # First check .templates folder
+    templates_dir = notebook_path / ".templates"
+    if templates_dir.exists():
+        for template_file in templates_dir.iterdir():
+            if template_file.stem == template_id:
+                try:
+                    with open(template_file) as f:
+                        content = f.read()
+                    properties, body = MetadataParser.parse_frontmatter(content)
+                    if properties and properties.get("type") == "template":
+                        ext = properties.get("template_for", template_file.suffix)
+                        template = {
+                            "id": template_id,
+                            "file_extension": ext,
+                            "default_name": properties.get("default_name", f"{{title}}{ext}"),
+                            "content": properties.get("template_content", body),
+                        }
+                        break
+                except Exception:
+                    continue
+
+    # Fall back to default templates
+    if not template:
+        for t in DEFAULT_TEMPLATES:
+            if t["id"] == template_id:
+                template = t
+                break
+
+    if not template:
+        raise HTTPException(status_code=404, detail=f"Template not found: {template_id}")
+
+    # Determine filename
+    if custom_filename:
+        # Use custom filename, ensure it has the right extension
+        filename = custom_filename
+        if not filename.endswith(template["file_extension"]):
+            filename += template["file_extension"]
+    else:
+        # Generate from pattern
+        filename = expand_template_pattern(template["default_name"])
+
+    # Extract title from filename for content expansion
+    title = os.path.splitext(filename)[0]
+
+    # Expand patterns in content
+    content = expand_template_pattern(template["content"], title)
+
+    # Create the file using existing create_file logic
+    create_request = CreateFileRequest(
+        notebook_id=notebook_id,
+        workspace_id=workspace_id,
+        path=filename,
+        content=content,
+    )
+
+    return await create_file(create_request, current_user, session)
+
+
 @router.get("/")
 async def list_files(
     notebook_id: int,

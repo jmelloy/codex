@@ -37,6 +37,17 @@ export interface FileWithContent extends FileMetadata {
   content: string;
 }
 
+export interface Template {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  file_extension: string;
+  default_name: string;
+  content: string;
+  source: "default" | "notebook";
+}
+
 export const workspaceService = {
   async list(): Promise<Workspace[]> {
     const response = await apiClient.get<Workspace[]>("/api/v1/workspaces/");
@@ -235,6 +246,75 @@ export const fileService = {
       { new_path: newPath },
     );
     return response.data;
+  },
+};
+
+export const templateService = {
+  /**
+   * List available templates for a notebook.
+   */
+  async list(notebookId: number, workspaceId: number): Promise<Template[]> {
+    const response = await apiClient.get<{ templates: Template[] }>(
+      `/api/v1/files/templates?notebook_id=${notebookId}&workspace_id=${workspaceId}`,
+    );
+    return response.data.templates;
+  },
+
+  /**
+   * Create a file from a template.
+   */
+  async createFromTemplate(
+    notebookId: number,
+    workspaceId: number,
+    templateId: string,
+    filename?: string,
+  ): Promise<FileMetadata> {
+    const response = await apiClient.post<FileMetadata>(
+      "/api/v1/files/from-template",
+      {
+        notebook_id: notebookId,
+        workspace_id: workspaceId,
+        template_id: templateId,
+        filename: filename || null,
+      },
+    );
+    return response.data;
+  },
+
+  /**
+   * Expand date patterns in a string (client-side preview).
+   */
+  expandPattern(pattern: string, title: string = "untitled"): string {
+    const now = new Date();
+    const yyyy = now.getFullYear().toString();
+    const yy = yyyy.slice(-2);
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+    const dd = String(now.getDate()).padStart(2, "0");
+    const monthNames: readonly string[] = [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December",
+    ] as const;
+    const month = monthNames[now.getMonth()] ?? "January";
+    const mon = month.slice(0, 3);
+
+    return pattern
+      .replace(/{yyyy}/g, yyyy)
+      .replace(/{yy}/g, yy)
+      .replace(/{mm}/g, mm)
+      .replace(/{dd}/g, dd)
+      .replace(/{month}/g, month)
+      .replace(/{mon}/g, mon)
+      .replace(/{title}/g, title);
   },
 };
 

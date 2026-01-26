@@ -8,7 +8,7 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from typing import Optional, Callable
 import logging
-from backend.codex.core.metadata import MetadataParser
+from codex.core.metadata import MetadataParser
 from codex.db.database import get_notebook_session
 from codex.db.models import FileMetadata, Notebook
 from sqlmodel import select

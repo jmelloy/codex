@@ -1,27 +1,11 @@
 <template>
-  <div class="h-screen flex flex-col w-full">
-    <nav class="main-navbar">
-      <h1 class="text-2xl font-semibold m-0">Codex</h1>
-      <div class="flex items-center gap-4">
-        <button @click="goToSettings"
-          class="navbar-button"
-          title="User Settings">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block">
-            <circle cx="12" cy="12" r="3"></circle>
-            <path d="M12 1v6m0 6v6m9-9h-6m-6 0H3"></path>
-          </svg>
-          Settings
-        </button>
-        <span>{{ authStore.user?.username }}</span>
-        <button @click="handleLogout"
-          class="navbar-button">Logout</button>
+  <div class="h-screen flex w-full">
+    <!-- Left: File Browser Sidebar (280px) -->
+    <aside class="w-[280px] min-w-[280px] notebook-sidebar flex flex-col overflow-hidden">
+      <!-- Codex Header -->
+      <div class="flex items-center px-4 py-4" style="border-bottom: 1px solid var(--page-border)">
+        <h1 class="m-0 text-xl font-semibold" style="color: var(--notebook-text)">Codex</h1>
       </div>
-    </nav>
-
-    <div class="flex flex-1 overflow-hidden">
-      <!-- Left: File Browser Sidebar (280px) -->
-      <aside class="w-[280px] min-w-[280px] notebook-sidebar flex flex-col overflow-hidden">
         <div class="flex justify-between items-center px-4 py-4" style="border-bottom: 1px solid var(--page-border)">
           <h2 class="m-0 text-sm font-semibold uppercase tracking-wide" style="color: var(--pen-gray)">Workspaces</h2>
           <button @click="showCreateWorkspace = true" title="Create Workspace"
@@ -116,6 +100,37 @@
               </ul>
             </li>
           </ul>
+        </div>
+
+        <!-- User Section at Bottom -->
+        <div class="user-section mt-auto px-4 py-3" style="border-top: 1px solid var(--page-border)">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2 min-w-0">
+              <div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                <span class="text-sm font-medium" style="color: var(--notebook-accent)">
+                  {{ authStore.user?.username?.charAt(0)?.toUpperCase() }}
+                </span>
+              </div>
+              <span class="text-sm truncate" style="color: var(--notebook-text)">{{ authStore.user?.username }}</span>
+            </div>
+            <div class="flex items-center gap-1">
+              <button @click="goToSettings" class="sidebar-icon-button" title="Settings">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="3"></circle>
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+              </button>
+              <button @click="handleLogout" class="sidebar-icon-button" title="Logout">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                  <polyline points="16 17 21 12 16 7"></polyline>
+                  <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+              </button>
+            </div>
+          </div>
         </div>
       </aside>
 
@@ -1021,33 +1036,26 @@ function getPreviewFilename(): string {
   color: var(--notebook-accent);
 }
 
-/* Main navbar - uses text-inverse to ensure readability on primary background */
-.main-navbar {
-  background-color: var(--color-primary);
-  color: var(--color-text-inverse);
-  padding: 1rem 2rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+/* User section at bottom of sidebar */
+.user-section {
+  background: color-mix(in srgb, var(--notebook-bg) 90%, var(--notebook-text) 10%);
 }
 
-.main-navbar h1,
-.main-navbar span,
-.main-navbar button {
-  color: var(--color-text-inverse);
-}
-
-.navbar-button {
-  background-color: rgba(255, 255, 255, 0.2);
-  color: var(--color-text-inverse);
+.sidebar-icon-button {
+  background: transparent;
   border: none;
-  padding: 0.5rem 1rem;
+  padding: 0.375rem;
   border-radius: 0.25rem;
   cursor: pointer;
-  transition: background-color 0.2s;
+  color: var(--pen-gray);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s, color 0.2s;
 }
 
-.navbar-button:hover {
-  background-color: rgba(255, 255, 255, 0.3);
+.sidebar-icon-button:hover {
+  background: color-mix(in srgb, var(--notebook-text) 10%, transparent);
+  color: var(--notebook-text);
 }
 </style>

@@ -33,6 +33,41 @@ def is_binary_file(filepath: str) -> bool:
         return False
 
 
+def get_content_type(filepath: str) -> str:
+    """Get MIME type (content type) for a file.
+    
+    Uses Python's mimetypes library with custom mappings for special file types.
+    Falls back to application/octet-stream for unknown binary files.
+    """
+    import mimetypes
+    
+    # Special handling for custom extensions
+    filename_lower = os.path.basename(filepath).lower()
+    filepath_lower = filepath.lower()
+    
+    # Custom file types that don't have standard MIME types
+    if filepath_lower.endswith(".cdx"):
+        return "application/x-codex-view"
+    elif filepath_lower.endswith(".md"):
+        return "text/markdown"
+    elif filename_lower in ("dockerfile", "makefile", "gnumakefile"):
+        return "text/x-makefile"
+    elif filepath_lower.endswith(".dockerfile"):
+        return "text/x-dockerfile"
+    
+    # Use mimetypes library for standard types
+    mime_type, _ = mimetypes.guess_type(filepath)
+    
+    if mime_type:
+        return mime_type
+    
+    # Fall back based on binary detection
+    if is_binary_file(filepath):
+        return "application/octet-stream"
+    else:
+        return "text/plain"
+
+
 class NotebookFileHandler(FileSystemEventHandler):
     """Handler for file system events in a notebook."""
 
@@ -75,68 +110,15 @@ class NotebookFileHandler(FileSystemEventHandler):
                     file_stats = os.stat(filepath)
                     file_hash = calculate_file_hash(filepath)
                     is_binary = is_binary_file(filepath)
-
-                    file_type = "binary" if is_binary else "text"
-                    filepath_lower = filepath.lower()
-                    filename_lower = os.path.basename(filepath).lower()
-
-                    if filepath.endswith(".md"):
-                        file_type = "markdown"
-                    elif filepath.endswith(".cdx"):
-                        file_type = "view"
-                    elif filepath.endswith(".json"):
-                        file_type = "json"
-                    elif filepath.endswith(".xml"):
-                        file_type = "xml"
-                    elif filepath_lower.endswith((".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".svg")):
-                        file_type = "image"
-                    elif filepath_lower.endswith(".pdf"):
-                        file_type = "pdf"
-                    elif filepath_lower.endswith((".mp3", ".wav", ".ogg", ".flac", ".aac", ".m4a")):
-                        file_type = "audio"
-                    elif filepath_lower.endswith((".mp4", ".webm", ".ogv", ".mov", ".avi")):
-                        file_type = "video"
-                    elif filepath_lower.endswith((".html", ".htm")):
-                        file_type = "html"
-                    # Code file types
-                    elif filepath_lower.endswith((".py", ".pyw", ".pyx")):
-                        file_type = "code"
-                    elif filepath_lower.endswith((".js", ".jsx", ".mjs", ".cjs")):
-                        file_type = "code"
-                    elif filepath_lower.endswith((".ts", ".tsx")):
-                        file_type = "code"
-                    elif filepath_lower.endswith((".c", ".h", ".cpp", ".cc", ".cxx", ".hpp", ".hxx")):
-                        file_type = "code"
-                    elif filepath_lower.endswith((".java", ".kt", ".kts", ".scala")):
-                        file_type = "code"
-                    elif filepath_lower.endswith((".go", ".rs", ".swift")):
-                        file_type = "code"
-                    elif filepath_lower.endswith((".rb", ".php", ".pl", ".pm", ".lua")):
-                        file_type = "code"
-                    elif filepath_lower.endswith((".cs", ".fs", ".fsx")):
-                        file_type = "code"
-                    elif filepath_lower.endswith((".sh", ".bash", ".zsh", ".fish", ".ps1", ".bat", ".cmd")):
-                        file_type = "code"
-                    elif filepath_lower.endswith((".css", ".scss", ".sass", ".less")):
-                        file_type = "code"
-                    elif filepath_lower.endswith((".yaml", ".yml", ".toml", ".ini", ".conf", ".cfg")):
-                        file_type = "code"
-                    elif filepath_lower.endswith((".sql", ".graphql", ".gql")):
-                        file_type = "code"
-                    elif filepath_lower.endswith((".r", ".R", ".hs", ".ml", ".clj", ".cljs", ".ex", ".exs", ".erl")):
-                        file_type = "code"
-                    elif filepath_lower.endswith((".vue", ".svelte")):
-                        file_type = "code"
-                    elif filepath_lower.endswith((".diff", ".patch")):
-                        file_type = "code"
-                    elif filename_lower in ("dockerfile", "makefile", "gnumakefile", "cmakelists.txt"):
-                        file_type = "code"
+                    
+                    # Get content type (MIME type)
+                    content_type = get_content_type(filepath)
 
                     if file_meta:
                         # Update existing
                         file_meta.size = file_stats.st_size
                         file_meta.hash = file_hash
-                        file_meta.file_type = file_type
+                        file_meta.content_type = content_type
                         from datetime import datetime, timezone
 
                         file_meta.updated_at = datetime.now(timezone.utc)
@@ -149,7 +131,7 @@ class NotebookFileHandler(FileSystemEventHandler):
                             notebook_id=self.notebook_id,
                             path=rel_path,
                             filename=filename,
-                            file_type=file_type,
+                            content_type=content_type,
                             size=file_stats.st_size,
                             hash=file_hash,
                             git_tracked=not is_binary,
@@ -181,7 +163,7 @@ class NotebookFileHandler(FileSystemEventHandler):
                             if file_meta:
                                 file_meta.size = file_stats.st_size
                                 file_meta.hash = file_hash
-                                file_meta.file_type = file_type
+                                file_meta.content_type = content_type
                                 from datetime import datetime, timezone
 
                                 file_meta.updated_at = datetime.now(timezone.utc)

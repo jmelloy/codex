@@ -132,7 +132,7 @@ def get_folder_files(folder_path: str, notebook_id: int, notebook_path: Path, nb
                 "notebook_id": f.notebook_id,
                 "path": f.path,
                 "filename": f.filename,
-                "file_type": f.file_type,
+                "content_type": f.content_type,
                 "size": f.size,
                 "title": f.title,
                 "description": f.description,

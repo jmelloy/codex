@@ -16,6 +16,7 @@ from codex.api.auth import get_current_active_user
 import logging
 from codex.core.metadata import MetadataParser
 from codex.core.link_resolver import LinkResolver
+from codex.core.watcher import get_content_type
 from codex.db.database import get_notebook_session, get_system_session
 from codex.db.models import FileMetadata, Notebook, User, Workspace
 
@@ -333,7 +334,7 @@ async def list_files(
                     "notebook_id": f.notebook_id,
                     "path": f.path,
                     "filename": f.filename,
-                    "file_type": f.file_type,
+                    "content_type": f.content_type,
                     "size": f.size,
                     "hash": f.hash,
                     "title": f.title,
@@ -376,7 +377,10 @@ async def get_file(
         file_path = notebook_path / file_meta.path
         content = None
         raw_content = None
-        if file_path.exists() and file_meta.file_type in ["text", "markdown", "view", "json", "xml"]:
+        # Check if content type is text-based
+        if file_path.exists() and (file_meta.content_type.startswith("text/") or 
+                                    file_meta.content_type in ["application/json", "application/xml", 
+                                                               "application/x-codex-view"]):
             try:
                 with open(file_path) as f:
                     raw_content = f.read()
@@ -385,7 +389,7 @@ async def get_file(
 
         # Parse frontmatter from file content if it's a markdown or view file
         properties = None
-        if raw_content and file_meta.file_type in ["markdown", "view"]:
+        if raw_content and file_meta.content_type in ["text/markdown", "application/x-codex-view"]:
             properties, content = MetadataParser.parse_frontmatter(raw_content)
             # Sync properties to DB cache if they changed
             properties_json = json.dumps(properties) if properties else None
@@ -412,7 +416,7 @@ async def get_file(
             "notebook_id": file_meta.notebook_id,
             "path": file_meta.path,
             "filename": file_meta.filename,
-            "file_type": file_meta.file_type,
+            "content_type": file_meta.content_type,
             "size": file_meta.size,
             "hash": file_meta.hash,
             "title": file_meta.title,
@@ -561,7 +565,9 @@ async def get_file_by_path(
         file_path = notebook_path / file_meta.path
         content = None
         raw_content = None
-        if file_path.exists() and file_meta.file_type in ["text", "markdown", "view", "json", "xml"]:
+        if file_path.exists() and (file_meta.content_type.startswith("text/") or 
+                                    file_meta.content_type in ["application/json", "application/xml", 
+                                                               "application/x-codex-view"]):
             try:
                 with open(file_path) as f:
                     raw_content = f.read()
@@ -570,7 +576,7 @@ async def get_file_by_path(
 
         # Parse frontmatter from file content if it's a markdown or view file
         properties = None
-        if raw_content and file_meta.file_type in ["markdown", "view"]:
+        if raw_content and file_meta.content_type in ["text/markdown", "application/x-codex-view"]:
             properties, content = MetadataParser.parse_frontmatter(raw_content)
             # Sync properties to DB cache if they changed
             properties_json = json.dumps(properties) if properties else None
@@ -597,7 +603,7 @@ async def get_file_by_path(
             "notebook_id": file_meta.notebook_id,
             "path": file_meta.path,
             "filename": file_meta.filename,
-            "file_type": file_meta.file_type,
+            "content_type": file_meta.content_type,
             "size": file_meta.size,
             "hash": file_meta.hash,
             "title": file_meta.title,
@@ -789,7 +795,7 @@ async def resolve_link(
             "notebook_id": file_meta.notebook_id,
             "path": file_meta.path,
             "filename": file_meta.filename,
-            "file_type": file_meta.file_type,
+            "content_type": file_meta.content_type,
             "size": file_meta.size,
             "hash": file_meta.hash,
             "title": file_meta.title,
@@ -832,27 +838,8 @@ async def create_file(
         # Create parent directories if needed
         file_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Determine file type before creating file
-        file_type = "text"
-        path_lower = path.lower()
-        if path.endswith(".md"):
-            file_type = "markdown"
-        elif path.endswith(".cdx"):
-            file_type = "view"
-        elif path.endswith(".json"):
-            file_type = "json"
-        elif path.endswith(".xml"):
-            file_type = "xml"
-        elif path_lower.endswith((".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".svg")):
-            file_type = "image"
-        elif path_lower.endswith(".pdf"):
-            file_type = "pdf"
-        elif path_lower.endswith((".mp3", ".wav", ".ogg", ".flac", ".aac", ".m4a")):
-            file_type = "audio"
-        elif path_lower.endswith((".mp4", ".webm", ".ogv", ".mov", ".avi")):
-            file_type = "video"
-        elif path_lower.endswith((".html", ".htm")):
-            file_type = "html"
+        # Determine content type before creating file
+        content_type = get_content_type(str(file_path))
 
         import hashlib
         from datetime import datetime
@@ -863,7 +850,7 @@ async def create_file(
             notebook_id=notebook_id,
             path=path,
             filename=os.path.basename(path),
-            file_type=file_type,
+            content_type=content_type,
             size=0,  # Placeholder, will be updated
             hash=hashlib.sha256(content.encode()).hexdigest(),
         )
@@ -917,7 +904,7 @@ async def create_file(
             "notebook_id": file_meta.notebook_id,
             "path": file_meta.path,
             "filename": file_meta.filename,
-            "file_type": file_meta.file_type,
+            "content_type": file_meta.content_type,
             "size": file_meta.size,
             "message": "File created successfully",
         }
@@ -965,7 +952,7 @@ async def update_file(
         # Prepare content with frontmatter if properties provided
         final_content = content
         properties = request.properties
-        if properties and file_meta.file_type in ["markdown", "view"]:
+        if properties and file_meta.content_type in ["text/markdown", "application/x-codex-view"]:
             # Write frontmatter to file
             final_content = MetadataParser.write_frontmatter(content, properties)
 
@@ -1018,7 +1005,7 @@ async def update_file(
             "notebook_id": file_meta.notebook_id,
             "path": file_meta.path,
             "filename": file_meta.filename,
-            "file_type": file_meta.file_type,
+            "content_type": file_meta.content_type,
             "size": file_meta.size,
             "hash": file_meta.hash,
             "title": file_meta.title,
@@ -1068,29 +1055,8 @@ async def upload_file(
         # Create parent directories if needed
         file_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Determine file type
-        file_type = "binary"
-        path_lower = target_path.lower()
-        if path_lower.endswith(".md"):
-            file_type = "markdown"
-        elif path_lower.endswith(".cdx"):
-            file_type = "view"
-        elif path_lower.endswith(".json"):
-            file_type = "json"
-        elif path_lower.endswith(".xml"):
-            file_type = "xml"
-        elif path_lower.endswith((".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".svg")):
-            file_type = "image"
-        elif path_lower.endswith(".pdf"):
-            file_type = "pdf"
-        elif path_lower.endswith((".mp3", ".wav", ".ogg", ".flac", ".aac", ".m4a")):
-            file_type = "audio"
-        elif path_lower.endswith((".mp4", ".webm", ".ogv", ".mov", ".avi")):
-            file_type = "video"
-        elif path_lower.endswith((".html", ".htm")):
-            file_type = "html"
-        elif path_lower.endswith((".txt", ".csv", ".log")):
-            file_type = "text"
+        # Determine content type
+        content_type = get_content_type(str(file_path))
 
         import hashlib
         from datetime import datetime
@@ -1104,7 +1070,7 @@ async def upload_file(
             notebook_id=notebook_id,
             path=target_path,
             filename=os.path.basename(target_path),
-            file_type=file_type,
+            content_type=content_type,
             size=len(content),
             hash=file_hash,
         )
@@ -1154,7 +1120,7 @@ async def upload_file(
             "notebook_id": file_meta.notebook_id,
             "path": file_meta.path,
             "filename": file_meta.filename,
-            "file_type": file_meta.file_type,
+            "content_type": file_meta.content_type,
             "size": file_meta.size,
             "message": "File uploaded successfully",
         }
@@ -1241,7 +1207,7 @@ async def move_file(
             "notebook_id": file_meta.notebook_id,
             "path": file_meta.path,
             "filename": file_meta.filename,
-            "file_type": file_meta.file_type,
+            "content_type": file_meta.content_type,
             "size": file_meta.size,
             "message": "File moved successfully",
         }

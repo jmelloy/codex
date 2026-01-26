@@ -41,7 +41,7 @@ class FileMetadata(SQLModel, table=True):
     notebook_id: int  # Reference to notebook in system database (not a foreign key)
     path: str = Field(index=True)  # Relative path from notebook
     filename: str = Field(index=True)
-    file_type: str  # markdown, json, xml, binary, etc.
+    content_type: str  # MIME type (e.g., text/markdown, image/jpeg)
     size: int
     hash: Optional[str] = None  # For detecting changes
 

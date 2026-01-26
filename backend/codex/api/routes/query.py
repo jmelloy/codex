@@ -31,7 +31,7 @@ class ViewQuery(BaseModel):
     # Filtering
     tags: list[str] | None = None
     tags_any: list[str] | None = None
-    file_types: list[str] | None = None
+    content_types: list[str] | None = None  # MIME types (e.g., ["image/jpeg", "image/png"])
 
     # Property filtering
     properties: dict[str, Any] | None = None
@@ -163,7 +163,7 @@ def file_to_dict(file: FileMetadata) -> dict[str, Any]:
         "notebook_id": file.notebook_id,
         "path": file.path,
         "filename": file.filename,
-        "file_type": file.file_type,
+        "content_type": file.content_type,
         "size": file.size,
         "hash": file.hash,
         "title": file.title,
@@ -337,9 +337,9 @@ async def query_files(
             # Build base query
             files_query = select(FileMetadata).where(FileMetadata.notebook_id == notebook.id)
 
-            # Apply file type filter
-            if query.file_types:
-                files_query = files_query.where(FileMetadata.file_type.in_(query.file_types))
+            # Apply content type filter
+            if query.content_types:
+                files_query = files_query.where(FileMetadata.content_type.in_(query.content_types))
 
             # Apply date filters
             if query.created_after:

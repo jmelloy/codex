@@ -32,7 +32,7 @@ def upgrade() -> None:
         sa.Column("notebook_id", sa.Integer(), nullable=False),
         sa.Column("path", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
         sa.Column("filename", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
-        sa.Column("file_type", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
+        sa.Column("content_type", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
         sa.Column("size", sa.Integer(), nullable=False),
         sa.Column("hash", sqlmodel.sql.sqltypes.AutoString(), nullable=True),
         sa.Column("title", sqlmodel.sql.sqltypes.AutoString(), nullable=True),

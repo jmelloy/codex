@@ -1,32 +1,32 @@
-import { describe, it, expect, beforeEach } from 'vitest'
-import { mount } from '@vue/test-utils'
-import { setActivePinia, createPinia } from 'pinia'
-import App from '../App.vue'
+import { describe, it, expect, beforeEach } from "vitest"
+import { mount } from "@vue/test-utils"
+import { setActivePinia, createPinia } from "pinia"
+import App from "../App.vue"
 
-describe('App', () => {
+describe("App", () => {
   beforeEach(() => {
     setActivePinia(createPinia())
   })
 
-  it('renders without crashing', () => {
+  it("renders without crashing", () => {
     const wrapper = mount(App, {
       global: {
         stubs: {
-          'router-view': true
-        }
-      }
+          "router-view": true,
+        },
+      },
     })
     expect(wrapper.exists()).toBe(true)
   })
 
-  it('has router-view component', () => {
+  it("has router-view component", () => {
     const wrapper = mount(App, {
       global: {
         stubs: {
-          'router-view': true
-        }
-      }
+          "router-view": true,
+        },
+      },
     })
-    expect(wrapper.findComponent({ name: 'router-view' }).exists()).toBe(true)
+    expect(wrapper.findComponent({ name: "router-view" }).exists()).toBe(true)
   })
 })

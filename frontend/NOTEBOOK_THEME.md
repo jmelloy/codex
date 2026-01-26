@@ -15,39 +15,65 @@ Transforms the markdown editor into a digital notebook with paper textures, rule
 ## Usage
 
 ### Page Backgrounds
+
 ```html
-<div class="theme-cream">      <!-- Cream/off-white paper -->
-<div class="theme-manila">     <!-- Manila/tan paper -->
-<div class="theme-white">      <!-- Pure white paper -->
-<div class="theme-blueprint">  <!-- Dark blue blueprint -->
+<div class="theme-cream">
+  <!-- Cream/off-white paper -->
+  <div class="theme-manila">
+    <!-- Manila/tan paper -->
+    <div class="theme-white">
+      <!-- Pure white paper -->
+      <div class="theme-blueprint"><!-- Dark blue blueprint --></div>
+    </div>
+  </div>
+</div>
 ```
 
 ### Paper Patterns
+
 ```html
-<div class="ruled-paper">      <!-- Horizontal ruled lines -->
-<div class="graph-paper">      <!-- Grid pattern -->
-<div class="dotted-paper">     <!-- Dot grid pattern -->
-<div class="notebook-texture"> <!-- Paper texture overlay -->
+<div class="ruled-paper">
+  <!-- Horizontal ruled lines -->
+  <div class="graph-paper">
+    <!-- Grid pattern -->
+    <div class="dotted-paper">
+      <!-- Dot grid pattern -->
+      <div class="notebook-texture"><!-- Paper texture overlay --></div>
+    </div>
+  </div>
+</div>
 ```
 
 ### Pen Colors
+
 ```html
-<span class="pen-black">   <!-- Black ink (default) -->
-<span class="pen-blue">    <!-- Blue ink -->
-<span class="pen-red">     <!-- Red ink -->
+<span class="pen-black">
+  <!-- Black ink (default) -->
+  <span class="pen-blue">
+    <!-- Blue ink -->
+    <span class="pen-red"> <!-- Red ink --></span></span
+  ></span
+>
 ```
 
 ### Layout Classes
+
 ```html
-<div class="notebook-page">     <!-- Page container with shadow -->
-<div class="notebook-content">  <!-- Content area with typography -->
-<div class="notebook-editor">   <!-- Editor with notebook styling -->
+<div class="notebook-page">
+  <!-- Page container with shadow -->
+  <div class="notebook-content">
+    <!-- Content area with typography -->
+    <div class="notebook-editor"><!-- Editor with notebook styling --></div>
+  </div>
+</div>
 ```
 
 ## Customization
 
 ### CSS Variables
+
 Customize in `notebook-theme.css`:
+
 ```css
 :root {
   --pen-black: #1a1a1a;
@@ -57,8 +83,9 @@ Customize in `notebook-theme.css`:
 ```
 
 ### Tailwind Colors
+
 ```html
-<div class="bg-notebook-page-cream text-notebook-pen-black">
+<div class="bg-notebook-page-cream text-notebook-pen-black"></div>
 ```
 
 Available: `notebook-page-{white|cream|manila|blueprint}`, `notebook-pen-{black|gray|blue|red|green|purple}`

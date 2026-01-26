@@ -7,7 +7,7 @@
       </div>
       <div class="toolbar-actions">
         <button @click="copyCode" class="btn-copy" :title="copied ? 'Copied!' : 'Copy code'">
-          {{ copied ? 'Copied!' : 'Copy' }}
+          {{ copied ? "Copied!" : "Copy" }}
         </button>
         <slot name="toolbar-actions"></slot>
       </div>
@@ -16,15 +16,17 @@
       <div class="line-numbers" v-if="showLineNumbers" aria-hidden="true">
         <span v-for="n in lineCount" :key="n" class="line-number">{{ n }}</span>
       </div>
-      <pre class="code-content"><code ref="codeElement" :class="languageClass" v-html="highlightedCode"></code></pre>
+      <pre
+        class="code-content"
+      ><code ref="codeElement" :class="languageClass" v-html="highlightedCode"></code></pre>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import hljs from 'highlight.js'
-import { useThemeStore } from '../stores/theme'
+import { ref, computed } from "vue"
+import hljs from "highlight.js"
+import { useThemeStore } from "../stores/theme"
 
 const themeStore = useThemeStore()
 
@@ -37,9 +39,9 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  content: '',
+  content: "",
   showLineNumbers: true,
-  showToolbar: true
+  showToolbar: true,
 })
 
 const copied = ref(false)
@@ -47,99 +49,99 @@ const copied = ref(false)
 // Map file extensions to highlight.js language names
 const extensionToLanguage: Record<string, string> = {
   // JavaScript/TypeScript
-  'js': 'javascript',
-  'jsx': 'javascript',
-  'ts': 'typescript',
-  'tsx': 'typescript',
-  'mjs': 'javascript',
-  'cjs': 'javascript',
+  js: "javascript",
+  jsx: "javascript",
+  ts: "typescript",
+  tsx: "typescript",
+  mjs: "javascript",
+  cjs: "javascript",
   // Python
-  'py': 'python',
-  'pyw': 'python',
-  'pyx': 'python',
+  py: "python",
+  pyw: "python",
+  pyx: "python",
   // Web
-  'html': 'xml',
-  'htm': 'xml',
-  'css': 'css',
-  'scss': 'scss',
-  'sass': 'scss',
-  'less': 'less',
-  'vue': 'xml',
-  'svelte': 'xml',
+  html: "xml",
+  htm: "xml",
+  css: "css",
+  scss: "scss",
+  sass: "scss",
+  less: "less",
+  vue: "xml",
+  svelte: "xml",
   // Data formats
-  'json': 'json',
-  'yaml': 'yaml',
-  'yml': 'yaml',
-  'xml': 'xml',
-  'toml': 'ini',
+  json: "json",
+  yaml: "yaml",
+  yml: "yaml",
+  xml: "xml",
+  toml: "ini",
   // Shell
-  'sh': 'bash',
-  'bash': 'bash',
-  'zsh': 'bash',
-  'fish': 'bash',
-  'ps1': 'powershell',
-  'bat': 'dos',
-  'cmd': 'dos',
+  sh: "bash",
+  bash: "bash",
+  zsh: "bash",
+  fish: "bash",
+  ps1: "powershell",
+  bat: "dos",
+  cmd: "dos",
   // Systems
-  'c': 'c',
-  'h': 'c',
-  'cpp': 'cpp',
-  'cc': 'cpp',
-  'cxx': 'cpp',
-  'hpp': 'cpp',
-  'hxx': 'cpp',
-  'cs': 'csharp',
-  'java': 'java',
-  'kt': 'kotlin',
-  'kts': 'kotlin',
-  'scala': 'scala',
-  'go': 'go',
-  'rs': 'rust',
-  'swift': 'swift',
+  c: "c",
+  h: "c",
+  cpp: "cpp",
+  cc: "cpp",
+  cxx: "cpp",
+  hpp: "cpp",
+  hxx: "cpp",
+  cs: "csharp",
+  java: "java",
+  kt: "kotlin",
+  kts: "kotlin",
+  scala: "scala",
+  go: "go",
+  rs: "rust",
+  swift: "swift",
   // Scripting
-  'rb': 'ruby',
-  'php': 'php',
-  'pl': 'perl',
-  'pm': 'perl',
-  'lua': 'lua',
-  'r': 'r',
-  'R': 'r',
+  rb: "ruby",
+  php: "php",
+  pl: "perl",
+  pm: "perl",
+  lua: "lua",
+  r: "r",
+  R: "r",
   // Functional
-  'hs': 'haskell',
-  'ml': 'ocaml',
-  'fs': 'fsharp',
-  'fsx': 'fsharp',
-  'clj': 'clojure',
-  'cljs': 'clojure',
-  'ex': 'elixir',
-  'exs': 'elixir',
-  'erl': 'erlang',
+  hs: "haskell",
+  ml: "ocaml",
+  fs: "fsharp",
+  fsx: "fsharp",
+  clj: "clojure",
+  cljs: "clojure",
+  ex: "elixir",
+  exs: "elixir",
+  erl: "erlang",
   // Config
-  'ini': 'ini',
-  'conf': 'ini',
-  'cfg': 'ini',
-  'properties': 'properties',
-  'env': 'bash',
+  ini: "ini",
+  conf: "ini",
+  cfg: "ini",
+  properties: "properties",
+  env: "bash",
   // Documentation
-  'md': 'markdown',
-  'markdown': 'markdown',
-  'rst': 'plaintext',
-  'tex': 'latex',
+  md: "markdown",
+  markdown: "markdown",
+  rst: "plaintext",
+  tex: "latex",
   // Database
-  'sql': 'sql',
-  'graphql': 'graphql',
-  'gql': 'graphql',
+  sql: "sql",
+  graphql: "graphql",
+  gql: "graphql",
   // Build
-  'dockerfile': 'dockerfile',
-  'makefile': 'makefile',
-  'cmake': 'cmake',
-  'gradle': 'gradle',
+  dockerfile: "dockerfile",
+  makefile: "makefile",
+  cmake: "cmake",
+  gradle: "gradle",
   // Other
-  'diff': 'diff',
-  'patch': 'diff',
-  'vim': 'vim',
-  'nginx': 'nginx',
-  'apache': 'apache',
+  diff: "diff",
+  patch: "diff",
+  vim: "vim",
+  nginx: "nginx",
+  apache: "apache",
 }
 
 // Detect language from filename or use provided language
@@ -148,12 +150,12 @@ const detectedLanguage = computed(() => {
     return props.language
   }
   if (props.filename) {
-    const ext = props.filename.split('.').pop()?.toLowerCase() || ''
+    const ext = props.filename.split(".").pop()?.toLowerCase() || ""
     // Handle special filenames
     const lowerFilename = props.filename.toLowerCase()
-    if (lowerFilename === 'dockerfile') return 'dockerfile'
-    if (lowerFilename === 'makefile' || lowerFilename === 'gnumakefile') return 'makefile'
-    if (lowerFilename.endsWith('.d.ts')) return 'typescript'
+    if (lowerFilename === "dockerfile") return "dockerfile"
+    if (lowerFilename === "makefile" || lowerFilename === "gnumakefile") return "makefile"
+    if (lowerFilename.endsWith(".d.ts")) return "typescript"
 
     return extensionToLanguage[ext] || null
   }
@@ -161,17 +163,17 @@ const detectedLanguage = computed(() => {
 })
 
 const languageClass = computed(() => {
-  return detectedLanguage.value ? `language-${detectedLanguage.value}` : ''
+  return detectedLanguage.value ? `language-${detectedLanguage.value}` : ""
 })
 
 const themeClass = computed(() => {
   // Use theme from store - 'light' or 'dark'
-  return themeStore.theme.className?.includes('dark') ? 'code-theme-dark' : 'code-theme-light'
+  return themeStore.theme.className?.includes("dark") ? "code-theme-dark" : "code-theme-light"
 })
 
 // Escape HTML to prevent XSS
 function escapeHtml(text: string): string {
-  const div = document.createElement('div')
+  const div = document.createElement("div")
   div.textContent = text
   return div.innerHTML
 }
@@ -187,7 +189,7 @@ const highlightedCode = computed(() => {
       // Use specific language if detected
       const result = hljs.highlight(props.content, {
         language: detectedLanguage.value,
-        ignoreIllegals: true
+        ignoreIllegals: true,
       })
       return result.value
     } else {
@@ -196,7 +198,7 @@ const highlightedCode = computed(() => {
       return result.value
     }
   } catch (e) {
-    console.warn('Syntax highlighting failed:', e)
+    console.warn("Syntax highlighting failed:", e)
     return escapeHtml(props.content)
   }
 })
@@ -204,7 +206,7 @@ const highlightedCode = computed(() => {
 // Count lines for line numbers
 const lineCount = computed(() => {
   if (!props.content) return 1
-  return props.content.split('\n').length
+  return props.content.split("\n").length
 })
 
 // Copy code to clipboard
@@ -216,7 +218,7 @@ async function copyCode() {
       copied.value = false
     }, 2000)
   } catch (e) {
-    console.error('Failed to copy code:', e)
+    console.error("Failed to copy code:", e)
   }
 }
 </script>

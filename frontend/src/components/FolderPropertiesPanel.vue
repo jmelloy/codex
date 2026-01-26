@@ -9,25 +9,15 @@
       <!-- Title (editable) -->
       <div class="property-group">
         <label>Title</label>
-        <input
-          v-model="editableTitle"
-          @blur="updateTitle"
-          @keyup.enter="updateTitle"
-          class="property-input"
-          :placeholder="folder.name"
-        />
+        <input v-model="editableTitle" @blur="updateTitle" @keyup.enter="updateTitle" class="property-input"
+          :placeholder="folder.name" />
       </div>
 
       <!-- Description (editable) -->
       <div class="property-group">
         <label>Description</label>
-        <textarea
-          v-model="editableDescription"
-          @blur="updateDescription"
-          class="property-textarea"
-          placeholder="Add a description..."
-          rows="3"
-        ></textarea>
+        <textarea v-model="editableDescription" @blur="updateDescription" class="property-textarea"
+          placeholder="Add a description..." rows="3"></textarea>
       </div>
 
       <!-- Folder Info (read-only) -->
@@ -70,83 +60,52 @@
           </span>
         </div>
         <div class="tag-input-wrapper">
-          <input
-            v-model="newTag"
-            @keyup.enter="addTag"
-            class="tag-input"
-            placeholder="Add a tag..."
-          />
+          <input v-model="newTag" @keyup.enter="addTag" class="tag-input" placeholder="Add a tag..." />
           <button @click="addTag" class="tag-add-btn" :disabled="!newTag.trim()">Add</button>
         </div>
-      </div>
-
-      <!-- Custom Properties (editable) -->
-      <div class="property-section">
-        <h4>Custom Properties</h4>
 
         <!-- Existing custom properties -->
         <div class="custom-property-row" v-for="(value, key) in metadata" :key="key">
           <template v-if="editingProperty === key">
             <!-- Editing mode -->
-            <input
-              v-model="editPropertyValue"
-              @blur="savePropertyEdit(key as string)"
-              @keyup.enter="savePropertyEdit(key as string)"
-              @keyup.escape="cancelPropertyEdit"
-              class="property-edit-input"
-              ref="editInput"
-            />
+            <input v-model="editPropertyValue" @blur="savePropertyEdit(key as string)"
+              @keyup.enter="savePropertyEdit(key as string)" @keyup.escape="cancelPropertyEdit"
+              class="property-edit-input" ref="editInput" />
             <div class="property-actions-inline">
-              <button @click="savePropertyEdit(key as string)" class="btn-action btn-save" title="Save">✓</button>
-              <button @click="cancelPropertyEdit" class="btn-action btn-cancel" title="Cancel">✕</button>
+              <button @click="savePropertyEdit(key as string)" class="btn-action btn-save" title="Save">
+                ✓
+              </button>
+              <button @click="cancelPropertyEdit" class="btn-action btn-cancel" title="Cancel">
+                ✕
+              </button>
             </div>
           </template>
           <template v-else>
             <!-- Display mode -->
             <span class="property-label">{{ key }}</span>
-            <span
-              class="property-value editable"
-              @click="startEditProperty(key as string, value)"
-              title="Click to edit"
-            >{{ formatMetadataValue(value) }}</span>
-            <button @click="removeProperty(key as string)" class="btn-remove-property" title="Remove property">×</button>
+            <span class="property-value editable" @click="startEditProperty(key as string, value)"
+              title="Click to edit">{{ formatMetadataValue(value) }}</span>
+            <button @click="removeProperty(key as string)" class="btn-remove-property" title="Remove property">
+              ×
+            </button>
           </template>
-        </div>
-
-        <!-- Empty state -->
-        <div v-if="Object.keys(metadata).length === 0" class="empty-properties">
-          No custom properties
         </div>
 
         <!-- Add new property -->
         <div class="add-property-form">
-          <input
-            v-model="newPropertyKey"
-            class="property-key-input"
-            placeholder="Property name"
-            @keyup.enter="focusValueInput"
-          />
-          <input
-            v-model="newPropertyValue"
-            class="property-value-input"
-            placeholder="Value"
-            ref="valueInputRef"
-            @keyup.enter="addProperty"
-          />
-          <button
-            @click="addProperty"
-            class="btn-add-property"
-            :disabled="!newPropertyKey.trim()"
-            title="Add property"
-          >+</button>
+          <input v-model="newPropertyKey" class="property-key-input" placeholder="Property name"
+            @keyup.enter="focusValueInput" />
+          <input v-model="newPropertyValue" class="property-value-input" placeholder="Value" ref="valueInputRef"
+            @keyup.enter="addProperty" />
+          <button @click="addProperty" class="btn-add-property" :disabled="!newPropertyKey.trim()" title="Add property">
+            +
+          </button>
         </div>
       </div>
 
       <!-- Actions -->
       <div class="property-actions">
-        <button @click="confirmDelete" class="btn-delete">
-          Delete Folder
-        </button>
+        <button @click="confirmDelete" class="btn-delete">Delete Folder</button>
       </div>
     </div>
 
@@ -157,8 +116,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
-import type { FolderWithFiles } from '../services/codex'
+import { ref, computed, watch } from "vue"
+import type { FolderWithFiles } from "../services/codex"
 
 interface Props {
   folder: FolderWithFiles | null
@@ -172,15 +131,15 @@ const emit = defineEmits<{
   delete: []
 }>()
 
-const editableTitle = ref('')
-const editableDescription = ref('')
-const newTag = ref('')
+const editableTitle = ref("")
+const editableDescription = ref("")
+const newTag = ref("")
 
 // Custom property editing state
-const newPropertyKey = ref('')
-const newPropertyValue = ref('')
+const newPropertyKey = ref("")
+const newPropertyValue = ref("")
 const editingProperty = ref<string | null>(null)
-const editPropertyValue = ref('')
+const editPropertyValue = ref("")
 const valueInputRef = ref<HTMLInputElement | null>(null)
 
 // Get current properties or empty object
@@ -193,8 +152,8 @@ watch(
   () => props.folder,
   (newFolder) => {
     if (newFolder) {
-      editableTitle.value = newFolder.properties?.title || newFolder.title || ''
-      editableDescription.value = newFolder.properties?.description || newFolder.description || ''
+      editableTitle.value = newFolder.properties?.title || newFolder.title || ""
+      editableDescription.value = newFolder.properties?.description || newFolder.description || ""
     }
   },
   { immediate: true }
@@ -202,15 +161,13 @@ watch(
 
 const tags = computed(() => {
   if (props.folder?.properties?.tags) {
-    return Array.isArray(props.folder.properties.tags)
-      ? props.folder.properties.tags
-      : []
+    return Array.isArray(props.folder.properties.tags) ? props.folder.properties.tags : []
   }
   return []
 })
 
 // Standard property fields that are handled separately
-const STANDARD_FIELDS = ['title', 'description', 'tags'] as const
+const STANDARD_FIELDS = ["title", "description", "tags"] as const
 type StandardField = typeof STANDARD_FIELDS[number]
 
 // Get all metadata except standard fields (title, description, tags)
@@ -229,12 +186,12 @@ const metadata = computed(() => {
 function formatDate(dateStr: string): string {
   try {
     const date = new Date(dateStr)
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     })
   } catch {
     return dateStr
@@ -242,29 +199,30 @@ function formatDate(dateStr: string): string {
 }
 
 function formatMetadataValue(value: unknown): string {
-  if (value === null || value === undefined) return ''
-  if (Array.isArray(value)) return value.join(', ')
-  if (typeof value === 'object') return JSON.stringify(value)
+  if (value === null || value === undefined) return ""
+  if (Array.isArray(value)) return value.join(", ")
+  if (typeof value === "object") return JSON.stringify(value)
   return String(value)
 }
 
 function emitPropertiesUpdate(updates: Record<string, any>) {
   const newProperties = {
     ...currentProperties.value,
-    ...updates
+    ...updates,
   }
-  emit('updateProperties', newProperties)
+  emit("updateProperties", newProperties)
 }
 
 function updateTitle() {
-  const currentTitle = props.folder?.properties?.title || props.folder?.title || ''
+  const currentTitle = props.folder?.properties?.title || props.folder?.title || ""
   if (props.folder && editableTitle.value !== currentTitle) {
     emitPropertiesUpdate({ title: editableTitle.value })
   }
 }
 
 function updateDescription() {
-  const currentDescription = props.folder?.properties?.description || props.folder?.description || ''
+  const currentDescription =
+    props.folder?.properties?.description || props.folder?.description || ""
   if (props.folder && editableDescription.value !== currentDescription) {
     emitPropertiesUpdate({ description: editableDescription.value })
   }
@@ -278,12 +236,12 @@ function addTag() {
   if (!currentTags.includes(tagToAdd)) {
     emitPropertiesUpdate({ tags: [...currentTags, tagToAdd] })
   }
-  newTag.value = ''
+  newTag.value = ""
 }
 
 function removeTag(tagToRemove: string) {
   const currentTags = tags.value
-  emitPropertiesUpdate({ tags: currentTags.filter(t => t !== tagToRemove) })
+  emitPropertiesUpdate({ tags: currentTags.filter((t) => t !== tagToRemove) })
 }
 
 // Custom property management
@@ -305,8 +263,8 @@ function addProperty() {
   }
 
   emitPropertiesUpdate({ [key]: value })
-  newPropertyKey.value = ''
-  newPropertyValue.value = ''
+  newPropertyKey.value = ""
+  newPropertyValue.value = ""
 }
 
 function focusValueInput() {
@@ -316,10 +274,10 @@ function focusValueInput() {
 function startEditProperty(key: string, value: unknown) {
   editingProperty.value = key
   // Format value for editing
-  if (typeof value === 'object') {
+  if (typeof value === "object") {
     editPropertyValue.value = JSON.stringify(value)
   } else {
-    editPropertyValue.value = String(value ?? '')
+    editPropertyValue.value = String(value ?? "")
   }
 }
 
@@ -341,25 +299,25 @@ function savePropertyEdit(key: string) {
 
   emitPropertiesUpdate({ [key]: value })
   editingProperty.value = null
-  editPropertyValue.value = ''
+  editPropertyValue.value = ""
 }
 
 function cancelPropertyEdit() {
   editingProperty.value = null
-  editPropertyValue.value = ''
+  editPropertyValue.value = ""
 }
 
 function removeProperty(key: string) {
   // Create new properties object without the removed key
   const newProperties = { ...currentProperties.value }
   delete newProperties[key]
-  emit('updateProperties', newProperties)
+  emit("updateProperties", newProperties)
 }
 
 function confirmDelete() {
   const displayName = props.folder?.properties?.title || props.folder?.title || props.folder?.name
   if (confirm(`Are you sure you want to delete folder "${displayName}" and all its contents?`)) {
-    emit('delete')
+    emit("delete")
   }
 }
 </script>

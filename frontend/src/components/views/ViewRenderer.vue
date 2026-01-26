@@ -9,157 +9,160 @@
       <p class="text-red-600">{{ error }}</p>
     </div>
 
-    <component v-else-if="viewComponent" :is="viewComponent" :data="queryResults" :config="viewConfig"
-      :definition="viewDefinition" :workspace-id="workspaceId" @update="handleUpdate" @refresh="loadView" />
+    <component
+      v-else-if="viewComponent"
+      :is="viewComponent"
+      :data="queryResults"
+      :config="viewConfig"
+      :definition="viewDefinition"
+      :workspace-id="workspaceId"
+      @update="handleUpdate"
+      @refresh="loadView"
+    />
 
     <div v-else class="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
       <h3 class="text-yellow-800 font-semibold mb-2">Unknown view type</h3>
-      <p class="text-yellow-600">
-        View type "{{ viewDefinition?.view_type }}" is not supported.
-      </p>
+      <p class="text-yellow-600">View type "{{ viewDefinition?.view_type }}" is not supported.</p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, shallowRef } from 'vue';
-import { parseViewDefinition, type ViewDefinition } from '@/services/viewParser';
-import { queryService, type QueryResult } from '@/services/queryService';
-import { fileService } from '@/services/codex';
+import { computed, ref, watch, shallowRef } from "vue"
+import { parseViewDefinition, type ViewDefinition } from "@/services/viewParser"
+import { queryService, type QueryResult } from "@/services/queryService"
+import { fileService } from "@/services/codex"
 
 // Lazy load view components
-const KanbanView = () => import('./KanbanView.vue');
-const TaskListView = () => import('./TaskListView.vue');
-const RollupView = () => import('./RollupView.vue');
-const GalleryView = () => import('./GalleryView.vue');
-const CorkboardView = () => import('./CorkboardView.vue');
-const DashboardView = () => import('./DashboardView.vue');
+const KanbanView = () => import("./KanbanView.vue")
+const TaskListView = () => import("./TaskListView.vue")
+const RollupView = () => import("./RollupView.vue")
+const GalleryView = () => import("./GalleryView.vue")
+const CorkboardView = () => import("./CorkboardView.vue")
+const DashboardView = () => import("./DashboardView.vue")
 
 const props = defineProps<{
-  fileId: number;
-  workspaceId: number;
-  notebookId: number;
-  compact?: boolean; // For mini-views
-}>();
+  fileId: number
+  workspaceId: number
+  notebookId: number
+  compact?: boolean // For mini-views
+}>()
 
 const emit = defineEmits<{
-  (e: 'error', error: string): void;
-  (e: 'loaded', definition: ViewDefinition): void;
-}>();
+  (e: "error", error: string): void
+  (e: "loaded", definition: ViewDefinition): void
+}>()
 
-const loading = ref(true);
-const error = ref<string | null>(null);
-const viewDefinition = ref<ViewDefinition | null>(null);
-const queryResults = ref<QueryResult | null>(null);
-const viewComponent = shallowRef<any>(null);
+const loading = ref(true)
+const error = ref<string | null>(null)
+const viewDefinition = ref<ViewDefinition | null>(null)
+const queryResults = ref<QueryResult | null>(null)
+const viewComponent = shallowRef<any>(null)
 
 // Load view definition and execute query
 const loadView = async () => {
-  loading.value = true;
-  error.value = null;
+  loading.value = true
+  error.value = null
 
   try {
     // Load the .cdx file
-    const file = await fileService.get(props.fileId, props.workspaceId, props.notebookId);
+    const file = await fileService.get(props.fileId, props.workspaceId, props.notebookId)
 
     // Parse view definition
-    viewDefinition.value = parseViewDefinition(file.content || '');
+    viewDefinition.value = parseViewDefinition(file.content || "")
 
     // Execute query if defined
     if (viewDefinition.value.query) {
-      queryResults.value = await queryService.execute(
-        props.workspaceId,
-        viewDefinition.value.query
-      );
+      queryResults.value = await queryService.execute(props.workspaceId, viewDefinition.value.query)
     }
 
-    emit('loaded', viewDefinition.value);
+    emit("loaded", viewDefinition.value)
   } catch (err: any) {
-    error.value = err.message || 'Failed to load view';
-    emit('error', error.value as string);
+    error.value = err.message || "Failed to load view"
+    emit("error", error.value as string)
   } finally {
-    loading.value = false;
+    loading.value = false
   }
-};
+}
 
 // Map view type to component
 watch(
   () => viewDefinition.value?.view_type,
   async (viewType) => {
     if (!viewType) {
-      viewComponent.value = null;
-      return;
+      viewComponent.value = null
+      return
     }
 
     try {
       switch (viewType) {
-        case 'kanban':
-          viewComponent.value = (await KanbanView()).default;
-          break;
-        case 'task-list':
-          viewComponent.value = (await TaskListView()).default;
-          break;
-        case 'rollup':
-          viewComponent.value = (await RollupView()).default;
-          break;
-        case 'gallery':
-          viewComponent.value = (await GalleryView()).default;
-          break;
-        case 'corkboard':
-          viewComponent.value = (await CorkboardView()).default;
-          break;
-        case 'dashboard':
-          viewComponent.value = (await DashboardView()).default;
-          break;
+        case "kanban":
+          viewComponent.value = (await KanbanView()).default
+          break
+        case "task-list":
+          viewComponent.value = (await TaskListView()).default
+          break
+        case "rollup":
+          viewComponent.value = (await RollupView()).default
+          break
+        case "gallery":
+          viewComponent.value = (await GalleryView()).default
+          break
+        case "corkboard":
+          viewComponent.value = (await CorkboardView()).default
+          break
+        case "dashboard":
+          viewComponent.value = (await DashboardView()).default
+          break
         default:
-          viewComponent.value = null;
+          viewComponent.value = null
       }
     } catch (err) {
-      console.error('Failed to load view component:', err);
-      viewComponent.value = null;
+      console.error("Failed to load view component:", err)
+      viewComponent.value = null
     }
   },
   { immediate: true }
-);
+)
 
-const viewConfig = computed(() => viewDefinition.value?.config || {});
+const viewConfig = computed(() => viewDefinition.value?.config || {})
 
 // Handle update events from views (e.g., drag-drop)
 interface ViewUpdateEvent {
-  fileId: number;
-  updates: Record<string, any>;
+  fileId: number
+  updates: Record<string, any>
 }
 
 const handleUpdate = async (event: ViewUpdateEvent) => {
   try {
     // Load current file - we need to get notebook_id from it since event doesn't have it
     // TODO: Consider caching files or passing notebook_id in the event
-    const file = await fileService.get(event.fileId, props.workspaceId, props.notebookId);
+    const file = await fileService.get(event.fileId, props.workspaceId, props.notebookId)
 
     // Merge updates into properties
     const updatedProperties = {
       ...file.properties,
       ...event.updates,
-    };
+    }
 
     // Update file
     await fileService.update(
       event.fileId,
       props.workspaceId,
       file.notebook_id,
-      file.content || '',
+      file.content || "",
       updatedProperties
-    );
+    )
 
     // Refresh view
-    await loadView();
+    await loadView()
   } catch (err: any) {
-    error.value = `Failed to update file: ${err.message}`;
+    error.value = `Failed to update file: ${err.message}`
   }
-};
+}
 
 // Load view when component mounts or fileId changes
-watch(() => props.fileId, loadView, { immediate: true });
+watch(() => props.fileId, loadView, { immediate: true })
 </script>
 
 <style scoped>

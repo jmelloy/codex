@@ -2,10 +2,18 @@
   <div class="properties-panel">
     <div class="panel-header">
       <div class="panel-tabs">
-        <button class="tab-btn" :class="{ active: activeTab === 'properties' }" @click="activeTab = 'properties'">
+        <button
+          class="tab-btn"
+          :class="{ active: activeTab === 'properties' }"
+          @click="activeTab = 'properties'"
+        >
           Properties
         </button>
-        <button class="tab-btn" :class="{ active: activeTab === 'history' }" @click="switchToHistory">
+        <button
+          class="tab-btn"
+          :class="{ active: activeTab === 'history' }"
+          @click="switchToHistory"
+        >
           History
         </button>
       </div>
@@ -16,15 +24,25 @@
       <!-- Title (editable) -->
       <div class="property-group">
         <label>Title</label>
-        <input v-model="editableTitle" @blur="updateTitle" @keyup.enter="updateTitle" class="property-input"
-          placeholder="Untitled" />
+        <input
+          v-model="editableTitle"
+          @blur="updateTitle"
+          @keyup.enter="updateTitle"
+          class="property-input"
+          placeholder="Untitled"
+        />
       </div>
 
       <!-- Description (editable) -->
       <div class="property-group">
         <label>Description</label>
-        <textarea v-model="editableDescription" @blur="updateDescription" class="property-textarea"
-          placeholder="Add a description..." rows="3"></textarea>
+        <textarea
+          v-model="editableDescription"
+          @blur="updateDescription"
+          class="property-textarea"
+          placeholder="Add a description..."
+          rows="3"
+        ></textarea>
       </div>
       <!-- Tags (editable) -->
       <div class="property-section">
@@ -36,7 +54,12 @@
           </span>
         </div>
         <div class="tag-input-wrapper">
-          <input v-model="newTag" @keyup.enter="addTag" class="tag-input" placeholder="Add a tag..." />
+          <input
+            v-model="newTag"
+            @keyup.enter="addTag"
+            class="tag-input"
+            placeholder="Add a tag..."
+          />
           <button @click="addTag" class="tag-add-btn" :disabled="!newTag.trim()">Add</button>
         </div>
       </div>
@@ -49,21 +72,43 @@
         <div class="custom-property-row" v-for="(value, key) in metadata" :key="key">
           <template v-if="editingProperty === key">
             <!-- Editing mode -->
-            <input v-model="editPropertyValue" @blur="savePropertyEdit(key as string)"
-              @keyup.enter="savePropertyEdit(key as string)" @keyup.escape="cancelPropertyEdit"
-              class="property-edit-input" ref="editInput" />
+            <input
+              v-model="editPropertyValue"
+              @blur="savePropertyEdit(key as string)"
+              @keyup.enter="savePropertyEdit(key as string)"
+              @keyup.escape="cancelPropertyEdit"
+              class="property-edit-input"
+              ref="editInput"
+            />
             <div class="property-actions-inline">
-              <button @click="savePropertyEdit(key as string)" class="btn-action btn-save" title="Save">✓</button>
-              <button @click="cancelPropertyEdit" class="btn-action btn-cancel" title="Cancel">✕</button>
+              <button
+                @click="savePropertyEdit(key as string)"
+                class="btn-action btn-save"
+                title="Save"
+              >
+                ✓
+              </button>
+              <button @click="cancelPropertyEdit" class="btn-action btn-cancel" title="Cancel">
+                ✕
+              </button>
             </div>
           </template>
           <template v-else>
             <!-- Display mode -->
             <span class="property-label">{{ key }}</span>
-            <span class="property-value editable" @click="startEditProperty(key as string, value)"
-              title="Click to edit">{{ formatMetadataValue(value) }}</span>
-            <button @click="removeProperty(key as string)" class="btn-remove-property"
-              title="Remove property">×</button>
+            <span
+              class="property-value editable"
+              @click="startEditProperty(key as string, value)"
+              title="Click to edit"
+              >{{ formatMetadataValue(value) }}</span
+            >
+            <button
+              @click="removeProperty(key as string)"
+              class="btn-remove-property"
+              title="Remove property"
+            >
+              ×
+            </button>
           </template>
         </div>
 
@@ -108,20 +153,33 @@
 
         <!-- Add new property -->
         <div class="add-property-form">
-          <input v-model="newPropertyKey" class="property-key-input" placeholder="Property name"
-            @keyup.enter="focusValueInput" />
-          <input v-model="newPropertyValue" class="property-value-input" placeholder="Value" ref="valueInputRef"
-            @keyup.enter="addProperty" />
-          <button @click="addProperty" class="btn-add-property" :disabled="!newPropertyKey.trim()"
-            title="Add property">+</button>
+          <input
+            v-model="newPropertyKey"
+            class="property-key-input"
+            placeholder="Property name"
+            @keyup.enter="focusValueInput"
+          />
+          <input
+            v-model="newPropertyValue"
+            class="property-value-input"
+            placeholder="Value"
+            ref="valueInputRef"
+            @keyup.enter="addProperty"
+          />
+          <button
+            @click="addProperty"
+            class="btn-add-property"
+            :disabled="!newPropertyKey.trim()"
+            title="Add property"
+          >
+            +
+          </button>
         </div>
       </div>
 
       <!-- Actions -->
       <div class="property-actions">
-        <button @click="confirmDelete" class="btn-delete">
-          Delete File
-        </button>
+        <button @click="confirmDelete" class="btn-delete">Delete File</button>
       </div>
     </div>
 
@@ -138,8 +196,13 @@
         No history available for this file.
       </div>
       <div v-else class="history-list">
-        <div v-for="commit in history" :key="commit.hash" class="history-item" @click="selectCommit(commit)"
-          :class="{ selected: selectedCommit?.hash === commit.hash }">
+        <div
+          v-for="commit in history"
+          :key="commit.hash"
+          class="history-item"
+          @click="selectCommit(commit)"
+          :class="{ selected: selectedCommit?.hash === commit.hash }"
+        >
           <div class="commit-header">
             <span class="commit-hash" :title="commit.hash">{{ commit.hash.substring(0, 7) }}</span>
             <span class="commit-date">{{ formatCommitDate(commit.date) }}</span>
@@ -153,11 +216,11 @@
       <div v-if="selectedCommit" class="commit-preview">
         <div class="preview-header">
           <h4>Preview: {{ selectedCommit.hash.substring(0, 7) }}</h4>
-          <button @click="selectedCommit = null" class="btn-close-preview" title="Close preview">×</button>
+          <button @click="selectedCommit = null" class="btn-close-preview" title="Close preview">
+            ×
+          </button>
         </div>
-        <div v-if="commitContentLoading" class="preview-loading">
-          Loading...
-        </div>
+        <div v-if="commitContentLoading" class="preview-loading">Loading...</div>
         <div v-else-if="commitContent !== null" class="preview-content">
           <pre><code>{{ commitContent }}</code></pre>
         </div>
@@ -176,9 +239,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
-import type { FileWithContent, FileHistoryEntry } from '../services/codex'
-import { fileService } from '../services/codex'
+import { ref, computed, watch } from "vue"
+import type { FileWithContent, FileHistoryEntry } from "../services/codex"
+import { fileService } from "../services/codex"
 
 interface Props {
   file: FileWithContent | null
@@ -196,7 +259,7 @@ const emit = defineEmits<{
 }>()
 
 // Tab state
-const activeTab = ref<'properties' | 'history'>('properties')
+const activeTab = ref<"properties" | "history">("properties")
 
 // History state
 const history = ref<FileHistoryEntry[]>([])
@@ -206,15 +269,15 @@ const selectedCommit = ref<FileHistoryEntry | null>(null)
 const commitContent = ref<string | null>(null)
 const commitContentLoading = ref(false)
 
-const editableTitle = ref('')
-const editableDescription = ref('')
-const newTag = ref('')
+const editableTitle = ref("")
+const editableDescription = ref("")
+const newTag = ref("")
 
 // Custom property editing state
-const newPropertyKey = ref('')
-const newPropertyValue = ref('')
+const newPropertyKey = ref("")
+const newPropertyValue = ref("")
 const editingProperty = ref<string | null>(null)
-const editPropertyValue = ref('')
+const editPropertyValue = ref("")
 const valueInputRef = ref<HTMLInputElement | null>(null)
 
 // Get current properties or empty object
@@ -228,8 +291,8 @@ watch(
   (newFile) => {
     if (newFile) {
       // Read from properties first, fall back to direct fields
-      editableTitle.value = newFile.properties?.title || newFile.title || ''
-      editableDescription.value = newFile.properties?.description || newFile.description || ''
+      editableTitle.value = newFile.properties?.title || newFile.title || ""
+      editableDescription.value = newFile.properties?.description || newFile.description || ""
     }
   },
   { immediate: true }
@@ -237,15 +300,13 @@ watch(
 
 const tags = computed(() => {
   if (props.file?.properties?.tags) {
-    return Array.isArray(props.file.properties.tags)
-      ? props.file.properties.tags
-      : []
+    return Array.isArray(props.file.properties.tags) ? props.file.properties.tags : []
   }
   return []
 })
 
 // Standard property fields that are handled separately
-const STANDARD_FIELDS = ['title', 'description', 'tags'] as const
+const STANDARD_FIELDS = ["title", "description", "tags"] as const
 type StandardField = typeof STANDARD_FIELDS[number]
 
 // Get all metadata except standard fields (title, description, tags)
@@ -264,12 +325,12 @@ const metadata = computed(() => {
 function formatDate(dateStr: string): string {
   try {
     const date = new Date(dateStr)
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     })
   } catch {
     return dateStr
@@ -277,37 +338,37 @@ function formatDate(dateStr: string): string {
 }
 
 function formatSize(bytes: number): string {
-  if (bytes === 0) return '0 B'
+  if (bytes === 0) return "0 B"
   const k = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB']
+  const sizes = ["B", "KB", "MB", "GB"]
   const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i]
 }
 
 function formatMetadataValue(value: unknown): string {
-  if (value === null || value === undefined) return ''
-  if (Array.isArray(value)) return value.join(', ')
-  if (typeof value === 'object') return JSON.stringify(value)
+  if (value === null || value === undefined) return ""
+  if (Array.isArray(value)) return value.join(", ")
+  if (typeof value === "object") return JSON.stringify(value)
   return String(value)
 }
 
 function emitPropertiesUpdate(updates: Record<string, any>) {
   const newProperties = {
     ...currentProperties.value,
-    ...updates
+    ...updates,
   }
-  emit('updateProperties', newProperties)
+  emit("updateProperties", newProperties)
 }
 
 function updateTitle() {
-  const currentTitle = props.file?.properties?.title || props.file?.title || ''
+  const currentTitle = props.file?.properties?.title || props.file?.title || ""
   if (props.file && editableTitle.value !== currentTitle) {
     emitPropertiesUpdate({ title: editableTitle.value })
   }
 }
 
 function updateDescription() {
-  const currentDescription = props.file?.properties?.description || props.file?.description || ''
+  const currentDescription = props.file?.properties?.description || props.file?.description || ""
   if (props.file && editableDescription.value !== currentDescription) {
     emitPropertiesUpdate({ description: editableDescription.value })
   }
@@ -321,12 +382,12 @@ function addTag() {
   if (!currentTags.includes(tagToAdd)) {
     emitPropertiesUpdate({ tags: [...currentTags, tagToAdd] })
   }
-  newTag.value = ''
+  newTag.value = ""
 }
 
 function removeTag(tagToRemove: string) {
   const currentTags = tags.value
-  emitPropertiesUpdate({ tags: currentTags.filter(t => t !== tagToRemove) })
+  emitPropertiesUpdate({ tags: currentTags.filter((t) => t !== tagToRemove) })
 }
 
 // Custom property management
@@ -348,8 +409,8 @@ function addProperty() {
   }
 
   emitPropertiesUpdate({ [key]: value })
-  newPropertyKey.value = ''
-  newPropertyValue.value = ''
+  newPropertyKey.value = ""
+  newPropertyValue.value = ""
 }
 
 function focusValueInput() {
@@ -359,10 +420,10 @@ function focusValueInput() {
 function startEditProperty(key: string, value: unknown) {
   editingProperty.value = key
   // Format value for editing
-  if (typeof value === 'object') {
+  if (typeof value === "object") {
     editPropertyValue.value = JSON.stringify(value)
   } else {
-    editPropertyValue.value = String(value ?? '')
+    editPropertyValue.value = String(value ?? "")
   }
 }
 
@@ -384,25 +445,25 @@ function savePropertyEdit(key: string) {
 
   emitPropertiesUpdate({ [key]: value })
   editingProperty.value = null
-  editPropertyValue.value = ''
+  editPropertyValue.value = ""
 }
 
 function cancelPropertyEdit() {
   editingProperty.value = null
-  editPropertyValue.value = ''
+  editPropertyValue.value = ""
 }
 
 function removeProperty(key: string) {
   // Create new properties object without the removed key
   const newProperties = { ...currentProperties.value }
   delete newProperties[key]
-  emit('updateProperties', newProperties)
+  emit("updateProperties", newProperties)
 }
 
 function confirmDelete() {
   const displayName = props.file?.properties?.title || props.file?.title || props.file?.filename
   if (confirm(`Are you sure you want to delete "${displayName}"?`)) {
-    emit('delete')
+    emit("delete")
   }
 }
 
@@ -417,21 +478,17 @@ async function loadHistory() {
   commitContent.value = null
 
   try {
-    const result = await fileService.getHistory(
-      props.file.id,
-      props.workspaceId,
-      props.notebookId
-    )
+    const result = await fileService.getHistory(props.file.id, props.workspaceId, props.notebookId)
     history.value = result.history
   } catch (error: any) {
-    historyError.value = error.response?.data?.detail || 'Failed to load history'
+    historyError.value = error.response?.data?.detail || "Failed to load history"
   } finally {
     historyLoading.value = false
   }
 }
 
 function switchToHistory() {
-  activeTab.value = 'history'
+  activeTab.value = "history"
   if (history.value.length === 0 && !historyLoading.value) {
     loadHistory()
   }
@@ -466,9 +523,11 @@ async function selectCommit(commit: FileHistoryEntry) {
 function restoreCommit() {
   if (commitContent.value !== null) {
     const displayName = props.file?.properties?.title || props.file?.title || props.file?.filename
-    if (confirm(`Restore "${displayName}" to version ${selectedCommit.value?.hash.substring(0, 7)}?`)) {
-      emit('restore', commitContent.value)
-      activeTab.value = 'properties'
+    if (
+      confirm(`Restore "${displayName}" to version ${selectedCommit.value?.hash.substring(0, 7)}?`)
+    ) {
+      emit("restore", commitContent.value)
+      activeTab.value = "properties"
       selectedCommit.value = null
       commitContent.value = null
     }
@@ -483,13 +542,19 @@ function formatCommitDate(dateStr: string): string {
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
 
     if (diffDays === 0) {
-      return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+      return date.toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+      })
     } else if (diffDays === 1) {
-      return 'Yesterday'
+      return "Yesterday"
     } else if (diffDays < 7) {
       return `${diffDays} days ago`
     } else {
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      return date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      })
     }
   } catch {
     return dateStr
@@ -505,7 +570,7 @@ watch(
     selectedCommit.value = null
     commitContent.value = null
     // If we're on the history tab when file changes, reload history
-    if (activeTab.value === 'history') {
+    if (activeTab.value === "history") {
       loadHistory()
     }
   }

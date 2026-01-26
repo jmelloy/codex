@@ -8,41 +8,23 @@
         <button @click="insertItalic" title="Italic">
           <em>I</em>
         </button>
-        <button @click="insertCode" title="Code">
-          &lt;/&gt;
-        </button>
-        <button @click="insertLink" title="Link">
-          🔗
-        </button>
-        <button @click="insertImage" title="Image">
-          🖼️
-        </button>
+        <button @click="insertCode" title="Code">&lt;/&gt;</button>
+        <button @click="insertLink" title="Link">🔗</button>
+        <button @click="insertImage" title="Image">🖼️</button>
       </div>
       <div class="toolbar-group">
-        <button @click="insertHeading(1)" title="Heading 1">
-          H1
-        </button>
-        <button @click="insertHeading(2)" title="Heading 2">
-          H2
-        </button>
-        <button @click="insertHeading(3)" title="Heading 3">
-          H3
-        </button>
+        <button @click="insertHeading(1)" title="Heading 1">H1</button>
+        <button @click="insertHeading(2)" title="Heading 2">H2</button>
+        <button @click="insertHeading(3)" title="Heading 3">H3</button>
       </div>
       <div class="toolbar-group">
-        <button @click="insertList('ul')" title="Bullet List">
-          • List
-        </button>
-        <button @click="insertList('ol')" title="Numbered List">
-          1. List
-        </button>
-        <button @click="insertQuote" title="Quote">
-          "
-        </button>
+        <button @click="insertList('ul')" title="Bullet List">• List</button>
+        <button @click="insertList('ol')" title="Numbered List">1. List</button>
+        <button @click="insertQuote" title="Quote">"</button>
       </div>
       <div class="toolbar-group">
         <button @click="togglePreview" :class="{ active: showPreview }">
-          {{ showPreview ? 'Edit' : 'Preview' }}
+          {{ showPreview ? "Edit" : "Preview" }}
         </button>
       </div>
       <slot name="toolbar-actions"></slot>
@@ -77,21 +59,17 @@
         <span>{{ lineCount }} lines</span>
       </div>
       <div class="editor-actions">
-        <button @click="handleCancel" class="btn-cancel">
-          Cancel
-        </button>
-        <button @click="handleSave" class="btn-save">
-          Save
-        </button>
+        <button @click="handleCancel" class="btn-cancel">Cancel</button>
+        <button @click="handleSave" class="btn-save">Save</button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from 'vue'
-import MarkdownViewer, { type MarkdownExtension } from './MarkdownViewer.vue'
-import { useThemeStore } from '../stores/theme'
+import { ref, computed, watch, nextTick } from "vue"
+import MarkdownViewer, { type MarkdownExtension } from "./MarkdownViewer.vue"
+import { useThemeStore } from "../stores/theme"
 
 const themeStore = useThemeStore()
 
@@ -106,16 +84,16 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  modelValue: '',
-  placeholder: 'Start writing your markdown...',
+  modelValue: "",
+  placeholder: "Start writing your markdown...",
   autosave: false,
   autosaveDelay: 1000,
-  extensions: () => []
+  extensions: () => [],
 })
 
 // Emits
 const emit = defineEmits<{
-  'update:modelValue': [value: string]
+  "update:modelValue": [value: string]
   save: [content: string]
   cancel: []
   change: [content: string]
@@ -134,27 +112,30 @@ const wordCount = computed(() => {
   const text = localContent.value.trim()
   return text ? text.split(/\s+/).length : 0
 })
-const lineCount = computed(() => localContent.value.split('\n').length)
+const lineCount = computed(() => localContent.value.split("\n").length)
 
 // Watch for external changes
-watch(() => props.modelValue, (newValue) => {
-  if (newValue !== localContent.value) {
-    localContent.value = newValue
+watch(
+  () => props.modelValue,
+  (newValue) => {
+    if (newValue !== localContent.value) {
+      localContent.value = newValue
+    }
   }
-})
+)
 
 // Watch for local changes
 watch(localContent, (newValue) => {
-  emit('update:modelValue', newValue)
-  emit('change', newValue)
-  
+  emit("update:modelValue", newValue)
+  emit("change", newValue)
+
   // Handle autosave
   if (props.autosave) {
     if (autosaveTimer.value) {
       clearTimeout(autosaveTimer.value)
     }
     autosaveTimer.value = window.setTimeout(() => {
-      emit('save', newValue)
+      emit("save", newValue)
     }, props.autosaveDelay)
   }
 })
@@ -166,9 +147,9 @@ const handleInput = () => {
 
 const handleKeydown = (e: KeyboardEvent) => {
   // Tab key - insert spaces
-  if (e.key === 'Tab') {
+  if (e.key === "Tab") {
     e.preventDefault()
-    insertAtCursor('  ')
+    insertAtCursor("  ")
   }
 }
 
@@ -201,7 +182,7 @@ const wrapSelection = (before: string, after: string) => {
   const start = textarea.selectionStart
   const end = textarea.selectionEnd
   const selectedText = localContent.value.substring(start, end)
-  const replacement = before + (selectedText || 'text') + after
+  const replacement = before + (selectedText || "text") + after
 
   const beforeText = localContent.value.substring(0, start)
   const afterText = localContent.value.substring(end)
@@ -219,24 +200,24 @@ const wrapSelection = (before: string, after: string) => {
   })
 }
 
-const insertBold = () => wrapSelection('**', '**')
-const insertItalic = () => wrapSelection('*', '*')
-const insertCode = () => wrapSelection('`', '`')
-const insertLink = () => wrapSelection('[', '](url)')
-const insertImage = () => wrapSelection('![', '](url)')
+const insertBold = () => wrapSelection("**", "**")
+const insertItalic = () => wrapSelection("*", "*")
+const insertCode = () => wrapSelection("`", "`")
+const insertLink = () => wrapSelection("[", "](url)")
+const insertImage = () => wrapSelection("![", "](url)")
 
 const insertHeading = (level: number) => {
-  const prefix = '#'.repeat(level) + ' '
+  const prefix = "#".repeat(level) + " "
   insertAtCursor(prefix)
 }
 
-const insertList = (type: 'ul' | 'ol') => {
-  const prefix = type === 'ul' ? '- ' : '1. '
+const insertList = (type: "ul" | "ol") => {
+  const prefix = type === "ul" ? "- " : "1. "
   insertAtCursor(prefix)
 }
 
 const insertQuote = () => {
-  insertAtCursor('> ')
+  insertAtCursor("> ")
 }
 
 const togglePreview = () => {
@@ -255,18 +236,18 @@ const togglePreview = () => {
 }
 
 const handleSave = () => {
-  emit('save', localContent.value)
+  emit("save", localContent.value)
 }
 
 const handleCancel = () => {
-  emit('cancel')
+  emit("cancel")
 }
 
 // Expose methods for parent components
 defineExpose({
   insertAtCursor,
   wrapSelection,
-  getContent: () => localContent.value
+  getContent: () => localContent.value,
 })
 </script>
 

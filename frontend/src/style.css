@@ -1,5 +1,4 @@
 @import "tailwindcss";
 
 /* Notebook Theme */
-@import './notebook-theme.css';
-
+@import "./notebook-theme.css";

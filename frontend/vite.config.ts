@@ -1,7 +1,7 @@
 /// <reference types="vitest" />
-import { defineConfig } from "vite";
-import vue from "@vitejs/plugin-vue";
-import path from "path";
+import { defineConfig } from "vite"
+import vue from "@vitejs/plugin-vue"
+import path from "path"
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -28,11 +28,7 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html"],
-      exclude: [
-        "node_modules/",
-        "src/**/*.spec.ts",
-        "src/**/*.test.ts",
-      ],
+      exclude: ["node_modules/", "src/**/*.spec.ts", "src/**/*.test.ts"],
     },
   },
-});
+})

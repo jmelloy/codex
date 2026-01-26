@@ -1,63 +1,65 @@
-import apiClient from "./api";
+import apiClient from "./api"
 
 export interface User {
-  id: number;
-  username: string;
-  email: string;
-  is_active: boolean;
-  theme_setting?: string;
+  id: number
+  username: string
+  email: string
+  is_active: boolean
+  theme_setting?: string
 }
 
 export interface LoginCredentials {
-  username: string;
-  password: string;
+  username: string
+  password: string
 }
 
 export interface RegisterData {
-  username: string;
-  email: string;
-  password: string;
+  username: string
+  email: string
+  password: string
 }
 
 export interface TokenResponse {
-  access_token: string;
-  token_type: string;
+  access_token: string
+  token_type: string
 }
 
 export const authService = {
   async login(credentials: LoginCredentials): Promise<TokenResponse> {
-    const params = new URLSearchParams();
-    params.append("username", credentials.username);
-    params.append("password", credentials.password);
+    const params = new URLSearchParams()
+    params.append("username", credentials.username)
+    params.append("password", credentials.password)
 
     const response = await apiClient.post<TokenResponse>("/api/token", params, {
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
       },
-    });
-    return response.data;
+    })
+    return response.data
   },
 
   async getCurrentUser(): Promise<User> {
-    const response = await apiClient.get<User>("/api/users/me");
-    return response.data;
+    const response = await apiClient.get<User>("/api/users/me")
+    return response.data
   },
 
   async register(data: RegisterData): Promise<User> {
-    const response = await apiClient.post<User>("/api/register", data);
-    return response.data;
+    const response = await apiClient.post<User>("/api/register", data)
+    return response.data
   },
 
   logout() {
-    localStorage.removeItem("access_token");
+    localStorage.removeItem("access_token")
   },
 
   isAuthenticated(): boolean {
-    return !!localStorage.getItem("access_token");
+    return !!localStorage.getItem("access_token")
   },
 
   async updateTheme(theme: string): Promise<User> {
-    const response = await apiClient.patch<User>("/api/users/me/theme", { theme });
-    return response.data;
+    const response = await apiClient.patch<User>("/api/users/me/theme", {
+      theme,
+    })
+    return response.data
   },
-};
+}

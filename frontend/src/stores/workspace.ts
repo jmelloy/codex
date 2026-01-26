@@ -1,5 +1,5 @@
-import { defineStore } from "pinia";
-import { ref } from "vue";
+import { defineStore } from "pinia"
+import { ref } from "vue"
 import {
   workspaceService,
   notebookService,
@@ -10,353 +10,336 @@ import {
   type FileMetadata,
   type FileWithContent,
   type FolderWithFiles,
-} from "../services/codex";
+} from "../services/codex"
 
 export const useWorkspaceStore = defineStore("workspace", () => {
-  const workspaces = ref<Workspace[]>([]);
-  const currentWorkspace = ref<Workspace | null>(null);
-  const notebooks = ref<Notebook[]>([]);
-  const loading = ref(false);
-  const error = ref<string | null>(null);
+  const workspaces = ref<Workspace[]>([])
+  const currentWorkspace = ref<Workspace | null>(null)
+  const notebooks = ref<Notebook[]>([])
+  const loading = ref(false)
+  const error = ref<string | null>(null)
 
   // File state
-  const files = ref<Map<number, FileMetadata[]>>(new Map()); // notebook_id -> files
-  const currentNotebook = ref<Notebook | null>(null);
-  const currentFile = ref<FileWithContent | null>(null);
-  const isEditing = ref(false);
-  const expandedNotebooks = ref<Set<number>>(new Set());
-  const fileLoading = ref(false);
+  const files = ref<Map<number, FileMetadata[]>>(new Map()) // notebook_id -> files
+  const currentNotebook = ref<Notebook | null>(null)
+  const currentFile = ref<FileWithContent | null>(null)
+  const isEditing = ref(false)
+  const expandedNotebooks = ref<Set<number>>(new Set())
+  const fileLoading = ref(false)
 
   // Folder state
-  const currentFolder = ref<FolderWithFiles | null>(null);
-  const folderLoading = ref(false);
+  const currentFolder = ref<FolderWithFiles | null>(null)
+  const folderLoading = ref(false)
 
   async function fetchWorkspaces() {
-    loading.value = true;
-    error.value = null;
+    loading.value = true
+    error.value = null
     try {
-      workspaces.value = await workspaceService.list();
+      workspaces.value = await workspaceService.list()
     } catch (e: any) {
-      error.value = e.response?.data?.detail || "Failed to fetch workspaces";
+      error.value = e.response?.data?.detail || "Failed to fetch workspaces"
     } finally {
-      loading.value = false;
+      loading.value = false
     }
   }
 
   async function fetchNotebooks(workspaceId: number) {
-    loading.value = true;
-    error.value = null;
+    loading.value = true
+    error.value = null
     try {
-      notebooks.value = await notebookService.list(workspaceId);
+      notebooks.value = await notebookService.list(workspaceId)
     } catch (e: any) {
-      error.value = e.response?.data?.detail || "Failed to fetch notebooks";
+      error.value = e.response?.data?.detail || "Failed to fetch notebooks"
     } finally {
-      loading.value = false;
+      loading.value = false
     }
   }
 
   async function createWorkspace(name: string) {
-    loading.value = true;
-    error.value = null;
+    loading.value = true
+    error.value = null
     try {
-      const workspace = await workspaceService.create(name);
-      workspaces.value.push(workspace);
-      return workspace;
+      const workspace = await workspaceService.create(name)
+      workspaces.value.push(workspace)
+      return workspace
     } catch (e: any) {
-      error.value = e.response?.data?.detail || "Failed to create workspace";
-      throw e;
+      error.value = e.response?.data?.detail || "Failed to create workspace"
+      throw e
     } finally {
-      loading.value = false;
+      loading.value = false
     }
   }
 
   async function createNotebook(workspaceId: number, name: string) {
-    loading.value = true;
-    error.value = null;
+    loading.value = true
+    error.value = null
     try {
-      const notebook = await notebookService.create(workspaceId, name);
-      notebooks.value.push(notebook);
-      return notebook;
+      const notebook = await notebookService.create(workspaceId, name)
+      notebooks.value.push(notebook)
+      return notebook
     } catch (e: any) {
-      error.value = e.response?.data?.detail || "Failed to create notebook";
-      throw e;
+      error.value = e.response?.data?.detail || "Failed to create notebook"
+      throw e
     } finally {
-      loading.value = false;
+      loading.value = false
     }
   }
 
   function setCurrentWorkspace(workspace: Workspace | null) {
-    currentWorkspace.value = workspace;
+    currentWorkspace.value = workspace
     if (workspace) {
-      fetchNotebooks(workspace.id);
+      fetchNotebooks(workspace.id)
     }
     // Clear file and folder state when switching workspaces
-    currentNotebook.value = null;
-    currentFile.value = null;
-    currentFolder.value = null;
-    isEditing.value = false;
-    files.value.clear();
-    expandedNotebooks.value.clear();
+    currentNotebook.value = null
+    currentFile.value = null
+    currentFolder.value = null
+    isEditing.value = false
+    files.value.clear()
+    expandedNotebooks.value.clear()
   }
 
   // File actions
   async function fetchFiles(notebookId: number) {
-    if (!currentWorkspace.value) return;
+    if (!currentWorkspace.value) return
 
-    fileLoading.value = true;
-    error.value = null;
+    fileLoading.value = true
+    error.value = null
     try {
-      const fileList = await fileService.list(
-        notebookId,
-        currentWorkspace.value.id,
-      );
-      files.value.set(notebookId, fileList);
+      const fileList = await fileService.list(notebookId, currentWorkspace.value.id)
+      files.value.set(notebookId, fileList)
     } catch (e: any) {
-      error.value = e.response?.data?.detail || "Failed to fetch files";
+      error.value = e.response?.data?.detail || "Failed to fetch files"
     } finally {
-      fileLoading.value = false;
+      fileLoading.value = false
     }
   }
 
   async function selectFile(file: FileMetadata) {
-    if (!currentWorkspace.value) return;
+    if (!currentWorkspace.value) return
 
-    fileLoading.value = true;
-    error.value = null;
-    currentFolder.value = null; // Clear folder selection when selecting a file
+    fileLoading.value = true
+    error.value = null
+    currentFolder.value = null // Clear folder selection when selecting a file
     try {
       const fileWithContent = await fileService.get(
         file.id,
         currentWorkspace.value.id,
-        file.notebook_id,
-      );
-      currentFile.value = fileWithContent;
-      isEditing.value = false;
+        file.notebook_id
+      )
+      currentFile.value = fileWithContent
+      isEditing.value = false
     } catch (e: any) {
-      error.value = e.response?.data?.detail || "Failed to load file";
+      error.value = e.response?.data?.detail || "Failed to load file"
     } finally {
-      fileLoading.value = false;
+      fileLoading.value = false
     }
   }
 
   async function saveFile(content: string, properties?: Record<string, any>) {
-    if (!currentWorkspace.value || !currentFile.value) return;
+    if (!currentWorkspace.value || !currentFile.value) return
 
-    fileLoading.value = true;
-    error.value = null;
+    fileLoading.value = true
+    error.value = null
     try {
       if (!currentFile.value.notebook_id) {
-        throw new Error("File has no notebook_id");
+        throw new Error("File has no notebook_id")
       }
       const updated = await fileService.update(
         currentFile.value.id,
         currentWorkspace.value.id,
         currentFile.value.notebook_id,
         content,
-        properties,
-      );
+        properties
+      )
       // Update currentFile with new content and properties
-      currentFile.value = { ...currentFile.value, ...updated, content };
-      isEditing.value = false;
+      currentFile.value = { ...currentFile.value, ...updated, content }
+      isEditing.value = false
 
       // Refresh file list for the notebook
-      await fetchFiles(currentFile.value.notebook_id);
+      await fetchFiles(currentFile.value.notebook_id)
     } catch (e: any) {
-      error.value = e.response?.data?.detail || "Failed to save file";
-      throw e;
+      error.value = e.response?.data?.detail || "Failed to save file"
+      throw e
     } finally {
-      fileLoading.value = false;
+      fileLoading.value = false
     }
   }
 
   async function createFile(notebookId: number, path: string, content: string) {
-    if (!currentWorkspace.value) return;
+    if (!currentWorkspace.value) return
 
-    fileLoading.value = true;
-    error.value = null;
+    fileLoading.value = true
+    error.value = null
     try {
-      const newFile = await fileService.create(
-        notebookId,
-        currentWorkspace.value.id,
-        path,
-        content,
-      );
+      const newFile = await fileService.create(notebookId, currentWorkspace.value.id, path, content)
       // Refresh file list
-      await fetchFiles(notebookId);
+      await fetchFiles(notebookId)
       // Select the new file
-      await selectFile(newFile);
-      return newFile;
+      await selectFile(newFile)
+      return newFile
     } catch (e: any) {
-      error.value = e.response?.data?.detail || "Failed to create file";
-      throw e;
+      error.value = e.response?.data?.detail || "Failed to create file"
+      throw e
     } finally {
-      fileLoading.value = false;
+      fileLoading.value = false
     }
   }
 
   async function deleteFile(fileId: number) {
-    if (!currentWorkspace.value || !currentFile.value) return;
+    if (!currentWorkspace.value || !currentFile.value) return
 
-    fileLoading.value = true;
-    error.value = null;
+    fileLoading.value = true
+    error.value = null
     try {
-      await fileService.delete(fileId, currentWorkspace.value.id);
-      const notebookId = currentFile.value.notebook_id;
-      currentFile.value = null;
-      isEditing.value = false;
+      await fileService.delete(fileId, currentWorkspace.value.id)
+      const notebookId = currentFile.value.notebook_id
+      currentFile.value = null
+      isEditing.value = false
       // Refresh file list
       if (notebookId) {
-        await fetchFiles(notebookId);
+        await fetchFiles(notebookId)
       }
     } catch (e: any) {
-      error.value = e.response?.data?.detail || "Failed to delete file";
-      throw e;
+      error.value = e.response?.data?.detail || "Failed to delete file"
+      throw e
     } finally {
-      fileLoading.value = false;
+      fileLoading.value = false
     }
   }
 
   function toggleNotebookExpansion(notebook: Notebook) {
-    const notebookId = notebook.id;
+    const notebookId = notebook.id
     if (expandedNotebooks.value.has(notebookId)) {
-      expandedNotebooks.value.delete(notebookId);
+      expandedNotebooks.value.delete(notebookId)
     } else {
-      expandedNotebooks.value.add(notebookId);
+      expandedNotebooks.value.add(notebookId)
       // Fetch files when expanding
-      fetchFiles(notebookId);
+      fetchFiles(notebookId)
     }
-    currentNotebook.value = notebook;
+    currentNotebook.value = notebook
   }
 
   function setEditing(editing: boolean) {
-    isEditing.value = editing;
+    isEditing.value = editing
   }
 
   function getFilesForNotebook(notebookId: number): FileMetadata[] {
-    return files.value.get(notebookId) || [];
+    return files.value.get(notebookId) || []
   }
 
   async function uploadFile(notebookId: number, file: File, path?: string) {
-    if (!currentWorkspace.value) return;
+    if (!currentWorkspace.value) return
 
-    fileLoading.value = true;
-    error.value = null;
+    fileLoading.value = true
+    error.value = null
     try {
-      const newFile = await fileService.upload(
-        notebookId,
-        currentWorkspace.value.id,
-        file,
-        path,
-      );
+      const newFile = await fileService.upload(notebookId, currentWorkspace.value.id, file, path)
       // Refresh file list
-      await fetchFiles(notebookId);
-      return newFile;
+      await fetchFiles(notebookId)
+      return newFile
     } catch (e: any) {
-      error.value = e.response?.data?.detail || "Failed to upload file";
-      throw e;
+      error.value = e.response?.data?.detail || "Failed to upload file"
+      throw e
     } finally {
-      fileLoading.value = false;
+      fileLoading.value = false
     }
   }
 
   async function moveFile(fileId: number, notebookId: number, newPath: string) {
-    if (!currentWorkspace.value) return;
+    if (!currentWorkspace.value) return
 
-    fileLoading.value = true;
-    error.value = null;
+    fileLoading.value = true
+    error.value = null
     try {
       const movedFile = await fileService.move(
         fileId,
         currentWorkspace.value.id,
         notebookId,
-        newPath,
-      );
+        newPath
+      )
       // Refresh file list
-      await fetchFiles(notebookId);
+      await fetchFiles(notebookId)
       // Update current file if it was the one moved
       if (currentFile.value?.id === fileId) {
-        currentFile.value = { ...currentFile.value, ...movedFile };
+        currentFile.value = { ...currentFile.value, ...movedFile }
       }
-      return movedFile;
+      return movedFile
     } catch (e: any) {
-      error.value = e.response?.data?.detail || "Failed to move file";
-      throw e;
+      error.value = e.response?.data?.detail || "Failed to move file"
+      throw e
     } finally {
-      fileLoading.value = false;
+      fileLoading.value = false
     }
   }
 
   // Folder actions
   async function selectFolder(folderPath: string, notebookId: number) {
-    if (!currentWorkspace.value) return;
+    if (!currentWorkspace.value) return
 
-    folderLoading.value = true;
-    error.value = null;
-    currentFile.value = null; // Clear current file when selecting folder
-    isEditing.value = false;
+    folderLoading.value = true
+    error.value = null
+    currentFile.value = null // Clear current file when selecting folder
+    isEditing.value = false
     try {
-      const folder = await folderService.get(
-        folderPath,
-        notebookId,
-        currentWorkspace.value.id,
-      );
-      currentFolder.value = folder;
+      const folder = await folderService.get(folderPath, notebookId, currentWorkspace.value.id)
+      currentFolder.value = folder
     } catch (e: any) {
-      error.value = e.response?.data?.detail || "Failed to load folder";
+      error.value = e.response?.data?.detail || "Failed to load folder"
     } finally {
-      folderLoading.value = false;
+      folderLoading.value = false
     }
   }
 
   async function saveFolderProperties(properties: Record<string, any>) {
-    if (!currentWorkspace.value || !currentFolder.value) return;
+    if (!currentWorkspace.value || !currentFolder.value) return
 
-    folderLoading.value = true;
-    error.value = null;
+    folderLoading.value = true
+    error.value = null
     try {
       const updated = await folderService.updateProperties(
         currentFolder.value.path,
         currentFolder.value.notebook_id,
         currentWorkspace.value.id,
-        properties,
-      );
+        properties
+      )
       // Update currentFolder with new properties
-      currentFolder.value = { ...currentFolder.value, ...updated };
+      currentFolder.value = { ...currentFolder.value, ...updated }
       // Refresh file list for the notebook
-      await fetchFiles(currentFolder.value.notebook_id);
+      await fetchFiles(currentFolder.value.notebook_id)
     } catch (e: any) {
-      error.value = e.response?.data?.detail || "Failed to save folder properties";
-      throw e;
+      error.value = e.response?.data?.detail || "Failed to save folder properties"
+      throw e
     } finally {
-      folderLoading.value = false;
+      folderLoading.value = false
     }
   }
 
   async function deleteFolder() {
-    if (!currentWorkspace.value || !currentFolder.value) return;
+    if (!currentWorkspace.value || !currentFolder.value) return
 
-    folderLoading.value = true;
-    error.value = null;
+    folderLoading.value = true
+    error.value = null
     try {
       await folderService.delete(
         currentFolder.value.path,
         currentFolder.value.notebook_id,
-        currentWorkspace.value.id,
-      );
-      const notebookId = currentFolder.value.notebook_id;
-      currentFolder.value = null;
+        currentWorkspace.value.id
+      )
+      const notebookId = currentFolder.value.notebook_id
+      currentFolder.value = null
       // Refresh file list
-      await fetchFiles(notebookId);
+      await fetchFiles(notebookId)
     } catch (e: any) {
-      error.value = e.response?.data?.detail || "Failed to delete folder";
-      throw e;
+      error.value = e.response?.data?.detail || "Failed to delete folder"
+      throw e
     } finally {
-      folderLoading.value = false;
+      folderLoading.value = false
     }
   }
 
   function clearFolderSelection() {
-    currentFolder.value = null;
+    currentFolder.value = null
   }
 
   return {
@@ -398,5 +381,5 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     saveFolderProperties,
     deleteFolder,
     clearFolderSelection,
-  };
-});
+  }
+})

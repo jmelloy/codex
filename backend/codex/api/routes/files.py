@@ -431,6 +431,106 @@ async def get_file(
         nb_session.close()
 
 
+@router.get("/{file_id}/history")
+async def get_file_history(
+    file_id: int,
+    workspace_id: int,
+    notebook_id: int,
+    max_count: int = 20,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Get git history for a specific file.
+
+    Returns a list of commits that modified this file, with hash, author, date, and message.
+    """
+    # Get notebook path from system database
+    notebook_path, _ = await get_notebook_path(notebook_id, workspace_id, current_user, session)
+
+    # Query file from notebook database
+    nb_session = get_notebook_session(str(notebook_path))
+    try:
+        file_result = nb_session.execute(select(FileMetadata).where(FileMetadata.id == file_id))
+        file_meta = file_result.scalar_one_or_none()
+
+        if not file_meta:
+            raise HTTPException(status_code=404, detail="File not found")
+
+        # Get file path on disk
+        file_path = notebook_path / file_meta.path
+
+        # Get git history
+        from codex.core.git_manager import GitManager
+
+        git_manager = GitManager(str(notebook_path))
+        history = git_manager.get_file_history(str(file_path), max_count=max_count)
+
+        return {
+            "file_id": file_id,
+            "path": file_meta.path,
+            "history": history
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting file history: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error getting file history: {str(e)}")
+    finally:
+        nb_session.close()
+
+
+@router.get("/{file_id}/history/{commit_hash}")
+async def get_file_at_commit(
+    file_id: int,
+    commit_hash: str,
+    workspace_id: int,
+    notebook_id: int,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Get file content at a specific commit.
+
+    Returns the file content as it was at the specified commit.
+    """
+    # Get notebook path from system database
+    notebook_path, _ = await get_notebook_path(notebook_id, workspace_id, current_user, session)
+
+    # Query file from notebook database
+    nb_session = get_notebook_session(str(notebook_path))
+    try:
+        file_result = nb_session.execute(select(FileMetadata).where(FileMetadata.id == file_id))
+        file_meta = file_result.scalar_one_or_none()
+
+        if not file_meta:
+            raise HTTPException(status_code=404, detail="File not found")
+
+        # Get file path on disk
+        file_path = notebook_path / file_meta.path
+
+        # Get file content at commit
+        from codex.core.git_manager import GitManager
+
+        git_manager = GitManager(str(notebook_path))
+        content = git_manager.get_file_at_commit(str(file_path), commit_hash)
+
+        if content is None:
+            raise HTTPException(status_code=404, detail="File not found at this commit")
+
+        return {
+            "file_id": file_id,
+            "path": file_meta.path,
+            "commit_hash": commit_hash,
+            "content": content
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting file at commit: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error getting file at commit: {str(e)}")
+    finally:
+        nb_session.close()
+
+
 @router.get("/by-path")
 async def get_file_by_path(
     path: str,

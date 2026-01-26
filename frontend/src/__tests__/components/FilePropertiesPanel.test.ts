@@ -2,6 +2,14 @@ import { describe, it, expect, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import FilePropertiesPanel from '../../components/FilePropertiesPanel.vue'
 
+// Mock the fileService
+vi.mock('../../services/codex', () => ({
+  fileService: {
+    getHistory: vi.fn().mockResolvedValue({ file_id: 1, path: '/test/path', history: [] }),
+    getAtCommit: vi.fn().mockResolvedValue({ file_id: 1, path: '/test/path', commit_hash: 'abc123', content: '# Old Content' })
+  }
+}))
+
 // Mock file data
 const mockFile = {
   id: 1,
@@ -22,11 +30,18 @@ const mockFile = {
   notebook_id: 1
 }
 
+// Default props for tests
+const defaultProps = {
+  workspaceId: 1,
+  notebookId: 1
+}
+
 describe('FilePropertiesPanel', () => {
   it('renders without crashing', () => {
     const wrapper = mount(FilePropertiesPanel, {
       props: {
-        file: null
+        file: null,
+        ...defaultProps
       }
     })
     expect(wrapper.exists()).toBe(true)
@@ -35,10 +50,11 @@ describe('FilePropertiesPanel', () => {
   it('displays empty state when no file is provided', () => {
     const wrapper = mount(FilePropertiesPanel, {
       props: {
-        file: null
+        file: null,
+        ...defaultProps
       }
     })
-    
+
     expect(wrapper.find('.empty-state').exists()).toBe(true)
     expect(wrapper.text()).toContain('No file selected')
   })
@@ -46,10 +62,11 @@ describe('FilePropertiesPanel', () => {
   it('displays file properties when file is provided', () => {
     const wrapper = mount(FilePropertiesPanel, {
       props: {
-        file: mockFile
+        file: mockFile,
+        ...defaultProps
       }
     })
-    
+
     expect(wrapper.find('.panel-content').exists()).toBe(true)
     expect(wrapper.find('.empty-state').exists()).toBe(false)
   })
@@ -57,10 +74,11 @@ describe('FilePropertiesPanel', () => {
   it('displays file title in input', () => {
     const wrapper = mount(FilePropertiesPanel, {
       props: {
-        file: mockFile
+        file: mockFile,
+        ...defaultProps
       }
     })
-    
+
     const titleInput = wrapper.find('.property-input')
     expect(titleInput.element.value).toBe('Test File')
   })
@@ -68,10 +86,11 @@ describe('FilePropertiesPanel', () => {
   it('displays file description in textarea', () => {
     const wrapper = mount(FilePropertiesPanel, {
       props: {
-        file: mockFile
+        file: mockFile,
+        ...defaultProps
       }
     })
-    
+
     const descriptionTextarea = wrapper.find('.property-textarea')
     expect(descriptionTextarea.element.value).toBe('Test description')
   })
@@ -79,10 +98,11 @@ describe('FilePropertiesPanel', () => {
   it('displays file path', () => {
     const wrapper = mount(FilePropertiesPanel, {
       props: {
-        file: mockFile
+        file: mockFile,
+        ...defaultProps
       }
     })
-    
+
     const html = wrapper.html()
     expect(html).toContain('/test/path')
   })
@@ -90,30 +110,33 @@ describe('FilePropertiesPanel', () => {
   it('displays filename', () => {
     const wrapper = mount(FilePropertiesPanel, {
       props: {
-        file: mockFile
+        file: mockFile,
+        ...defaultProps
       }
     })
-    
+
     expect(wrapper.text()).toContain('test-file.md')
   })
 
   it('displays file type', () => {
     const wrapper = mount(FilePropertiesPanel, {
       props: {
-        file: mockFile
+        file: mockFile,
+        ...defaultProps
       }
     })
-    
+
     expect(wrapper.text()).toContain('markdown')
   })
 
   it('formats file size correctly', () => {
     const wrapper = mount(FilePropertiesPanel, {
       props: {
-        file: mockFile
+        file: mockFile,
+        ...defaultProps
       }
     })
-    
+
     expect(wrapper.text()).toContain('1 KB')
   })
 
@@ -121,10 +144,11 @@ describe('FilePropertiesPanel', () => {
     const smallFile = { ...mockFile, size: 500 }
     const wrapper = mount(FilePropertiesPanel, {
       props: {
-        file: smallFile
+        file: smallFile,
+        ...defaultProps
       }
     })
-    
+
     expect(wrapper.text()).toContain('500 B')
   })
 
@@ -132,20 +156,22 @@ describe('FilePropertiesPanel', () => {
     const largeFile = { ...mockFile, size: 5242880 } // 5 MB
     const wrapper = mount(FilePropertiesPanel, {
       props: {
-        file: largeFile
+        file: largeFile,
+        ...defaultProps
       }
     })
-    
+
     expect(wrapper.text()).toContain('5 MB')
   })
 
   it('displays created date', () => {
     const wrapper = mount(FilePropertiesPanel, {
       props: {
-        file: mockFile
+        file: mockFile,
+        ...defaultProps
       }
     })
-    
+
     expect(wrapper.text()).toContain('Created')
     // The date format may vary by locale, just check it exists
     expect(wrapper.text()).toMatch(/Jan|January/)
@@ -154,10 +180,11 @@ describe('FilePropertiesPanel', () => {
   it('displays updated date', () => {
     const wrapper = mount(FilePropertiesPanel, {
       props: {
-        file: mockFile
+        file: mockFile,
+        ...defaultProps
       }
     })
-    
+
     expect(wrapper.text()).toContain('Modified')
     expect(wrapper.text()).toMatch(/Jan|January/)
   })
@@ -165,10 +192,11 @@ describe('FilePropertiesPanel', () => {
   it('displays tags when present', () => {
     const wrapper = mount(FilePropertiesPanel, {
       props: {
-        file: mockFile
+        file: mockFile,
+        ...defaultProps
       }
     })
-    
+
     expect(wrapper.text()).toContain('test')
     expect(wrapper.text()).toContain('example')
   })
@@ -177,7 +205,8 @@ describe('FilePropertiesPanel', () => {
     const fileWithoutTags = { ...mockFile, properties: { title: 'Test File', description: 'Test description' } }
     const wrapper = mount(FilePropertiesPanel, {
       props: {
-        file: fileWithoutTags
+        file: fileWithoutTags,
+        ...defaultProps
       }
     })
 
@@ -187,20 +216,22 @@ describe('FilePropertiesPanel', () => {
   it('emits close event when close button clicked', async () => {
     const wrapper = mount(FilePropertiesPanel, {
       props: {
-        file: mockFile
+        file: mockFile,
+        ...defaultProps
       }
     })
-    
+
     const closeButton = wrapper.find('.btn-close')
     await closeButton.trigger('click')
-    
+
     expect(wrapper.emitted('close')).toBeTruthy()
   })
 
   it('emits updateProperties when title is changed and blurred', async () => {
     const wrapper = mount(FilePropertiesPanel, {
       props: {
-        file: mockFile
+        file: mockFile,
+        ...defaultProps
       }
     })
 
@@ -216,7 +247,8 @@ describe('FilePropertiesPanel', () => {
   it('emits updateProperties when title is changed and enter is pressed', async () => {
     const wrapper = mount(FilePropertiesPanel, {
       props: {
-        file: mockFile
+        file: mockFile,
+        ...defaultProps
       }
     })
 
@@ -232,7 +264,8 @@ describe('FilePropertiesPanel', () => {
   it('emits updateProperties when description is changed and blurred', async () => {
     const wrapper = mount(FilePropertiesPanel, {
       props: {
-        file: mockFile
+        file: mockFile,
+        ...defaultProps
       }
     })
 
@@ -248,7 +281,8 @@ describe('FilePropertiesPanel', () => {
   it('does not emit updateProperties if title value unchanged', async () => {
     const wrapper = mount(FilePropertiesPanel, {
       props: {
-        file: mockFile
+        file: mockFile,
+        ...defaultProps
       }
     })
 
@@ -263,10 +297,11 @@ describe('FilePropertiesPanel', () => {
   it('displays delete button', () => {
     const wrapper = mount(FilePropertiesPanel, {
       props: {
-        file: mockFile
+        file: mockFile,
+        ...defaultProps
       }
     })
-    
+
     const deleteButton = wrapper.find('.btn-delete')
     expect(deleteButton.exists()).toBe(true)
     expect(deleteButton.text()).toContain('Delete')
@@ -275,16 +310,17 @@ describe('FilePropertiesPanel', () => {
   it('emits delete event when delete is confirmed', async () => {
     // Mock window.confirm to return true
     window.confirm = vi.fn(() => true)
-    
+
     const wrapper = mount(FilePropertiesPanel, {
       props: {
-        file: mockFile
+        file: mockFile,
+        ...defaultProps
       }
     })
-    
+
     const deleteButton = wrapper.find('.btn-delete')
     await deleteButton.trigger('click')
-    
+
     expect(window.confirm).toHaveBeenCalled()
     expect(wrapper.emitted('delete')).toBeTruthy()
   })
@@ -292,16 +328,17 @@ describe('FilePropertiesPanel', () => {
   it('does not emit delete event when delete is cancelled', async () => {
     // Mock window.confirm to return false
     window.confirm = vi.fn(() => false)
-    
+
     const wrapper = mount(FilePropertiesPanel, {
       props: {
-        file: mockFile
+        file: mockFile,
+        ...defaultProps
       }
     })
-    
+
     const deleteButton = wrapper.find('.btn-delete')
     await deleteButton.trigger('click')
-    
+
     expect(window.confirm).toHaveBeenCalled()
     expect(wrapper.emitted('delete')).toBeFalsy()
   })
@@ -309,7 +346,8 @@ describe('FilePropertiesPanel', () => {
   it('updates editable fields when file prop changes', async () => {
     const wrapper = mount(FilePropertiesPanel, {
       props: {
-        file: mockFile
+        file: mockFile,
+        ...defaultProps
       }
     })
 
@@ -340,7 +378,8 @@ describe('FilePropertiesPanel', () => {
     }
     const wrapper = mount(FilePropertiesPanel, {
       props: {
-        file: fileWithoutTitle
+        file: fileWithoutTitle,
+        ...defaultProps
       }
     })
 
@@ -356,11 +395,38 @@ describe('FilePropertiesPanel', () => {
     }
     const wrapper = mount(FilePropertiesPanel, {
       props: {
-        file: fileWithoutDescription
+        file: fileWithoutDescription,
+        ...defaultProps
       }
     })
 
     const descriptionTextarea = wrapper.find('.property-textarea')
     expect(descriptionTextarea.element.value).toBe('')
+  })
+
+  it('displays Properties and History tabs', () => {
+    const wrapper = mount(FilePropertiesPanel, {
+      props: {
+        file: mockFile,
+        ...defaultProps
+      }
+    })
+
+    const tabs = wrapper.findAll('.tab-btn')
+    expect(tabs.length).toBe(2)
+    expect(tabs[0].text()).toBe('Properties')
+    expect(tabs[1].text()).toBe('History')
+  })
+
+  it('shows Properties tab content by default', () => {
+    const wrapper = mount(FilePropertiesPanel, {
+      props: {
+        file: mockFile,
+        ...defaultProps
+      }
+    })
+
+    expect(wrapper.find('.property-input').exists()).toBe(true)
+    expect(wrapper.find('.history-content').exists()).toBe(false)
   })
 })

@@ -9,7 +9,6 @@ import {
   type Notebook,
   type FileMetadata,
   type FileWithContent,
-  type FolderMetadata,
   type FolderWithFiles,
 } from "../services/codex";
 

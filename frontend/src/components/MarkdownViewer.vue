@@ -24,8 +24,9 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import { marked } from 'marked'
-import hljs from 'highlight.js'
 import { useThemeStore } from '../stores/theme'
+import { useCopyToClipboard } from '../composables/useCopyToClipboard'
+import { useSyntaxHighlight } from '../composables/useSyntaxHighlight'
 
 const themeStore = useThemeStore()
 
@@ -67,6 +68,9 @@ export interface MarkdownExtension {
   name: string
   renderer?: any
 }
+
+const { copy: copyToClipboard } = useCopyToClipboard()
+const { highlightCode } = useSyntaxHighlight()
 
 // Helper function to check if a URL is a local file reference
 const isLocalFileReference = (href: string): boolean => {
@@ -189,23 +193,11 @@ const renderedHtml = computed(() => {
       const code = block.textContent || ''
       const language = extractLanguage(block.className)
 
-      let highlighted
-      if (language) {
-        // Use specified language for highlighting
-        try {
-          highlighted = hljs.highlight(code, { language, ignoreIllegals: true })
-        } catch {
-          // Fallback to auto-detection if language is not supported
-          highlighted = hljs.highlightAuto(code)
-        }
-      } else {
-        // Auto-detect language
-        highlighted = hljs.highlightAuto(code)
-      }
+      const highlighted = highlightCode(code, language || undefined)
 
       // Create a new element to safely set the highlighted HTML
       const highlightedElement = document.createElement('code')
-      highlightedElement.innerHTML = highlighted.value
+      highlightedElement.innerHTML = highlighted
       // Copy classes and add hljs class
       highlightedElement.className = block.className + ' hljs'
       // Replace the code block
@@ -220,12 +212,8 @@ const renderedHtml = computed(() => {
 
 // Methods
 const copyContent = async () => {
-  try {
-    await navigator.clipboard.writeText(props.content)
-    emit('copy')
-  } catch (e) {
-    console.error('Copy failed:', e)
-  }
+  await copyToClipboard(props.content)
+  emit('copy')
 }
 
 // Lifecycle

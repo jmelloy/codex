@@ -1,78 +1,65 @@
 <template>
-  <div class="flex justify-center items-center min-h-screen graph-paper p-5 w-full">
-    <div class="notebook-page p-10 rounded-lg shadow-lg w-full max-w-md">
-      <h1 class="mb-8 text-center text-2xl font-semibold" style="color: var(--notebook-text)">Register</h1>
-      <form @submit.prevent="handleRegister">
-        <div class="mb-5">
-          <label for="username" class="block mb-1.5 font-medium" style="color: var(--notebook-text)">Username</label>
-          <input
-            id="username"
-            v-model="form.username"
-            type="text"
-            required
-            minlength="3"
-            maxlength="50"
-            placeholder="Enter username"
-            :disabled="loading"
-            class="auth-input w-full px-2.5 py-2.5 rounded text-sm disabled:cursor-not-allowed focus:outline-none"
-          />
-        </div>
-
-        <div class="mb-5">
-          <label for="email" class="block mb-1.5 font-medium" style="color: var(--notebook-text)">Email</label>
-          <input
-            id="email"
-            v-model="form.email"
-            type="email"
-            required
-            placeholder="Enter email"
-            :disabled="loading"
-            class="auth-input w-full px-2.5 py-2.5 rounded text-sm disabled:cursor-not-allowed focus:outline-none"
-          />
-        </div>
-
-        <div class="mb-5">
-          <label for="password" class="block mb-1.5 font-medium" style="color: var(--notebook-text)">Password</label>
-          <input
-            id="password"
-            v-model="form.password"
-            type="password"
-            required
-            minlength="8"
-            placeholder="Enter password (min 8 characters)"
-            :disabled="loading"
-            class="auth-input w-full px-2.5 py-2.5 rounded text-sm disabled:cursor-not-allowed focus:outline-none"
-          />
-        </div>
-
-        <div class="mb-5">
-          <label for="confirmPassword" class="block mb-1.5 font-medium" style="color: var(--notebook-text)">Confirm Password</label>
-          <input
-            id="confirmPassword"
-            v-model="form.confirmPassword"
-            type="password"
-            required
-            placeholder="Confirm password"
-            :disabled="loading"
-            class="auth-input w-full px-2.5 py-2.5 rounded text-sm disabled:cursor-not-allowed focus:outline-none"
-          />
-        </div>
-
-        <div v-if="error" class="p-2.5 rounded mb-5 text-sm" style="color: var(--pen-red); background: color-mix(in srgb, var(--pen-red) 10%, transparent)">
-          {{ error }}
-        </div>
-
-        <button type="submit" :disabled="loading" class="notebook-button w-full px-3 py-3 border-none rounded text-base cursor-pointer transition disabled:opacity-50 disabled:cursor-not-allowed">
-          {{ loading ? 'Registering...' : 'Register' }}
-        </button>
-      </form>
-
-      <div class="login-link text-center mt-5" style="color: var(--pen-gray)">
-        Already have an account? 
-        <router-link to="/login" class="no-underline hover:underline" style="color: var(--notebook-accent)">Login here</router-link>
+  <BaseAuthLayout
+    title="Register"
+    link-text="Already have an account?"
+    link-to="/login"
+    link-label="Login here"
+  >
+    <form @submit.prevent="handleRegister">
+      <BaseInput
+        id="username"
+        v-model="form.username"
+        type="text"
+        label="Username"
+        placeholder="Enter username"
+        required
+        :minlength="3"
+        :maxlength="50"
+        :disabled="loading"
+      />
+      <BaseInput
+        id="email"
+        v-model="form.email"
+        type="email"
+        label="Email"
+        placeholder="Enter email"
+        required
+        :disabled="loading"
+      />
+      <BaseInput
+        id="password"
+        v-model="form.password"
+        type="password"
+        label="Password"
+        placeholder="Enter password (min 8 characters)"
+        required
+        :minlength="8"
+        :disabled="loading"
+      />
+      <BaseInput
+        id="confirmPassword"
+        v-model="form.confirmPassword"
+        type="password"
+        label="Confirm Password"
+        placeholder="Confirm password"
+        required
+        :disabled="loading"
+      />
+      
+      <div v-if="error" class="p-2.5 rounded mb-5 text-sm" style="color: var(--pen-red); background: color-mix(in srgb, var(--pen-red) 10%, transparent)">
+        {{ error }}
       </div>
-    </div>
-  </div>
+
+      <BaseButton
+        type="submit"
+        variant="primary"
+        :disabled="loading"
+        full-width
+      >
+        {{ loading ? 'Registering...' : 'Register' }}
+      </BaseButton>
+    </form>
+  </BaseAuthLayout>
 </template>
 
 <script setup lang="ts">
@@ -81,6 +68,9 @@ import { useRouter } from 'vue-router';
 import { authService } from '../services/auth';
 import { useAuthStore } from '../stores/auth';
 import { validatePassword, validateUsername, validatePasswordsMatch } from '../utils/validation';
+import BaseAuthLayout from '../components/base/BaseAuthLayout.vue';
+import BaseInput from '../components/base/BaseInput.vue';
+import BaseButton from '../components/base/BaseButton.vue';
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -150,22 +140,5 @@ const handleRegister = async () => {
 </script>
 
 <style scoped>
-.auth-input {
-  border: 1px solid var(--page-border);
-  background: var(--notebook-bg);
-  color: var(--notebook-text);
-}
-
-.auth-input:focus {
-  border-color: var(--notebook-accent);
-}
-
-.auth-input::placeholder {
-  color: color-mix(in srgb, var(--notebook-text) 40%, transparent);
-}
-
-.auth-input:disabled {
-  opacity: 0.6;
-  background: color-mix(in srgb, var(--notebook-text) 5%, transparent);
-}
+/* Additional styles if needed */
 </style>

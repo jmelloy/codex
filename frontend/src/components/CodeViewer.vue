@@ -22,9 +22,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import hljs from 'highlight.js'
+import { computed } from 'vue'
 import { useThemeStore } from '../stores/theme'
+import { useCopyToClipboard } from '../composables/useCopyToClipboard'
+import { useSyntaxHighlight } from '../composables/useSyntaxHighlight'
 
 const themeStore = useThemeStore()
 
@@ -40,105 +41,8 @@ const props = withDefaults(defineProps<Props>(), {
   showLineNumbers: true
 })
 
-const copied = ref(false)
-
-// Map file extensions to highlight.js language names
-const extensionToLanguage: Record<string, string> = {
-  // JavaScript/TypeScript
-  'js': 'javascript',
-  'jsx': 'javascript',
-  'ts': 'typescript',
-  'tsx': 'typescript',
-  'mjs': 'javascript',
-  'cjs': 'javascript',
-  // Python
-  'py': 'python',
-  'pyw': 'python',
-  'pyx': 'python',
-  // Web
-  'html': 'xml',
-  'htm': 'xml',
-  'css': 'css',
-  'scss': 'scss',
-  'sass': 'scss',
-  'less': 'less',
-  'vue': 'xml',
-  'svelte': 'xml',
-  // Data formats
-  'json': 'json',
-  'yaml': 'yaml',
-  'yml': 'yaml',
-  'xml': 'xml',
-  'toml': 'ini',
-  // Shell
-  'sh': 'bash',
-  'bash': 'bash',
-  'zsh': 'bash',
-  'fish': 'bash',
-  'ps1': 'powershell',
-  'bat': 'dos',
-  'cmd': 'dos',
-  // Systems
-  'c': 'c',
-  'h': 'c',
-  'cpp': 'cpp',
-  'cc': 'cpp',
-  'cxx': 'cpp',
-  'hpp': 'cpp',
-  'hxx': 'cpp',
-  'cs': 'csharp',
-  'java': 'java',
-  'kt': 'kotlin',
-  'kts': 'kotlin',
-  'scala': 'scala',
-  'go': 'go',
-  'rs': 'rust',
-  'swift': 'swift',
-  // Scripting
-  'rb': 'ruby',
-  'php': 'php',
-  'pl': 'perl',
-  'pm': 'perl',
-  'lua': 'lua',
-  'r': 'r',
-  'R': 'r',
-  // Functional
-  'hs': 'haskell',
-  'ml': 'ocaml',
-  'fs': 'fsharp',
-  'fsx': 'fsharp',
-  'clj': 'clojure',
-  'cljs': 'clojure',
-  'ex': 'elixir',
-  'exs': 'elixir',
-  'erl': 'erlang',
-  // Config
-  'ini': 'ini',
-  'conf': 'ini',
-  'cfg': 'ini',
-  'properties': 'properties',
-  'env': 'bash',
-  // Documentation
-  'md': 'markdown',
-  'markdown': 'markdown',
-  'rst': 'plaintext',
-  'tex': 'latex',
-  // Database
-  'sql': 'sql',
-  'graphql': 'graphql',
-  'gql': 'graphql',
-  // Build
-  'dockerfile': 'dockerfile',
-  'makefile': 'makefile',
-  'cmake': 'cmake',
-  'gradle': 'gradle',
-  // Other
-  'diff': 'diff',
-  'patch': 'diff',
-  'vim': 'vim',
-  'nginx': 'nginx',
-  'apache': 'apache',
-}
+const { copied, copy } = useCopyToClipboard()
+const { detectLanguageFromFilename, highlightCode } = useSyntaxHighlight()
 
 // Detect language from filename or use provided language
 const detectedLanguage = computed(() => {
@@ -146,14 +50,13 @@ const detectedLanguage = computed(() => {
     return props.language
   }
   if (props.filename) {
-    const ext = props.filename.split('.').pop()?.toLowerCase() || ''
     // Handle special filenames
     const lowerFilename = props.filename.toLowerCase()
     if (lowerFilename === 'dockerfile') return 'dockerfile'
     if (lowerFilename === 'makefile' || lowerFilename === 'gnumakefile') return 'makefile'
     if (lowerFilename.endsWith('.d.ts')) return 'typescript'
 
-    return extensionToLanguage[ext] || null
+    return detectLanguageFromFilename(props.filename) || null
   }
   return null
 })
@@ -167,36 +70,12 @@ const themeClass = computed(() => {
   return themeStore.theme.className?.includes('dark') ? 'code-theme-dark' : 'code-theme-light'
 })
 
-// Escape HTML to prevent XSS
-function escapeHtml(text: string): string {
-  const div = document.createElement('div')
-  div.textContent = text
-  return div.innerHTML
-}
-
 // Highlight the code
 const highlightedCode = computed(() => {
   if (!props.content) {
     return '<span class="hljs-comment">// No content</span>'
   }
-
-  try {
-    if (detectedLanguage.value) {
-      // Use specific language if detected
-      const result = hljs.highlight(props.content, {
-        language: detectedLanguage.value,
-        ignoreIllegals: true
-      })
-      return result.value
-    } else {
-      // Auto-detect language
-      const result = hljs.highlightAuto(props.content)
-      return result.value
-    }
-  } catch (e) {
-    console.warn('Syntax highlighting failed:', e)
-    return escapeHtml(props.content)
-  }
+  return highlightCode(props.content, detectedLanguage.value || undefined)
 })
 
 // Count lines for line numbers
@@ -207,15 +86,7 @@ const lineCount = computed(() => {
 
 // Copy code to clipboard
 async function copyCode() {
-  try {
-    await navigator.clipboard.writeText(props.content)
-    copied.value = true
-    setTimeout(() => {
-      copied.value = false
-    }, 2000)
-  } catch (e) {
-    console.error('Failed to copy code:', e)
-  }
+  await copy(props.content)
 }
 </script>
 

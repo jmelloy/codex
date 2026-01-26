@@ -1,129 +1,124 @@
 <template>
   <div class="template-selector">
-    <!-- Loading state -->
-    <div v-if="loading" class="flex items-center justify-center py-8">
-      <span class="text-text-secondary">Loading templates...</span>
-    </div>
-
-    <!-- Error state -->
-    <div v-else-if="error" class="text-error text-center py-4">
-      {{ error }}
-    </div>
-
-    <!-- Template list -->
-    <div v-else class="space-y-2">
-      <!-- Quick create option (no template) -->
-      <div
-        :class="[
-          'template-item flex items-center gap-3 p-3 rounded-md cursor-pointer transition border',
-          selectedTemplate === null
-            ? 'border-primary bg-primary/10'
-            : 'border-border-light hover:border-border-medium hover:bg-bg-hover',
-        ]"
-        @click="selectTemplate(null)"
-      >
-        <span class="text-2xl">📄</span>
-        <div class="flex-1 min-w-0">
-          <div class="font-medium text-text-primary">Blank File</div>
-          <div class="text-sm text-text-secondary truncate">
-            Create an empty file with custom name
-          </div>
-        </div>
+    <StateRenderer
+      :loading="loading"
+      :error="error"
+      loading-message="Loading templates..."
+    >
+      <div class="space-y-2">
+        <!-- Quick create option (no template) -->
         <div
-          v-if="selectedTemplate === null"
-          class="w-5 h-5 rounded-full bg-primary flex items-center justify-center"
+          :class="[
+            'template-item flex items-center gap-3 p-3 rounded-md cursor-pointer transition border',
+            selectedTemplate === null
+              ? 'border-primary bg-primary/10'
+              : 'border-border-light hover:border-border-medium hover:bg-bg-hover',
+          ]"
+          @click="selectTemplate(null)"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="12"
-            height="12"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="white"
-            stroke-width="3"
-            stroke-linecap="round"
-            stroke-linejoin="round"
+          <span class="text-2xl">📄</span>
+          <div class="flex-1 min-w-0">
+            <div class="font-medium text-text-primary">Blank File</div>
+            <div class="text-sm text-text-secondary truncate">
+              Create an empty file with custom name
+            </div>
+          </div>
+          <div
+            v-if="selectedTemplate === null"
+            class="w-5 h-5 rounded-full bg-primary flex items-center justify-center"
           >
-            <polyline points="20 6 9 17 4 12"></polyline>
-          </svg>
-        </div>
-      </div>
-
-      <!-- Divider -->
-      <div class="flex items-center gap-2 py-2">
-        <div class="flex-1 h-px bg-border-light"></div>
-        <span class="text-xs text-text-tertiary uppercase">Templates</span>
-        <div class="flex-1 h-px bg-border-light"></div>
-      </div>
-
-      <!-- Template items -->
-      <div
-        v-for="template in filteredTemplates"
-        :key="template.id"
-        :class="[
-          'template-item flex items-center gap-3 p-3 rounded-md cursor-pointer transition border',
-          selectedTemplate?.id === template.id
-            ? 'border-primary bg-primary/10'
-            : 'border-border-light hover:border-border-medium hover:bg-bg-hover',
-        ]"
-        @click="selectTemplate(template)"
-      >
-        <span class="text-2xl">{{ template.icon }}</span>
-        <div class="flex-1 min-w-0">
-          <div class="font-medium text-text-primary flex items-center gap-2">
-            {{ template.name }}
-            <span
-              v-if="template.source === 'notebook'"
-              class="text-xs px-1.5 py-0.5 bg-primary/20 text-primary rounded"
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="white"
+              stroke-width="3"
+              stroke-linecap="round"
+              stroke-linejoin="round"
             >
-              Custom
-            </span>
-          </div>
-          <div class="text-sm text-text-secondary truncate">
-            {{ template.description }}
-          </div>
-          <div class="text-xs text-text-tertiary mt-1">
-            {{ expandedFilename(template) }}
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
           </div>
         </div>
+
+        <!-- Divider -->
+        <div class="flex items-center gap-2 py-2">
+          <div class="flex-1 h-px bg-border-light"></div>
+          <span class="text-xs text-text-tertiary uppercase">Templates</span>
+          <div class="flex-1 h-px bg-border-light"></div>
+        </div>
+
+        <!-- Template items -->
         <div
-          v-if="selectedTemplate?.id === template.id"
-          class="w-5 h-5 rounded-full bg-primary flex items-center justify-center"
+          v-for="template in filteredTemplates"
+          :key="template.id"
+          :class="[
+            'template-item flex items-center gap-3 p-3 rounded-md cursor-pointer transition border',
+            selectedTemplate?.id === template.id
+              ? 'border-primary bg-primary/10'
+              : 'border-border-light hover:border-border-medium hover:bg-bg-hover',
+          ]"
+          @click="selectTemplate(template)"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="12"
-            height="12"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="white"
-            stroke-width="3"
-            stroke-linecap="round"
-            stroke-linejoin="round"
+          <span class="text-2xl">{{ template.icon }}</span>
+          <div class="flex-1 min-w-0">
+            <div class="font-medium text-text-primary flex items-center gap-2">
+              {{ template.name }}
+              <span
+                v-if="template.source === 'notebook'"
+                class="text-xs px-1.5 py-0.5 bg-primary/20 text-primary rounded"
+              >
+                Custom
+              </span>
+            </div>
+            <div class="text-sm text-text-secondary truncate">
+              {{ template.description }}
+            </div>
+            <div class="text-xs text-text-tertiary mt-1">
+              {{ expandedFilename(template) }}
+            </div>
+          </div>
+          <div
+            v-if="selectedTemplate?.id === template.id"
+            class="w-5 h-5 rounded-full bg-primary flex items-center justify-center"
           >
-            <polyline points="20 6 9 17 4 12"></polyline>
-          </svg>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="white"
+              stroke-width="3"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- Filter by type -->
-    <div v-if="templates.length > 0" class="mt-4 flex items-center gap-2">
-      <span class="text-sm text-text-secondary">Filter:</span>
-      <button
-        v-for="ext in availableExtensions"
-        :key="ext"
-        :class="[
-          'px-2 py-1 text-xs rounded transition',
-          filterExtension === ext
-            ? 'bg-primary text-white'
-            : 'bg-bg-hover text-text-secondary hover:bg-bg-tertiary',
-        ]"
-        @click="filterExtension = filterExtension === ext ? null : ext"
-      >
-        {{ ext || "All" }}
-      </button>
-    </div>
+      <!-- Filter by type -->
+      <div v-if="templates.length > 0" class="mt-4 flex items-center gap-2">
+        <span class="text-sm text-text-secondary">Filter:</span>
+        <button
+          v-for="ext in availableExtensions"
+          :key="ext"
+          :class="[
+            'px-2 py-1 text-xs rounded transition',
+            filterExtension === ext
+              ? 'bg-primary text-white'
+              : 'bg-bg-hover text-text-secondary hover:bg-bg-tertiary',
+          ]"
+          @click="filterExtension = filterExtension === ext ? null : ext"
+        >
+          {{ ext || "All" }}
+        </button>
+      </div>
+    </StateRenderer>
   </div>
 </template>
 
@@ -133,6 +128,7 @@ import {
   templateService,
   type Template,
 } from "../services/codex";
+import StateRenderer from './base/StateRenderer.vue';
 
 const props = defineProps<{
   notebookId: number;

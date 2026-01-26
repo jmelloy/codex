@@ -171,32 +171,30 @@
 
     <!-- History Tab -->
     <div v-else-if="file && activeTab === 'history'" class="panel-content history-content">
-      <div v-if="historyLoading" class="history-loading">
-        <span class="loading-spinner"></span>
-        Loading history...
-      </div>
-      <div v-else-if="historyError" class="history-error">
-        {{ historyError }}
-      </div>
-      <div v-else-if="history.length === 0" class="history-empty">
-        No history available for this file.
-      </div>
-      <div v-else class="history-list">
-        <div
-          v-for="commit in history"
-          :key="commit.hash"
-          class="history-item"
-          @click="selectCommit(commit)"
-          :class="{ selected: selectedCommit?.hash === commit.hash }"
-        >
-          <div class="commit-header">
-            <span class="commit-hash" :title="commit.hash">{{ commit.hash.substring(0, 7) }}</span>
-            <span class="commit-date">{{ formatCommitDate(commit.date) }}</span>
+      <StateRenderer
+        :loading="historyLoading"
+        :error="historyError"
+        :empty="history.length === 0"
+        loading-message="Loading history..."
+        empty-message="No history available for this file."
+      >
+        <div class="history-list">
+          <div
+            v-for="commit in history"
+            :key="commit.hash"
+            class="history-item"
+            @click="selectCommit(commit)"
+            :class="{ selected: selectedCommit?.hash === commit.hash }"
+          >
+            <div class="commit-header">
+              <span class="commit-hash" :title="commit.hash">{{ commit.hash.substring(0, 7) }}</span>
+              <span class="commit-date">{{ formatCommitDate(commit.date) }}</span>
+            </div>
+            <div class="commit-message">{{ commit.message }}</div>
+            <div class="commit-author">{{ commit.author }}</div>
           </div>
-          <div class="commit-message">{{ commit.message }}</div>
-          <div class="commit-author">{{ commit.author }}</div>
         </div>
-      </div>
+      </StateRenderer>
 
       <!-- Commit Preview -->
       <div v-if="selectedCommit" class="commit-preview">
@@ -228,6 +226,7 @@
 import { ref, computed, watch } from 'vue'
 import type { FileWithContent, FileHistoryEntry } from '../services/codex'
 import { fileService } from '../services/codex'
+import StateRenderer from './base/StateRenderer.vue'
 
 interface Props {
   file: FileWithContent | null

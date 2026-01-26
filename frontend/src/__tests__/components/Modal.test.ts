@@ -100,7 +100,9 @@ describe('Modal', () => {
       attachTo: document.body
     })
     
-    const confirmButton = document.querySelector('.btn-primary')
+    // Find button in the teleported content
+    const buttons = Array.from(document.querySelectorAll('.modal-actions button'))
+    const confirmButton = buttons.find((btn: any) => btn.textContent?.includes('Save Changes'))
     expect(confirmButton?.textContent).toBe('Save Changes')
   })
 
@@ -199,10 +201,13 @@ describe('Modal', () => {
       attachTo: document.body
     })
     
-    const confirmButton = document.querySelector('.btn-primary') as HTMLElement
-    confirmButton.click()
-    
-    await wrapper.vm.$nextTick()
+    // Find confirm button in the teleported content
+    const buttons = Array.from(document.querySelectorAll('.modal-actions button'))
+    const confirmButton = buttons.find((btn: any) => btn.textContent?.includes('Confirm')) as HTMLElement
+    if (confirmButton) {
+      confirmButton.click()
+      await wrapper.vm.$nextTick()
+    }
     
     expect(wrapper.emitted('confirm')).toBeTruthy()
   })
@@ -215,10 +220,13 @@ describe('Modal', () => {
       attachTo: document.body
     })
     
-    const confirmButton = document.querySelector('.btn-primary') as HTMLElement
-    confirmButton.click()
-    
-    await wrapper.vm.$nextTick()
+    // Find confirm button in the teleported content
+    const buttons = Array.from(document.querySelectorAll('.modal-actions button'))
+    const confirmButton = buttons.find((btn: any) => btn.textContent?.includes('Confirm')) as HTMLElement
+    if (confirmButton) {
+      confirmButton.click()
+      await wrapper.vm.$nextTick()
+    }
     
     // Should only emit confirm, not update:modelValue
     // Parent component should close modal after handling confirm

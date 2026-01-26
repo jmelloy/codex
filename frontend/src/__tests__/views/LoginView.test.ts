@@ -68,9 +68,9 @@ describe('LoginView', () => {
       }
     })
     
-    const registerLink = wrapper.find('.register-link a')
+    const registerLink = wrapper.find('a[href="/register"]')
     expect(registerLink.exists()).toBe(true)
-    expect(registerLink.attributes('href')).toBe('/register')
+    expect(registerLink.text()).toContain('Register')
   })
 
   it('binds username and password inputs to component state', async () => {

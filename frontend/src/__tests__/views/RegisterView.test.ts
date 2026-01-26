@@ -71,9 +71,9 @@ describe('RegisterView', () => {
       }
     })
     
-    const loginLink = wrapper.find('.login-link a')
+    const loginLink = wrapper.find('a[href="/login"]')
     expect(loginLink.exists()).toBe(true)
-    expect(loginLink.attributes('href')).toBe('/login')
+    expect(loginLink.text()).toContain('Login')
   })
 
   it('binds form inputs to component state', async () => {

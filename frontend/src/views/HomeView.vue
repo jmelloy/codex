@@ -165,11 +165,8 @@
 
         <!-- Image Viewer for image files -->
         <div v-else-if="workspaceStore.currentFile.file_type === 'image'" class="flex-1 flex flex-col overflow-hidden">
-          <div class="flex justify-between items-center mb-4">
-            <h2 class="text-xl font-semibold m-0">{{ workspaceStore.currentFile.title ||
-              workspaceStore.currentFile.filename
-              }}</h2>
-            <div class="flex gap-2">
+          <FileHeader :file="workspaceStore.currentFile" @toggle-properties="toggleProperties">
+            <template #actions>
               <button @click="openInNewTab"
                 class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
                 title="Open in new tab">
@@ -179,8 +176,8 @@
                 class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
                 Properties
               </button>
-            </div>
-          </div>
+            </template>
+          </FileHeader>
           <div class="flex-1 flex items-center justify-center overflow-auto bg-bg-secondary rounded-lg">
             <img :src="currentContentUrl" :alt="workspaceStore.currentFile.title || workspaceStore.currentFile.filename"
               class="max-w-full max-h-full object-contain" />
@@ -189,11 +186,8 @@
 
         <!-- PDF Viewer -->
         <div v-else-if="workspaceStore.currentFile.file_type === 'pdf'" class="flex-1 flex flex-col overflow-hidden">
-          <div class="flex justify-between items-center mb-4">
-            <h2 class="text-xl font-semibold m-0">{{ workspaceStore.currentFile.title ||
-              workspaceStore.currentFile.filename
-              }}</h2>
-            <div class="flex gap-2">
+          <FileHeader :file="workspaceStore.currentFile" @toggle-properties="toggleProperties">
+            <template #actions>
               <button @click="openInNewTab"
                 class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
                 title="Open in new tab">
@@ -203,8 +197,8 @@
                 class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
                 Properties
               </button>
-            </div>
-          </div>
+            </template>
+          </FileHeader>
           <div class="flex-1 overflow-hidden bg-bg-secondary rounded-lg">
             <iframe :src="currentContentUrl" class="w-full h-full border-0"
               :title="workspaceStore.currentFile.title || workspaceStore.currentFile.filename" />
@@ -213,11 +207,8 @@
 
         <!-- Audio Player -->
         <div v-else-if="workspaceStore.currentFile.file_type === 'audio'" class="flex-1 flex flex-col overflow-hidden">
-          <div class="flex justify-between items-center mb-4">
-            <h2 class="text-xl font-semibold m-0">{{ workspaceStore.currentFile.title ||
-              workspaceStore.currentFile.filename
-              }}</h2>
-            <div class="flex gap-2">
+          <FileHeader :file="workspaceStore.currentFile" @toggle-properties="toggleProperties">
+            <template #actions>
               <button @click="openInNewTab"
                 class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
                 title="Open in new tab">
@@ -227,11 +218,10 @@
                 class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
                 Properties
               </button>
-            </div>
-          </div>
+            </template>
+          </FileHeader>
           <div class="flex-1 flex items-center justify-center bg-bg-secondary rounded-lg">
             <div class="text-center">
-              <div class="text-6xl mb-4">🎵</div>
               <audio :src="currentContentUrl" controls class="w-full max-w-md">
                 Your browser does not support the audio element.
               </audio>
@@ -241,11 +231,8 @@
 
         <!-- Video Player -->
         <div v-else-if="workspaceStore.currentFile.file_type === 'video'" class="flex-1 flex flex-col overflow-hidden">
-          <div class="flex justify-between items-center mb-4">
-            <h2 class="text-xl font-semibold m-0">{{ workspaceStore.currentFile.title ||
-              workspaceStore.currentFile.filename
-              }}</h2>
-            <div class="flex gap-2">
+          <FileHeader :file="workspaceStore.currentFile" @toggle-properties="toggleProperties">
+            <template #actions>
               <button @click="openInNewTab"
                 class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
                 title="Open in new tab">
@@ -255,8 +242,8 @@
                 class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
                 Properties
               </button>
-            </div>
-          </div>
+            </template>
+          </FileHeader>
           <div class="flex-1 flex items-center justify-center overflow-auto bg-bg-secondary rounded-lg">
             <video :src="currentContentUrl" controls class="max-w-full max-h-full">
               Your browser does not support the video element.
@@ -266,11 +253,8 @@
 
         <!-- HTML Viewer -->
         <div v-else-if="workspaceStore.currentFile.file_type === 'html'" class="flex-1 flex flex-col overflow-hidden">
-          <div class="flex justify-between items-center mb-4">
-            <h2 class="text-xl font-semibold m-0">{{ workspaceStore.currentFile.title ||
-              workspaceStore.currentFile.filename
-              }}</h2>
-            <div class="flex gap-2">
+          <FileHeader :file="workspaceStore.currentFile" @toggle-properties="toggleProperties">
+            <template #actions>
               <button @click="openInNewTab"
                 class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
                 title="Open in new tab">
@@ -280,8 +264,8 @@
                 class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
                 Properties
               </button>
-            </div>
-          </div>
+            </template>
+          </FileHeader>
           <div class="flex-1 overflow-hidden bg-bg-secondary rounded-lg">
             <iframe :src="currentContentUrl" class="w-full h-full border-0"
               :title="workspaceStore.currentFile.title || workspaceStore.currentFile.filename"
@@ -290,28 +274,28 @@
         </div>
 
         <!-- Code Viewer for source code files -->
-        <CodeViewer v-else-if="workspaceStore.currentFile.file_type === 'code'"
-          :content="workspaceStore.currentFile.content" :filename="workspaceStore.currentFile.filename"
-          :show-line-numbers="true" class="flex-1">
-          <template #toolbar-actions>
-            <button @click="startEdit"
-              class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
-              Edit
-            </button>
-            <button @click="toggleProperties"
-              class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
-              Properties
-            </button>
-          </template>
-        </CodeViewer>
+        <div v-else-if="workspaceStore.currentFile.file_type === 'code'" class="flex-1 flex flex-col overflow-hidden">
+          <FileHeader :file="workspaceStore.currentFile" @toggle-properties="toggleProperties">
+            <template #actions>
+              <button @click="startEdit"
+                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
+                Edit
+              </button>
+              <button @click="toggleProperties"
+                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
+                Properties
+              </button>
+            </template>
+          </FileHeader>
+          <CodeViewer
+            :content="workspaceStore.currentFile.content" :filename="workspaceStore.currentFile.filename"
+            :show-line-numbers="true" :show-toolbar="false" class="flex-1" />
+        </div>
 
         <!-- Binary file placeholder -->
         <div v-else-if="workspaceStore.currentFile.file_type === 'binary'" class="flex-1 flex flex-col overflow-hidden">
-          <div class="flex justify-between items-center mb-4">
-            <h2 class="text-xl font-semibold m-0">{{ workspaceStore.currentFile.title ||
-              workspaceStore.currentFile.filename
-              }}</h2>
-            <div class="flex gap-2">
+          <FileHeader :file="workspaceStore.currentFile" @toggle-properties="toggleProperties">
+            <template #actions>
               <a :href="currentContentUrl" download
                 class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition no-underline">
                 Download
@@ -320,11 +304,10 @@
                 class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
                 Properties
               </button>
-            </div>
-          </div>
+            </template>
+          </FileHeader>
           <div class="flex-1 flex items-center justify-center bg-bg-secondary rounded-lg">
             <div class="text-center text-text-tertiary">
-              <div class="text-6xl mb-4">📦</div>
               <p>This is a binary file.</p>
               <p class="text-sm">Click "Download" to save it to your device.</p>
             </div>
@@ -332,17 +315,24 @@
         </div>
 
         <!-- Markdown Viewer for text-based files -->
-        <MarkdownViewer v-else :content="workspaceStore.currentFile.content"
-          :frontmatter="workspaceStore.currentFile.properties" :workspace-id="workspaceStore.currentWorkspace?.id"
-          :notebook-id="workspaceStore.currentNotebook?.id" :current-file-path="workspaceStore.currentFile.path"
-          :show-frontmatter="false" @edit="startEdit" @copy="handleCopy" class="flex-1">
-          <template #toolbar-actions>
-            <button @click="toggleProperties"
-              class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
-              Properties
-            </button>
-          </template>
-        </MarkdownViewer>
+        <div v-else class="flex-1 flex flex-col overflow-hidden">
+          <FileHeader :file="workspaceStore.currentFile" @toggle-properties="toggleProperties">
+            <template #actions>
+              <button @click="startEdit"
+                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
+                Edit
+              </button>
+              <button @click="toggleProperties"
+                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition">
+                Properties
+              </button>
+            </template>
+          </FileHeader>
+          <MarkdownViewer :content="workspaceStore.currentFile.content"
+            :frontmatter="workspaceStore.currentFile.properties" :workspace-id="workspaceStore.currentWorkspace?.id"
+            :notebook-id="workspaceStore.currentNotebook?.id" :current-file-path="workspaceStore.currentFile.path"
+            :show-frontmatter="false" :show-toolbar="false" @edit="startEdit" @copy="handleCopy" class="flex-1" />
+        </div>
       </div>
 
       <!-- Folder View Mode -->
@@ -465,6 +455,7 @@ import ViewRenderer from '../components/views/ViewRenderer.vue'
 import FilePropertiesPanel from '../components/FilePropertiesPanel.vue'
 import FolderPropertiesPanel from '../components/FolderPropertiesPanel.vue'
 import FolderView from '../components/FolderView.vue'
+import FileHeader from '../components/FileHeader.vue'
 import FileTreeItem from '../components/FileTreeItem.vue'
 import CreateViewModal from '../components/CreateViewModal.vue'
 import TemplateSelector from '../components/TemplateSelector.vue'

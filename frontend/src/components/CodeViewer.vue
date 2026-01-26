@@ -1,6 +1,6 @@
 <template>
   <div class="code-viewer" :class="[themeClass]">
-    <div class="code-toolbar">
+    <div class="code-toolbar" v-if="showToolbar">
       <div class="code-info">
         <span v-if="filename" class="filename">{{ filename }}</span>
         <span v-if="detectedLanguage" class="language-badge">{{ detectedLanguage }}</span>
@@ -33,11 +33,13 @@ interface Props {
   language?: string
   filename?: string
   showLineNumbers?: boolean
+  showToolbar?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   content: '',
-  showLineNumbers: true
+  showLineNumbers: true,
+  showToolbar: true
 })
 
 const copied = ref(false)

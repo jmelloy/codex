@@ -60,7 +60,7 @@ def _start_notebook_watchers_sync():
     session = get_system_session_sync()
     try:
         # Select notebooks with their workspace relationship to get full paths
-        result = session.execute(select(Notebook, Workspace).join(Workspace, Notebook.workspace_id == Workspace.id))
+        result = session.exec(select(Notebook, Workspace).join(Workspace, Notebook.workspace_id == Workspace.id))
         notebooks = result.scalars().all()
         logger.info(f"Found {len(notebooks)} notebooks in database")
 

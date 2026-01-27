@@ -364,8 +364,6 @@ class NotebookWatcher:
 
                     is_sidecar = abs_sidecar and abs_sidecar == filepath 
 
-                    # logger.debug(f"Scanning file: {filename}: {rel_path} (sidecar={is_sidecar})")
-
                     seen_files += 1 if not is_sidecar else 0
                     seen_sidecars += 1 if is_sidecar else 0
 
@@ -377,12 +375,11 @@ class NotebookWatcher:
 
                     try:
                         file_stats = os.stat(filepath)
+                        file_mtime = datetime.fromtimestamp(file_stats.st_mtime)
+                        file_size = file_stats.st_size
                     except OSError:
                         # File may have been deleted between walk and stat
                         continue
-
-                    file_mtime = datetime.fromtimestamp(file_stats.st_mtime)
-                    file_size = file_stats.st_size
 
                     if existing and not is_sidecar:
                         # Compare size first (cheap check)
@@ -390,8 +387,7 @@ class NotebookWatcher:
                             files_to_process.add(abs_filepath)
                         # Compare modification time (allow 1 second tolerance for filesystem precision)
                         elif existing.file_modified_at:
-                            time_diff = abs((file_mtime - existing.file_modified_at).total_seconds())
-                            if time_diff > 1:
+                            if file_mtime > existing.updated_at or file_mtime > existing.file_modified_at:
                                 files_to_process.add(abs_filepath)
                         elif existing.git_tracked and not existing.last_commit_hash:
                             files_to_process.add(abs_filepath)
@@ -402,9 +398,7 @@ class NotebookWatcher:
                     elif is_sidecar and abs_sidecar:
                         sidecar = sidecar_files.get(os.path.relpath(abs_sidecar, self.notebook_path))
                         if sidecar:
-                            time_diff = abs((file_mtime - sidecar.file_modified_at).total_seconds())
-                            if time_diff > 1:
-                                # Sidecar file exists in database - update metadata
+                            if file_mtime > sidecar.updated_at:
                                 files_to_process.add(abs_filepath)
                         else:
                             # Sidecar file not in database - update metadata
@@ -412,6 +406,8 @@ class NotebookWatcher:
                     else:
                         # New file not in database
                         files_to_process.add(abs_filepath)
+
+            logger.debug(f"Files to process after scan: {len(files_to_process)}")
 
             for filepath in files_to_process:
                 self.handler._update_file_metadata(filepath, "scanned")
@@ -424,9 +420,9 @@ class NotebookWatcher:
                 self.handler._update_file_metadata(filepath, "deleted")
 
             # Log scan summary
-            new_count = len(files_to_process) - len(set(existing_files.keys()))
+            new_count = len(files_to_process - set(existing_files.keys()))
             deleted_count = len(deleted_paths)
-            unchanged_count = new_count - updated_count
+            unchanged_count = len(set(existing_files.keys()) - files_to_process)
             logger.info(f"Scan complete: {seen_files} files ({seen_sidecars} sidecars) on disk, {len(existing_files)} in database")
             logger.info(
                 f"  New: {new_count}, Updated: {updated_count}, Deleted: {deleted_count}, Unchanged: {unchanged_count}"

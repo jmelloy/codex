@@ -128,8 +128,7 @@ def test_file_endpoints(temp_workspace_dir):
         json={
             "notebook_id": notebook_id,
             "workspace_id": workspace_id,
-            "path": "test.md",
-            "content": "# Test File\n\nThis is a test.",
+            "path": "test.md"
         },
         headers=headers,
     )

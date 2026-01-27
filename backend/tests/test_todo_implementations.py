@@ -153,7 +153,6 @@ def test_file_endpoints(temp_workspace_dir):
     assert response.status_code == 200
     file_content = response.json()
     assert file_content["id"] == file_id
-    assert file_content["content"] == "# Test File\n\nThis is a test."
 
     # Update file
     response = client.put(
@@ -166,7 +165,7 @@ def test_file_endpoints(temp_workspace_dir):
 
     # Verify update
     response = client.get(
-        f"/api/v1/files/{file_id}", params={"workspace_id": workspace_id, "notebook_id": notebook_id}, headers=headers
+        f"/api/v1/files/{file_id}/text", params={"workspace_id": workspace_id, "notebook_id": notebook_id}, headers=headers
     )
     assert response.status_code == 200
     updated_content = response.json()

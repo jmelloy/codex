@@ -292,17 +292,8 @@
 
       <!-- Viewer Mode -->
       <div v-else-if="workspaceStore.currentFile" class="flex-1 flex overflow-hidden p-4">
-        <!-- Dynamic View Renderer for .cdx files -->
-        <ViewRenderer
-          v-if="displayType === 'view'"
-          :file-id="workspaceStore.currentFile.id"
-          :workspace-id="workspaceStore.currentWorkspace!.id"
-          :notebook-id="workspaceStore.currentFile.notebook_id"
-          class="flex-1"
-        />
-
-        <!-- All other file types use a consistent header + content pattern -->
-        <div v-else class="flex-1 flex flex-col overflow-hidden">
+        <!-- All file types use a consistent header + content pattern -->
+        <div class="flex-1 flex flex-col overflow-hidden">
           <FileHeader :file="workspaceStore.currentFile" @toggle-properties="toggleProperties">
             <template #actions>
               <!-- Media files (image, pdf, audio, video, html) get Open button -->
@@ -315,9 +306,9 @@
                 Open
               </button>
 
-              <!-- Editable files (code, markdown) get Edit button -->
+              <!-- Editable files (code, markdown, view) get Edit button -->
               <button
-                v-else-if="['code', 'markdown'].includes(displayType)"
+                v-else-if="['code', 'markdown', 'view'].includes(displayType)"
                 @click="startEdit"
                 class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
               >
@@ -402,6 +393,15 @@
               sandbox="allow-scripts allow-same-origin"
             />
           </div>
+
+          <!-- Dynamic View Renderer for .cdx files -->
+          <ViewRenderer
+            v-if="displayType === 'view'"
+            :file-id="workspaceStore.currentFile.id"
+            :workspace-id="workspaceStore.currentWorkspace!.id"
+            :notebook-id="workspaceStore.currentFile.notebook_id"
+            class="flex-1"
+          />
 
           <!-- Code Viewer -->
           <CodeViewer

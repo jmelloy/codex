@@ -65,11 +65,11 @@ const loadView = async () => {
   error.value = null
 
   try {
-    // Load the .cdx file
-    const file = await fileService.get(props.fileId, props.workspaceId, props.notebookId)
+    // Load the .cdx file content
+    const textContent = await fileService.getContent(props.fileId, props.workspaceId, props.notebookId)
 
     // Parse view definition
-    viewDefinition.value = parseViewDefinition(file.content || "")
+    viewDefinition.value = parseViewDefinition(textContent.content || "")
 
     // Execute query if defined
     if (viewDefinition.value.query) {
@@ -135,9 +135,11 @@ interface ViewUpdateEvent {
 
 const handleUpdate = async (event: ViewUpdateEvent) => {
   try {
-    // Load current file - we need to get notebook_id from it since event doesn't have it
-    // TODO: Consider caching files or passing notebook_id in the event
-    const file = await fileService.get(event.fileId, props.workspaceId, props.notebookId)
+    // Load current file metadata and content separately
+    const [file, textContent] = await Promise.all([
+      fileService.get(event.fileId, props.workspaceId, props.notebookId),
+      fileService.getContent(event.fileId, props.workspaceId, props.notebookId),
+    ])
 
     // Merge updates into properties
     const updatedProperties = {
@@ -150,7 +152,7 @@ const handleUpdate = async (event: ViewUpdateEvent) => {
       event.fileId,
       props.workspaceId,
       file.notebook_id,
-      file.content || "",
+      textContent.content || "",
       updatedProperties
     )
 

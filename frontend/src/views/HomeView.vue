@@ -396,7 +396,7 @@
 
           <!-- Dynamic View Renderer for .cdx files -->
           <ViewRenderer
-            v-if="displayType === 'view'"
+            v-else-if="displayType === 'view'"
             :file-id="workspaceStore.currentFile.id"
             :workspace-id="workspaceStore.currentWorkspace!.id"
             :notebook-id="workspaceStore.currentFile.notebook_id"

@@ -62,7 +62,7 @@ class FileMetadata(SQLModel, table=True):
     last_commit_hash: str | None = None
 
     # Relationships
-    tags: list[Tag] = Relationship(back_populates="files", link_model=FileTag)
+    tags: list["Tag"] = Relationship(back_populates="files", link_model=FileTag)
 
 
 class Tag(SQLModel, table=True):

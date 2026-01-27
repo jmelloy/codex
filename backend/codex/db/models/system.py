@@ -30,7 +30,7 @@ class User(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=utc_now)
 
     # Relationships
-    workspaces: list[Workspace] = Relationship(back_populates="owner")
+    workspaces: list["Workspace"] = Relationship(back_populates="owner")
 
 
 class Workspace(SQLModel, table=True):
@@ -48,8 +48,8 @@ class Workspace(SQLModel, table=True):
 
     # Relationships
     owner: User = Relationship(back_populates="workspaces")
-    permissions: list[WorkspacePermission] = Relationship(back_populates="workspace")
-    notebooks: list[Notebook] = Relationship(back_populates="workspace")
+    permissions: list["WorkspacePermission"] = Relationship(back_populates="workspace")
+    notebooks: list["Notebook"] = Relationship(back_populates="workspace")
 
 
 class WorkspacePermission(SQLModel, table=True):

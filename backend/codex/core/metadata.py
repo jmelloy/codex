@@ -203,22 +203,27 @@ class MetadataParser:
         suffixes = [".json", ".xml", ".md"]
 
         for suffix in suffixes:
-            sidecar = f"{filepath}{suffix}"
-            if Path(sidecar).exists():
-                return (filepath, sidecar)
-
-            sidecar_dot = str(Path(filepath).parent / f".{Path(filepath).name}{suffix}")
-            if Path(sidecar_dot).exists():
-                return (filepath, sidecar_dot)
-
+            # file = regular, sidecar = no dot prefix
+            sidecar = Path(f"{filepath}{suffix}")
+            if sidecar.exists():
+                return (filepath, str(sidecar))
+            
+            # file = regular, sidecar = dot prefix
+            sidecar_dot = Path(filepath).parent / f".{Path(filepath).name}{suffix}"
+            if sidecar_dot.exists():
+                return (filepath, str(sidecar_dot))
+            
+            # file = sidecar
             if filepath.endswith(suffix):
                 regular_file = filepath.rstrip(suffix)
                 if Path(regular_file).exists():
                     return (regular_file, filepath)
-
-                dotfile = str(Path(filepath).parent / f".{Path(filepath).name.rstrip(suffix)}")
-                if Path(dotfile).exists():
-                    return (dotfile, filepath)
+                
+            # file = dot-prefixed sidecar
+            if Path(filepath).name.startswith(".") and filepath.endswith(suffix):
+                file = Path(filepath).parent / f"{Path(filepath).name.rstrip(suffix).lstrip('.')}"
+                if Path(file).exists():
+                    return (str(file), filepath)
 
         return (filepath, None)
 

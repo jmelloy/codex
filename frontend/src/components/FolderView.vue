@@ -347,6 +347,7 @@ import { ref, computed, h } from "vue"
 import type { FolderWithFiles, FileMetadata, SubfolderMetadata } from "../services/codex"
 import { getDisplayType } from "../utils/contentType"
 import { useWorkspaceStore } from "../stores/workspace"
+import { isSidecarFile } from "../utils/fileTree"
 
 interface Props {
   folder: FolderWithFiles
@@ -385,16 +386,22 @@ const displayTitle = computed(() => {
 
 const subfolders = computed(() => props.folder.subfolders || [])
 
+// Filter out sidecar files from folder contents
+const visibleFiles = computed(() => {
+  const allPaths = new Set(props.folder.files.map((f) => f.path))
+  return props.folder.files.filter((f) => !isSidecarFile(f, allPaths))
+})
+
 const hasContent = computed(() => {
-  return props.folder.files.length > 0 || subfolders.value.length > 0
+  return visibleFiles.value.length > 0 || subfolders.value.length > 0
 })
 
 const totalItemCount = computed(() => {
-  return props.folder.files.length + subfolders.value.length
+  return visibleFiles.value.length + subfolders.value.length
 })
 
 const sortedFiles = computed(() => {
-  const files = [...props.folder.files]
+  const files = [...visibleFiles.value]
 
   files.sort((a, b) => {
     let comparison = 0

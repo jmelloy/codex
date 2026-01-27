@@ -8,6 +8,40 @@ export interface FileTreeNode {
   children?: FileTreeNode[]
 }
 
+const SIDECAR_EXTENSIONS = [".json", ".xml", ".md"]
+
+/**
+ * Check if a file is a sidecar metadata file for another file.
+ * Sidecar patterns: filename.ext.json, .filename.ext.json, etc.
+ */
+export function isSidecarFile(file: FileMetadata, allPaths: Set<string>): boolean {
+  const filename = file.filename
+
+  for (const ext of SIDECAR_EXTENSIONS) {
+    if (!filename.endsWith(ext)) continue
+
+    // Get the path without the sidecar extension
+    const basePath = file.path.slice(0, -ext.length)
+
+    // Check if the parent file exists (e.g., image.png for image.png.json)
+    if (allPaths.has(basePath)) {
+      return true
+    }
+
+    // Check for dot-prefixed sidecar (e.g., .image.png.json for image.png)
+    if (filename.startsWith(".")) {
+      const dir = file.path.slice(0, file.path.length - filename.length)
+      const parentFilename = filename.slice(1, -ext.length) // Remove leading "." and trailing ext
+      const parentPath = dir + parentFilename
+      if (allPaths.has(parentPath)) {
+        return true
+      }
+    }
+  }
+
+  return false
+}
+
 /**
  * Build a hierarchical tree structure from a flat list of files
  */
@@ -17,8 +51,12 @@ export function buildFileTree(files: FileMetadata[]): FileTreeNode[] {
   // Create a map to track folders we've already created
   const folderMap = new Map<string, FileTreeNode>()
 
-  // Sort files by path to ensure consistent ordering
-  const sortedFiles = [...files].sort((a, b) => a.path.localeCompare(b.path))
+  // Build a set of all file paths for sidecar detection
+  const allPaths = new Set(files.map((f) => f.path))
+
+  // Filter out sidecar files and sort by path
+  const visibleFiles = files.filter((f) => !isSidecarFile(f, allPaths))
+  const sortedFiles = [...visibleFiles].sort((a, b) => a.path.localeCompare(b.path))
 
   for (const file of sortedFiles) {
     const pathParts = file.path.split("/").filter((part) => part !== "")

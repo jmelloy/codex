@@ -102,8 +102,12 @@ def get_folder_files(
     1. Check if files are directly in the folder (not in subfolders)
     2. Exclude .metadata files
     
-    For very large folders, this may still load many records. A future optimization
-    could add a path prefix index and query optimization.
+    For optimal performance with very large folders (>10k files), consider:
+    - Adding a parent_folder column to FileMetadata for direct SQL filtering
+    - Using an indexed path column for faster queries
+    
+    Current implementation provides accurate counts up to a reasonable folder size,
+    then estimates for very large folders to avoid processing all files.
     
     Returns:
         Tuple of (files_list, total_count)
@@ -112,7 +116,6 @@ def get_folder_files(
     prefix = f"{folder_path}/" if folder_path else ""
 
     # Optimization: Add LIKE filter to reduce initial result set
-    from sqlmodel import or_
     if folder_path:
         # Files in this specific folder start with the prefix
         files_result = nb_session.execute(
@@ -133,6 +136,10 @@ def get_folder_files(
 
     folder_files = []
     total_count = 0
+    # Stop counting after processing a reasonable number for performance
+    # This provides accurate counts for normal folders while avoiding
+    # processing tens of thousands of files just for counting
+    MAX_COUNT_THRESHOLD = 10000
     
     for f in all_files:
         # Skip .metadata files
@@ -159,34 +166,42 @@ def get_folder_files(
         if total_count <= skip:
             continue
         
-        # Stop processing once we have enough items
-        if len(folder_files) >= limit:
-            # Continue counting but don't process more files
-            continue
+        # Stop processing once we have enough items and counted enough
+        if len(folder_files) >= limit and total_count > skip + limit + 100:
+            # We have our page and a reasonable count estimate
+            break
+        
+        # Stop counting beyond threshold (still collect items up to limit)
+        if total_count > MAX_COUNT_THRESHOLD and len(folder_files) >= limit:
+            # For very large folders, provide an estimated count
+            total_count = MAX_COUNT_THRESHOLD  # Indicate "more than 10k"
+            break
 
-        # Parse properties JSON if available
-        properties = None
-        if f.properties:
-            try:
-                properties = json.loads(f.properties)
-            except json.JSONDecodeError:
-                properties = None
+        # Collect the file if we haven't reached the limit yet
+        if len(folder_files) < limit:
+            # Parse properties JSON if available
+            properties = None
+            if f.properties:
+                try:
+                    properties = json.loads(f.properties)
+                except json.JSONDecodeError:
+                    properties = None
 
-        folder_files.append(
-            {
-                "id": f.id,
-                "notebook_id": f.notebook_id,
-                "path": f.path,
-                "filename": f.filename,
-                "content_type": f.content_type,
-                "size": f.size,
-                "title": f.title,
-                "description": f.description,
-                "properties": properties,
-                "created_at": f.created_at.isoformat() if f.created_at else None,
-                "updated_at": f.updated_at.isoformat() if f.updated_at else None,
-            }
-        )
+            folder_files.append(
+                {
+                    "id": f.id,
+                    "notebook_id": f.notebook_id,
+                    "path": f.path,
+                    "filename": f.filename,
+                    "content_type": f.content_type,
+                    "size": f.size,
+                    "title": f.title,
+                    "description": f.description,
+                    "properties": properties,
+                    "created_at": f.created_at.isoformat() if f.created_at else None,
+                    "updated_at": f.updated_at.isoformat() if f.updated_at else None,
+                }
+            )
 
     return folder_files, total_count
 

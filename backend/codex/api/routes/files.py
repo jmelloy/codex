@@ -1298,6 +1298,32 @@ async def move_file(
 
         shutil.move(str(old_file_path), str(new_file_path))
 
+        # Move sidecar file if it exists
+        old_file_path_str, old_sidecar = MetadataParser.resolve_sidecar(str(old_file_path))
+        if old_sidecar:
+            # Determine the new sidecar path based on the sidecar type
+            # Sidecar files can be:
+            # 1. .filename.json (dot prefix)
+            # 2. filename.json (suffix)
+            old_sidecar_name = os.path.basename(old_sidecar)
+            old_filename = os.path.basename(old_file_path)
+            
+            if old_sidecar_name.startswith("."):
+                # Dot prefix format: .filename.ext.sidecar_ext
+                # Extract the sidecar suffix (e.g., .json)
+                sidecar_suffix = old_sidecar_name[len("." + old_filename):]
+                new_sidecar_name = f".{new_file_path.name}{sidecar_suffix}"
+                new_sidecar = str(new_file_path.parent / new_sidecar_name)
+            else:
+                # Suffix format: filename.ext.sidecar_ext
+                # Extract the sidecar suffix (e.g., .json)
+                sidecar_suffix = old_sidecar_name[len(old_filename):]
+                new_sidecar = str(new_file_path) + sidecar_suffix
+            
+            if Path(old_sidecar).exists():
+                shutil.move(old_sidecar, new_sidecar)
+                logger.debug(f"Moved sidecar file from {old_sidecar} to {new_sidecar}")
+
         # Update metadata
         from datetime import datetime, timezone
 
@@ -1390,6 +1416,12 @@ async def delete_file(
         # Delete the file from disk
         if file_path.exists():
             os.remove(file_path)
+
+        # Delete sidecar file if it exists
+        _, sidecar = MetadataParser.resolve_sidecar(str(file_path))
+        if sidecar and Path(sidecar).exists():
+            os.remove(sidecar)
+            logger.debug(f"Deleted sidecar file: {sidecar}")
 
         # Delete from database
         nb_session.delete(file_meta)

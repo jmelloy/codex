@@ -743,7 +743,7 @@ import FileTreeItem from "../components/FileTreeItem.vue"
 import CreateViewModal from "../components/CreateViewModal.vue"
 import TemplateSelector from "../components/TemplateSelector.vue"
 import { showToast } from "../utils/toast"
-import { buildFileTree, type FileTreeNode } from "../utils/fileTree"
+import type { FileTreeNode } from "../utils/fileTree"
 
 const router = useRouter()
 const route = useRoute()
@@ -781,12 +781,11 @@ const expandedFolders = ref<Map<number, Set<string>>>(new Map())
 const dragOverNotebook = ref<number | null>(null)
 const dragOverFolder = ref<string | null>(null)
 
-// Build file trees for each notebook
+// Get file trees from the store (now pre-built and maintained)
 const notebookFileTrees = computed(() => {
   const trees = new Map<number, FileTreeNode[]>()
   workspaceStore.notebooks.forEach((notebook) => {
-    const files = workspaceStore.getFilesForNotebook(notebook.id)
-    trees.set(notebook.id, buildFileTree(files))
+    trees.set(notebook.id, workspaceStore.getFileTree(notebook.id))
   })
   return trees
 })

@@ -1,5 +1,5 @@
 import { defineStore } from "pinia"
-import { ref } from "vue"
+import { ref, computed } from "vue"
 import {
   workspaceService,
   notebookService,
@@ -11,6 +11,18 @@ import {
   type FileWithContent,
   type FolderWithFiles,
 } from "../services/codex"
+import {
+  type FileTreeNode,
+  buildFileTree,
+  insertFileNode,
+  removeNode,
+  updateFileNode,
+  mergeFolderContents,
+  getAllPaths,
+  getAllFiles,
+  findNode,
+  moveNode,
+} from "../utils/fileTree"
 
 export const useWorkspaceStore = defineStore("workspace", () => {
   const workspaces = ref<Workspace[]>([])
@@ -19,8 +31,8 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   const loading = ref(false)
   const error = ref<string | null>(null)
 
-  // File state
-  const files = ref<Map<number, FileMetadata[]>>(new Map()) // notebook_id -> files
+  // File state - now using tree structure
+  const fileTrees = ref<Map<number, FileTreeNode[]>>(new Map()) // notebook_id -> file tree
   const currentNotebook = ref<Notebook | null>(null)
   const currentFile = ref<FileWithContent | null>(null)
   const isEditing = ref(false)
@@ -30,6 +42,15 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   // Folder state
   const currentFolder = ref<FolderWithFiles | null>(null)
   const folderLoading = ref(false)
+
+  // Backwards-compatible files accessor (returns flat list from tree)
+  const files = computed(() => {
+    const flatMap = new Map<number, FileMetadata[]>()
+    for (const [notebookId, tree] of fileTrees.value) {
+      flatMap.set(notebookId, getAllFiles(tree))
+    }
+    return flatMap
+  })
 
   async function fetchWorkspaces() {
     loading.value = true
@@ -95,11 +116,16 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     currentFile.value = null
     currentFolder.value = null
     isEditing.value = false
-    files.value.clear()
+    fileTrees.value.clear()
     expandedNotebooks.value.clear()
   }
 
   // File actions
+
+  /**
+   * Fetch all files for a notebook and build the file tree.
+   * This loads the complete file list and builds a tree structure.
+   */
   async function fetchFiles(notebookId: number) {
     if (!currentWorkspace.value) return
 
@@ -107,11 +133,50 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     error.value = null
     try {
       const fileList = await fileService.list(notebookId, currentWorkspace.value.id)
-      files.value.set(notebookId, fileList)
+      // Build tree from flat file list
+      const tree = buildFileTree(fileList)
+      fileTrees.value.set(notebookId, tree)
     } catch (e: any) {
       error.value = e.response?.data?.detail || "Failed to fetch files"
     } finally {
       fileLoading.value = false
+    }
+  }
+
+  /**
+   * Fetch folder contents and merge them into the existing tree.
+   * This allows incremental loading of folder contents on demand.
+   */
+  async function fetchFolderContents(folderPath: string, notebookId: number): Promise<FolderWithFiles | null> {
+    if (!currentWorkspace.value) return null
+
+    folderLoading.value = true
+    error.value = null
+    try {
+      const folder = await folderService.get(folderPath, notebookId, currentWorkspace.value.id)
+
+      // Get or create the tree for this notebook
+      if (!fileTrees.value.has(notebookId)) {
+        fileTrees.value.set(notebookId, [])
+      }
+      const tree = fileTrees.value.get(notebookId)!
+
+      // Build a set of all known paths for sidecar detection
+      const allPaths = getAllPaths(tree)
+      // Also add paths from the folder data
+      for (const f of folder.files) {
+        allPaths.add(f.path)
+      }
+
+      // Merge folder contents into the tree
+      mergeFolderContents(tree, folderPath, folder, allPaths)
+
+      return folder
+    } catch (e: any) {
+      error.value = e.response?.data?.detail || "Failed to load folder"
+      return null
+    } finally {
+      folderLoading.value = false
     }
   }
 
@@ -180,8 +245,11 @@ export const useWorkspaceStore = defineStore("workspace", () => {
       currentFile.value = { ...currentFile.value, ...updated, content }
       isEditing.value = false
 
-      // Refresh file list for the notebook
-      await fetchFiles(currentFile.value.notebook_id)
+      // Update the file node in the tree (incremental update)
+      const tree = fileTrees.value.get(currentFile.value.notebook_id)
+      if (tree) {
+        updateFileNode(tree, currentFile.value)
+      }
     } catch (e: any) {
       error.value = e.response?.data?.detail || "Failed to save file"
       throw e
@@ -197,8 +265,14 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     error.value = null
     try {
       const newFile = await fileService.create(notebookId, currentWorkspace.value.id, path, content)
-      // Refresh file list
-      await fetchFiles(notebookId)
+
+      // Insert the new file into the tree (incremental update)
+      if (!fileTrees.value.has(notebookId)) {
+        fileTrees.value.set(notebookId, [])
+      }
+      const tree = fileTrees.value.get(notebookId)!
+      insertFileNode(tree, newFile)
+
       // Select the new file
       await selectFile(newFile)
       return newFile
@@ -218,11 +292,16 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     try {
       await fileService.delete(fileId, currentWorkspace.value.id)
       const notebookId = currentFile.value.notebook_id
+      const filePath = currentFile.value.path
       currentFile.value = null
       isEditing.value = false
-      // Refresh file list
+
+      // Remove the file from the tree (incremental update)
       if (notebookId) {
-        await fetchFiles(notebookId)
+        const tree = fileTrees.value.get(notebookId)
+        if (tree) {
+          removeNode(tree, filePath)
+        }
       }
     } catch (e: any) {
       error.value = e.response?.data?.detail || "Failed to delete file"
@@ -259,8 +338,14 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     error.value = null
     try {
       const newFile = await fileService.upload(notebookId, currentWorkspace.value.id, file, path)
-      // Refresh file list
-      await fetchFiles(notebookId)
+
+      // Insert the new file into the tree (incremental update)
+      if (!fileTrees.value.has(notebookId)) {
+        fileTrees.value.set(notebookId, [])
+      }
+      const tree = fileTrees.value.get(notebookId)!
+      insertFileNode(tree, newFile)
+
       return newFile
     } catch (e: any) {
       error.value = e.response?.data?.detail || "Failed to upload file"
@@ -276,14 +361,31 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     fileLoading.value = true
     error.value = null
     try {
+      // Find the old path before moving
+      const tree = fileTrees.value.get(notebookId)
+      let oldPath: string | null = null
+      if (tree) {
+        const allFiles = getAllFiles(tree)
+        const file = allFiles.find((f) => f.id === fileId)
+        if (file) {
+          oldPath = file.path
+        }
+      }
+
       const movedFile = await fileService.move(
         fileId,
         currentWorkspace.value.id,
         notebookId,
         newPath
       )
-      // Refresh file list
-      await fetchFiles(notebookId)
+
+      // Update the tree: move the node from old path to new path
+      if (tree && oldPath) {
+        moveNode(tree, oldPath, newPath)
+        // Also update the file metadata in the node
+        updateFileNode(tree, movedFile)
+      }
+
       // Update current file if it was the one moved
       if (currentFile.value?.id === fileId) {
         currentFile.value = { ...currentFile.value, ...movedFile }
@@ -298,20 +400,23 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   }
 
   // Folder actions
+
+  /**
+   * Select a folder and load its contents.
+   * This is a unified operation that:
+   * 1. Sets the current folder for display
+   * 2. Merges the folder contents into the file tree
+   */
   async function selectFolder(folderPath: string, notebookId: number) {
     if (!currentWorkspace.value) return
 
-    folderLoading.value = true
-    error.value = null
     currentFile.value = null // Clear current file when selecting folder
     isEditing.value = false
-    try {
-      const folder = await folderService.get(folderPath, notebookId, currentWorkspace.value.id)
+
+    // Use fetchFolderContents which handles both loading and tree merging
+    const folder = await fetchFolderContents(folderPath, notebookId)
+    if (folder) {
       currentFolder.value = folder
-    } catch (e: any) {
-      error.value = e.response?.data?.detail || "Failed to load folder"
-    } finally {
-      folderLoading.value = false
     }
   }
 
@@ -329,8 +434,20 @@ export const useWorkspaceStore = defineStore("workspace", () => {
       )
       // Update currentFolder with new properties
       currentFolder.value = { ...currentFolder.value, ...updated }
-      // Refresh file list for the notebook
-      await fetchFiles(currentFolder.value.notebook_id)
+
+      // Update the folder node in the tree (incremental update)
+      const tree = fileTrees.value.get(currentFolder.value.notebook_id)
+      if (tree) {
+        const folderNode = findNode(tree, currentFolder.value.path)
+        if (folderNode && folderNode.type === "folder") {
+          folderNode.folderMeta = {
+            ...folderNode.folderMeta,
+            title: updated.title,
+            description: updated.description,
+            properties: updated.properties,
+          }
+        }
+      }
     } catch (e: any) {
       error.value = e.response?.data?.detail || "Failed to save folder properties"
       throw e
@@ -351,9 +468,14 @@ export const useWorkspaceStore = defineStore("workspace", () => {
         currentWorkspace.value.id
       )
       const notebookId = currentFolder.value.notebook_id
+      const folderPath = currentFolder.value.path
       currentFolder.value = null
-      // Refresh file list
-      await fetchFiles(notebookId)
+
+      // Remove the folder from the tree (incremental update)
+      const tree = fileTrees.value.get(notebookId)
+      if (tree) {
+        removeNode(tree, folderPath)
+      }
     } catch (e: any) {
       error.value = e.response?.data?.detail || "Failed to delete folder"
       throw e
@@ -366,6 +488,13 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     currentFolder.value = null
   }
 
+  /**
+   * Get the file tree for a notebook
+   */
+  function getFileTree(notebookId: number): FileTreeNode[] {
+    return fileTrees.value.get(notebookId) || []
+  }
+
   return {
     // Workspace state
     workspaces,
@@ -373,8 +502,9 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     notebooks,
     loading,
     error,
-    // File state
-    files,
+    // File state - tree structure
+    fileTrees,
+    files, // Backwards-compatible computed flat list
     currentNotebook,
     currentFile,
     isEditing,
@@ -391,6 +521,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     setCurrentWorkspace,
     // File actions
     fetchFiles,
+    fetchFolderContents,
     selectFile,
     saveFile,
     createFile,
@@ -400,6 +531,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     toggleNotebookExpansion,
     setEditing,
     getFilesForNotebook,
+    getFileTree,
     // Folder actions
     selectFolder,
     saveFolderProperties,

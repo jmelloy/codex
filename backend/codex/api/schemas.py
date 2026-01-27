@@ -13,6 +13,7 @@ class UserCreate(BaseModel):
 
 class UserResponse(BaseModel):
     """Schema for user response."""
+
     model_config = ConfigDict(from_attributes=True)
 
     id: int

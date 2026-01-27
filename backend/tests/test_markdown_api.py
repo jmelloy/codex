@@ -5,8 +5,6 @@ import pytest
 from codex.main import app
 
 
-
-
 def test_render_markdown_simple(test_client):
     """Test basic markdown rendering."""
     # First register and login

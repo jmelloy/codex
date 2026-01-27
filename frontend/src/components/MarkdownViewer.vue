@@ -238,7 +238,7 @@ watch(
   () => {
     configureMarked()
   },
-  { deep: true },
+  { deep: true }
 )
 
 // Watch for context changes (workspace/notebook)
@@ -246,7 +246,7 @@ watch(
   () => [props.workspaceId, props.notebookId, props.currentFilePath],
   () => {
     configureMarked()
-  },
+  }
 )
 </script>
 

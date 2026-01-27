@@ -312,7 +312,7 @@ async def list_files(
     session: AsyncSession = Depends(get_system_session),
 ):
     """List files in a notebook with pagination.
-    
+
     Args:
         notebook_id: ID of the notebook
         workspace_id: ID of the workspace
@@ -326,17 +326,13 @@ async def list_files(
     try:
         # Get total count efficiently
         from sqlmodel import func
+
         count_statement = select(func.count(FileMetadata.id)).where(FileMetadata.notebook_id == notebook_id)
         count_result = nb_session.execute(count_statement)
         total_count = count_result.scalar_one()
-        
+
         # Get paginated files
-        statement = (
-            select(FileMetadata)
-            .where(FileMetadata.notebook_id == notebook_id)
-            .offset(skip)
-            .limit(limit)
-        )
+        statement = select(FileMetadata).where(FileMetadata.notebook_id == notebook_id).offset(skip).limit(limit)
         files_result = nb_session.execute(statement)
         files = files_result.scalars().all()
 
@@ -408,9 +404,10 @@ async def get_file(
         content = None
         raw_content = None
         # Check if content type is text-based
-        if file_path.exists() and (file_meta.content_type.startswith("text/") or 
-                                    file_meta.content_type in ["application/json", "application/xml", 
-                                                               "application/x-codex-view"]):
+        if file_path.exists() and (
+            file_meta.content_type.startswith("text/")
+            or file_meta.content_type in ["application/json", "application/xml", "application/x-codex-view"]
+        ):
             try:
                 with open(file_path) as f:
                     raw_content = f.read()
@@ -601,9 +598,10 @@ async def get_file_by_path(
         file_path = notebook_path / file_meta.path
         content = None
         raw_content = None
-        if file_path.exists() and (file_meta.content_type.startswith("text/") or 
-                                    file_meta.content_type in ["application/json", "application/xml", 
-                                                               "application/x-codex-view"]):
+        if file_path.exists() and (
+            file_meta.content_type.startswith("text/")
+            or file_meta.content_type in ["application/json", "application/xml", "application/x-codex-view"]
+        ):
             try:
                 with open(file_path) as f:
                     raw_content = f.read()
@@ -1002,11 +1000,10 @@ async def update_file(
                 content = MetadataParser.write_frontmatter(content, properties)
             else:
                 MetadataParser.write_sidecar(str(file_path), properties)
-            
+
         if content is not None:
             with open(file_path, "w") as f:
                 f.write(content)
-
 
         result = {
             "id": file_meta.id,

@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 class GitLockManager:
     """Manager for locking git operations per notebook path to prevent conflicts.
-    
+
     This class provides both synchronous and asynchronous locking mechanisms
     to ensure that git operations on the same repository don't conflict with
     each other when called from multiple threads or async tasks.
@@ -33,24 +33,24 @@ class GitLockManager:
         """Initialize the lock manager."""
         if self._initialized:
             return
-        
+
         # Threading locks for synchronous operations
         self._sync_locks: Dict[str, threading.RLock] = {}
         self._sync_locks_lock = threading.Lock()
-        
+
         # Asyncio locks for asynchronous operations
         self._async_locks: Dict[str, asyncio.Lock] = {}
         self._async_locks_lock = threading.Lock()
-        
+
         self._initialized = True
         logger.info("GitLockManager initialized")
 
     def _get_sync_lock(self, notebook_path: str) -> threading.RLock:
         """Get or create a threading lock for the given notebook path.
-        
+
         Args:
             notebook_path: The path to the notebook repository
-            
+
         Returns:
             A threading.RLock for the notebook
         """
@@ -62,10 +62,10 @@ class GitLockManager:
 
     def _get_async_lock(self, notebook_path: str) -> asyncio.Lock:
         """Get or create an asyncio lock for the given notebook path.
-        
+
         Args:
             notebook_path: The path to the notebook repository
-            
+
         Returns:
             An asyncio.Lock for the notebook
         """
@@ -78,13 +78,13 @@ class GitLockManager:
     @contextmanager
     def lock(self, notebook_path: str):
         """Context manager for synchronous git operations.
-        
+
         Args:
             notebook_path: The path to the notebook repository
-            
+
         Yields:
             None
-            
+
         Example:
             with git_lock_manager.lock(notebook_path):
                 # Perform git operations here
@@ -99,17 +99,17 @@ class GitLockManager:
         finally:
             lock.release()
             # logger.debug(f"Released sync lock for: {notebook_path}")
-            
+
     @asynccontextmanager
     async def async_lock(self, notebook_path: str):
         """Context manager for asynchronous git operations.
-        
+
         Args:
             notebook_path: The path to the notebook repository
-            
+
         Yields:
             None
-            
+
         Example:
             async with git_lock_manager.async_lock(notebook_path):
                 # Perform git operations here
@@ -127,9 +127,9 @@ class GitLockManager:
 
     def clear_locks(self, notebook_path: str = None):
         """Clear locks for a specific notebook or all notebooks.
-        
+
         This is primarily useful for testing and cleanup.
-        
+
         Args:
             notebook_path: Optional path to clear locks for. If None, clears all locks.
         """
@@ -140,7 +140,7 @@ class GitLockManager:
             else:
                 self._sync_locks.clear()
                 logger.debug("Cleared all sync locks")
-        
+
         with self._async_locks_lock:
             if notebook_path:
                 self._async_locks.pop(notebook_path, None)

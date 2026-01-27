@@ -17,40 +17,6 @@ export interface FileTreeNode {
   }
 }
 
-const SIDECAR_EXTENSIONS = [".json", ".xml", ".md"]
-
-/**
- * Check if a file is a sidecar metadata file for another file.
- * Sidecar patterns: filename.ext.json, .filename.ext.json, etc.
- */
-export function isSidecarFile(file: FileMetadata, allPaths: Set<string>): boolean {
-  const filename = file.filename
-
-  for (const ext of SIDECAR_EXTENSIONS) {
-    if (!filename.endsWith(ext)) continue
-
-    // Get the path without the sidecar extension
-    const basePath = file.path.slice(0, -ext.length)
-
-    // Check if the parent file exists (e.g., image.png for image.png.json)
-    if (allPaths.has(basePath)) {
-      return true
-    }
-
-    // Check for dot-prefixed sidecar (e.g., .image.png.json for image.png)
-    if (filename.startsWith(".")) {
-      const dir = file.path.slice(0, file.path.length - filename.length)
-      const parentFilename = filename.slice(1, -ext.length) // Remove leading "." and trailing ext
-      const parentPath = dir + parentFilename
-      if (allPaths.has(parentPath)) {
-        return true
-      }
-    }
-  }
-
-  return false
-}
-
 /**
  * Build a hierarchical tree structure from a flat list of files
  */
@@ -60,12 +26,8 @@ export function buildFileTree(files: FileMetadata[]): FileTreeNode[] {
   // Create a map to track folders we've already created
   const folderMap = new Map<string, FileTreeNode>()
 
-  // Build a set of all file paths for sidecar detection
-  const allPaths = new Set(files.map((f) => f.path))
-
-  // Filter out sidecar files and sort by path
-  const visibleFiles = files.filter((f) => !isSidecarFile(f, allPaths))
-  const sortedFiles = [...visibleFiles].sort((a, b) => a.path.localeCompare(b.path))
+  // Sort files by path
+  const sortedFiles = [...files].sort((a, b) => a.path.localeCompare(b.path))
 
   for (const file of sortedFiles) {
     const pathParts = file.path.split("/").filter((part) => part !== "")
@@ -233,7 +195,7 @@ export function insertFileNode(tree: FileTreeNode[], file: FileMetadata): void {
 export function insertFolderNode(
   tree: FileTreeNode[],
   folderPath: string,
-  meta?: SubfolderMetadata
+  meta?: SubfolderMetadata,
 ): FileTreeNode {
   const pathParts = folderPath.split("/").filter((p) => p !== "")
   if (pathParts.length === 0) {
@@ -328,7 +290,6 @@ export function mergeFolderContents(
   tree: FileTreeNode[],
   folderPath: string,
   folderData: FolderWithFiles,
-  allPaths: Set<string>
 ): void {
   // Get or create the folder node
   let targetChildren: FileTreeNode[]
@@ -352,7 +313,7 @@ export function mergeFolderContents(
   if (folderData.subfolders) {
     for (const subfolder of folderData.subfolders) {
       const existingFolder = targetChildren.find(
-        (n) => n.path === subfolder.path && n.type === "folder"
+        (n) => n.path === subfolder.path && n.type === "folder",
       )
       if (existingFolder) {
         // Update metadata but preserve children and loaded state
@@ -378,9 +339,8 @@ export function mergeFolderContents(
     }
   }
 
-  // Add files (filter out sidecars)
-  const visibleFiles = folderData.files.filter((f) => !isSidecarFile(f, allPaths))
-  for (const file of visibleFiles) {
+  // Add files
+  for (const file of folderData.files) {
     const existingFile = targetChildren.find((n) => n.path === file.path && n.type === "file")
     if (existingFile) {
       existingFile.file = file
@@ -395,25 +355,6 @@ export function mergeFolderContents(
   }
 
   sortNodes(targetChildren)
-}
-
-/**
- * Build a set of all file paths in the tree (for sidecar detection)
- */
-export function getAllPaths(tree: FileTreeNode[]): Set<string> {
-  const paths = new Set<string>()
-
-  function walk(nodes: FileTreeNode[]) {
-    for (const node of nodes) {
-      paths.add(node.path)
-      if (node.children) {
-        walk(node.children)
-      }
-    }
-  }
-
-  walk(tree)
-  return paths
 }
 
 /**

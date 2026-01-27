@@ -347,7 +347,6 @@ import { ref, computed, h } from "vue"
 import type { FolderWithFiles, FileMetadata, SubfolderMetadata } from "../services/codex"
 import { getDisplayType } from "../utils/contentType"
 import { useWorkspaceStore } from "../stores/workspace"
-import { isSidecarFile } from "../utils/fileTree"
 
 interface Props {
   folder: FolderWithFiles
@@ -386,10 +385,9 @@ const displayTitle = computed(() => {
 
 const subfolders = computed(() => props.folder.subfolders || [])
 
-// Filter out sidecar files from folder contents
+// Display all files from folder
 const visibleFiles = computed(() => {
-  const allPaths = new Set(props.folder.files.map((f) => f.path))
-  return props.folder.files.filter((f) => !isSidecarFile(f, allPaths))
+  return props.folder.files
 })
 
 const hasContent = computed(() => {

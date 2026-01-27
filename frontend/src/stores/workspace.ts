@@ -18,7 +18,6 @@ import {
   removeNode,
   updateFileNode,
   mergeFolderContents,
-  getAllPaths,
   getAllFiles,
   findNode,
   moveNode,
@@ -147,7 +146,10 @@ export const useWorkspaceStore = defineStore("workspace", () => {
    * Fetch folder contents and merge them into the existing tree.
    * This allows incremental loading of folder contents on demand.
    */
-  async function fetchFolderContents(folderPath: string, notebookId: number): Promise<FolderWithFiles | null> {
+  async function fetchFolderContents(
+    folderPath: string,
+    notebookId: number,
+  ): Promise<FolderWithFiles | null> {
     if (!currentWorkspace.value) return null
 
     folderLoading.value = true
@@ -161,15 +163,8 @@ export const useWorkspaceStore = defineStore("workspace", () => {
       }
       const tree = fileTrees.value.get(notebookId)!
 
-      // Build a set of all known paths for sidecar detection
-      const allPaths = getAllPaths(tree)
-      // Also add paths from the folder data
-      for (const f of folder.files) {
-        allPaths.add(f.path)
-      }
-
       // Merge folder contents into the tree
-      mergeFolderContents(tree, folderPath, folder, allPaths)
+      mergeFolderContents(tree, folderPath, folder)
 
       return folder
     } catch (e: any) {
@@ -188,11 +183,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     currentFolder.value = null // Clear folder selection when selecting a file
     try {
       // First fetch file metadata (fast, no content)
-      const fileMeta = await fileService.get(
-        file.id,
-        currentWorkspace.value.id,
-        file.notebook_id
-      )
+      const fileMeta = await fileService.get(file.id, currentWorkspace.value.id, file.notebook_id)
 
       // Set file with empty content initially so UI can render metadata immediately
       currentFile.value = { ...fileMeta, content: "" }
@@ -202,14 +193,14 @@ export const useWorkspaceStore = defineStore("workspace", () => {
       const isTextFile =
         fileMeta.content_type.startsWith("text/") ||
         ["application/json", "application/xml", "application/x-codex-view"].includes(
-          fileMeta.content_type
+          fileMeta.content_type,
         )
 
       if (isTextFile) {
         const textContent = await fileService.getContent(
           file.id,
           currentWorkspace.value.id,
-          file.notebook_id
+          file.notebook_id,
         )
         // Update with content and any refreshed properties
         currentFile.value = {
@@ -239,7 +230,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
         currentWorkspace.value.id,
         currentFile.value.notebook_id,
         content,
-        properties
+        properties,
       )
       // Update currentFile with new content and properties
       currentFile.value = { ...currentFile.value, ...updated, content }
@@ -376,7 +367,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
         fileId,
         currentWorkspace.value.id,
         notebookId,
-        newPath
+        newPath,
       )
 
       // Update the tree: move the node from old path to new path
@@ -430,7 +421,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
         currentFolder.value.path,
         currentFolder.value.notebook_id,
         currentWorkspace.value.id,
-        properties
+        properties,
       )
       // Update currentFolder with new properties
       currentFolder.value = { ...currentFolder.value, ...updated }
@@ -465,7 +456,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
       await folderService.delete(
         currentFolder.value.path,
         currentFolder.value.notebook_id,
-        currentWorkspace.value.id
+        currentWorkspace.value.id,
       )
       const notebookId = currentFolder.value.notebook_id
       const folderPath = currentFolder.value.path

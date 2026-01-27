@@ -324,14 +324,15 @@ async def list_files(
     # Query files from notebook database
     nb_session = get_notebook_session(str(notebook_path))
     try:
-        # Get total count
-        count_result = nb_session.execute(select(FileMetadata).where(FileMetadata.notebook_id == notebook_id))
-        total_count = len(count_result.scalars().all())
+        # Get total count efficiently
+        from sqlmodel import func
+        count_statement = select(func.count(FileMetadata.id)).where(FileMetadata.notebook_id == notebook_id)
+        count_result = nb_session.execute(count_statement)
+        total_count = count_result.scalar_one()
         
         # Get paginated files
-        from sqlmodel import select as sqlmodel_select
         statement = (
-            sqlmodel_select(FileMetadata)
+            select(FileMetadata)
             .where(FileMetadata.notebook_id == notebook_id)
             .offset(skip)
             .limit(limit)

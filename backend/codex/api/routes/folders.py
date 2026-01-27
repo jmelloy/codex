@@ -24,6 +24,9 @@ logger = logging.getLogger(__name__)
 # The metadata file name stored in each folder
 FOLDER_METADATA_FILE = ".metadata"
 
+# Default pagination limit for folder contents
+DEFAULT_FOLDER_PAGINATION_LIMIT = 100
+
 
 async def get_notebook_path(
     notebook_id: int, workspace_id: int, current_user: User, session: AsyncSession
@@ -91,9 +94,16 @@ def write_folder_properties(folder_path: Path, properties: dict[str, Any]) -> No
 
 
 def get_folder_files(
-    folder_path: str, notebook_id: int, notebook_path: Path, nb_session, skip: int = 0, limit: int = 100
+    folder_path: str, notebook_id: int, notebook_path: Path, nb_session, skip: int = 0, limit: int = DEFAULT_FOLDER_PAGINATION_LIMIT
 ) -> tuple[list[dict], int]:
     """Get files in a specific folder (not recursive) with pagination.
+    
+    Note: This implementation filters in Python rather than SQL because we need to:
+    1. Check if files are directly in the folder (not in subfolders)
+    2. Exclude .metadata files
+    
+    For very large folders, this may still load many records. A future optimization
+    could add a path prefix index and query optimization.
     
     Returns:
         Tuple of (files_list, total_count)
@@ -101,14 +111,31 @@ def get_folder_files(
     # Query files that are directly in this folder
     prefix = f"{folder_path}/" if folder_path else ""
 
-    files_result = nb_session.execute(select(FileMetadata).where(FileMetadata.notebook_id == notebook_id))
+    # Optimization: Add LIKE filter to reduce initial result set
+    from sqlmodel import or_
+    if folder_path:
+        # Files in this specific folder start with the prefix
+        files_result = nb_session.execute(
+            select(FileMetadata)
+            .where(
+                FileMetadata.notebook_id == notebook_id,
+                FileMetadata.path.startswith(prefix)
+            )
+        )
+    else:
+        # Root level: files without any path separator
+        files_result = nb_session.execute(
+            select(FileMetadata)
+            .where(FileMetadata.notebook_id == notebook_id)
+        )
+    
     all_files = files_result.scalars().all()
 
     folder_files = []
     total_count = 0
     
     for f in all_files:
-        # Skip .file metadata files
+        # Skip .metadata files
         if f.filename == FOLDER_METADATA_FILE:
             continue
 
@@ -199,7 +226,7 @@ async def get_folder(
     notebook_id: int,
     workspace_id: int,
     skip: int = 0,
-    limit: int = 100,
+    limit: int = DEFAULT_FOLDER_PAGINATION_LIMIT,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_system_session),
 ):
@@ -329,7 +356,7 @@ async def update_folder_properties(
         # Count files
         nb_session = get_notebook_session(str(notebook_path))
         try:
-            files, file_count = get_folder_files(folder_path, notebook_id, notebook_path, nb_session, 0, 100)
+            files, file_count = get_folder_files(folder_path, notebook_id, notebook_path, nb_session, 0, DEFAULT_FOLDER_PAGINATION_LIMIT)
         finally:
             nb_session.close()
 

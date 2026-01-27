@@ -385,7 +385,11 @@ async def get_file(
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_system_session),
 ):
-    """Get a specific file."""
+    """Get file metadata (without content).
+
+    Use GET /{file_id}/text to fetch text content separately.
+    Use GET /{file_id}/content to download binary files.
+    """
     # Get notebook path from system database
     notebook_path, _ = await get_notebook_path(notebook_id, workspace_id, current_user, session)
 
@@ -398,25 +402,90 @@ async def get_file(
         if not file_meta:
             raise HTTPException(status_code=404, detail="File not found")
 
-        # Read file content if it's a text file
-        # Note: Binary files like images are excluded - use /content endpoint to download them
-        file_path = notebook_path / file_meta.path
-        content = None
-        raw_content = None
-        # Check if content type is text-based
-        if file_path.exists() and (
-            file_meta.content_type.startswith("text/")
-            or file_meta.content_type in ["application/json", "application/xml", "application/x-codex-view"]
-        ):
+        # Load cached properties from DB
+        properties = None
+        if file_meta.properties:
             try:
-                with open(file_path) as f:
-                    raw_content = f.read()
-            except Exception as e:
-                logger.error(f"Error reading file content: {e}", exc_info=True)
+                properties = json.loads(file_meta.properties)
+            except json.JSONDecodeError:
+                properties = None
+
+        result = {
+            "id": file_meta.id,
+            "notebook_id": file_meta.notebook_id,
+            "path": file_meta.path,
+            "filename": file_meta.filename,
+            "content_type": file_meta.content_type,
+            "size": file_meta.size,
+            "hash": file_meta.hash,
+            "title": file_meta.title,
+            "description": file_meta.description,
+            "properties": properties,
+            "created_at": file_meta.created_at.isoformat() if file_meta.created_at else None,
+            "updated_at": file_meta.updated_at.isoformat() if file_meta.updated_at else None,
+            "file_modified_at": (file_meta.file_modified_at.isoformat() if file_meta.file_modified_at else None),
+        }
+
+        return result
+    finally:
+        nb_session.close()
+
+
+@router.get("/{file_id}/text")
+async def get_file_text(
+    file_id: int,
+    workspace_id: int,
+    notebook_id: int,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Get text content for a file.
+
+    Returns the file content as JSON for text-based files (text/*, application/json,
+    application/xml, application/x-codex-view).
+
+    For markdown files, returns the body content without frontmatter.
+    For view files (.cdx), returns the raw content including frontmatter.
+    """
+    # Get notebook path from system database
+    notebook_path, _ = await get_notebook_path(notebook_id, workspace_id, current_user, session)
+
+    # Query file from notebook database
+    nb_session = get_notebook_session(str(notebook_path))
+    try:
+        file_result = nb_session.execute(select(FileMetadata).where(FileMetadata.id == file_id))
+        file_meta = file_result.scalar_one_or_none()
+
+        if not file_meta:
+            raise HTTPException(status_code=404, detail="File not found")
+
+        # Get file path
+        file_path = notebook_path / file_meta.path
+
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="File not found on disk")
+
+        # Check if content type is text-based
+        if not (file_meta.content_type.startswith("text/") or
+                file_meta.content_type in ["application/json", "application/xml",
+                                           "application/x-codex-view"]):
+            raise HTTPException(
+                status_code=400,
+                detail="File is not a text file. Use /content endpoint for binary files."
+            )
+
+        # Read file content
+        try:
+            with open(file_path) as f:
+                raw_content = f.read()
+        except Exception as e:
+            logger.error(f"Error reading file content: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail="Error reading file content")
 
         # Parse frontmatter from file content if it's a markdown or view file
+        content = raw_content
         properties = None
-        if raw_content and file_meta.content_type in ["text/markdown", "application/x-codex-view"]:
+        if file_meta.content_type in ["text/markdown", "application/x-codex-view"]:
             properties, body_content = MetadataParser.parse_frontmatter(raw_content)
             # Sync properties to DB cache if they changed
             properties_json = json.dumps(properties) if properties else None
@@ -435,33 +504,12 @@ async def get_file(
                 content = raw_content
             else:
                 content = body_content
-        else:
-            content = raw_content
-            # Try to load cached properties from DB
-            if file_meta.properties:
-                try:
-                    properties = json.loads(file_meta.properties)
-                except json.JSONDecodeError:
-                    properties = None
 
-        result = {
+        return {
             "id": file_meta.id,
-            "notebook_id": file_meta.notebook_id,
-            "path": file_meta.path,
-            "filename": file_meta.filename,
-            "content_type": file_meta.content_type,
-            "size": file_meta.size,
-            "hash": file_meta.hash,
-            "title": file_meta.title,
-            "description": file_meta.description,
-            "properties": properties,
             "content": content,
-            "created_at": file_meta.created_at.isoformat() if file_meta.created_at else None,
-            "updated_at": file_meta.updated_at.isoformat() if file_meta.updated_at else None,
-            "file_modified_at": (file_meta.file_modified_at.isoformat() if file_meta.file_modified_at else None),
+            "properties": properties,
         }
-
-        return result
     finally:
         nb_session.close()
 
@@ -565,11 +613,14 @@ async def get_file_by_path(
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_system_session),
 ):
-    """Get a file by its path or filename.
+    """Get file metadata by its path or filename (without content).
 
     Supports:
     - Exact path match: "path/to/file.md"
     - Filename only: "file.md" (searches for filename in notebook)
+
+    Use GET /by-path/text to fetch text content separately.
+    Use GET /by-path/content to download binary files.
     """
     # Get notebook path from system database
     notebook_path, _ = await get_notebook_path(notebook_id, workspace_id, current_user, session)
@@ -594,23 +645,103 @@ async def get_file_by_path(
         if not file_meta:
             raise HTTPException(status_code=404, detail=f"File not found: {path}")
 
-        # Read file content if it's a text file
-        file_path = notebook_path / file_meta.path
-        content = None
-        raw_content = None
-        if file_path.exists() and (
-            file_meta.content_type.startswith("text/")
-            or file_meta.content_type in ["application/json", "application/xml", "application/x-codex-view"]
-        ):
+        # Load cached properties from DB
+        properties = None
+        if file_meta.properties:
             try:
-                with open(file_path) as f:
-                    raw_content = f.read()
-            except Exception as e:
-                logger.error(f"Error reading file content: {e}", exc_info=True)
+                properties = json.loads(file_meta.properties)
+            except json.JSONDecodeError:
+                properties = None
+
+        result = {
+            "id": file_meta.id,
+            "notebook_id": file_meta.notebook_id,
+            "path": file_meta.path,
+            "filename": file_meta.filename,
+            "content_type": file_meta.content_type,
+            "size": file_meta.size,
+            "hash": file_meta.hash,
+            "title": file_meta.title,
+            "description": file_meta.description,
+            "properties": properties,
+            "created_at": file_meta.created_at.isoformat() if file_meta.created_at else None,
+            "updated_at": file_meta.updated_at.isoformat() if file_meta.updated_at else None,
+            "file_modified_at": (file_meta.file_modified_at.isoformat() if file_meta.file_modified_at else None),
+        }
+
+        return result
+    finally:
+        nb_session.close()
+
+
+@router.get("/by-path/text")
+async def get_file_text_by_path(
+    path: str,
+    workspace_id: int,
+    notebook_id: int,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Get text content for a file by its path or filename.
+
+    Supports:
+    - Exact path match: "path/to/file.md"
+    - Filename only: "file.md" (searches for filename in notebook)
+
+    Returns the file content as JSON for text-based files.
+    For markdown files, returns the body content without frontmatter.
+    For view files (.cdx), returns the raw content including frontmatter.
+    """
+    # Get notebook path from system database
+    notebook_path, _ = await get_notebook_path(notebook_id, workspace_id, current_user, session)
+
+    # Query file from notebook database
+    nb_session = get_notebook_session(str(notebook_path))
+    try:
+        # First try exact path match
+        file_result = nb_session.execute(
+            select(FileMetadata).where(FileMetadata.notebook_id == notebook_id, FileMetadata.path == path)
+        )
+        file_meta = file_result.scalar_one_or_none()
+
+        # If not found and path doesn't contain directory separator, try filename match
+        if not file_meta and "/" not in path:
+            file_result = nb_session.execute(
+                select(FileMetadata).where(FileMetadata.notebook_id == notebook_id, FileMetadata.filename == path)
+            )
+            # Get first match if multiple files have same name
+            file_meta = file_result.scalars().first()
+
+        if not file_meta:
+            raise HTTPException(status_code=404, detail=f"File not found: {path}")
+
+        # Get file path
+        file_path = notebook_path / file_meta.path
+
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="File not found on disk")
+
+        # Check if content type is text-based
+        if not (file_meta.content_type.startswith("text/") or
+                file_meta.content_type in ["application/json", "application/xml",
+                                           "application/x-codex-view"]):
+            raise HTTPException(
+                status_code=400,
+                detail="File is not a text file. Use /by-path/content endpoint for binary files."
+            )
+
+        # Read file content
+        try:
+            with open(file_path) as f:
+                raw_content = f.read()
+        except Exception as e:
+            logger.error(f"Error reading file content: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail="Error reading file content")
 
         # Parse frontmatter from file content if it's a markdown or view file
+        content = raw_content
         properties = None
-        if raw_content and file_meta.content_type in ["text/markdown", "application/x-codex-view"]:
+        if file_meta.content_type in ["text/markdown", "application/x-codex-view"]:
             properties, body_content = MetadataParser.parse_frontmatter(raw_content)
             # Sync properties to DB cache if they changed
             properties_json = json.dumps(properties) if properties else None
@@ -629,33 +760,12 @@ async def get_file_by_path(
                 content = raw_content
             else:
                 content = body_content
-        else:
-            content = raw_content
-            # Try to load cached properties from DB
-            if file_meta.properties:
-                try:
-                    properties = json.loads(file_meta.properties)
-                except json.JSONDecodeError:
-                    properties = None
 
-        result = {
+        return {
             "id": file_meta.id,
-            "notebook_id": file_meta.notebook_id,
-            "path": file_meta.path,
-            "filename": file_meta.filename,
-            "content_type": file_meta.content_type,
-            "size": file_meta.size,
-            "hash": file_meta.hash,
-            "title": file_meta.title,
-            "description": file_meta.description,
-            "properties": properties,
             "content": content,
-            "created_at": file_meta.created_at.isoformat() if file_meta.created_at else None,
-            "updated_at": file_meta.updated_at.isoformat() if file_meta.updated_at else None,
-            "file_modified_at": (file_meta.file_modified_at.isoformat() if file_meta.file_modified_at else None),
+            "properties": properties,
         }
-
-        return result
     finally:
         nb_session.close()
 

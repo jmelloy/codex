@@ -37,6 +37,12 @@ export interface FileWithContent extends FileMetadata {
   content: string
 }
 
+export interface FileTextContent {
+  id: number
+  content: string
+  properties?: Record<string, any>
+}
+
 export interface FolderMetadata {
   path: string
   name: string
@@ -150,21 +156,53 @@ export const fileService = {
     return response.data.files || response.data
   },
 
-  async get(id: number, workspaceId: number, notebookId: number): Promise<FileWithContent> {
-    const response = await apiClient.get<FileWithContent>(
+  /**
+   * Get file metadata (without content).
+   * Use getContent() to fetch the file content separately.
+   */
+  async get(id: number, workspaceId: number, notebookId: number): Promise<FileMetadata> {
+    const response = await apiClient.get<FileMetadata>(
       `/api/v1/files/${id}?workspace_id=${workspaceId}&notebook_id=${notebookId}`
     )
     return response.data
   },
 
   /**
-   * Get a file by its path or filename.
-   * Supports exact path match or filename-only search.
+   * Get text content for a file.
+   * For markdown files, returns body content without frontmatter.
+   * For view files (.cdx), returns raw content including frontmatter.
    */
-  async getByPath(path: string, workspaceId: number, notebookId: number): Promise<FileWithContent> {
+  async getContent(id: number, workspaceId: number, notebookId: number): Promise<FileTextContent> {
+    const response = await apiClient.get<FileTextContent>(
+      `/api/v1/files/${id}/text?workspace_id=${workspaceId}&notebook_id=${notebookId}`
+    )
+    return response.data
+  },
+
+  /**
+   * Get file metadata by its path or filename (without content).
+   * Supports exact path match or filename-only search.
+   * Use getContentByPath() to fetch content separately.
+   */
+  async getByPath(path: string, workspaceId: number, notebookId: number): Promise<FileMetadata> {
     const encodedPath = encodeURIComponent(path)
-    const response = await apiClient.get<FileWithContent>(
+    const response = await apiClient.get<FileMetadata>(
       `/api/v1/files/by-path?path=${encodedPath}&workspace_id=${workspaceId}&notebook_id=${notebookId}`
+    )
+    return response.data
+  },
+
+  /**
+   * Get text content for a file by its path or filename.
+   */
+  async getContentByPath(
+    path: string,
+    workspaceId: number,
+    notebookId: number
+  ): Promise<FileTextContent> {
+    const encodedPath = encodeURIComponent(path)
+    const response = await apiClient.get<FileTextContent>(
+      `/api/v1/files/by-path/text?path=${encodedPath}&workspace_id=${workspaceId}&notebook_id=${notebookId}`
     )
     return response.data
   },

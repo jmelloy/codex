@@ -187,13 +187,37 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     error.value = null
     currentFolder.value = null // Clear folder selection when selecting a file
     try {
-      const fileWithContent = await fileService.get(
+      // First fetch file metadata (fast, no content)
+      const fileMeta = await fileService.get(
         file.id,
         currentWorkspace.value.id,
         file.notebook_id
       )
-      currentFile.value = fileWithContent
+
+      // Set file with empty content initially so UI can render metadata immediately
+      currentFile.value = { ...fileMeta, content: "" }
       isEditing.value = false
+
+      // Then fetch content for text-based files
+      const isTextFile =
+        fileMeta.content_type.startsWith("text/") ||
+        ["application/json", "application/xml", "application/x-codex-view"].includes(
+          fileMeta.content_type
+        )
+
+      if (isTextFile) {
+        const textContent = await fileService.getContent(
+          file.id,
+          currentWorkspace.value.id,
+          file.notebook_id
+        )
+        // Update with content and any refreshed properties
+        currentFile.value = {
+          ...fileMeta,
+          content: textContent.content,
+          properties: textContent.properties ?? fileMeta.properties,
+        }
+      }
     } catch (e: any) {
       error.value = e.response?.data?.detail || "Failed to load file"
     } finally {

@@ -11,7 +11,7 @@ content: |
   title: Photo Gallery
   description: Collection of images
   query:
-    file_types:
+    content_types:
       - image/png
       - image/jpeg
       - image/gif

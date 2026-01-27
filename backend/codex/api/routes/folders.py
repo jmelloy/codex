@@ -155,10 +155,13 @@ def get_folder_files(
 
         total_count += 1
         
-        # Apply pagination
+        # Apply pagination - skip early items
         if total_count <= skip:
             continue
+        
+        # Stop processing once we have enough items
         if len(folder_files) >= limit:
+            # Continue counting but don't process more files
             continue
 
         # Parse properties JSON if available
@@ -356,7 +359,10 @@ async def update_folder_properties(
         # Count files
         nb_session = get_notebook_session(str(notebook_path))
         try:
-            files, file_count = get_folder_files(folder_path, notebook_id, notebook_path, nb_session, 0, DEFAULT_FOLDER_PAGINATION_LIMIT)
+            files, file_count = get_folder_files(
+                folder_path, notebook_id, notebook_path, nb_session, 
+                skip=0, limit=DEFAULT_FOLDER_PAGINATION_LIMIT
+            )
         finally:
             nb_session.close()
 

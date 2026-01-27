@@ -265,7 +265,15 @@ class NotebookWatcher:
             self._indexing_thread.join(timeout=10)
     
     def _start_background_indexing(self):
-        """Start the file scan in a background thread."""
+        """Start the file scan in a background thread.
+        
+        Note: Uses daemon=True so the thread doesn't block server shutdown.
+        This is acceptable because:
+        1. Indexing is resumable - files are indexed incrementally
+        2. File changes are captured by the watcher in real-time
+        3. On next startup, any missed files will be indexed
+        4. The stop() method attempts to wait for completion (10s timeout)
+        """
         self._indexing_status = "in_progress"
         self._indexing_thread = threading.Thread(
             target=self._run_indexing,

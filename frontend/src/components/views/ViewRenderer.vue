@@ -65,11 +65,22 @@ const loadView = async () => {
   error.value = null
 
   try {
-    // Load the .cdx file content
-    const textContent = await fileService.getContent(props.fileId, props.workspaceId, props.notebookId)
+    // Load file metadata first
+    const file = await fileService.get(props.fileId, props.workspaceId, props.notebookId)
+
+    // Fetch content when not included in metadata
+    let content = (file as { content?: string }).content
+    if (content === undefined) {
+      const textContent = await fileService.getContent(
+        props.fileId,
+        props.workspaceId,
+        props.notebookId,
+      )
+      content = textContent.content
+    }
 
     // Parse view definition
-    viewDefinition.value = parseViewDefinition(textContent.content || "")
+    viewDefinition.value = parseViewDefinition(content || "")
 
     // Execute query if defined
     if (viewDefinition.value.query) {
@@ -122,7 +133,7 @@ watch(
       viewComponent.value = null
     }
   },
-  { immediate: true }
+  { immediate: true },
 )
 
 const viewConfig = computed(() => viewDefinition.value?.config || {})
@@ -135,15 +146,23 @@ interface ViewUpdateEvent {
 
 const handleUpdate = async (event: ViewUpdateEvent) => {
   try {
-    // Load current file metadata and content separately
-    const [file, textContent] = await Promise.all([
-      fileService.get(event.fileId, props.workspaceId, props.notebookId),
-      fileService.getContent(event.fileId, props.workspaceId, props.notebookId),
-    ])
+    // Load current file metadata
+    const file = await fileService.get(event.fileId, props.workspaceId, props.notebookId)
+
+    // Fetch content when not included in metadata
+    let content = (file as { content?: string }).content
+    if (content === undefined) {
+      const textContent = await fileService.getContent(
+        event.fileId,
+        props.workspaceId,
+        props.notebookId,
+      )
+      content = textContent.content
+    }
 
     // Merge updates into properties
     const updatedProperties = {
-      ...file.properties,
+      ...(file.properties || {}),
       ...event.updates,
     }
 
@@ -151,9 +170,9 @@ const handleUpdate = async (event: ViewUpdateEvent) => {
     await fileService.update(
       event.fileId,
       props.workspaceId,
-      file.notebook_id,
-      textContent.content || "",
-      updatedProperties
+      file.notebook_id ?? props.notebookId,
+      content || "",
+      updatedProperties,
     )
 
     // Refresh view

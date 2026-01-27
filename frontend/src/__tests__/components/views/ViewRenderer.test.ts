@@ -60,7 +60,7 @@ describe("ViewRenderer", () => {
         () =>
           new Promise(() => {
             /* never resolves */
-          }) as any
+          }) as any,
       )
 
       const wrapper = mount(ViewRenderer, {
@@ -617,6 +617,7 @@ title: My Board
         props: {
           fileId: 1,
           workspaceId: 1,
+          notebookId: 1,
           compact: true,
         },
       })

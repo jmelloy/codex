@@ -89,6 +89,9 @@ class NotebookFileHandler(FileSystemEventHandler):
         if self._should_ignore(filepath):
             return
 
+        if Path(filepath).is_dir():
+            return
+
         logger.debug(f"Updating metadata for {filepath} due to {event_type} event")
         session = None
         try:
@@ -138,6 +141,15 @@ class NotebookFileHandler(FileSystemEventHandler):
                         if "description" in metadata:
                             file_meta.description = metadata["description"]
 
+                        if "created" in metadata:
+                            from datetime import datetime
+
+                            try:
+                                created_dt = datetime.fromisoformat(metadata["created"])
+                                file_meta.file_created_at = created_dt
+                            except Exception:
+                                pass
+
                     else:
                         # Create new
                         from datetime import datetime
@@ -159,6 +171,13 @@ class NotebookFileHandler(FileSystemEventHandler):
                             file_meta.title = metadata["title"]
                         if "description" in metadata:
                             file_meta.description = metadata["description"]
+                        
+                        if "created" in metadata:
+                            try:
+                                created_dt = datetime.fromisoformat(metadata["created"])
+                                file_meta.file_created_at = created_dt
+                            except Exception:
+                                pass
                         session.add(file_meta)
 
                     # Auto-commit to git if file should be tracked
@@ -264,11 +283,19 @@ class NotebookWatcher:
         try:
             # Get all existing file records from database
             result = session.execute(select(FileMetadata).where(FileMetadata.notebook_id == self.notebook_id))
-            existing_files = {f.path: f for f in result.scalars().all()}
+            existing_files = {}
+            sidecar_files = {}
+            for f in result.scalars().all():
+                logger.debug(f"Existing file in DB: {f.path}")
+                existing_files[f.path] = f
+                if f.sidecar_path:
+                    sidecar_files[f.sidecar_path] = f
 
             # Track which paths we've seen on disk
             seen_paths = set()
             updated_count = 0
+
+            files_to_process = set()
 
             for root, dirs, files in os.walk(self.notebook_path):
                 # Skip ignored directories
@@ -291,30 +318,31 @@ class NotebookWatcher:
                     file_mtime = datetime.fromtimestamp(file_stats.st_mtime)
                     file_size = file_stats.st_size
 
-                    existing = existing_files.get(rel_path)
-
-                    if existing:
-                        # File exists in database - check if it needs updating
-                        needs_update = False
-
+                    if existing := existing_files.get(rel_path):
                         # Compare size first (cheap check)
                         if existing.size != file_size:
-                            needs_update = True
+                            files_to_process.add(filepath)
                         # Compare modification time (allow 1 second tolerance for filesystem precision)
                         elif existing.file_modified_at:
                             time_diff = abs((file_mtime - existing.file_modified_at).total_seconds())
                             if time_diff > 1:
-                                needs_update = True
+                                files_to_process.add(filepath)
                         else:
                             # No mtime recorded, need to update
-                            needs_update = True
+                            files_to_process.add(filepath)
 
-                        if needs_update:
-                            self.handler._update_file_metadata(filepath, "modified")
-                            updated_count += 1
+                    elif filepath in sidecar_files:
+                        time_diff = abs((file_mtime - sidecar_files[filepath].file_modified_at).total_seconds())
+                        if time_diff > 1:
+                            # Sidecar file exists in database - update metadata
+                            files_to_process.add(sidecar_files[filepath].path)
                     else:
                         # New file not in database
-                        self.handler._update_file_metadata(filepath, "created")
+                        files_to_process.add(filepath)
+
+            for filepath in files_to_process:
+                self.handler._update_file_metadata(filepath, "scanned")
+                updated_count += 1
 
             # Find deleted files (in database but not on disk)
             deleted_paths = set(existing_files.keys()) - seen_paths

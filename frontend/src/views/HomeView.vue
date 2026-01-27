@@ -709,7 +709,33 @@ watch(
 
 onMounted(async () => {
   await workspaceStore.fetchWorkspaces()
+  // Auto-select first workspace if none is currently selected
+  if (!workspaceStore.currentWorkspace && workspaceStore.workspaces.length > 0) {
+    const firstWorkspace = workspaceStore.workspaces[0]!
+    workspaceStore.setCurrentWorkspace(firstWorkspace)
+  }
 })
+
+// Watch for notebooks to be loaded after workspace selection, then auto-select first notebook
+const hasAutoSelectedNotebook = ref(false)
+watch(
+  () => workspaceStore.notebooks,
+  (notebooks) => {
+    if (
+      !hasAutoSelectedNotebook.value &&
+      notebooks.length > 0 &&
+      !workspaceStore.currentNotebook &&
+      workspaceStore.expandedNotebooks.size === 0
+    ) {
+      hasAutoSelectedNotebook.value = true
+      const firstNotebook = notebooks[0]
+      if (firstNotebook) {
+        workspaceStore.toggleNotebookExpansion(firstNotebook)
+      }
+    }
+  },
+  { deep: true },
+)
 
 function handleLogout() {
   authStore.logout()

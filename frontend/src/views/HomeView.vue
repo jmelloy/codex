@@ -460,7 +460,7 @@
       >
         <h2 class="mb-2" style="color: var(--notebook-text)">Welcome to Codex</h2>
         <p v-if="!workspaceStore.currentWorkspace">Select a workspace to get started</p>
-        <p v-else-if="workspaceStore.notebooks.length === 0">
+        <p v-else-if="!workspaceStore.notebooks || workspaceStore.notebooks.length === 0">
           Create a notebook to start adding files
         </p>
         <p v-else>Select a notebook and file to view its content</p>
@@ -755,6 +755,7 @@ onMounted(async () => {
     if (file) {
       await workspaceStore.selectFile(file)
     }
+  }
   // Auto-select first workspace if none is currently selected
   if (!workspaceStore.currentWorkspace && workspaceStore.workspaces.length > 0) {
     const firstWorkspace = workspaceStore.workspaces[0]!
@@ -769,6 +770,7 @@ watch(
   (notebooks) => {
     if (
       !hasAutoSelectedNotebook.value &&
+      notebooks &&
       notebooks.length > 0 &&
       !workspaceStore.currentNotebook &&
       workspaceStore.expandedNotebooks.size === 0

@@ -38,16 +38,16 @@ def is_binary_file(filepath: str) -> bool:
 
 def get_content_type(filepath: str) -> str:
     """Get MIME type (content type) for a file.
-    
+
     Uses Python's mimetypes library with custom mappings for special file types.
     Falls back to application/octet-stream for unknown binary files.
     """
     import mimetypes
-    
+
     # Special handling for custom extensions
     filename_lower = os.path.basename(filepath).lower()
     filepath_lower = filepath.lower()
-    
+
     # Custom file types that don't have standard MIME types
     if filepath_lower.endswith(".cdx"):
         return "application/x-codex-view"
@@ -57,13 +57,13 @@ def get_content_type(filepath: str) -> str:
         return "text/x-makefile"
     elif filepath_lower.endswith(".dockerfile"):
         return "text/x-dockerfile"
-    
+
     # Use mimetypes library for standard types
     mime_type, _ = mimetypes.guess_type(filepath)
-    
+
     if mime_type:
         return mime_type
-    
+
     # Fall back based on binary detection
     if is_binary_file(filepath):
         return "application/octet-stream"
@@ -136,7 +136,7 @@ class NotebookFileHandler(FileSystemEventHandler):
 
                         if sidecar:
                             file_meta.sidecar_path = sidecar
-                        
+
                         if "title" in metadata:
                             file_meta.title = metadata["title"]
                         if "description" in metadata:
@@ -172,7 +172,7 @@ class NotebookFileHandler(FileSystemEventHandler):
                             file_meta.title = metadata["title"]
                         if "description" in metadata:
                             file_meta.description = metadata["description"]
-                        
+
                         if "created" in metadata:
                             try:
                                 created_dt = datetime.fromisoformat(metadata["created"])
@@ -183,8 +183,9 @@ class NotebookFileHandler(FileSystemEventHandler):
 
                     # Auto-commit to git if file should be tracked
                     from codex.core.git_manager import GitManager
+
                     git_manager = GitManager(self.notebook_path)
-                    
+
                     try:
                         commit_hash = git_manager.auto_commit_on_change(filepath, sidecar)
                         if commit_hash:
@@ -200,7 +201,9 @@ class NotebookFileHandler(FileSystemEventHandler):
                         if "UNIQUE constraint failed" in str(commit_error):
                             # Re-query and update instead
                             result = session.execute(
-                                select(FileMetadata).where(FileMetadata.notebook_id == self.notebook_id, FileMetadata.path == rel_path)
+                                select(FileMetadata).where(
+                                    FileMetadata.notebook_id == self.notebook_id, FileMetadata.path == rel_path
+                                )
                             )
                             file_meta = result.scalar_one_or_none()
                             if file_meta:
@@ -249,7 +252,6 @@ class NotebookFileHandler(FileSystemEventHandler):
             src_path = str(event.src_path)
             self._update_file_metadata(src_path, "deleted")
             self._update_file_metadata(dest_path, "created")
-            
 
 
 class NotebookWatcher:
@@ -277,15 +279,15 @@ class NotebookWatcher:
         """Stop watching the notebook directory."""
         self.observer.stop()
         self.observer.join()
-        
+
         # Wait for indexing thread to complete if it's still running
         if self._indexing_thread and self._indexing_thread.is_alive():
             logger.info(f"Waiting for background indexing to complete for {self.notebook_path}")
             self._indexing_thread.join(timeout=10)
-    
+
     def _start_background_indexing(self):
         """Start the file scan in a background thread.
-        
+
         Note: Uses daemon=True so the thread doesn't block server shutdown.
         This is acceptable because:
         1. Indexing is resumable - files are indexed incrementally
@@ -295,13 +297,11 @@ class NotebookWatcher:
         """
         self._indexing_status = "in_progress"
         self._indexing_thread = threading.Thread(
-            target=self._run_indexing,
-            name=f"indexer-{self.notebook_id}",
-            daemon=True
+            target=self._run_indexing, name=f"indexer-{self.notebook_id}", daemon=True
         )
         self._indexing_thread.start()
         logger.info(f"Started background indexing thread for notebook {self.notebook_id}")
-    
+
     def _run_indexing(self):
         """Run the indexing scan in a background thread."""
         try:
@@ -311,13 +311,13 @@ class NotebookWatcher:
         except Exception as e:
             self._indexing_status = "error"
             logger.error(f"Background indexing failed for notebook {self.notebook_id}: {e}", exc_info=True)
-    
+
     def get_indexing_status(self) -> dict:
         """Get the current indexing status."""
         return {
             "notebook_id": self.notebook_id,
             "status": self._indexing_status,
-            "is_alive": self._indexing_thread.is_alive() if self._indexing_thread else False
+            "is_alive": self._indexing_thread.is_alive() if self._indexing_thread else False,
         }
 
     def scan_existing_files(self):

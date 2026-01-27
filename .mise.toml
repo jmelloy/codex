@@ -1,6 +1,6 @@
 [tools]
 python = "3.13"
-node = "22"
+node = "25"
 
 [env]
 _.python.venv = { path = "backend/.venv", create = true }

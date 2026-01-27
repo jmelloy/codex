@@ -34,15 +34,15 @@ describe("HomeView", () => {
 
   it("automatically selects first workspace when workspaces are loaded", async () => {
     const { workspaceService } = await import("../../services/codex")
-    
+
     // Mock workspaces
     const mockWorkspaces = [
       { id: 1, name: "Workspace 1", owner_id: 1, created_at: new Date().toISOString() },
       { id: 2, name: "Workspace 2", owner_id: 1, created_at: new Date().toISOString() },
     ]
-    
+
     vi.mocked(workspaceService.list).mockResolvedValue(mockWorkspaces)
-    
+
     const wrapper = mount(HomeView, {
       global: {
         plugins: [router],
@@ -52,15 +52,15 @@ describe("HomeView", () => {
         },
       },
     })
-    
+
     // Wait for async operations to complete
     await flushPromises()
-    
+
     const workspaceStore = useWorkspaceStore()
-    
+
     // Verify that workspaces were fetched
     expect(workspaceService.list).toHaveBeenCalled()
-    
+
     // Verify that the first workspace was automatically selected
     expect(workspaceStore.currentWorkspace).toBeTruthy()
     expect(workspaceStore.currentWorkspace?.id).toBe(1)
@@ -69,10 +69,10 @@ describe("HomeView", () => {
 
   it("does not select workspace when no workspaces exist", async () => {
     const { workspaceService } = await import("../../services/codex")
-    
+
     // Mock empty workspaces
     vi.mocked(workspaceService.list).mockResolvedValue([])
-    
+
     const wrapper = mount(HomeView, {
       global: {
         plugins: [router],
@@ -81,31 +81,31 @@ describe("HomeView", () => {
         },
       },
     })
-    
+
     // Wait for async operations to complete
     await flushPromises()
-    
+
     const workspaceStore = useWorkspaceStore()
-    
+
     // Verify that no workspace was selected
     expect(workspaceStore.currentWorkspace).toBeNull()
   })
 
   it("does not override existing workspace selection", async () => {
     const { workspaceService } = await import("../../services/codex")
-    
+
     // Mock workspaces
     const mockWorkspaces = [
       { id: 1, name: "Workspace 1", owner_id: 1, created_at: new Date().toISOString() },
       { id: 2, name: "Workspace 2", owner_id: 1, created_at: new Date().toISOString() },
     ]
-    
+
     vi.mocked(workspaceService.list).mockResolvedValue(mockWorkspaces)
-    
+
     const workspaceStore = useWorkspaceStore()
     // Pre-select the second workspace
     workspaceStore.currentWorkspace = mockWorkspaces[1]
-    
+
     const wrapper = mount(HomeView, {
       global: {
         plugins: [router],
@@ -114,10 +114,10 @@ describe("HomeView", () => {
         },
       },
     })
-    
+
     // Wait for async operations to complete
     await flushPromises()
-    
+
     // Verify that the pre-selected workspace was not changed
     expect(workspaceStore.currentWorkspace?.id).toBe(2)
     expect(workspaceStore.currentWorkspace?.name).toBe("Workspace 2")
@@ -125,21 +125,35 @@ describe("HomeView", () => {
 
   it("automatically selects first notebook after workspace is selected", async () => {
     const { workspaceService, notebookService } = await import("../../services/codex")
-    
+
     // Mock workspaces
     const mockWorkspaces = [
       { id: 1, name: "Workspace 1", owner_id: 1, created_at: new Date().toISOString() },
     ]
-    
+
     // Mock notebooks
     const mockNotebooks = [
-      { id: 1, name: "Notebook 1", path: "/notebook1", workspace_id: 1, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-      { id: 2, name: "Notebook 2", path: "/notebook2", workspace_id: 1, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+      {
+        id: 1,
+        name: "Notebook 1",
+        path: "/notebook1",
+        workspace_id: 1,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      {
+        id: 2,
+        name: "Notebook 2",
+        path: "/notebook2",
+        workspace_id: 1,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
     ]
-    
+
     vi.mocked(workspaceService.list).mockResolvedValue(mockWorkspaces)
     vi.mocked(notebookService.list).mockResolvedValue(mockNotebooks)
-    
+
     const wrapper = mount(HomeView, {
       global: {
         plugins: [router],
@@ -148,12 +162,12 @@ describe("HomeView", () => {
         },
       },
     })
-    
+
     // Wait for async operations to complete
     await flushPromises()
-    
+
     const workspaceStore = useWorkspaceStore()
-    
+
     // Verify that the first notebook was automatically expanded
     expect(workspaceStore.expandedNotebooks.has(1)).toBe(true)
     expect(workspaceStore.currentNotebook?.id).toBe(1)

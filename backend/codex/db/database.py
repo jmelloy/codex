@@ -101,27 +101,27 @@ def run_notebook_alembic_migrations(notebook_path: str):
     # Check if this is a pre-Alembic database that needs stamping
     temp_engine = create_engine(f"sqlite:///{db_path}")
     inspector = inspect(temp_engine)
-    
+
     # Check if alembic_version table exists
     has_alembic_version = "alembic_version" in inspector.get_table_names()
-    
+
     # Check if file_metadata table exists (pre-Alembic database)
     has_file_metadata = "file_metadata" in inspector.get_table_names()
-    
+
     if has_file_metadata and not has_alembic_version:
         # This is a pre-Alembic database - check which schema version it has
         with temp_engine.connect() as conn:
             # Check if file_metadata has 'frontmatter' or 'properties' column
-            columns = {col['name'] for col in inspector.get_columns('file_metadata')}
-            
-            if 'frontmatter' in columns:
+            columns = {col["name"] for col in inspector.get_columns("file_metadata")}
+
+            if "frontmatter" in columns:
                 # Old schema with frontmatter column - stamp at revision 001
                 # so that migration 002 will run to rename it
                 command.stamp(alembic_cfg, "001")
-            elif 'properties' in columns:
+            elif "properties" in columns:
                 # Already has properties column - stamp at head
                 command.stamp(alembic_cfg, "head")
-    
+
     temp_engine.dispose()
 
     # Now run any pending migrations

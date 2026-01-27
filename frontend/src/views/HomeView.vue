@@ -6,193 +6,300 @@
       <div class="flex items-center px-4 py-4" style="border-bottom: 1px solid var(--page-border)">
         <h1 class="m-0 text-xl font-semibold" style="color: var(--notebook-text)">Codex</h1>
       </div>
-      <div
-        class="flex justify-between items-center px-4 py-4"
-        style="border-bottom: 1px solid var(--page-border)"
-      >
-        <h2
-          class="m-0 text-sm font-semibold uppercase tracking-wide"
-          style="color: var(--pen-gray)"
-        >
-          Workspaces
-        </h2>
+
+      <!-- Sidebar Tabs -->
+      <div class="sidebar-tabs flex" style="border-bottom: 1px solid var(--page-border)">
         <button
-          @click="showCreateWorkspace = true"
-          title="Create Workspace"
-          class="notebook-button text-white border-none w-6 h-6 rounded-full cursor-pointer text-base flex items-center justify-center transition"
+          class="sidebar-tab flex-1 py-2 px-4 text-sm font-medium transition"
+          :class="{ 'sidebar-tab-active': sidebarTab === 'files' }"
+          @click="sidebarTab = 'files'"
         >
-          +
+          Files
+        </button>
+        <button
+          class="sidebar-tab flex-1 py-2 px-4 text-sm font-medium transition"
+          :class="{ 'sidebar-tab-active': sidebarTab === 'search' }"
+          @click="sidebarTab = 'search'"
+        >
+          Search
         </button>
       </div>
-      <ul class="list-none p-0 m-0 max-h-[150px] overflow-y-auto">
-        <li
-          v-for="workspace in workspaceStore.workspaces"
-          :key="workspace.id"
-          :class="[
-            'workspace-item py-2.5 px-4 cursor-pointer text-sm transition',
-            {
-              'workspace-active font-semibold':
-                workspaceStore.currentWorkspace?.id === workspace.id,
-            },
-          ]"
-          @click="selectWorkspace(workspace)"
-        >
-          {{ workspace.name }}
-        </li>
-      </ul>
 
-      <div
-        v-if="workspaceStore.currentWorkspace"
-        class="flex-1 flex flex-col overflow-hidden"
-        style="border-top: 1px solid var(--page-border)"
-      >
+      <!-- Search Panel -->
+      <div v-if="sidebarTab === 'search'" class="flex-1 flex flex-col overflow-hidden">
+        <!-- Search Input -->
+        <div class="p-3" style="border-bottom: 1px solid var(--page-border)">
+          <div class="relative">
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="Search files..."
+              class="search-input w-full px-3 py-2 pr-8 text-sm rounded"
+              @keyup.enter="handleSearch"
+            />
+            <button
+              v-if="searchQuery"
+              @click="clearSearch"
+              class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              title="Clear search"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+          <button
+            @click="handleSearch"
+            :disabled="!searchQuery.trim() || isSearching"
+            class="notebook-button w-full mt-2 py-2 text-sm text-white rounded cursor-pointer transition"
+          >
+            {{ isSearching ? "Searching..." : "Search" }}
+          </button>
+        </div>
+
+        <!-- Search Results -->
+        <div class="flex-1 overflow-y-auto">
+          <div v-if="isSearching" class="p-4 text-center text-sm" style="color: var(--pen-gray)">
+            Searching...
+          </div>
+          <div
+            v-else-if="searchResults.length === 0 && searchQuery"
+            class="p-4 text-center text-sm"
+            style="color: var(--pen-gray)"
+          >
+            No files found matching "{{ searchQuery }}"
+          </div>
+          <div
+            v-else-if="searchResults.length === 0"
+            class="p-4 text-center text-sm"
+            style="color: var(--pen-gray)"
+          >
+            Enter a search term to find files
+          </div>
+          <ul v-else class="list-none p-0 m-0">
+            <li
+              v-for="file in searchResults"
+              :key="file.id"
+              class="search-result-item py-2 px-4 cursor-pointer text-sm transition"
+              @click="selectSearchResult(file)"
+            >
+              <div class="flex items-center">
+                <span class="mr-2 text-sm">{{ getFileIcon(file) }}</span>
+                <div class="flex-1 min-w-0">
+                  <div class="truncate font-medium" style="color: var(--notebook-text)">
+                    {{ file.title || file.filename }}
+                  </div>
+                  <div class="truncate text-xs" style="color: var(--pen-gray)">
+                    {{ file.path }}
+                  </div>
+                </div>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Files Panel (existing content) -->
+      <div v-else class="flex-1 flex flex-col overflow-hidden">
         <div
           class="flex justify-between items-center px-4 py-4"
           style="border-bottom: 1px solid var(--page-border)"
         >
-          <h3
+          <h2
             class="m-0 text-sm font-semibold uppercase tracking-wide"
             style="color: var(--pen-gray)"
           >
-            Notebooks
-          </h3>
+            Workspaces
+          </h2>
           <button
-            @click="showCreateNotebook = true"
-            title="Create Notebook"
+            @click="showCreateWorkspace = true"
+            title="Create Workspace"
             class="notebook-button text-white border-none w-6 h-6 rounded-full cursor-pointer text-base flex items-center justify-center transition"
           >
             +
           </button>
         </div>
-
-        <!-- Notebook Tree with Files -->
-        <ul class="list-none p-0 m-0 overflow-y-auto flex-1">
+        <ul class="list-none p-0 m-0 max-h-[150px] overflow-y-auto">
           <li
-            v-for="notebook in workspaceStore.notebooks"
-            :key="notebook.id"
-            style="border-bottom: 1px solid var(--page-border)"
+            v-for="workspace in workspaceStore.workspaces"
+            :key="workspace.id"
+            :class="[
+              'workspace-item py-2.5 px-4 cursor-pointer text-sm transition',
+              {
+                'workspace-active font-semibold':
+                  workspaceStore.currentWorkspace?.id === workspace.id,
+              },
+            ]"
+            @click="selectWorkspace(workspace)"
           >
-            <div
-              :class="[
-                'notebook-item flex items-center py-2 px-4 cursor-pointer text-sm transition',
-                { 'notebook-active': workspaceStore.currentNotebook?.id === notebook.id },
-              ]"
-              @click="toggleNotebook(notebook)"
-            >
-              <span class="text-[10px] mr-2 w-3" style="color: var(--pen-gray)">{{
-                workspaceStore.expandedNotebooks.has(notebook.id) ? "▼" : "▶"
-              }}</span>
-              <span class="flex-1 font-medium">{{ notebook.name }}</span>
-              <button
-                v-if="workspaceStore.expandedNotebooks.has(notebook.id)"
-                @click.stop="startCreateFile(notebook)"
-                class="notebook-button w-5 h-5 text-sm ml-auto opacity-0 hover:opacity-100 transition text-white border-none rounded-full cursor-pointer flex items-center justify-center"
-                title="New File"
-              >
-                +
-              </button>
-            </div>
-
-            <!-- File Tree with drop zone -->
-            <ul
-              v-if="workspaceStore.expandedNotebooks.has(notebook.id)"
-              class="list-none p-0 m-0"
-              :class="{ 'bg-primary/10': dragOverNotebook === notebook.id }"
-              @dragover.prevent="handleNotebookDragOver($event, notebook.id)"
-              @dragenter.prevent="handleNotebookDragEnter(notebook.id)"
-              @dragleave="handleNotebookDragLeave"
-              @drop.prevent="handleNotebookDrop($event, notebook.id)"
-            >
-              <template v-if="notebookFileTrees.get(notebook.id)?.length">
-                <template v-for="node in notebookFileTrees.get(notebook.id)" :key="node.path">
-                  <!-- Render folder or file -->
-                  <li v-if="node.type === 'folder'">
-                    <!-- Folder -->
-                    <div
-                      :class="[
-                        'folder-item flex items-center py-2 px-4 pl-8 cursor-pointer text-[13px] transition',
-                        {
-                          'bg-primary/20 border-t-2 border-primary':
-                            dragOverFolder === `${notebook.id}:${node.path}`,
-                        },
-                        {
-                          'folder-active':
-                            workspaceStore.currentFolder?.path === node.path &&
-                            workspaceStore.currentFolder?.notebook_id === notebook.id,
-                        },
-                      ]"
-                      @click="handleFolderClick($event, notebook.id, node.path)"
-                      @dragover.prevent="handleFolderDragOver($event, notebook.id, node.path)"
-                      @dragenter.prevent="handleFolderDragEnter(notebook.id, node.path)"
-                      @dragleave="handleFolderDragLeave"
-                      @drop.prevent.stop="handleFolderDrop($event, notebook.id, node.path)"
-                    >
-                      <span class="text-[10px] mr-2 w-3" style="color: var(--pen-gray)">{{
-                        isFolderExpanded(notebook.id, node.path) ? "▼" : "▶"
-                      }}</span>
-                      <span class="mr-2 text-sm">📁</span>
-                      <span class="overflow-hidden text-ellipsis whitespace-nowrap">{{
-                        node.name
-                      }}</span>
-                    </div>
-
-                    <!-- Folder contents -->
-                    <ul
-                      v-if="isFolderExpanded(notebook.id, node.path) && node.children"
-                      class="list-none p-0 m-0"
-                    >
-                      <FileTreeItem
-                        v-for="child in node.children"
-                        :key="child.path"
-                        :node="child"
-                        :notebook-id="notebook.id"
-                        :depth="1"
-                        :expanded-folders="expandedFolders"
-                        :current-file-id="workspaceStore.currentFile?.id"
-                        :current-folder-path="workspaceStore.currentFolder?.path"
-                        :current-folder-notebook-id="workspaceStore.currentFolder?.notebook_id"
-                        @toggle-folder="toggleFolder"
-                        @select-folder="handleSelectFolder"
-                        @select-file="selectFile"
-                        @move-file="handleMoveFile"
-                      />
-                    </ul>
-                  </li>
-
-                  <!-- Root level file -->
-                  <li v-else>
-                    <div
-                      :class="[
-                        'file-item flex items-center py-2 px-4 pl-8 cursor-grab text-[13px] transition',
-                        {
-                          'file-active font-medium':
-                            workspaceStore.currentFile?.id === node.file?.id,
-                        },
-                      ]"
-                      draggable="true"
-                      @click="node.file && selectFile(node.file)"
-                      @dragstart="handleFileDragStart($event, node.file!, notebook.id)"
-                    >
-                      <span class="mr-2 text-sm">{{ getFileIcon(node.file) }}</span>
-                      <span class="overflow-hidden text-ellipsis whitespace-nowrap">{{
-                        node.file?.title || node.name
-                      }}</span>
-                    </div>
-                  </li>
-                </template>
-              </template>
-              <li
-                v-else
-                class="py-2 px-4 pl-8 text-xs italic"
-                style="color: var(--pen-gray); opacity: 0.6"
-              >
-                {{
-                  dragOverNotebook === notebook.id ? "Drop files here to upload" : "No files yet"
-                }}
-              </li>
-            </ul>
+            {{ workspace.name }}
           </li>
         </ul>
+
+        <div
+          v-if="workspaceStore.currentWorkspace"
+          class="flex-1 flex flex-col overflow-hidden"
+          style="border-top: 1px solid var(--page-border)"
+        >
+          <div
+            class="flex justify-between items-center px-4 py-4"
+            style="border-bottom: 1px solid var(--page-border)"
+          >
+            <h3
+              class="m-0 text-sm font-semibold uppercase tracking-wide"
+              style="color: var(--pen-gray)"
+            >
+              Notebooks
+            </h3>
+            <button
+              @click="showCreateNotebook = true"
+              title="Create Notebook"
+              class="notebook-button text-white border-none w-6 h-6 rounded-full cursor-pointer text-base flex items-center justify-center transition"
+            >
+              +
+            </button>
+          </div>
+
+          <!-- Notebook Tree with Files -->
+          <ul class="list-none p-0 m-0 overflow-y-auto flex-1">
+            <li
+              v-for="notebook in workspaceStore.notebooks"
+              :key="notebook.id"
+              style="border-bottom: 1px solid var(--page-border)"
+            >
+              <div
+                :class="[
+                  'notebook-item flex items-center py-2 px-4 cursor-pointer text-sm transition',
+                  { 'notebook-active': workspaceStore.currentNotebook?.id === notebook.id },
+                ]"
+                @click="toggleNotebook(notebook)"
+              >
+                <span class="text-[10px] mr-2 w-3" style="color: var(--pen-gray)">{{
+                  workspaceStore.expandedNotebooks.has(notebook.id) ? "▼" : "▶"
+                }}</span>
+                <span class="flex-1 font-medium">{{ notebook.name }}</span>
+                <button
+                  v-if="workspaceStore.expandedNotebooks.has(notebook.id)"
+                  @click.stop="startCreateFile(notebook)"
+                  class="notebook-button w-5 h-5 text-sm ml-auto opacity-0 hover:opacity-100 transition text-white border-none rounded-full cursor-pointer flex items-center justify-center"
+                  title="New File"
+                >
+                  +
+                </button>
+              </div>
+
+              <!-- File Tree with drop zone -->
+              <ul
+                v-if="workspaceStore.expandedNotebooks.has(notebook.id)"
+                class="list-none p-0 m-0"
+                :class="{ 'bg-primary/10': dragOverNotebook === notebook.id }"
+                @dragover.prevent="handleNotebookDragOver($event, notebook.id)"
+                @dragenter.prevent="handleNotebookDragEnter(notebook.id)"
+                @dragleave="handleNotebookDragLeave"
+                @drop.prevent="handleNotebookDrop($event, notebook.id)"
+              >
+                <template v-if="notebookFileTrees.get(notebook.id)?.length">
+                  <template v-for="node in notebookFileTrees.get(notebook.id)" :key="node.path">
+                    <!-- Render folder or file -->
+                    <li v-if="node.type === 'folder'">
+                      <!-- Folder -->
+                      <div
+                        :class="[
+                          'folder-item flex items-center py-2 px-4 pl-8 cursor-pointer text-[13px] transition',
+                          {
+                            'bg-primary/20 border-t-2 border-primary':
+                              dragOverFolder === `${notebook.id}:${node.path}`,
+                          },
+                          {
+                            'folder-active':
+                              workspaceStore.currentFolder?.path === node.path &&
+                              workspaceStore.currentFolder?.notebook_id === notebook.id,
+                          },
+                        ]"
+                        @click="handleFolderClick($event, notebook.id, node.path)"
+                        @dragover.prevent="handleFolderDragOver($event, notebook.id, node.path)"
+                        @dragenter.prevent="handleFolderDragEnter(notebook.id, node.path)"
+                        @dragleave="handleFolderDragLeave"
+                        @drop.prevent.stop="handleFolderDrop($event, notebook.id, node.path)"
+                      >
+                        <span class="text-[10px] mr-2 w-3" style="color: var(--pen-gray)">{{
+                          isFolderExpanded(notebook.id, node.path) ? "▼" : "▶"
+                        }}</span>
+                        <span class="mr-2 text-sm">📁</span>
+                        <span class="overflow-hidden text-ellipsis whitespace-nowrap">{{
+                          node.name
+                        }}</span>
+                      </div>
+
+                      <!-- Folder contents -->
+                      <ul
+                        v-if="isFolderExpanded(notebook.id, node.path) && node.children"
+                        class="list-none p-0 m-0"
+                      >
+                        <FileTreeItem
+                          v-for="child in node.children"
+                          :key="child.path"
+                          :node="child"
+                          :notebook-id="notebook.id"
+                          :depth="1"
+                          :expanded-folders="expandedFolders"
+                          :current-file-id="workspaceStore.currentFile?.id"
+                          :current-folder-path="workspaceStore.currentFolder?.path"
+                          :current-folder-notebook-id="workspaceStore.currentFolder?.notebook_id"
+                          @toggle-folder="toggleFolder"
+                          @select-folder="handleSelectFolder"
+                          @select-file="selectFile"
+                          @move-file="handleMoveFile"
+                        />
+                      </ul>
+                    </li>
+
+                    <!-- Root level file -->
+                    <li v-else>
+                      <div
+                        :class="[
+                          'file-item flex items-center py-2 px-4 pl-8 cursor-grab text-[13px] transition',
+                          {
+                            'file-active font-medium':
+                              workspaceStore.currentFile?.id === node.file?.id,
+                          },
+                        ]"
+                        draggable="true"
+                        @click="node.file && selectFile(node.file)"
+                        @dragstart="handleFileDragStart($event, node.file!, notebook.id)"
+                      >
+                        <span class="mr-2 text-sm">{{ getFileIcon(node.file) }}</span>
+                        <span class="overflow-hidden text-ellipsis whitespace-nowrap">{{
+                          node.file?.title || node.name
+                        }}</span>
+                      </div>
+                    </li>
+                  </template>
+                </template>
+                <li
+                  v-else
+                  class="py-2 px-4 pl-8 text-xs italic"
+                  style="color: var(--pen-gray); opacity: 0.6"
+                >
+                  {{
+                    dragOverNotebook === notebook.id ? "Drop files here to upload" : "No files yet"
+                  }}
+                </li>
+              </ul>
+            </li>
+          </ul>
+        </div>
       </div>
 
       <!-- User Section at Bottom -->
@@ -396,7 +503,7 @@
 
           <!-- Dynamic View Renderer for .cdx files -->
           <ViewRenderer
-            v-if="displayType === 'view'"
+            v-else-if="displayType === 'view'"
             :file-id="workspaceStore.currentFile.id"
             :workspace-id="workspaceStore.currentWorkspace!.id"
             :notebook-id="workspaceStore.currentFile.notebook_id"
@@ -620,7 +727,7 @@ import { useRouter, useRoute } from "vue-router"
 import { useAuthStore } from "../stores/auth"
 import { useWorkspaceStore } from "../stores/workspace"
 import type { Workspace, Notebook, FileMetadata, Template } from "../services/codex"
-import { templateService } from "../services/codex"
+import { templateService, searchService } from "../services/codex"
 import { getDisplayType } from "../utils/contentType"
 import Modal from "../components/Modal.vue"
 import FormGroup from "../components/FormGroup.vue"
@@ -660,6 +767,12 @@ const customTitle = ref("")
 // View state
 const showPropertiesPanel = ref(false)
 const editContent = ref("")
+
+// Sidebar tab state
+const sidebarTab = ref<"files" | "search">("files")
+const searchQuery = ref("")
+const searchResults = ref<FileMetadata[]>([])
+const isSearching = ref(false)
 
 // Folder expansion state - tracks which folder paths are expanded
 const expandedFolders = ref<Map<number, Set<string>>>(new Map())
@@ -705,7 +818,7 @@ watch(
       editContent.value = file.content
     }
   },
-  { immediate: true },
+  { immediate: true }
 )
 
 // Watch for route changes to restore file selection from URL
@@ -736,7 +849,7 @@ watch(
       workspaceStore.currentFile = null
     }
   },
-  { immediate: false },
+  { immediate: false }
 )
 
 onMounted(async () => {
@@ -782,7 +895,7 @@ watch(
       }
     }
   },
-  { deep: true },
+  { deep: true }
 )
 
 function handleLogout() {
@@ -818,30 +931,35 @@ function toggleFolder(notebookId: number, folderPath: string) {
 function handleFolderClick(event: MouseEvent, notebookId: number, folderPath: string) {
   // If clicking on the expand arrow area, just toggle expansion
   const target = event.target as HTMLElement
-  if (target.classList.contains("text-[10px]") || target.closest(".text-[10px]")) {
+  if (target.classList.contains("text-[10px]") || target.closest(".text-\\[10px\\]")) {
     toggleFolder(notebookId, folderPath)
     return
   }
 
-  // Select the folder and show folder view
-  workspaceStore.selectFolder(folderPath, notebookId)
+  // Check if folder is currently expanded
+  const isExpanded = isFolderExpanded(notebookId, folderPath)
 
-  // Also expand the folder
-  if (!expandedFolders.value.has(notebookId)) {
-    expandedFolders.value.set(notebookId, new Set())
+  // Toggle the folder expansion
+  toggleFolder(notebookId, folderPath)
+
+  // Only select the folder (show folder view) when expanding, not when collapsing
+  if (!isExpanded) {
+    workspaceStore.selectFolder(folderPath, notebookId)
   }
-  expandedFolders.value.get(notebookId)!.add(folderPath)
 }
 
 function handleSelectFolder(notebookId: number, folderPath: string) {
   // Select the folder and show folder view
   workspaceStore.selectFolder(folderPath, notebookId)
 
-  // Also expand the folder
+  // Expand the folder if it's not already expanded
   if (!expandedFolders.value.has(notebookId)) {
     expandedFolders.value.set(notebookId, new Set())
   }
-  expandedFolders.value.get(notebookId)!.add(folderPath)
+  const folders = expandedFolders.value.get(notebookId)!
+  if (!folders.has(folderPath)) {
+    folders.add(folderPath)
+  }
 }
 
 function handleSelectSubfolder(subfolder: { path: string }) {
@@ -919,7 +1037,7 @@ function handleFileDragStart(event: DragEvent, file: FileMetadata, notebookId: n
       notebookId: notebookId,
       filename: file.filename,
       path: file.path,
-    }),
+    })
   )
 }
 
@@ -1168,7 +1286,7 @@ async function handleCreateFile() {
         createFileNotebook.value.id,
         workspaceStore.currentWorkspace.id,
         selectedTemplate.value.id,
-        filename,
+        filename
       )
 
       // Refresh file list and select the new file
@@ -1279,6 +1397,91 @@ function getPreviewFilename(): string {
 
   return templateService.expandPattern(pattern, title)
 }
+
+// Search functionality
+async function handleSearch() {
+  if (!searchQuery.value.trim() || !workspaceStore.currentWorkspace) {
+    searchResults.value = []
+    return
+  }
+
+  isSearching.value = true
+  try {
+    // First, do a local search through all loaded files
+    const query = searchQuery.value.toLowerCase()
+    const localResults: FileMetadata[] = []
+
+    for (const [_notebookId, files] of workspaceStore.files) {
+      for (const file of files) {
+        // Search in filename, title, and path
+        if (
+          file.filename.toLowerCase().includes(query) ||
+          file.title?.toLowerCase().includes(query) ||
+          file.path.toLowerCase().includes(query)
+        ) {
+          localResults.push(file)
+        }
+      }
+    }
+
+    // Also try API search (may return additional results from content search)
+    try {
+      const apiResults = await searchService.search(
+        workspaceStore.currentWorkspace.id,
+        searchQuery.value
+      )
+      // Merge API results if they contain file data
+      if (apiResults.results && apiResults.results.length > 0) {
+        // Add any API results that aren't already in local results
+        for (const result of apiResults.results) {
+          if (!localResults.find((f) => f.id === result.id)) {
+            localResults.push(result)
+          }
+        }
+      }
+    } catch {
+      // API search may not be fully implemented, continue with local results
+    }
+
+    searchResults.value = localResults
+  } finally {
+    isSearching.value = false
+  }
+}
+
+function selectSearchResult(file: FileMetadata) {
+  // Switch back to files tab and select the file
+  sidebarTab.value = "files"
+  selectFile(file)
+
+  // Expand the notebook containing the file
+  const notebook = workspaceStore.notebooks.find((n) => n.id === file.notebook_id)
+  if (notebook && !workspaceStore.expandedNotebooks.has(notebook.id)) {
+    workspaceStore.toggleNotebookExpansion(notebook)
+  }
+
+  // Expand parent folders if the file is in a folder
+  if (file.path.includes("/")) {
+    const pathParts = file.path.split("/")
+    pathParts.pop() // Remove filename
+
+    if (!expandedFolders.value.has(file.notebook_id)) {
+      expandedFolders.value.set(file.notebook_id, new Set())
+    }
+
+    // Expand each parent folder
+    let currentPath = ""
+    for (const part of pathParts) {
+      currentPath = currentPath ? `${currentPath}/${part}` : part
+      expandedFolders.value.get(file.notebook_id)!.add(currentPath)
+    }
+  }
+}
+
+function clearSearch() {
+  searchQuery.value = ""
+  searchResults.value = []
+}
 </script>
 
 <style scoped>
@@ -1359,13 +1562,66 @@ function getPreviewFilename(): string {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition:
-    background-color 0.2s,
-    color 0.2s;
+  transition: background-color 0.2s, color 0.2s;
 }
 
 .sidebar-icon-button:hover {
   background: color-mix(in srgb, var(--notebook-text) 10%, transparent);
   color: var(--notebook-text);
+}
+
+/* Sidebar Tabs */
+.sidebar-tab {
+  background: transparent;
+  border: none;
+  color: var(--pen-gray);
+  cursor: pointer;
+  position: relative;
+}
+
+.sidebar-tab:hover {
+  color: var(--notebook-text);
+  background: color-mix(in srgb, var(--notebook-text) var(--subtle-hover-opacity), transparent);
+}
+
+.sidebar-tab-active {
+  color: var(--notebook-accent);
+  font-weight: 600;
+}
+
+.sidebar-tab-active::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--notebook-accent);
+}
+
+/* Search Input */
+.search-input {
+  background: color-mix(in srgb, var(--notebook-text) 5%, var(--notebook-bg));
+  border: 1px solid var(--page-border);
+  color: var(--notebook-text);
+}
+
+.search-input::placeholder {
+  color: var(--pen-gray);
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--notebook-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--notebook-accent) 20%, transparent);
+}
+
+/* Search Results */
+.search-result-item {
+  border-bottom: 1px solid var(--page-border);
+}
+
+.search-result-item:hover {
+  background: color-mix(in srgb, var(--notebook-text) var(--hover-opacity), transparent);
 }
 </style>

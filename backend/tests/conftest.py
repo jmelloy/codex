@@ -20,25 +20,25 @@ def test_client():
 @pytest.fixture(autouse=True)
 def ensure_valid_cwd():
     """Ensure we're always in a valid working directory.
-    
+
     Some tests (especially git-related ones) may change the working directory
     or end up in a deleted directory. This fixture ensures we start each test
     in a valid directory.
     """
     # Get the backend directory
     backend_dir = Path(__file__).parent.parent
-    
+
     # Before test: ensure we're in a valid directory
     try:
         os.getcwd()
     except FileNotFoundError:
         # If current directory doesn't exist, change to backend dir
         os.chdir(backend_dir)
-    
+
     original_cwd = os.getcwd()
-    
+
     yield
-    
+
     # After test: restore to a valid directory if needed
     try:
         os.getcwd()

@@ -120,7 +120,7 @@ def test_file_endpoints(temp_workspace_dir):
         "/api/v1/files/", params={"notebook_id": notebook_id, "workspace_id": workspace_id}, headers=headers
     )
     assert response.status_code == 200
-    assert len(response.json()) == 0
+    assert len(response.json()["files"]) == 0
 
     # Create a file
     response = client.post(
@@ -143,7 +143,7 @@ def test_file_endpoints(temp_workspace_dir):
         "/api/v1/files/", params={"notebook_id": notebook_id, "workspace_id": workspace_id}, headers=headers
     )
     assert response.status_code == 200
-    files = response.json()
+    files = response.json()["files"]
     assert len(files) == 1
 
     # Get file by ID

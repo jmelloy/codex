@@ -9,6 +9,7 @@ from pathlib import Path
 
 # Setup logging before importing anything else
 from codex.core.logging import get_logging_config
+
 logging.config.dictConfig(get_logging_config(log_level="INFO", log_format="colored"))
 
 # Now import codex modules

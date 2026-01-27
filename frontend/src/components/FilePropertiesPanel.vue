@@ -290,7 +290,7 @@ watch(
       editableDescription.value = newFile.properties?.description || newFile.description || ""
     }
   },
-  { immediate: true },
+  { immediate: true }
 )
 
 const tags = computed(() => {
@@ -302,7 +302,7 @@ const tags = computed(() => {
 
 // Standard property fields that are handled separately
 const STANDARD_FIELDS = ["title", "description", "tags"] as const
-type StandardField = (typeof STANDARD_FIELDS)[number]
+type StandardField = typeof STANDARD_FIELDS[number]
 
 // Get all metadata except standard fields (title, description, tags)
 const metadata = computed(() => {
@@ -505,7 +505,7 @@ async function selectCommit(commit: FileHistoryEntry) {
       props.file!.id,
       props.workspaceId,
       props.notebookId,
-      commit.hash,
+      commit.hash
     )
     commitContent.value = result.content
   } catch (error: any) {
@@ -568,7 +568,7 @@ watch(
     if (activeTab.value === "history") {
       loadHistory()
     }
-  },
+  }
 )
 </script>
 
@@ -671,9 +671,7 @@ watch(
   color: var(--color-text-primary);
   background: var(--color-bg-primary);
   font-family: var(--font-sans);
-  transition:
-    border-color 0.2s,
-    box-shadow 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .property-input:focus,
@@ -892,9 +890,7 @@ watch(
   font-size: var(--text-sm);
   line-height: 1;
   border-radius: var(--radius-sm);
-  transition:
-    background 0.2s,
-    color 0.2s;
+  transition: background 0.2s, color 0.2s;
 }
 
 .btn-save {

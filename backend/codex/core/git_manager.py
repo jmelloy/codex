@@ -85,7 +85,7 @@ class GitManager:
                 original_cwd = os.getcwd()
             except:
                 pass
-            
+
             self.repo.index.add([".gitignore"])
             self.repo.index.commit("Initialize .gitignore")
         finally:
@@ -134,7 +134,9 @@ class GitManager:
                     # Add specific files (resolve paths to handle symlinks like /var -> /private/var)
                     resolved_files = [str(Path(f).resolve()) for f in files]
                     rel_paths = [os.path.relpath(f, self.notebook_path) for f in resolved_files]
-                    filtered_paths = [p for p in rel_paths if not self.is_binary_file(os.path.join(self.notebook_path, p))]
+                    filtered_paths = [
+                        p for p in rel_paths if not self.is_binary_file(os.path.join(self.notebook_path, p))
+                    ]
                     if filtered_paths:
                         self.repo.index.add(filtered_paths)
                 else:

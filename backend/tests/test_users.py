@@ -13,7 +13,9 @@ def test_get_current_user(test_client):
     email = f"{username}@example.com"
     password = "testpass123"
 
-    register_response = test_client.post("/api/register", json={"username": username, "email": email, "password": password})
+    register_response = test_client.post(
+        "/api/register", json={"username": username, "email": email, "password": password}
+    )
     assert register_response.status_code == 201
     user_id = register_response.json()["id"]
 

@@ -75,13 +75,13 @@ async def get_current_user(
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    
+
     # Try cookie first, then Authorization header
     jwt_token = access_token or token
-    
+
     if not jwt_token:
         raise credentials_exception
-    
+
     try:
         payload = jwt.decode(jwt_token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")

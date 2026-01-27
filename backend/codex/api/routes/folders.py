@@ -94,21 +94,26 @@ def write_folder_properties(folder_path: Path, properties: dict[str, Any]) -> No
 
 
 def get_folder_files(
-    folder_path: str, notebook_id: int, notebook_path: Path, nb_session, skip: int = 0, limit: int = DEFAULT_FOLDER_PAGINATION_LIMIT
+    folder_path: str,
+    notebook_id: int,
+    notebook_path: Path,
+    nb_session,
+    skip: int = 0,
+    limit: int = DEFAULT_FOLDER_PAGINATION_LIMIT,
 ) -> tuple[list[dict], int]:
     """Get files in a specific folder (not recursive) with pagination.
-    
+
     Note: This implementation filters in Python rather than SQL because we need to:
     1. Check if files are directly in the folder (not in subfolders)
     2. Exclude .metadata files
-    
+
     For optimal performance with very large folders (>10k files), consider:
     - Adding a parent_folder column to FileMetadata for direct SQL filtering
     - Using an indexed path column for faster queries
-    
+
     Current implementation provides accurate counts up to a reasonable folder size,
     then estimates for very large folders to avoid processing all files.
-    
+
     Returns:
         Tuple of (files_list, total_count)
     """
@@ -119,19 +124,12 @@ def get_folder_files(
     if folder_path:
         # Files in this specific folder start with the prefix
         files_result = nb_session.execute(
-            select(FileMetadata)
-            .where(
-                FileMetadata.notebook_id == notebook_id,
-                FileMetadata.path.startswith(prefix)
-            )
+            select(FileMetadata).where(FileMetadata.notebook_id == notebook_id, FileMetadata.path.startswith(prefix))
         )
     else:
         # Root level: files without any path separator
-        files_result = nb_session.execute(
-            select(FileMetadata)
-            .where(FileMetadata.notebook_id == notebook_id)
-        )
-    
+        files_result = nb_session.execute(select(FileMetadata).where(FileMetadata.notebook_id == notebook_id))
+
     all_files = files_result.scalars().all()
 
     folder_files = []
@@ -140,7 +138,7 @@ def get_folder_files(
     # This provides accurate counts for normal folders while avoiding
     # processing tens of thousands of files just for counting
     MAX_COUNT_THRESHOLD = 10000
-    
+
     for f in all_files:
         # Skip .metadata files
         if f.filename == FOLDER_METADATA_FILE:
@@ -161,16 +159,16 @@ def get_folder_files(
                 continue
 
         total_count += 1
-        
+
         # Apply pagination - skip early items
         if total_count <= skip:
             continue
-        
+
         # Stop processing once we have enough items and counted enough
         if len(folder_files) >= limit and total_count > skip + limit + 100:
             # We have our page and a reasonable count estimate
             break
-        
+
         # Stop counting beyond threshold (still collect items up to limit)
         if total_count > MAX_COUNT_THRESHOLD and len(folder_files) >= limit:
             # For very large folders, provide an estimated count
@@ -251,7 +249,7 @@ async def get_folder(
     """Get folder metadata and its files with pagination.
 
     The folder properties are stored in a .file within the folder.
-    
+
     Args:
         folder_path: Path to the folder
         notebook_id: ID of the notebook
@@ -375,8 +373,7 @@ async def update_folder_properties(
         nb_session = get_notebook_session(str(notebook_path))
         try:
             files, file_count = get_folder_files(
-                folder_path, notebook_id, notebook_path, nb_session, 
-                skip=0, limit=DEFAULT_FOLDER_PAGINATION_LIMIT
+                folder_path, notebook_id, notebook_path, nb_session, skip=0, limit=DEFAULT_FOLDER_PAGINATION_LIMIT
             )
         finally:
             nb_session.close()

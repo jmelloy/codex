@@ -22,6 +22,7 @@ DIM = "\033[2m"
 
 LIGHT_GRAY = "\033[37m"
 
+
 class ColoredFormatter(logging.Formatter):
     """A formatter that adds colors to log output for terminal display."""
 
@@ -149,11 +150,14 @@ class AccessFormatter(logging.Formatter):
 
 class RequestIdFilter(logging.Filter):
     """Logging filter that adds request ID from context variable."""
+
     def filter(self, record):
         from codex.main import request_id_var
+
         record.request_id = request_id_var.get()
         return True
-    
+
+
 def get_logging_config(
     log_level: str = "INFO",
     log_format: str = "colored",
@@ -219,7 +223,6 @@ def get_logging_config(
             "root": {
                 "filters": ["request_id"],
             },
-
             "uvicorn.error": {
                 "handlers": ["default"],
                 "level": "INFO",

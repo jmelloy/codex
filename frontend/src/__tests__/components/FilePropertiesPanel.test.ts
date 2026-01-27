@@ -6,14 +6,12 @@ import FilePropertiesPanel from "../../components/FilePropertiesPanel.vue"
 vi.mock("../../services/codex", () => ({
   fileService: {
     getHistory: vi.fn().mockResolvedValue({ file_id: 1, path: "/test/path", history: [] }),
-    getAtCommit: vi
-      .fn()
-      .mockResolvedValue({
-        file_id: 1,
-        path: "/test/path",
-        commit_hash: "abc123",
-        content: "# Old Content",
-      }),
+    getAtCommit: vi.fn().mockResolvedValue({
+      file_id: 1,
+      path: "/test/path",
+      commit_hash: "abc123",
+      content: "# Old Content",
+    }),
   },
 }))
 

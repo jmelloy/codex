@@ -5,9 +5,6 @@ import time
 from codex.main import app
 
 
-
-
-
 def setup_test_user(test_client):
     """Register and login a test user for task tests."""
     username = f"test_task_user_{int(time.time() * 1000)}"
@@ -68,7 +65,9 @@ def test_list_tasks(test_client, temp_workspace_dir):
 
     # Create some tasks
     for i in range(3):
-        test_client.post("/api/v1/tasks/", params={"workspace_id": workspace_id, "title": f"Task {i+1}"}, headers=headers)
+        test_client.post(
+            "/api/v1/tasks/", params={"workspace_id": workspace_id, "title": f"Task {i+1}"}, headers=headers
+        )
 
     # List tasks
     response = test_client.get("/api/v1/tasks/", params={"workspace_id": workspace_id}, headers=headers)

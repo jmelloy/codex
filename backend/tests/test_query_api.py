@@ -1,19 +1,15 @@
 """Tests for the query API for dynamic views."""
 
 import json
-import pytest
-from datetime import datetime, timedelta
-from pathlib import Path
-from tempfile import TemporaryDirectory
-from sqlmodel import create_engine, Session
-from codex.main import app
-from codex.db.models import FileMetadata, Notebook, Tag, FileTag
+from datetime import datetime
+
 from codex.api.routes.query import (
-    parse_sort_field,
     apply_path_filter,
-    group_files,
     file_to_dict,
+    group_files,
+    parse_sort_field,
 )
+from codex.db.models import FileMetadata
 
 
 class TestHelperFunctions:
@@ -374,9 +370,9 @@ class TestPropertyFilters:
     def test_property_filters_import(self):
         """Test that property filter functions can be imported."""
         from codex.api.routes.query import (
-            apply_property_filters_to_query,
-            apply_property_exists_filter_to_query,
             apply_date_property_filter_to_query,
+            apply_property_exists_filter_to_query,
+            apply_property_filters_to_query,
         )
 
         # Just test they're callable

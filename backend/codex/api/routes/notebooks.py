@@ -2,7 +2,6 @@
 
 import re
 from pathlib import Path
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -20,7 +19,7 @@ class NotebookCreate(BaseModel):
 
     workspace_id: int
     name: str
-    description: Optional[str] = None
+    description: str | None = None
 
 
 def slugify(name: str) -> str:

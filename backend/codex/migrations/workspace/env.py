@@ -4,9 +4,10 @@ import os
 import sys
 from pathlib import Path
 
-from alembic import context
 from sqlalchemy import create_engine, pool
 from sqlalchemy.engine import Connection
+
+from alembic import context
 
 # Add backend directory to path for imports when running alembic CLI
 backend_dir = Path(__file__).resolve().parent.parent
@@ -14,7 +15,6 @@ if str(backend_dir.parent) not in sys.path:
     sys.path.insert(0, str(backend_dir.parent))
 
 # Import only system models (not notebook models which are in separate databases)
-from codex.db.models.system import Notebook, Task, User, Workspace, WorkspacePermission
 
 # Import SQLModel to ensure metadata is populated
 from sqlmodel import SQLModel

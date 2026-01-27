@@ -1,5 +1,7 @@
 """Task routes."""
 
+from datetime import UTC
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
@@ -71,12 +73,12 @@ async def update_task(
     if assigned_to:
         task.assigned_to = assigned_to
 
-    from datetime import datetime, timezone
+    from datetime import datetime
 
-    task.updated_at = datetime.now(timezone.utc)
+    task.updated_at = datetime.now(UTC)
 
     if status == "completed":
-        task.completed_at = datetime.now(timezone.utc)
+        task.completed_at = datetime.now(UTC)
 
     await session.commit()
     await session.refresh(task)

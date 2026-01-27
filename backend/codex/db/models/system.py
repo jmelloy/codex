@@ -9,9 +9,8 @@ These models are stored in the system database (codex_system.db):
 """
 
 from datetime import datetime
-from typing import Optional, List
 
-from sqlmodel import Field, SQLModel, Relationship
+from sqlmodel import Field, Relationship, SQLModel
 
 from .base import utc_now
 
@@ -21,17 +20,17 @@ class User(SQLModel, table=True):
 
     __tablename__ = "users"  # type: ignore[assignment]
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     username: str = Field(unique=True, index=True)
     email: str = Field(unique=True, index=True)
     hashed_password: str
     is_active: bool = Field(default=True)
-    theme_setting: Optional[str] = Field(default="cream")  # User's preferred theme
+    theme_setting: str | None = Field(default="cream")  # User's preferred theme
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
 
     # Relationships
-    workspaces: List["Workspace"] = Relationship(back_populates="owner")
+    workspaces: list[Workspace] = Relationship(back_populates="owner")
 
 
 class Workspace(SQLModel, table=True):
@@ -39,18 +38,18 @@ class Workspace(SQLModel, table=True):
 
     __tablename__ = "workspaces"  # type: ignore[assignment]
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     name: str = Field(index=True)
     path: str = Field(unique=True)  # Filesystem path
     owner_id: int = Field(foreign_key="users.id")
-    theme_setting: Optional[str] = Field(default="cream")  # User's preferred theme
+    theme_setting: str | None = Field(default="cream")  # User's preferred theme
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
 
     # Relationships
     owner: User = Relationship(back_populates="workspaces")
-    permissions: List["WorkspacePermission"] = Relationship(back_populates="workspace")
-    notebooks: List["Notebook"] = Relationship(back_populates="workspace")
+    permissions: list[WorkspacePermission] = Relationship(back_populates="workspace")
+    notebooks: list[Notebook] = Relationship(back_populates="workspace")
 
 
 class WorkspacePermission(SQLModel, table=True):
@@ -58,7 +57,7 @@ class WorkspacePermission(SQLModel, table=True):
 
     __tablename__ = "workspace_permissions"  # type: ignore[assignment]
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     workspace_id: int = Field(foreign_key="workspaces.id")
     user_id: int = Field(foreign_key="users.id")
     permission_level: str = Field(default="read")  # read, write, admin
@@ -73,15 +72,15 @@ class Task(SQLModel, table=True):
 
     __tablename__ = "tasks"  # type: ignore[assignment]
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     workspace_id: int = Field(foreign_key="workspaces.id")
     title: str
-    description: Optional[str] = None
+    description: str | None = None
     status: str = Field(default="pending")  # pending, in_progress, completed, failed
-    assigned_to: Optional[str] = None  # Agent identifier
+    assigned_to: str | None = None  # Agent identifier
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
-    completed_at: Optional[datetime] = None
+    completed_at: datetime | None = None
 
 
 class Notebook(SQLModel, table=True):
@@ -89,11 +88,11 @@ class Notebook(SQLModel, table=True):
 
     __tablename__ = "notebooks"  # type: ignore[assignment]
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     workspace_id: int = Field(foreign_key="workspaces.id", index=True)
     name: str = Field(index=True)
     path: str = Field(index=True)  # Relative path from workspace
-    description: Optional[str] = None
+    description: str | None = None
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
 

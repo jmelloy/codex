@@ -2,7 +2,7 @@
 
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, status, Response
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
@@ -10,14 +10,14 @@ from sqlmodel import select
 from codex.api.auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
     create_access_token,
-    verify_password,
-    get_password_hash,
     get_current_active_user,
+    get_password_hash,
+    verify_password,
 )
+from codex.api.routes.workspaces import WorkspaceCreate, create_workspace
+from codex.api.schemas import ThemeUpdate, UserCreate, UserResponse
 from codex.db.database import get_system_session
 from codex.db.models import User
-from codex.api.schemas import UserCreate, UserResponse, ThemeUpdate
-from codex.api.routes.workspaces import create_workspace, WorkspaceCreate
 
 router = APIRouter()
 

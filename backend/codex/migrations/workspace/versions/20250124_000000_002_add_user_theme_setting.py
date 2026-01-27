@@ -8,18 +8,19 @@ This migration adds theme_setting to the users table for existing databases.
 The initial schema (001) already includes this column for fresh installations.
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
-from sqlalchemy import inspect
 import sqlalchemy as sa
 import sqlmodel
+from sqlalchemy import inspect
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "002"
-down_revision: Union[str, None] = "001"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "001"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def column_exists(table_name: str, column_name: str) -> bool:

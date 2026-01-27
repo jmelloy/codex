@@ -1,8 +1,10 @@
 """Tests for user registration."""
 
-import pytest
 import time
-from httpx import AsyncClient, ASGITransport
+
+import pytest
+from httpx import ASGITransport, AsyncClient
+
 from codex.main import app
 
 

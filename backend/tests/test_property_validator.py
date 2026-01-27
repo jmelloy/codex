@@ -1,6 +1,5 @@
 """Tests for property validator used in dynamic views."""
 
-import pytest
 from codex.core.property_validator import PropertyValidator
 
 

@@ -127,6 +127,7 @@ def run_all_migrations(data_directory: str) -> int:
 
 if __name__ == "__main__":
     import sys
+
     from codex.db.database import DATA_DIRECTORY
 
     if len(sys.argv) > 1:

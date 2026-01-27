@@ -1,18 +1,21 @@
 """File system watcher for monitoring changes."""
 
-import json
-import os
 import hashlib
-import threading
-from pathlib import Path
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
-from typing import Optional, Callable
+import json
 import logging
+import os
+import threading
+from collections.abc import Callable
+from datetime import UTC
+from pathlib import Path
+
+from sqlmodel import select
+from watchdog.events import FileSystemEventHandler
+from watchdog.observers import Observer
+
 from codex.core.metadata import MetadataParser
 from codex.db.database import get_notebook_session
-from codex.db.models import FileMetadata, Notebook
-from sqlmodel import select
+from codex.db.models import FileMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +77,7 @@ def get_content_type(filepath: str) -> str:
 class NotebookFileHandler(FileSystemEventHandler):
     """Handler for file system events in a notebook."""
 
-    def __init__(self, notebook_path: str, notebook_id: int, callback: Optional[Callable] = None):
+    def __init__(self, notebook_path: str, notebook_id: int, callback: Callable | None = None):
         self.notebook_path = notebook_path
         self.notebook_id = notebook_id
         self.callback = callback
@@ -128,9 +131,9 @@ class NotebookFileHandler(FileSystemEventHandler):
                         file_meta.size = file_stats.st_size
                         file_meta.hash = file_hash
                         file_meta.content_type = content_type
-                        from datetime import datetime, timezone
+                        from datetime import datetime
 
-                        file_meta.updated_at = datetime.now(timezone.utc)
+                        file_meta.updated_at = datetime.now(UTC)
                         file_meta.file_modified_at = datetime.fromtimestamp(file_stats.st_mtime)
                         file_meta.properties = json.dumps(metadata)
 
@@ -210,9 +213,9 @@ class NotebookFileHandler(FileSystemEventHandler):
                                 file_meta.size = file_stats.st_size
                                 file_meta.hash = file_hash
                                 file_meta.content_type = content_type
-                                from datetime import datetime, timezone
+                                from datetime import datetime
 
-                                file_meta.updated_at = datetime.now(timezone.utc)
+                                file_meta.updated_at = datetime.now(UTC)
                                 file_meta.file_modified_at = datetime.fromtimestamp(file_stats.st_mtime)
                                 session.commit()
                         else:
@@ -257,14 +260,14 @@ class NotebookFileHandler(FileSystemEventHandler):
 class NotebookWatcher:
     """Watcher for monitoring notebook filesystem changes."""
 
-    def __init__(self, notebook_path: str, notebook_id: int, callback: Optional[Callable] = None):
+    def __init__(self, notebook_path: str, notebook_id: int, callback: Callable | None = None):
         self.notebook_path = notebook_path
         self.notebook_id = notebook_id
         self.callback = callback
         self.observer = Observer()
         self.handler = NotebookFileHandler(notebook_path, notebook_id, callback)
         self._indexing_status = "not_started"  # not_started, in_progress, completed, error
-        self._indexing_thread: Optional[threading.Thread] = None
+        self._indexing_thread: threading.Thread | None = None
 
     def start(self):
         """Start watching the notebook directory."""

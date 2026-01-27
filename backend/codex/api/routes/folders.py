@@ -1,9 +1,10 @@
 """Folder routes for folder metadata and properties."""
 
 import json
+import logging
 import os
 import shutil
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -13,7 +14,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from codex.api.auth import get_current_active_user
-import logging
 from codex.core.metadata import MetadataParser
 from codex.db.database import get_notebook_session, get_system_session
 from codex.db.models import FileMetadata, Notebook, User, Workspace
@@ -226,8 +226,8 @@ def get_subfolders(folder_path: str, notebook_path: Path) -> list[dict]:
                     "title": properties.get("title") if properties else None,
                     "description": properties.get("description") if properties else None,
                     "properties": properties,
-                    "created_at": datetime.fromtimestamp(folder_stats.st_ctime, tz=timezone.utc).isoformat(),
-                    "updated_at": datetime.fromtimestamp(folder_stats.st_mtime, tz=timezone.utc).isoformat(),
+                    "created_at": datetime.fromtimestamp(folder_stats.st_ctime, tz=UTC).isoformat(),
+                    "updated_at": datetime.fromtimestamp(folder_stats.st_mtime, tz=UTC).isoformat(),
                 }
             )
 
@@ -311,8 +311,8 @@ async def get_folder(
                 "total": total_file_count,
                 "has_more": skip + len(files) < total_file_count,
             },
-            "created_at": datetime.fromtimestamp(folder_stats.st_ctime, tz=timezone.utc).isoformat(),
-            "updated_at": datetime.fromtimestamp(folder_stats.st_mtime, tz=timezone.utc).isoformat(),
+            "created_at": datetime.fromtimestamp(folder_stats.st_ctime, tz=UTC).isoformat(),
+            "updated_at": datetime.fromtimestamp(folder_stats.st_mtime, tz=UTC).isoformat(),
         }
 
         return result
@@ -386,8 +386,8 @@ async def update_folder_properties(
             "description": request.properties.get("description"),
             "properties": request.properties,
             "file_count": file_count,
-            "created_at": datetime.fromtimestamp(folder_stats.st_ctime, tz=timezone.utc).isoformat(),
-            "updated_at": datetime.fromtimestamp(folder_stats.st_mtime, tz=timezone.utc).isoformat(),
+            "created_at": datetime.fromtimestamp(folder_stats.st_ctime, tz=UTC).isoformat(),
+            "updated_at": datetime.fromtimestamp(folder_stats.st_mtime, tz=UTC).isoformat(),
         }
 
         return result

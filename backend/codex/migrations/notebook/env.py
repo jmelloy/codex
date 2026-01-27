@@ -5,7 +5,7 @@ import sys
 from logging.config import fileConfig
 from pathlib import Path
 
-from sqlalchemy import pool, create_engine, MetaData, Table, Column, Integer, String, Boolean, DateTime, ForeignKey
+from sqlalchemy import MetaData, create_engine, pool
 from sqlalchemy.engine import Connection
 
 from alembic import context

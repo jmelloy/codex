@@ -1,12 +1,12 @@
 """Database connection and session management."""
 
 import os
+from collections.abc import AsyncGenerator
 from pathlib import Path
-from typing import AsyncGenerator
 
-from sqlmodel import create_engine, Session, SQLModel
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
+from sqlmodel import Session, create_engine
 
 # System database (users, workspaces, permissions, tasks)
 SYSTEM_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./codex_system.db")
@@ -24,7 +24,7 @@ system_engine_sync = create_engine(SYSTEM_DATABASE_URL, echo=False, connect_args
 async_session_maker = sessionmaker(system_engine, class_=AsyncSession, expire_on_commit=False)
 
 
-async def get_system_session() -> AsyncGenerator[AsyncSession, None]:
+async def get_system_session() -> AsyncGenerator[AsyncSession]:
     """Get async database session for system database."""
     async with async_session_maker() as session:
         yield session
@@ -42,6 +42,7 @@ def run_alembic_migrations():
     application startup and Docker containers.
     """
     from alembic.config import Config
+
     from alembic import command
 
     # Find alembic.ini relative to this file - now it's in backend/ not backend/codex/
@@ -71,9 +72,9 @@ def run_notebook_alembic_migrations(notebook_path: str):
         notebook_path: Path to the notebook directory (where .codex/notebook.db resides)
     """
     from alembic.config import Config
+    from sqlalchemy import create_engine, inspect
+
     from alembic import command
-    from sqlalchemy import inspect, create_engine, text
-    from alembic.runtime.migration import MigrationContext
 
     # Find alembic.ini relative to this file - now it's in backend/ not backend/codex/
     backend_dir = Path(__file__).parent.parent.parent

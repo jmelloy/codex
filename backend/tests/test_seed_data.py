@@ -8,14 +8,14 @@ Tests that the seed script:
 - Can clean up test data
 """
 
-import pytest
-import asyncio
 from pathlib import Path
+
+import pytest
 from sqlmodel import select
 
-from codex.scripts.seed_test_data import seed_data, clean_test_data, TEST_USERS
 from codex.db.database import get_system_session, init_system_db
-from codex.db.models import User, Workspace, Notebook
+from codex.db.models import Notebook, User, Workspace
+from codex.scripts.seed_test_data import TEST_USERS, clean_test_data, seed_data
 
 
 @pytest.mark.asyncio

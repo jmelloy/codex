@@ -15,21 +15,21 @@ Notebook models (backend/db/models/notebook.py):
 # Re-export shared utilities
 from .base import utc_now
 
-# Re-export system models
-from .system import (
-    User,
-    Workspace,
-    WorkspacePermission,
-    Task,
-    Notebook,
-)
-
 # Re-export notebook models
 from .notebook import (
     FileMetadata,
-    Tag,
     FileTag,
     SearchIndex,
+    Tag,
+)
+
+# Re-export system models
+from .system import (
+    Notebook,
+    Task,
+    User,
+    Workspace,
+    WorkspacePermission,
 )
 
 __all__ = [

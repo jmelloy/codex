@@ -3,7 +3,6 @@
 
 import logging
 import logging.config
-import sys
 import tempfile
 from pathlib import Path
 

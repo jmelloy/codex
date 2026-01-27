@@ -2,8 +2,6 @@
 
 import re
 from pathlib import Path
-from typing import Optional
-from unicodedata import name
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -12,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from codex.api.auth import get_current_active_user
-from codex.db.database import get_system_session, DATA_DIRECTORY
+from codex.db.database import DATA_DIRECTORY, get_system_session
 from codex.db.models import User, Workspace
 
 
@@ -20,7 +18,7 @@ class WorkspaceCreate(BaseModel):
     """Request body for creating a workspace."""
 
     name: str
-    path: Optional[str] = None
+    path: str | None = None
 
 
 class ThemeUpdate(BaseModel):

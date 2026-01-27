@@ -1,12 +1,11 @@
 """Git integration for automatic tracking."""
 
+import logging
 import os
 from pathlib import Path
-from typing import Optional, List
-import git
-from git import Repo, InvalidGitRepositoryError
 
-import logging
+from git import InvalidGitRepositoryError, Repo
+
 from codex.core.git_lock_manager import git_lock_manager
 
 logger = logging.getLogger(__name__)
@@ -123,7 +122,7 @@ class GitManager:
             except Exception as e:
                 logger.error(f"Error adding file to git: {e}")
 
-    def commit(self, message: str, files: Optional[List[str]] = None):
+    def commit(self, message: str, files: list[str] | None = None):
         """Commit changes to Git."""
         if not self.repo:
             return
@@ -151,7 +150,7 @@ class GitManager:
                 logger.error(f"Error committing to git: {e}")
                 return None
 
-    def get_file_history(self, filepath: str, max_count: int = 10) -> List[dict]:
+    def get_file_history(self, filepath: str, max_count: int = 10) -> list[dict]:
         """Get commit history for a specific file."""
         if not self.repo:
             return []
@@ -177,7 +176,7 @@ class GitManager:
                 logger.error(f"Error getting file history: {e}")
                 return []
 
-    def get_file_at_commit(self, filepath: str, commit_hash: str) -> Optional[str]:
+    def get_file_at_commit(self, filepath: str, commit_hash: str) -> str | None:
         """Get file content at a specific commit."""
         if not self.repo:
             return None
@@ -194,7 +193,7 @@ class GitManager:
                 logger.error(f"Error getting file at commit: {e}")
                 return None
 
-    def get_diff(self, filepath: str, commit_hash1: str, commit_hash2: str = "HEAD") -> Optional[str]:
+    def get_diff(self, filepath: str, commit_hash1: str, commit_hash2: str = "HEAD") -> str | None:
         """Get diff between two commits for a file."""
         if not self.repo:
             return None
@@ -214,7 +213,7 @@ class GitManager:
                 logger.error(f"Error getting diff: {e}")
                 return None
 
-    def auto_commit_on_change(self, filepath: str, sidecar: Optional[str] = None) -> Optional[str]:
+    def auto_commit_on_change(self, filepath: str, sidecar: str | None = None) -> str | None:
         """Automatically commit a file when it changes."""
         if not self.repo:
             return

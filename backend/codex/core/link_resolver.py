@@ -1,7 +1,6 @@
 """Link resolution utility for resolving file references between documents."""
 
 from pathlib import Path
-from typing import Optional
 from urllib.parse import unquote
 
 
@@ -15,7 +14,7 @@ class LinkResolver:
     """
 
     @staticmethod
-    def resolve_link(link: str, current_file_path: Optional[str] = None, notebook_root: Optional[Path] = None) -> str:
+    def resolve_link(link: str, current_file_path: str | None = None, notebook_root: Path | None = None) -> str:
         """Resolve a link to a target file path.
 
         Args:

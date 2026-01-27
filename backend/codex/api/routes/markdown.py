@@ -1,5 +1,6 @@
 """Markdown file routes for viewing and editing."""
 
+import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -10,7 +11,6 @@ from codex.api.auth import get_current_active_user
 from codex.core.metadata import MetadataParser
 from codex.db.database import get_system_session
 from codex.db.models import User, Workspace
-import logging
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

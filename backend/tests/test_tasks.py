@@ -2,8 +2,6 @@
 
 import time
 
-from codex.main import app
-
 
 def setup_test_user(test_client):
     """Register and login a test user for task tests."""

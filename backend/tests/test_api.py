@@ -1,7 +1,7 @@
 """Basic tests for the API."""
 
-import pytest
 from fastapi.testclient import TestClient
+
 from codex.main import app
 
 client = TestClient(app)

@@ -1,10 +1,9 @@
 """Lock manager for git operations to prevent conflicts."""
 
 import asyncio
-import threading
-from typing import Dict
-from contextlib import contextmanager, asynccontextmanager
 import logging
+import threading
+from contextlib import asynccontextmanager, contextmanager
 
 logger = logging.getLogger(__name__)
 
@@ -35,11 +34,11 @@ class GitLockManager:
             return
 
         # Threading locks for synchronous operations
-        self._sync_locks: Dict[str, threading.RLock] = {}
+        self._sync_locks: dict[str, threading.RLock] = {}
         self._sync_locks_lock = threading.Lock()
 
         # Asyncio locks for asynchronous operations
-        self._async_locks: Dict[str, asyncio.Lock] = {}
+        self._async_locks: dict[str, asyncio.Lock] = {}
         self._async_locks_lock = threading.Lock()
 
         self._initialized = True

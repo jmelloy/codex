@@ -1,8 +1,10 @@
 """Tests for user endpoints and authentication."""
 
 import time
+
 import pytest
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport, AsyncClient
+
 from codex.main import app
 
 

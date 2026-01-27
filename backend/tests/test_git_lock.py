@@ -1,14 +1,15 @@
 """Tests for git lock manager to ensure concurrent operations don't conflict."""
 
-import pytest
-import tempfile
-import threading
-import time
 import os
-from pathlib import Path
+import tempfile
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from codex.core.git_manager import GitManager
+from pathlib import Path
+
+import pytest
+
 from codex.core.git_lock_manager import git_lock_manager
+from codex.core.git_manager import GitManager
 
 
 @pytest.fixture

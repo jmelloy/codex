@@ -3,23 +3,19 @@
 import asyncio
 import logging
 import os
-import sys
-import traceback
 from contextlib import asynccontextmanager
+from contextvars import ContextVar
 from pathlib import Path
 
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from sqlmodel import select
+from ulid import ULID
 
 from codex.api.routes import files, folders, markdown, notebooks, query, search, tasks, users, workspaces
 from codex.core.watcher import NotebookWatcher
-from codex.db.database import get_system_session_sync, init_system_db, init_notebook_db
+from codex.db.database import get_system_session_sync, init_notebook_db, init_system_db
 from codex.db.models import Notebook, Workspace
-
-from contextvars import ContextVar
-from ulid import ULID
 
 request_id_var: ContextVar[str] = ContextVar("request_id", default="")
 

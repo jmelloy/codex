@@ -1,18 +1,18 @@
 """Authentication utilities."""
 
-from datetime import datetime, timedelta, timezone
-from typing import Optional
 import hashlib
-import secrets
-from jose import JWTError, jwt
-from fastapi import Depends, HTTPException, status, Request, Cookie
-from fastapi.security import OAuth2PasswordBearer
-from sqlmodel import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from codex.db.models import User
-from codex.db.database import get_system_session
 import os
+import secrets
+from datetime import UTC, datetime, timedelta
+
+from fastapi import Cookie, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
+
+from codex.db.database import get_system_session
+from codex.db.models import User
 
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
 ALGORITHM = "HS256"
@@ -46,19 +46,19 @@ def get_password_hash(password: str) -> str:
     return f"{salt.hex()}${password_hash.hex()}"
 
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     """Create a JWT access token."""
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
+        expire = datetime.now(UTC) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
+        expire = datetime.now(UTC) + timedelta(minutes=15)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
 
-async def get_user_by_username(username: str, session: AsyncSession) -> Optional[User]:
+async def get_user_by_username(username: str, session: AsyncSession) -> User | None:
     """Retrieve a user by username."""
     result = await session.execute(select(User).where(User.username == username))
     return result.scalar_one_or_none()
@@ -66,8 +66,8 @@ async def get_user_by_username(username: str, session: AsyncSession) -> Optional
 
 async def get_current_user(
     session: AsyncSession = Depends(get_system_session),
-    token: Optional[str] = Depends(oauth2_scheme),
-    access_token: Optional[str] = Cookie(None),
+    token: str | None = Depends(oauth2_scheme),
+    access_token: str | None = Cookie(None),
 ) -> User:
     """Get the current authenticated user from Bearer token or cookie."""
     credentials_exception = HTTPException(

@@ -1,7 +1,7 @@
 """Tests for the implemented TODO endpoints."""
 
-from pathlib import Path
 from fastapi.testclient import TestClient
+
 from codex.main import app
 
 client = TestClient(app)

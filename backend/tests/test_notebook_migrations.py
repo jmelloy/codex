@@ -1,14 +1,10 @@
 """Test notebook Alembic migrations."""
 
-import os
-import shutil
-import tempfile
-from pathlib import Path
 
 import pytest
 from sqlalchemy import inspect, text
 
-from codex.db.database import init_notebook_db, get_notebook_engine
+from codex.db.database import init_notebook_db
 
 
 class TestNotebookMigrations:

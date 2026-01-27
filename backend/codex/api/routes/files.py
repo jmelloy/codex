@@ -1,21 +1,22 @@
 """File routes."""
 
 import json
+import logging
 import mimetypes
 import os
+from datetime import UTC
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from codex.api.auth import get_current_active_user
-import logging
-from codex.core.metadata import MetadataParser
 from codex.core.link_resolver import LinkResolver
+from codex.core.metadata import MetadataParser
 from codex.core.watcher import get_content_type
 from codex.db.database import get_notebook_session, get_system_session
 from codex.db.models import FileMetadata, Notebook, User, Workspace
@@ -1307,7 +1308,7 @@ async def move_file(
             # 2. filename.json (suffix)
             old_sidecar_name = os.path.basename(old_sidecar)
             old_filename = os.path.basename(old_file_path)
-            
+
             if old_sidecar_name.startswith("."):
                 # Dot prefix format: .filename.ext.sidecar_ext
                 # Extract the sidecar suffix (e.g., .json)
@@ -1319,18 +1320,18 @@ async def move_file(
                 # Extract the sidecar suffix (e.g., .json)
                 sidecar_suffix = old_sidecar_name[len(old_filename):]
                 new_sidecar = str(new_file_path) + sidecar_suffix
-            
+
             if Path(old_sidecar).exists():
                 shutil.move(old_sidecar, new_sidecar)
                 logger.debug(f"Moved sidecar file from {old_sidecar} to {new_sidecar}")
 
         # Update metadata
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         old_path = file_meta.path
         file_meta.path = new_path
         file_meta.filename = os.path.basename(new_path)
-        file_meta.updated_at = datetime.now(timezone.utc)
+        file_meta.updated_at = datetime.now(UTC)
 
         # Commit changes to git
         from codex.core.git_manager import GitManager

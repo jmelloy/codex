@@ -11,11 +11,11 @@ Usage:
     python -m codex.scripts.take_screenshots --output-dir ./screenshots
 """
 
-import asyncio
 import argparse
+import asyncio
 from pathlib import Path
-from playwright.async_api import async_playwright, Browser, Page
-from typing import List, Dict
+
+from playwright.async_api import Browser, Page, async_playwright
 
 # Available themes in Codex
 THEMES = [
@@ -94,7 +94,7 @@ async def set_theme(page: Page, theme_name: str, theme_slug: str):
 
 
 async def take_page_screenshot(
-    page: Page, url: str, filename: str, wait_for: str = None, viewport: Dict[str, int] = None
+    page: Page, url: str, filename: str, wait_for: str = None, viewport: dict[str, int] = None
 ):
     """Take a screenshot of a specific page."""
     if viewport:
@@ -269,7 +269,7 @@ async def main(args):
     output_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"📁 Output directory: {output_dir}")
-    print(f"🌐 Target URL: http://localhost:5173")
+    print("🌐 Target URL: http://localhost:5173")
     print(f"👤 Test user: {TEST_USER['username']}")
 
     async with async_playwright() as p:

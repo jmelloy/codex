@@ -2,8 +2,6 @@
 
 import time
 from pathlib import Path
-from uuid import uuid4
-from codex.main import app
 
 
 def setup_test_user(test_client):

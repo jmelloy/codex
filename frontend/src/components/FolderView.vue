@@ -200,9 +200,17 @@
           v-for="file in sortedFiles"
           :key="file.id"
           class="file-card"
+          :class="{ 'has-thumbnail': isImageFile(file) }"
           @click="$emit('selectFile', file)"
         >
-          <div class="file-card-icon">
+          <div v-if="isImageFile(file)" class="file-card-thumbnail">
+            <img
+              :src="getThumbnailUrl(file)"
+              :alt="file.properties?.title || file.title || file.filename"
+              loading="lazy"
+            />
+          </div>
+          <div v-else class="file-card-icon">
             <component :is="getFileIcon(file.content_type)" />
           </div>
           <div class="file-card-info">
@@ -241,7 +249,7 @@
           </div>
           <div class="file-row-type">Folder</div>
           <div class="file-row-size">-</div>
-          <div class="file-row-date">{{ formatDate(subfolder.updated_at || '') }}</div>
+          <div class="file-row-date">{{ formatDate(subfolder.updated_at || "") }}</div>
         </div>
         <!-- Files -->
         <div
@@ -251,7 +259,14 @@
           @click="$emit('selectFile', file)"
         >
           <div class="file-row-icon">
-            <component :is="getFileIcon(file.content_type)" />
+            <img
+              v-if="isImageFile(file)"
+              :src="getThumbnailUrl(file)"
+              :alt="file.properties?.title || file.title || file.filename"
+              class="file-row-thumbnail"
+              loading="lazy"
+            />
+            <component v-else :is="getFileIcon(file.content_type)" />
           </div>
           <div class="file-row-name">
             {{ file.properties?.title || file.title || file.filename }}
@@ -294,7 +309,14 @@
           class="file-compact"
           @click="$emit('selectFile', file)"
         >
-          <component :is="getFileIcon(file.content_type)" class="file-compact-icon" />
+          <img
+            v-if="isImageFile(file)"
+            :src="getThumbnailUrl(file)"
+            :alt="file.properties?.title || file.title || file.filename"
+            class="file-compact-thumbnail"
+            loading="lazy"
+          />
+          <component v-else :is="getFileIcon(file.content_type)" class="file-compact-icon" />
           <span class="file-compact-name">{{
             file.properties?.title || file.title || file.filename
           }}</span>
@@ -324,12 +346,28 @@
 import { ref, computed, h } from "vue"
 import type { FolderWithFiles, FileMetadata, SubfolderMetadata } from "../services/codex"
 import { getDisplayType } from "../utils/contentType"
+import { useWorkspaceStore } from "../stores/workspace"
 
 interface Props {
   folder: FolderWithFiles
 }
 
 const props = defineProps<Props>()
+const workspaceStore = useWorkspaceStore()
+
+// Check if a file is an image
+function isImageFile(file: FileMetadata): boolean {
+  return (
+    file.content_type.startsWith("image/") ||
+    /\.(jpg|jpeg|png|gif|bmp|webp|svg)$/i.test(file.filename)
+  )
+}
+
+// Get thumbnail URL for an image file
+function getThumbnailUrl(file: FileMetadata): string {
+  const workspaceId = workspaceStore.currentWorkspace?.id
+  return `/api/v1/files/${file.id}/content?workspace_id=${workspaceId}&notebook_id=${file.notebook_id}`
+}
 
 defineEmits<{
   selectFile: [file: FileMetadata]
@@ -637,7 +675,8 @@ function getFileIcon(contentType: string) {
 }
 
 .files-container {
-  flex: 1;
+  flex: 1 1 0;
+  min-height: 0;
   overflow-y: auto;
   padding: var(--spacing-xl);
 }
@@ -645,7 +684,7 @@ function getFileIcon(contentType: string) {
 /* Grid View */
 .files-container.grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: var(--spacing-lg);
   align-content: start;
 }
@@ -791,6 +830,52 @@ function getFileIcon(contentType: string) {
 .folder-row:hover,
 .folder-compact:hover {
   border-color: var(--color-primary);
+}
+
+/* Thumbnail styles */
+.file-card.has-thumbnail {
+  padding: 0;
+  overflow: hidden;
+  min-height: fit-content;
+}
+
+.file-card.has-thumbnail .file-card-info {
+  padding: var(--spacing-sm) var(--spacing-md);
+}
+
+.file-card-thumbnail {
+  width: 100%;
+  height: 140px;
+  min-height: 140px;
+  flex-shrink: 0;
+  overflow: hidden;
+  background: var(--color-bg-tertiary);
+}
+
+.file-card-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.2s;
+}
+
+.file-card:hover .file-card-thumbnail img {
+  transform: scale(1.05);
+}
+
+.file-row-thumbnail {
+  width: 24px;
+  height: 24px;
+  object-fit: cover;
+  border-radius: var(--radius-xs);
+}
+
+.file-compact-thumbnail {
+  width: 16px;
+  height: 16px;
+  object-fit: cover;
+  border-radius: 2px;
+  flex-shrink: 0;
 }
 
 /* Empty State */

@@ -390,7 +390,7 @@ async def get_file(
         # Parse frontmatter from file content if it's a markdown or view file
         properties = None
         if raw_content and file_meta.content_type in ["text/markdown", "application/x-codex-view"]:
-            properties, content = MetadataParser.parse_frontmatter(raw_content)
+            properties, body_content = MetadataParser.parse_frontmatter(raw_content)
             # Sync properties to DB cache if they changed
             properties_json = json.dumps(properties) if properties else None
             if file_meta.properties != properties_json:
@@ -402,6 +402,12 @@ async def get_file(
                     if "description" in properties:
                         file_meta.description = properties["description"]
                 nb_session.commit()
+            # For view files, return raw content so frontend can parse the full view definition
+            # For markdown files, return body content without frontmatter
+            if file_meta.content_type == "application/x-codex-view":
+                content = raw_content
+            else:
+                content = body_content
         else:
             content = raw_content
             # Try to load cached properties from DB
@@ -577,7 +583,7 @@ async def get_file_by_path(
         # Parse frontmatter from file content if it's a markdown or view file
         properties = None
         if raw_content and file_meta.content_type in ["text/markdown", "application/x-codex-view"]:
-            properties, content = MetadataParser.parse_frontmatter(raw_content)
+            properties, body_content = MetadataParser.parse_frontmatter(raw_content)
             # Sync properties to DB cache if they changed
             properties_json = json.dumps(properties) if properties else None
             if file_meta.properties != properties_json:
@@ -589,6 +595,12 @@ async def get_file_by_path(
                     if "description" in properties:
                         file_meta.description = properties["description"]
                 nb_session.commit()
+            # For view files, return raw content so frontend can parse the full view definition
+            # For markdown files, return body content without frontmatter
+            if file_meta.content_type == "application/x-codex-view":
+                content = raw_content
+            else:
+                content = body_content
         else:
             content = raw_content
             # Try to load cached properties from DB
@@ -954,58 +966,17 @@ async def update_file(
         if not file_path.exists():
             raise HTTPException(status_code=404, detail="File not found on disk")
 
-        from datetime import datetime, timezone
-
-        # Handle content update if provided
-        if content is not None:
-            # Prepare content with frontmatter if properties provided
-            final_content = content
-            if properties and file_meta.content_type in ["text/markdown", "application/x-codex-view"]:
-                # Write frontmatter to file
-                final_content = MetadataParser.write_frontmatter(content, properties)
-
-            # Write new content
-            with open(file_path, "w") as f:
-                f.write(final_content)
-
-            # Update metadata
-            import hashlib
-
-            file_hash = hashlib.sha256(final_content.encode()).hexdigest()
-            file_stats = os.stat(file_path)
-
-            file_meta.size = file_stats.st_size
-            file_meta.hash = file_hash
-            file_meta.file_modified_at = datetime.fromtimestamp(file_stats.st_mtime)
-
-            # Commit file changes to git
-            from codex.core.git_manager import GitManager
-
-            git_manager = GitManager(str(notebook_path))
-            commit_hash = git_manager.commit(f"Update {file_meta.filename}", [str(file_path)])
-            if commit_hash:
-                file_meta.last_commit_hash = commit_hash
-
-        # Update properties cache and indexed fields (works for both text and binary files)
-        file_meta.updated_at = datetime.now(timezone.utc)
         if properties is not None:
-            file_meta.properties = json.dumps(properties)
-            # Extract title/description for indexed search
-            if "title" in properties:
-                file_meta.title = properties["title"]
-            if "description" in properties:
-                file_meta.description = properties["description"]
+            if content and file_meta.content_type in ["text/markdown", "application/x-codex-view"]:
+                # Write frontmatter to file
+                content = MetadataParser.write_frontmatter(content, properties)
+            else:
+                MetadataParser.write_sidecar(str(file_path), properties)
+            
+        if content is not None:
+            with open(file_path, "w") as f:
+                f.write(content)
 
-        nb_session.commit()
-        nb_session.refresh(file_meta)
-
-        # Return updated properties
-        result_properties = None
-        if file_meta.properties:
-            try:
-                result_properties = json.loads(file_meta.properties)
-            except json.JSONDecodeError:
-                result_properties = None
 
         result = {
             "id": file_meta.id,
@@ -1017,7 +988,7 @@ async def update_file(
             "hash": file_meta.hash,
             "title": file_meta.title,
             "description": file_meta.description,
-            "properties": result_properties,
+            "properties": properties,
             "updated_at": file_meta.updated_at.isoformat() if file_meta.updated_at else None,
             "message": "File updated successfully",
         }

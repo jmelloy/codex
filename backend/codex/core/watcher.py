@@ -132,6 +132,12 @@ class NotebookFileHandler(FileSystemEventHandler):
 
                         if sidecar:
                             file_meta.sidecar_path = sidecar
+                        
+                        if "title" in metadata:
+                            file_meta.title = metadata["title"]
+                        if "description" in metadata:
+                            file_meta.description = metadata["description"]
+
                     else:
                         # Create new
                         from datetime import datetime
@@ -149,6 +155,10 @@ class NotebookFileHandler(FileSystemEventHandler):
                             file_created_at=datetime.fromtimestamp(file_stats.st_ctime),
                             file_modified_at=datetime.fromtimestamp(file_stats.st_mtime),
                         )
+                        if "title" in metadata:
+                            file_meta.title = metadata["title"]
+                        if "description" in metadata:
+                            file_meta.description = metadata["description"]
                         session.add(file_meta)
 
                     # Auto-commit to git if file should be tracked

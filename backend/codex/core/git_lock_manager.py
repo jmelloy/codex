@@ -91,15 +91,15 @@ class GitLockManager:
                 git_manager.commit("message")
         """
         lock = self._get_sync_lock(notebook_path)
-        logger.debug(f"Acquiring sync lock for: {notebook_path}")
+        # logger.debug(f"Acquiring sync lock for: {notebook_path}")
         lock.acquire()
         try:
-            logger.debug(f"Acquired sync lock for: {notebook_path}")
+            # logger.debug(f"Acquired sync lock for: {notebook_path}")
             yield
         finally:
             lock.release()
-            logger.debug(f"Released sync lock for: {notebook_path}")
-
+            # logger.debug(f"Released sync lock for: {notebook_path}")
+            
     @asynccontextmanager
     async def async_lock(self, notebook_path: str):
         """Context manager for asynchronous git operations.

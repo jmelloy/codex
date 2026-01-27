@@ -174,6 +174,7 @@ class MetadataParser:
         else:
             sidecar_path = f"{filepath}.json"
 
+        logger.debug(f"Writing JSON sidecar to {sidecar_path} with metadata: {metadata}")
         try:
             with open(sidecar_path, "w") as f:
                 json.dump(metadata, f, indent=2)
@@ -210,12 +211,30 @@ class MetadataParser:
             if Path(sidecar_dot).exists():
                 return (filepath, sidecar_dot)
             
-            regular_file = filepath.rstrip(suffix)
-            if Path(regular_file).exists():
-                return (regular_file, filepath)
+            if filepath.endswith(suffix):
+                regular_file = filepath.rstrip(suffix)
+                if Path(regular_file).exists():
+                    return (regular_file, filepath)
             
-            dotfile = str(Path(filepath).parent / f".{Path(filepath).name.rstrip(suffix)}")
-            if Path(dotfile).exists():
-                return (dotfile, filepath)
+                dotfile = str(Path(filepath).parent / f".{Path(filepath).name.rstrip(suffix)}")
+                if Path(dotfile).exists():
+                    return (dotfile, filepath)
 
         return (filepath, None)
+    
+    @staticmethod
+    def write_sidecar(filepath: str, metadata: Dict[str, Any]):
+        """Write metadata to appropriate sidecar file based on existing files or default to JSON."""
+        _, sidecar = MetadataParser.resolve_sidecar(filepath)
+        logger.debug(f"Resolved sidecar for {filepath}: {sidecar}")
+        if sidecar:
+            if sidecar.endswith(".json"):
+                MetadataParser.write_json_sidecar(filepath, metadata, use_dot_prefix=Path(sidecar).name.startswith('.'))
+            elif sidecar.endswith(".md"):
+                MetadataParser.write_markdown_sidecar(filepath, metadata, use_dot_prefix=Path(sidecar).name.startswith('.'))
+            else:
+                # Default to JSON if XML or unknown
+                MetadataParser.write_json_sidecar(filepath, metadata, use_dot_prefix=Path(sidecar).name.startswith('.'))
+        else:
+            # No existing sidecar - default to JSON with dot prefix
+            MetadataParser.write_json_sidecar(filepath, metadata, use_dot_prefix=True)

@@ -711,10 +711,7 @@ onMounted(async () => {
   await workspaceStore.fetchWorkspaces()
   // Auto-select first workspace if none is currently selected
   if (!workspaceStore.currentWorkspace && workspaceStore.workspaces.length > 0) {
-    const firstWorkspace = workspaceStore.workspaces[0]
-    if (firstWorkspace) {
-      workspaceStore.setCurrentWorkspace(firstWorkspace)
-    }
+    workspaceStore.setCurrentWorkspace(workspaceStore.workspaces[0]!)
   }
 })
 

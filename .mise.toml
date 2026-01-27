@@ -8,7 +8,7 @@ _.python.venv = { path = "backend/.venv", create = true }
 [tasks.install]
 description = "Install all dependencies"
 run = """
-pip install -e ".[dev]" 
+pushd backend && uv pip install -e ".[dev]" && popd
 pushd frontend && npm install && popd
 """
 
@@ -19,7 +19,7 @@ run = "docker compose up -d"
 [tasks.test]
 description = "Run all tests"
 run = """
-pytest tests/ -v 
+pushd backend && pytest -v tests/ || popd
 pushd frontend && npm run test || popd
 """
 
@@ -42,6 +42,3 @@ cd backend && ruff check .
 cd frontend && npm run build
 """
 
-[tasks.validate]
-description = "Validate Docker setup"
-run = "./validate-docker.sh"

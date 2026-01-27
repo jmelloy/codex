@@ -362,15 +362,18 @@ class NotebookWatcher:
 
                     rel_path = os.path.relpath(abs_filepath, self.notebook_path)
 
-                    is_sidecar = abs_sidecar and abs_sidecar == abs_filepath 
+                    is_sidecar = abs_sidecar and abs_sidecar == filepath 
 
-                    logger.debug(f"Scanning file: {filename}: {rel_path} (sidecar={is_sidecar})")
+                    # logger.debug(f"Scanning file: {filename}: {rel_path} (sidecar={is_sidecar})")
 
                     seen_files += 1 if not is_sidecar else 0
                     seen_sidecars += 1 if is_sidecar else 0
 
                     existing = existing_files.get(rel_path) 
                     seen_paths.add(rel_path)
+
+                    if abs_filepath in files_to_process:
+                        continue
 
                     try:
                         file_stats = os.stat(filepath)
@@ -390,6 +393,8 @@ class NotebookWatcher:
                             time_diff = abs((file_mtime - existing.file_modified_at).total_seconds())
                             if time_diff > 1:
                                 files_to_process.add(abs_filepath)
+                        elif existing.git_tracked and not existing.last_commit_hash:
+                            files_to_process.add(abs_filepath)
                         else:
                             # No mtime recorded, need to update
                             files_to_process.add(abs_filepath)

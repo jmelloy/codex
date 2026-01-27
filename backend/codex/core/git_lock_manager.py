@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+from pathlib import Path
 import threading
 from contextlib import asynccontextmanager, contextmanager
 
@@ -98,6 +99,13 @@ class GitLockManager:
         finally:
             lock.release()
             # logger.debug(f"Released sync lock for: {notebook_path}")
+            lock_file = Path(notebook_path) / ".git" / "git.lock"
+            if lock_file.exists():
+                try:
+                    lock_file.unlink()
+                    logger.warning(f"Removed stale git lock file: {lock_file}")
+                except Exception as e:
+                    logger.error(f"Error removing git lock file: {e}")
 
     @asynccontextmanager
     async def async_lock(self, notebook_path: str):

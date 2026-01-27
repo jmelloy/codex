@@ -142,10 +142,12 @@ export const notebookService = {
 
 export const fileService = {
   async list(notebookId: number, workspaceId: number): Promise<FileMetadata[]> {
-    const response = await apiClient.get<FileMetadata[]>(
+    const response = await apiClient.get<{ files: FileMetadata[]; pagination: any }>(
       `/api/v1/files/?notebook_id=${notebookId}&workspace_id=${workspaceId}`
     )
-    return response.data
+    // For backwards compatibility, return just the files array
+    // The frontend currently loads all files at once for the tree
+    return response.data.files || response.data
   },
 
   async get(id: number, workspaceId: number, notebookId: number): Promise<FileWithContent> {

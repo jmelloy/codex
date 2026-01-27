@@ -306,16 +306,37 @@ async def create_from_template(
 async def list_files(
     notebook_id: int,
     workspace_id: int,
+    skip: int = 0,
+    limit: int = 1000,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_system_session),
 ):
-    """List all files in a notebook."""
+    """List files in a notebook with pagination.
+    
+    Args:
+        notebook_id: ID of the notebook
+        workspace_id: ID of the workspace
+        skip: Number of files to skip (for pagination)
+        limit: Maximum number of files to return (for pagination, default 1000)
+    """
     notebook_path, _ = await get_notebook_path(notebook_id, workspace_id, current_user, session)
 
     # Query files from notebook database
     nb_session = get_notebook_session(str(notebook_path))
     try:
-        files_result = nb_session.execute(select(FileMetadata).where(FileMetadata.notebook_id == notebook_id))
+        # Get total count
+        count_result = nb_session.execute(select(FileMetadata).where(FileMetadata.notebook_id == notebook_id))
+        total_count = len(count_result.scalars().all())
+        
+        # Get paginated files
+        from sqlmodel import select as sqlmodel_select
+        statement = (
+            sqlmodel_select(FileMetadata)
+            .where(FileMetadata.notebook_id == notebook_id)
+            .offset(skip)
+            .limit(limit)
+        )
+        files_result = nb_session.execute(statement)
         files = files_result.scalars().all()
 
         file_list = []
@@ -346,7 +367,15 @@ async def list_files(
                 }
             )
 
-        return file_list
+        return {
+            "files": file_list,
+            "pagination": {
+                "skip": skip,
+                "limit": limit,
+                "total": total_count,
+                "has_more": skip + len(file_list) < total_count,
+            },
+        }
     finally:
         nb_session.close()
 

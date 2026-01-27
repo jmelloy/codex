@@ -29,6 +29,11 @@ logger = logging.getLogger(__name__)
 _active_watchers: list[NotebookWatcher] = []
 
 
+def get_active_watchers() -> list[NotebookWatcher]:
+    """Get the list of active notebook watchers."""
+    return _active_watchers
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize database on startup."""

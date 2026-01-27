@@ -90,8 +90,14 @@ def write_folder_properties(folder_path: Path, properties: dict[str, Any]) -> No
         f.write(content)
 
 
-def get_folder_files(folder_path: str, notebook_id: int, notebook_path: Path, nb_session) -> list[dict]:
-    """Get files in a specific folder (not recursive)."""
+def get_folder_files(
+    folder_path: str, notebook_id: int, notebook_path: Path, nb_session, skip: int = 0, limit: int = 100
+) -> tuple[list[dict], int]:
+    """Get files in a specific folder (not recursive) with pagination.
+    
+    Returns:
+        Tuple of (files_list, total_count)
+    """
     # Query files that are directly in this folder
     prefix = f"{folder_path}/" if folder_path else ""
 
@@ -99,6 +105,8 @@ def get_folder_files(folder_path: str, notebook_id: int, notebook_path: Path, nb
     all_files = files_result.scalars().all()
 
     folder_files = []
+    total_count = 0
+    
     for f in all_files:
         # Skip .file metadata files
         if f.filename == FOLDER_METADATA_FILE:
@@ -117,6 +125,14 @@ def get_folder_files(folder_path: str, notebook_id: int, notebook_path: Path, nb
             # Root level files have no / in their path
             if "/" in f.path:
                 continue
+
+        total_count += 1
+        
+        # Apply pagination
+        if total_count <= skip:
+            continue
+        if len(folder_files) >= limit:
+            continue
 
         # Parse properties JSON if available
         properties = None
@@ -142,7 +158,7 @@ def get_folder_files(folder_path: str, notebook_id: int, notebook_path: Path, nb
             }
         )
 
-    return folder_files
+    return folder_files, total_count
 
 
 def get_subfolders(folder_path: str, notebook_path: Path) -> list[dict]:
@@ -182,12 +198,21 @@ async def get_folder(
     folder_path: str,
     notebook_id: int,
     workspace_id: int,
+    skip: int = 0,
+    limit: int = 100,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_system_session),
 ):
-    """Get folder metadata and its files.
+    """Get folder metadata and its files with pagination.
 
     The folder properties are stored in a .file within the folder.
+    
+    Args:
+        folder_path: Path to the folder
+        notebook_id: ID of the notebook
+        workspace_id: ID of the workspace
+        skip: Number of files to skip (for pagination)
+        limit: Maximum number of files to return (for pagination)
     """
     notebook_path, _ = await get_notebook_path(notebook_id, workspace_id, current_user, session)
 
@@ -219,8 +244,7 @@ async def get_folder(
     # Count files in folder (excluding .file)
     nb_session = get_notebook_session(str(notebook_path))
     try:
-        files = get_folder_files(folder_path, notebook_id, notebook_path, nb_session)
-        file_count = len(files)
+        files, total_file_count = get_folder_files(folder_path, notebook_id, notebook_path, nb_session, skip, limit)
 
         # Get subfolders
         subfolders = get_subfolders(folder_path, notebook_path)
@@ -235,9 +259,15 @@ async def get_folder(
             "title": properties.get("title") if properties else None,
             "description": properties.get("description") if properties else None,
             "properties": properties,
-            "file_count": file_count,
+            "file_count": total_file_count,
             "files": files,
             "subfolders": subfolders,
+            "pagination": {
+                "skip": skip,
+                "limit": limit,
+                "total": total_file_count,
+                "has_more": skip + len(files) < total_file_count,
+            },
             "created_at": datetime.fromtimestamp(folder_stats.st_ctime, tz=timezone.utc).isoformat(),
             "updated_at": datetime.fromtimestamp(folder_stats.st_mtime, tz=timezone.utc).isoformat(),
         }
@@ -299,8 +329,7 @@ async def update_folder_properties(
         # Count files
         nb_session = get_notebook_session(str(notebook_path))
         try:
-            files = get_folder_files(folder_path, notebook_id, notebook_path, nb_session)
-            file_count = len(files)
+            files, file_count = get_folder_files(folder_path, notebook_id, notebook_path, nb_session, 0, 100)
         finally:
             nb_session.close()
 

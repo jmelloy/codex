@@ -100,6 +100,41 @@ async def get_notebook(
     }
 
 
+@router.get("/{notebook_id}/indexing-status")
+async def get_notebook_indexing_status(
+    notebook_id: int,
+    workspace_id: int,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Get the indexing status for a notebook."""
+    # Verify workspace access
+    result = await session.execute(
+        select(Workspace).where(Workspace.id == workspace_id, Workspace.owner_id == current_user.id)
+    )
+    workspace = result.scalar_one_or_none()
+    if not workspace:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+
+    # Verify notebook exists
+    result = await session.execute(
+        select(Notebook).where(Notebook.id == notebook_id, Notebook.workspace_id == workspace_id)
+    )
+    notebook = result.scalar_one_or_none()
+    if not notebook:
+        raise HTTPException(status_code=404, detail="Notebook not found")
+
+    # Find the watcher for this notebook
+    from codex.main import get_active_watchers
+
+    for watcher in get_active_watchers():
+        if watcher.notebook_id == notebook_id:
+            return watcher.get_indexing_status()
+
+    # If no watcher found, indexing hasn't started
+    return {"notebook_id": notebook_id, "status": "not_started", "is_alive": False}
+
+
 @router.post("/")
 async def create_notebook(
     body: NotebookCreate,

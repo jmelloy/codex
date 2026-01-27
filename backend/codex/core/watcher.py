@@ -3,6 +3,7 @@
 import json
 import os
 import hashlib
+import threading
 from pathlib import Path
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
@@ -241,6 +242,8 @@ class NotebookWatcher:
         self.callback = callback
         self.observer = Observer()
         self.handler = NotebookFileHandler(notebook_path, notebook_id, callback)
+        self._indexing_status = "not_started"  # not_started, in_progress, completed, error
+        self._indexing_thread: Optional[threading.Thread] = None
 
     def start(self):
         """Start watching the notebook directory."""
@@ -248,12 +251,47 @@ class NotebookWatcher:
         self.observer.schedule(self.handler, self.notebook_path, recursive=True)
         self.observer.start()
 
-        self.scan_existing_files()
+        # Start indexing in a background thread
+        self._start_background_indexing()
 
     def stop(self):
         """Stop watching the notebook directory."""
         self.observer.stop()
         self.observer.join()
+        
+        # Wait for indexing thread to complete if it's still running
+        if self._indexing_thread and self._indexing_thread.is_alive():
+            logger.info(f"Waiting for background indexing to complete for {self.notebook_path}")
+            self._indexing_thread.join(timeout=10)
+    
+    def _start_background_indexing(self):
+        """Start the file scan in a background thread."""
+        self._indexing_status = "in_progress"
+        self._indexing_thread = threading.Thread(
+            target=self._run_indexing,
+            name=f"indexer-{self.notebook_id}",
+            daemon=True
+        )
+        self._indexing_thread.start()
+        logger.info(f"Started background indexing thread for notebook {self.notebook_id}")
+    
+    def _run_indexing(self):
+        """Run the indexing scan in a background thread."""
+        try:
+            self.scan_existing_files()
+            self._indexing_status = "completed"
+            logger.info(f"Background indexing completed for notebook {self.notebook_id}")
+        except Exception as e:
+            self._indexing_status = "error"
+            logger.error(f"Background indexing failed for notebook {self.notebook_id}: {e}", exc_info=True)
+    
+    def get_indexing_status(self) -> dict:
+        """Get the current indexing status."""
+        return {
+            "notebook_id": self.notebook_id,
+            "status": self._indexing_status,
+            "is_alive": self._indexing_thread.is_alive() if self._indexing_thread else False
+        }
 
     def scan_existing_files(self):
         """Scan and index existing files in the notebook, skipping unchanged files."""

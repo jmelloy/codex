@@ -1,6 +1,6 @@
 """API schemas for request/response validation."""
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class UserCreate(BaseModel):
@@ -13,15 +13,13 @@ class UserCreate(BaseModel):
 
 class UserResponse(BaseModel):
     """Schema for user response."""
+    model_config = ConfigDict(from_attributes=True)
 
     id: int
     username: str
     email: str
     is_active: bool
     theme_setting: str | None = None
-
-    class Config:
-        from_attributes = True
 
 
 class ThemeUpdate(BaseModel):

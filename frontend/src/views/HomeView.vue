@@ -818,30 +818,35 @@ function toggleFolder(notebookId: number, folderPath: string) {
 function handleFolderClick(event: MouseEvent, notebookId: number, folderPath: string) {
   // If clicking on the expand arrow area, just toggle expansion
   const target = event.target as HTMLElement
-  if (target.classList.contains("text-[10px]") || target.closest(".text-[10px]")) {
+  if (target.classList.contains("text-[10px]") || target.closest(".text-\\[10px\\]")) {
     toggleFolder(notebookId, folderPath)
     return
   }
 
-  // Select the folder and show folder view
-  workspaceStore.selectFolder(folderPath, notebookId)
-
-  // Also expand the folder
-  if (!expandedFolders.value.has(notebookId)) {
-    expandedFolders.value.set(notebookId, new Set())
+  // Check if folder is currently expanded
+  const isExpanded = isFolderExpanded(notebookId, folderPath)
+  
+  // Toggle the folder expansion
+  toggleFolder(notebookId, folderPath)
+  
+  // Only select the folder (show folder view) when expanding, not when collapsing
+  if (!isExpanded) {
+    workspaceStore.selectFolder(folderPath, notebookId)
   }
-  expandedFolders.value.get(notebookId)!.add(folderPath)
 }
 
 function handleSelectFolder(notebookId: number, folderPath: string) {
   // Select the folder and show folder view
   workspaceStore.selectFolder(folderPath, notebookId)
 
-  // Also expand the folder
+  // Expand the folder if it's not already expanded
   if (!expandedFolders.value.has(notebookId)) {
     expandedFolders.value.set(notebookId, new Set())
   }
-  expandedFolders.value.get(notebookId)!.add(folderPath)
+  const folders = expandedFolders.value.get(notebookId)!
+  if (!folders.has(folderPath)) {
+    folders.add(folderPath)
+  }
 }
 
 function handleSelectSubfolder(subfolder: { path: string }) {

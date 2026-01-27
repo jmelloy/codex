@@ -122,4 +122,41 @@ describe("HomeView", () => {
     expect(workspaceStore.currentWorkspace?.id).toBe(2)
     expect(workspaceStore.currentWorkspace?.name).toBe("Workspace 2")
   })
+
+  it("automatically selects first notebook after workspace is selected", async () => {
+    const { workspaceService, notebookService } = await import("../../services/codex")
+    
+    // Mock workspaces
+    const mockWorkspaces = [
+      { id: 1, name: "Workspace 1", owner_id: 1, created_at: new Date().toISOString() },
+    ]
+    
+    // Mock notebooks
+    const mockNotebooks = [
+      { id: 1, name: "Notebook 1", path: "/notebook1", workspace_id: 1, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+      { id: 2, name: "Notebook 2", path: "/notebook2", workspace_id: 1, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+    ]
+    
+    vi.mocked(workspaceService.list).mockResolvedValue(mockWorkspaces)
+    vi.mocked(notebookService.list).mockResolvedValue(mockNotebooks)
+    
+    const wrapper = mount(HomeView, {
+      global: {
+        plugins: [router],
+        stubs: {
+          SearchBar: { template: "<div></div>" },
+        },
+      },
+    })
+    
+    // Wait for async operations to complete
+    await flushPromises()
+    
+    const workspaceStore = useWorkspaceStore()
+    
+    // Verify that the first notebook was automatically expanded
+    expect(workspaceStore.expandedNotebooks.has(1)).toBe(true)
+    expect(workspaceStore.currentNotebook?.id).toBe(1)
+    expect(workspaceStore.currentNotebook?.name).toBe("Notebook 1")
+  })
 })

@@ -460,7 +460,7 @@
       >
         <h2 class="mb-2" style="color: var(--notebook-text)">Welcome to Codex</h2>
         <p v-if="!workspaceStore.currentWorkspace">Select a workspace to get started</p>
-        <p v-else-if="workspaceStore.notebooks.length === 0">
+        <p v-else-if="!workspaceStore.notebooks || workspaceStore.notebooks.length === 0">
           Create a notebook to start adding files
         </p>
         <p v-else>Select a notebook and file to view its content</p>
@@ -616,7 +616,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, watch, computed } from "vue"
-import { useRouter } from "vue-router"
+import { useRouter, useRoute } from "vue-router"
 import { useAuthStore } from "../stores/auth"
 import { useWorkspaceStore } from "../stores/workspace"
 import type { Workspace, Notebook, FileMetadata, Template } from "../services/codex"
@@ -639,6 +639,7 @@ import { showToast } from "../utils/toast"
 import { buildFileTree, type FileTreeNode } from "../utils/fileTree"
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 const workspaceStore = useWorkspaceStore()
 
@@ -707,8 +708,54 @@ watch(
   { immediate: true },
 )
 
+// Watch for route changes to restore file selection from URL
+watch(
+  () => route.query,
+  async (query) => {
+    const fileId = query.fileId ? Number(query.fileId) : null
+    const notebookId = query.notebookId ? Number(query.notebookId) : null
+
+    if (fileId && notebookId && workspaceStore.currentWorkspace) {
+      // Only load if it's different from current file to avoid infinite loops
+      if (workspaceStore.currentFile?.id !== fileId) {
+        // Make sure files for this notebook are loaded
+        const files = workspaceStore.getFilesForNotebook(notebookId)
+        if (files.length === 0) {
+          await workspaceStore.fetchFiles(notebookId)
+        }
+
+        // Find and select the file
+        const file = workspaceStore.getFilesForNotebook(notebookId).find((f) => f.id === fileId)
+        if (file) {
+          // Call store selectFile directly to load file content
+          await workspaceStore.selectFile(file)
+        }
+      }
+    } else if (!fileId && !notebookId) {
+      // Clear file selection if no query params
+      workspaceStore.currentFile = null
+    }
+  },
+  { immediate: false },
+)
+
 onMounted(async () => {
   await workspaceStore.fetchWorkspaces()
+
+  // Restore file selection from URL after workspaces are loaded
+  const fileId = route.query.fileId ? Number(route.query.fileId) : null
+  const notebookId = route.query.notebookId ? Number(route.query.notebookId) : null
+
+  if (fileId && notebookId && workspaceStore.currentWorkspace) {
+    // Fetch files for the notebook
+    await workspaceStore.fetchFiles(notebookId)
+
+    // Find and select the file
+    const file = workspaceStore.getFilesForNotebook(notebookId).find((f) => f.id === fileId)
+    if (file) {
+      await workspaceStore.selectFile(file)
+    }
+  }
   // Auto-select first workspace if none is currently selected
   if (!workspaceStore.currentWorkspace && workspaceStore.workspaces.length > 0) {
     const firstWorkspace = workspaceStore.workspaces[0]!
@@ -723,6 +770,7 @@ watch(
   (notebooks) => {
     if (
       !hasAutoSelectedNotebook.value &&
+      notebooks &&
       notebooks.length > 0 &&
       !workspaceStore.currentNotebook &&
       workspaceStore.expandedNotebooks.size === 0
@@ -845,6 +893,19 @@ function getFileIcon(file: FileMetadata | undefined): string {
 
 function selectFile(file: FileMetadata) {
   workspaceStore.selectFile(file)
+  // Update URL with file and notebook IDs for browser history navigation
+  // Only push if the URL doesn't already have these params (to avoid redundant history entries)
+  if (
+    route.query.fileId !== String(file.id) ||
+    route.query.notebookId !== String(file.notebook_id)
+  ) {
+    router.push({
+      query: {
+        fileId: String(file.id),
+        notebookId: String(file.notebook_id),
+      },
+    })
+  }
 }
 
 // Drag-drop handlers for files within the sidebar

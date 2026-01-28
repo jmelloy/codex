@@ -337,30 +337,22 @@ date: 2024-01-01
 
 ### Design Documents
 
+- **[File-Based Pages Architecture](docs/design/FILE_BASED_PAGES.md)** - Pure file-based approach for organizing content into pages with ordered blocks
+- **[Notebook Migrations](docs/NOTEBOOK_MIGRATIONS.md)** - Database migration strategy
+- **[Filename Resolution](docs/FILENAME_RESOLUTION.md)** - File naming and resolution logic
+- **[Markdown Extensions](docs/MARKDOWN_EXTENSIONS.md)** - Custom markdown features
+
+### Additional Resources
+
+- [Test Credentials](TEST_CREDENTIALS.md) - Test user accounts and sample data
+- [Performance Improvements](PERFORMANCE_IMPROVEMENTS.md) - Optimization notes
+- [Claude Instructions](CLAUDE.md) - Development guidelines for AI assistants
 Comprehensive design documents are available in the `/docs/design/` directory:
 
 - **[Dynamic Views](docs/design/dynamic-views.md)** - Query-based dynamic views and visualizations
 - **[Plugin System](docs/design/plugin-system.md)** - Extensible plugin architecture for views, themes, and integrations
 
-### Additional Documentation
-
-- **[Markdown Extensions](docs/MARKDOWN_EXTENSIONS.md)** - Supported markdown syntax and extensions
-- **[Filename Resolution](docs/FILENAME_RESOLUTION.md)** - How Codex resolves file references
-- **[Notebook Migrations](docs/NOTEBOOK_MIGRATIONS.md)** - Database migration system
-- **[Test Credentials](TEST_CREDENTIALS.md)** - Test user accounts and sample data
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests for new functionality
-5. Submit a pull request
-
 ## License
 
 MIT License - see LICENSE file for details
 
-## Support
-
-For issues, questions, or contributions, please open an issue on GitHub.

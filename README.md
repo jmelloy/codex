@@ -339,6 +339,7 @@ date: 2024-01-01
 
 - **[Block-Based Pages Architecture](docs/design/BLOCK_BASED_PAGES.md)** - Comprehensive exploration of page/block structure similar to Notion
   - [Executive Summary](docs/design/BLOCK_BASED_PAGES_SUMMARY.md) - Quick overview and comparison of implementation options
+  - [Visual Diagrams](docs/design/BLOCK_BASED_PAGES_DIAGRAMS.md) - Architecture diagrams and data flow visualizations
 - **[Notebook Migrations](docs/NOTEBOOK_MIGRATIONS.md)** - Database migration strategy
 - **[Filename Resolution](docs/FILENAME_RESOLUTION.md)** - File naming and resolution logic
 - **[Markdown Extensions](docs/MARKDOWN_EXTENSIONS.md)** - Custom markdown features

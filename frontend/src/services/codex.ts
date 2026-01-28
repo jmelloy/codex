@@ -469,3 +469,21 @@ export const searchService = {
     return response.data
   },
 }
+
+export interface Theme {
+  id: string
+  name: string
+  label: string
+  description: string
+  className: string
+  category: string
+  version: string
+  author: string
+}
+
+export const themeService = {
+  async list(): Promise<Theme[]> {
+    const response = await apiClient.get<Theme[]>("/api/v1/themes")
+    return response.data
+  },
+}

@@ -27,3 +27,16 @@ class ThemeUpdate(BaseModel):
     """Schema for updating user theme setting."""
 
     theme: str
+
+
+class ThemeResponse(BaseModel):
+    """Schema for theme information."""
+
+    id: str
+    name: str
+    label: str
+    description: str
+    className: str
+    category: str
+    version: str
+    author: str

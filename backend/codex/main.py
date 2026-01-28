@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import select
 from ulid import ULID
 
-from codex.api.routes import files, folders, markdown, notebooks, query, search, tasks, users, workspaces
+from codex.api.routes import files, folders, markdown, notebooks, query, search, tasks, themes, users, workspaces
 from codex.core.watcher import NotebookWatcher
 from codex.db.database import get_system_session_sync, init_notebook_db, init_system_db
 from codex.db.models import Notebook, Workspace
@@ -154,6 +154,7 @@ app.include_router(search.router, prefix="/api/v1/search", tags=["search"])
 app.include_router(tasks.router, prefix="/api/v1/tasks", tags=["tasks"])
 app.include_router(markdown.router, prefix="/api/v1/markdown", tags=["markdown"])
 app.include_router(query.router, prefix="/api/v1/query", tags=["query"])
+app.include_router(themes.router, prefix="/api/v1/themes", tags=["themes"])
 
 if __name__ == "__main__":
     import uvicorn

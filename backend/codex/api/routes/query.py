@@ -32,6 +32,7 @@ class ViewQuery(BaseModel):
     tags: list[str] | None = None
     tags_any: list[str] | None = None
     content_types: list[str] | None = None  # MIME types (e.g., ["image/jpeg", "image/png"])
+    file_types: list[str] | None = None  # File types from frontmatter (e.g., ["todo", "note", "view"])
 
     # Property filtering
     properties: dict[str, Any] | None = None
@@ -168,6 +169,7 @@ def file_to_dict(file: FileMetadata) -> dict[str, Any]:
         "hash": file.hash,
         "title": file.title,
         "description": file.description,
+        "file_type": file.file_type,
         "properties": properties,
         "created_at": file.created_at.isoformat() if file.created_at else None,
         "updated_at": file.updated_at.isoformat() if file.updated_at else None,
@@ -305,6 +307,15 @@ async def query_files(
     Returns:
         Query results with files and optional grouping
     """
+    # Log the query for debugging
+    logger.debug(
+        f"Query request: workspace_id={workspace_id}, "
+        f"notebook_ids={query.notebook_ids}, tags={query.tags}, tags_any={query.tags_any}, "
+        f"content_types={query.content_types}, file_types={query.file_types}, "
+        f"paths={query.paths}, properties={query.properties}, "
+        f"sort={query.sort}, limit={query.limit}, offset={query.offset}, group_by={query.group_by}"
+    )
+
     # Verify workspace access
     result = await session.execute(
         select(Workspace).where(Workspace.id == workspace_id, Workspace.owner_id == current_user.id)
@@ -340,6 +351,10 @@ async def query_files(
             # Apply content type filter
             if query.content_types:
                 files_query = files_query.where(FileMetadata.content_type.in_(query.content_types))
+
+            # Apply file type filter (from frontmatter type property)
+            if query.file_types:
+                files_query = files_query.where(FileMetadata.file_type.in_(query.file_types))
 
             # Apply date filters
             if query.created_after:
@@ -452,5 +467,11 @@ async def query_files(
 
     # Convert to dictionaries
     file_dicts = [file_to_dict(f) for f in paginated_files]
+
+    # Log query results
+    logger.debug(
+        f"Query result: total={total}, returned={len(file_dicts)}, "
+        f"offset={query.offset}, limit={query.limit}"
+    )
 
     return QueryResult(files=file_dicts, groups=groups, total=total, limit=query.limit, offset=query.offset)

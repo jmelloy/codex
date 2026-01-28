@@ -16,6 +16,7 @@ content: |
       - image/jpeg
       - image/gif
       - image/webp
+    limit: 24
   config:
     layout: grid
     columns: 4
@@ -26,4 +27,4 @@ content: |
 
   # Photo Gallery
 
-  This view displays all images in a grid layout.
+  This view displays all images in a grid layout with pagination.

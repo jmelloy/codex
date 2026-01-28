@@ -11,8 +11,8 @@ content: |
   title: Task Board
   description: Kanban board for managing tasks
   query:
-    tags:
-      - task
+    file_types:
+      - todo
   config:
     columns:
       - {"id": "backlog", "title": "Backlog", "filter": {"status": "backlog"}}
@@ -29,4 +29,5 @@ content: |
 
   # Task Board
 
-  This is a dynamic Kanban board view. Edit the frontmatter to customize columns and filters.
+  This is a dynamic Kanban board view that displays files with type: todo in their frontmatter.
+  Edit the frontmatter to customize columns and filters.

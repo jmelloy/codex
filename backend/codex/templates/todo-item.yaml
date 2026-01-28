@@ -1,0 +1,17 @@
+id: todo-item
+name: Todo Item
+description: Create a task that appears in task lists and kanban boards
+icon: "\u2611\uFE0F"
+file_extension: .md
+default_name: "{title}.md"
+content: |
+  ---
+  type: todo
+  title: "{title}"
+  status: todo
+  priority: medium
+  ---
+
+  # {title}
+
+  Add task details here.

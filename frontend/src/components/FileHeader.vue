@@ -214,6 +214,7 @@ const fileIcon = computed(() => {
   padding: var(--spacing-xl);
   border-bottom: 1px solid var(--color-border-light);
   background: var(--color-bg-secondary);
+  overflow-x: auto;
 }
 
 .file-icon {
@@ -253,6 +254,15 @@ const fileIcon = computed(() => {
   font-size: var(--text-2xl);
   font-weight: var(--font-semibold);
   color: var(--color-text-primary);
+  /* Enable wrapping for long file names */
+  overflow-wrap: break-word;
+  word-break: break-word;
+  /* Limit to 2 lines with ellipsis */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.4;
 }
 
 .file-description {

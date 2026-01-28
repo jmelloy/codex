@@ -5,7 +5,7 @@ A visual gallery plugin for displaying images in grid layouts with lightbox view
 ## Features
 
 - **Grid Layout**: Display images in a responsive grid
-- **Masonry Layout**: Alternative masonry/pinterest-style layout
+- **Masonry Layout**: Alternative Pinterest-style layout
 - **Lightbox Viewer**: Full-size image viewing with keyboard navigation
 - **Metadata Display**: Show EXIF data and image properties
 

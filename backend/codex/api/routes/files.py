@@ -188,6 +188,26 @@ def expand_template_pattern(pattern: str, title: str = "untitled") -> str:
     return result
 
 
+def add_template_source(templates: list[dict]) -> list[dict]:
+    """Add source field to templates based on whether they're from plugins.
+    
+    Args:
+        templates: List of template dictionaries
+        
+    Returns:
+        List of templates with source field added
+    """
+    result = []
+    for t in templates:
+        template_copy = {**t}
+        if "plugin_id" in t:
+            template_copy["source"] = "plugin"
+        else:
+            template_copy["source"] = "default"
+        result.append(template_copy)
+    return result
+
+
 @router.get("/templates")
 async def list_templates(
     notebook_id: int,
@@ -244,28 +264,13 @@ async def list_templates(
 
         # If we found custom templates, return them along with defaults
         if templates:
-            # Add source to defaults
             defaults = get_default_templates()
-            defaults_with_source = []
-            for t in defaults:
-                template_copy = {**t}
-                if "plugin_id" in t:
-                    template_copy["source"] = "plugin"
-                else:
-                    template_copy["source"] = "default"
-                defaults_with_source.append(template_copy)
+            defaults_with_source = add_template_source(defaults)
             return {"templates": templates + defaults_with_source}
 
     # Return default templates with source information
     defaults = get_default_templates()
-    defaults_with_source = []
-    for t in defaults:
-        template_copy = {**t}
-        if "plugin_id" in t:
-            template_copy["source"] = "plugin"
-        else:
-            template_copy["source"] = "default"
-        defaults_with_source.append(template_copy)
+    defaults_with_source = add_template_source(defaults)
     return {"templates": defaults_with_source}
 
 

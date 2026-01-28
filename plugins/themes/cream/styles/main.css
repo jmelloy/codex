@@ -1,0 +1,8 @@
+/* Cream Theme - Classic notebook with cream pages */
+
+.theme-cream {
+  --notebook-bg: var(--page-cream);
+  --notebook-text: var(--pen-black);
+  background-color: var(--notebook-bg);
+  color: var(--notebook-text);
+}

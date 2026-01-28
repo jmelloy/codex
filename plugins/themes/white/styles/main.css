@@ -1,0 +1,8 @@
+/* White Theme - Clean white pages */
+
+.theme-white {
+  --notebook-bg: var(--page-white);
+  --notebook-text: var(--pen-black);
+  background-color: var(--notebook-bg);
+  color: var(--notebook-text);
+}

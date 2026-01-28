@@ -1,0 +1,35 @@
+# Theme Metadata
+id: cream
+name: Cream
+version: 1.0.0
+author: Codex Team
+description: Classic notebook with cream pages
+license: MIT
+
+# Theme Type
+type: theme
+
+# Codex Compatibility
+codex_version: ">=1.0.0"
+
+# Theme Configuration
+theme:
+  display_name: Cream
+  category: light
+  className: theme-cream
+  stylesheet: styles/main.css
+
+# Color Palette
+colors:
+  # Background colors
+  bg-primary: "#fef9f3"
+  bg-secondary: "#f7f5f0"
+  bg-tertiary: "#efeae3"
+  
+  # Text colors
+  text-primary: "#1a1a1a"
+  text-secondary: "#4a5568"
+  text-tertiary: "#718096"
+  
+  # Accent
+  accent-primary: "#667eea"

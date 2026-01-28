@@ -1,0 +1,29 @@
+id: project-doc
+name: Project Document
+description: Documentation template for a project
+icon: "\U0001F4CB"
+file_extension: .md
+default_name: "{title}.md"
+content: |
+  ---
+  title: {title}
+  tags:
+    - project
+    - documentation
+  ---
+
+  # {title}
+
+  ## Overview
+
+
+  ## Goals
+
+
+  ## Requirements
+
+
+  ## Implementation
+
+
+  ## References

@@ -1,0 +1,149 @@
+# Plugin Metadata
+id: tasks
+name: Task Management Plugin
+version: 1.0.0
+author: Codex Team
+description: Kanban boards, task lists, and todo management views
+license: MIT
+
+# Plugin Type
+type: view
+
+# Codex Compatibility
+codex_version: ">=1.0.0"
+api_version: 1
+
+# Custom Properties
+# Define custom frontmatter properties this plugin uses
+properties:
+  - name: status
+    type: string
+    description: Task status
+    enum:
+      - backlog
+      - todo
+      - in-progress
+      - review
+      - done
+    default: todo
+    required: false
+
+  - name: priority
+    type: string
+    description: Task priority level
+    enum:
+      - low
+      - medium
+      - high
+      - critical
+    default: medium
+    required: false
+
+  - name: due_date
+    type: date
+    description: Task due date
+    required: false
+
+  - name: assignee
+    type: string
+    description: Person assigned to task
+    required: false
+
+  - name: estimated_hours
+    type: number
+    description: Estimated hours to complete
+    required: false
+
+# View Types
+# Each view type provided by this plugin
+views:
+  - id: kanban
+    name: Kanban Board
+    description: Visual board with draggable cards organized in columns
+    icon: 📊
+    config_schema:
+      columns:
+        type: array
+        description: Column definitions
+        items:
+          type: object
+          properties:
+            id: { type: string }
+            title: { type: string }
+            filter: { type: object }
+      card_fields:
+        type: array
+        description: Fields to display on cards
+        items: { type: string }
+      drag_drop:
+        type: boolean
+        description: Enable drag and drop
+        default: true
+      editable:
+        type: boolean
+        description: Allow inline editing
+        default: true
+
+  - id: task-list
+    name: Task List
+    description: Simple checklist view with task completion
+    icon: ✅
+    config_schema:
+      compact:
+        type: boolean
+        description: Compact display mode
+        default: false
+      show_details:
+        type: boolean
+        description: Show task details
+        default: true
+      editable:
+        type: boolean
+        description: Allow checkbox toggling
+        default: true
+      sort_by:
+        type: string
+        enum: [priority, due_date, created_at]
+        default: created_at
+
+# Templates
+# Template files that can be instantiated
+templates:
+  - id: task-board
+    name: Task Board
+    file: templates/task-board.yaml
+    description: Kanban board for managing tasks
+    icon: 📋
+    default_name: task-board.cdx
+
+  - id: task-list
+    name: Task List
+    file: templates/task-list.yaml
+    description: Simple task checklist
+    icon: ✅
+    default_name: tasks.cdx
+
+  - id: todo-item
+    name: Todo Item
+    file: templates/todo-item.yaml
+    description: Individual todo task
+    icon: ☑️
+    default_name: todo.md
+    file_extension: .md
+
+# Example Files
+examples:
+  - name: Kanban Board
+    file: examples/kanban-board.cdx
+    description: Example kanban board for project tasks
+
+  - name: Today's Tasks
+    file: examples/task-list-today.cdx
+    description: Example daily task list
+
+# Permissions
+# What capabilities this plugin needs
+permissions:
+  - read_files
+  - write_files
+  - modify_metadata

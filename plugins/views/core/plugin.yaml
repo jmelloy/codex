@@ -1,0 +1,90 @@
+# Plugin Metadata
+id: core
+name: Core Views Plugin
+version: 1.0.0
+author: Codex Team
+description: Essential note templates and dashboard views
+license: MIT
+
+# Plugin Type
+type: view
+
+# Codex Compatibility
+codex_version: ">=1.0.0"
+api_version: 1
+
+# View Types
+views:
+  - id: dashboard
+    name: Dashboard
+    description: Composite dashboard with embedded mini-views
+    icon: 🏠
+    config_schema:
+      layout:
+        type: array
+        description: Dashboard layout rows
+        items:
+          type: object
+          properties:
+            type: { type: string, enum: [row] }
+            components:
+              type: array
+              items:
+                type: object
+                properties:
+                  type: { type: string, enum: [mini-view] }
+                  span: { type: integer, minimum: 1, maximum: 12 }
+                  view: { type: string }
+
+# Templates
+templates:
+  - id: blank-note
+    name: Blank Note
+    file: templates/blank-note.yaml
+    description: A blank markdown note
+    icon: 📝
+    default_name: "{title}.md"
+    file_extension: .md
+
+  - id: daily-journal
+    name: Daily Journal
+    file: templates/daily-journal.yaml
+    description: A journal entry with today's date
+    icon: 📔
+    default_name: "{yyyy}-{mm}-{dd}-journal.md"
+    file_extension: .md
+
+  - id: meeting-notes
+    name: Meeting Notes
+    file: templates/meeting-notes.yaml
+    description: Template for meeting notes
+    icon: 🗓️
+    default_name: "{yyyy}-{mm}-{dd}-meeting.md"
+    file_extension: .md
+
+  - id: project-doc
+    name: Project Document
+    file: templates/project-doc.yaml
+    description: Documentation template for a project
+    icon: 📋
+    default_name: "{title}.md"
+    file_extension: .md
+
+  - id: data-file
+    name: Data File
+    file: templates/data-file.yaml
+    description: JSON data file
+    icon: 📦
+    default_name: "{title}.json"
+    file_extension: .json
+
+# Example Files
+examples:
+  - name: Home Dashboard
+    file: examples/home-dashboard.cdx
+    description: Daily overview with tasks and recent activity
+
+# Permissions
+permissions:
+  - read_files
+  - write_files

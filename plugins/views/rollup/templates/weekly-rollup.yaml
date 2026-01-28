@@ -1,0 +1,21 @@
+id: weekly-rollup
+name: Weekly Rollup
+description: Summary grouped by date
+icon: "\U0001F4C8"
+file_extension: .cdx
+default_name: weekly-rollup.cdx
+content: |
+  ---
+  type: view
+  view_type: rollup
+  title: Weekly Rollup
+  description: Summary of weekly activity
+  config:
+    group_by: created_at
+    group_format: day
+    show_stats: true
+  ---
+
+  # Weekly Rollup
+
+  This view groups items by creation date.

@@ -1,0 +1,30 @@
+id: photo-gallery
+name: Photo Gallery
+description: Display images in a grid layout
+icon: "\U0001F5BC\uFE0F"
+file_extension: .cdx
+default_name: gallery.cdx
+content: |
+  ---
+  type: view
+  view_type: gallery
+  title: Photo Gallery
+  description: Collection of images
+  query:
+    content_types:
+      - image/png
+      - image/jpeg
+      - image/gif
+      - image/webp
+    limit: 24
+  config:
+    layout: grid
+    columns: 4
+    thumbnail_size: 300
+    show_metadata: true
+    lightbox: true
+  ---
+
+  # Photo Gallery
+
+  This view displays all images in a grid layout with pagination.

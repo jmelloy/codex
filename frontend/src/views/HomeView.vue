@@ -1,10 +1,97 @@
 <template>
-  <div class="h-screen flex w-full">
+  <div class="h-screen flex w-full relative">
+    <!-- Mobile Sidebar Overlay/Backdrop -->
+    <div
+      v-if="sidebarOpen"
+      class="fixed inset-0 bg-black/50 z-40 lg:hidden"
+      @click="sidebarOpen = false"
+    ></div>
+
+    <!-- Mobile Header with Hamburger Menu -->
+    <div
+      class="fixed top-0 left-0 right-0 h-14 notebook-sidebar flex items-center px-4 z-30 lg:hidden"
+      style="border-bottom: 1px solid var(--page-border)"
+    >
+      <button
+        @click="sidebarOpen = !sidebarOpen"
+        class="sidebar-icon-button mr-3"
+        :title="sidebarOpen ? 'Close menu' : 'Open menu'"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+      </button>
+      <h1 class="m-0 text-xl font-semibold" style="color: var(--notebook-text)">Codex</h1>
+      <!-- Mobile Properties Toggle -->
+      <button
+        v-if="workspaceStore.currentFile || workspaceStore.currentFolder"
+        @click="toggleProperties"
+        class="sidebar-icon-button ml-auto"
+        title="Properties"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="12" cy="12" r="1"></circle>
+          <circle cx="12" cy="5" r="1"></circle>
+          <circle cx="12" cy="19" r="1"></circle>
+        </svg>
+      </button>
+    </div>
+
     <!-- Left: File Browser Sidebar (280px) -->
-    <aside class="w-[280px] min-w-[280px] notebook-sidebar flex flex-col overflow-hidden">
+    <aside
+      :class="[
+        'w-[280px] min-w-[280px] notebook-sidebar flex flex-col overflow-hidden',
+        'fixed lg:relative inset-y-0 left-0 z-50',
+        'transform transition-transform duration-300 ease-in-out',
+        sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+      ]"
+    >
       <!-- Codex Header -->
-      <div class="flex items-center px-4 py-4" style="border-bottom: 1px solid var(--page-border)">
+      <div class="flex items-center justify-between px-4 py-4" style="border-bottom: 1px solid var(--page-border)">
         <h1 class="m-0 text-xl font-semibold" style="color: var(--notebook-text)">Codex</h1>
+        <!-- Close button for mobile -->
+        <button
+          @click="sidebarOpen = false"
+          class="sidebar-icon-button lg:hidden"
+          title="Close menu"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
       </div>
 
       <!-- Sidebar Tabs -->
@@ -359,7 +446,7 @@
     </aside>
 
     <!-- Center: Content Pane (flex: 1) -->
-    <main class="flex-1 flex flex-col overflow-hidden">
+    <main class="flex-1 flex flex-col overflow-hidden pt-14 lg:pt-0">
       <!-- Loading State -->
       <div
         v-if="workspaceStore.fileLoading"
@@ -381,6 +468,9 @@
           Dismiss
         </button>
       </div>
+
+      <!-- Settings View -->
+      <UserSettings v-else-if="isSettingsView" />
 
       <!-- Editor Mode -->
       <div
@@ -574,13 +664,20 @@
       </div>
     </main>
 
-    <!-- Right: Properties Panel (300px, collapsible) -->
+    <!-- Right: Properties Panel (300px on desktop, full-screen overlay on mobile) -->
+    <!-- Mobile Properties Backdrop -->
+    <div
+      v-if="showPropertiesPanel && (workspaceStore.currentFile || workspaceStore.currentFolder)"
+      class="fixed inset-0 bg-black/50 z-40 lg:hidden"
+      @click="showPropertiesPanel = false"
+    ></div>
+
     <FilePropertiesPanel
       v-if="showPropertiesPanel && workspaceStore.currentFile && workspaceStore.currentWorkspace"
       :file="workspaceStore.currentFile"
       :workspace-id="workspaceStore.currentWorkspace.id"
       :notebook-id="workspaceStore.currentFile.notebook_id"
-      class="w-[300px] min-w-[300px]"
+      class="w-full lg:w-[300px] lg:min-w-[300px] fixed lg:relative inset-0 lg:inset-auto z-50 lg:z-auto pt-14 lg:pt-0"
       @close="showPropertiesPanel = false"
       @update-properties="handleUpdateProperties"
       @delete="handleDeleteFile"
@@ -591,7 +688,7 @@
     <FolderPropertiesPanel
       v-if="showPropertiesPanel && workspaceStore.currentFolder && !workspaceStore.currentFile"
       :folder="workspaceStore.currentFolder"
-      class="w-[300px] min-w-[300px]"
+      class="w-full lg:w-[300px] lg:min-w-[300px] fixed lg:relative inset-0 lg:inset-auto z-50 lg:z-auto pt-14 lg:pt-0"
       @close="showPropertiesPanel = false"
       @update-properties="handleUpdateFolderProperties"
       @delete="handleDeleteFolder"
@@ -742,6 +839,7 @@ import FileHeader from "../components/FileHeader.vue"
 import FileTreeItem from "../components/FileTreeItem.vue"
 import CreateViewModal from "../components/CreateViewModal.vue"
 import TemplateSelector from "../components/TemplateSelector.vue"
+import UserSettings from "../components/UserSettings.vue"
 import { showToast } from "../utils/toast"
 import type { FileTreeNode } from "../utils/fileTree"
 
@@ -767,6 +865,16 @@ const customTitle = ref("")
 // View state
 const showPropertiesPanel = ref(false)
 const editContent = ref("")
+
+// Mobile sidebar state
+const sidebarOpen = ref(false)
+
+// Helper to close sidebar on mobile (under lg breakpoint: 1024px)
+function closeSidebarOnMobile() {
+  if (window.innerWidth < 1024) {
+    sidebarOpen.value = false
+  }
+}
 
 // Sidebar tab state
 const sidebarTab = ref<"files" | "search">("files")
@@ -800,6 +908,11 @@ const currentContentUrl = computed(() => {
 const displayType = computed(() => {
   if (!workspaceStore.currentFile) return "markdown"
   return getDisplayType(workspaceStore.currentFile.content_type)
+})
+
+// Check if we're in settings view
+const isSettingsView = computed(() => {
+  return route.query.view === "settings"
 })
 
 // Open file in a new tab
@@ -903,7 +1016,7 @@ function handleLogout() {
 }
 
 function goToSettings() {
-  router.push("/settings")
+  router.push({ query: { view: "settings" } })
 }
 
 function selectWorkspace(workspace: Workspace) {
@@ -944,12 +1057,16 @@ function handleFolderClick(event: MouseEvent, notebookId: number, folderPath: st
   // Only select the folder (show folder view) when expanding, not when collapsing
   if (!isExpanded) {
     workspaceStore.selectFolder(folderPath, notebookId)
+    // Close sidebar on mobile after selection
+    closeSidebarOnMobile()
   }
 }
 
 function handleSelectFolder(notebookId: number, folderPath: string) {
   // Select the folder and show folder view
   workspaceStore.selectFolder(folderPath, notebookId)
+  // Close sidebar on mobile after selection
+  closeSidebarOnMobile()
 
   // Expand the folder if it's not already expanded
   if (!expandedFolders.value.has(notebookId)) {
@@ -1010,6 +1127,8 @@ function getFileIcon(file: FileMetadata | undefined): string {
 
 function selectFile(file: FileMetadata) {
   workspaceStore.selectFile(file)
+  // Close sidebar on mobile after selection
+  closeSidebarOnMobile()
   // Update URL with file and notebook IDs for browser history navigation
   // Only push if the URL doesn't already have these params (to avoid redundant history entries)
   if (

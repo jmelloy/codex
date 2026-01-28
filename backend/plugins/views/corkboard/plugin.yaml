@@ -1,0 +1,57 @@
+# Plugin Metadata
+id: corkboard
+name: Corkboard Plugin
+version: 1.0.0
+author: Codex Team
+description: Visual corkboard views for creative writing and planning
+license: MIT
+
+# Plugin Type
+type: view
+
+# Codex Compatibility
+codex_version: ">=1.0.0"
+api_version: 1
+
+# View Types
+views:
+  - id: corkboard
+    name: Corkboard
+    description: Visual canvas with notecard-style layout
+    icon: 📌
+    config_schema:
+      group_by:
+        type: string
+        description: Property to group by (creates swimlanes)
+      card_style:
+        type: string
+        enum: [notecard, minimal, detailed]
+        default: notecard
+      layout:
+        type: string
+        enum: [freeform, swimlanes, grid]
+        default: swimlanes
+      draggable:
+        type: boolean
+        description: Allow drag and drop
+        default: true
+      editable:
+        type: boolean
+        description: Allow inline editing
+        default: true
+      card_fields:
+        type: array
+        description: Fields to display on cards
+        items: { type: string }
+
+# Example Files
+examples:
+  - name: Novel Outline
+    file: examples/novel-outline.cdx
+    description: Visual outline of novel chapters and scenes
+
+# Permissions
+permissions:
+  - read_files
+  - write_files
+  - modify_metadata

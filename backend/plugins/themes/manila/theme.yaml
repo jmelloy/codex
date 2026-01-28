@@ -1,0 +1,35 @@
+# Theme Metadata
+id: manila
+name: Manila
+version: 1.0.0
+author: Codex Team
+description: Vintage manila folder aesthetic
+license: MIT
+
+# Theme Type
+type: theme
+
+# Codex Compatibility
+codex_version: ">=1.0.0"
+
+# Theme Configuration
+theme:
+  display_name: Manila
+  category: light
+  className: theme-manila
+  stylesheet: styles/main.css
+
+# Color Palette
+colors:
+  # Background colors
+  bg-primary: "#f4e8d0"
+  bg-secondary: "#ede1c9"
+  bg-tertiary: "#e6dac2"
+  
+  # Text colors
+  text-primary: "#1a1a1a"
+  text-secondary: "#4a5568"
+  text-tertiary: "#718096"
+  
+  # Accent
+  accent-primary: "#667eea"

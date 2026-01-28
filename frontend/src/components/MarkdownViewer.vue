@@ -9,6 +9,7 @@
       class="markdown-content notebook-content"
       v-html="renderedHtml"
       :class="{ loading: isLoading }"
+      :key="contentKey"
     ></div>
     <div v-if="showFrontmatter && frontmatter" class="frontmatter-section">
       <h4>Metadata</h4>
@@ -160,7 +161,16 @@ configureMarked()
 
 // Theme class for code blocks
 const codeThemeClass = computed(() => {
-  return themeStore.theme.className?.includes("dark") ? "code-theme-dark" : "code-theme-light"
+  const className = themeStore.theme?.className ?? ""
+  return className.includes("dark") ? "code-theme-dark" : "code-theme-light"
+})
+
+// Generate a unique key for the content to force Vue to replace the DOM
+// instead of patching it, which can cause "nextSibling" errors with v-html
+const contentKey = computed(() => {
+  // Simple hash based on content length and first/last characters
+  const content = props.content || ""
+  return `${content.length}-${content.charCodeAt(0) || 0}-${content.charCodeAt(content.length - 1) || 0}`
 })
 
 // Extract language from code block class (e.g., "language-javascript" -> "javascript")

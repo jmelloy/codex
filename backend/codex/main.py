@@ -12,10 +12,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import select
 from ulid import ULID
 
-from codex.api.routes import files, folders, markdown, notebooks, query, search, tasks, users, workspaces
+from codex.api.routes import files, folders, markdown, notebooks, query, search, tasks, themes, users, workspaces
 from codex.core.watcher import NotebookWatcher
 from codex.db.database import get_system_session_sync, init_notebook_db, init_system_db
 from codex.db.models import Notebook, Workspace
+from codex.plugins.loader import PluginLoader
 
 request_id_var: ContextVar[str] = ContextVar("request_id", default="")
 
@@ -32,9 +33,20 @@ def get_active_watchers() -> list[NotebookWatcher]:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Initialize database on startup."""
+    """Initialize database and plugins on startup."""
 
     await init_system_db()
+
+    # Initialize plugin loader
+    try:
+        plugins_dir = Path(os.getenv("CODEX_PLUGINS_DIR", Path(__file__).parent.parent / "plugins"))
+        logger.info(f"Loading plugins from directory: {plugins_dir}")
+        loader = PluginLoader(plugins_dir)
+        loader.load_all_plugins()
+        app.state.plugin_loader = loader
+        logger.info(f"Loaded plugins from {plugins_dir}")
+    except Exception as e:
+        logger.error(f"Error loading plugins: {e}", exc_info=True)
 
     try:
         # Run blocking file I/O in thread pool
@@ -154,6 +166,7 @@ app.include_router(search.router, prefix="/api/v1/search", tags=["search"])
 app.include_router(tasks.router, prefix="/api/v1/tasks", tags=["tasks"])
 app.include_router(markdown.router, prefix="/api/v1/markdown", tags=["markdown"])
 app.include_router(query.router, prefix="/api/v1/query", tags=["query"])
+app.include_router(themes.router, prefix="/api/v1/themes", tags=["themes"])
 
 if __name__ == "__main__":
     import uvicorn

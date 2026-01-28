@@ -347,19 +347,12 @@ date: 2024-01-01
 - [Test Credentials](TEST_CREDENTIALS.md) - Test user accounts and sample data
 - [Performance Improvements](PERFORMANCE_IMPROVEMENTS.md) - Optimization notes
 - [Claude Instructions](CLAUDE.md) - Development guidelines for AI assistants
+Comprehensive design documents are available in the `/docs/design/` directory:
 
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests for new functionality
-5. Submit a pull request
+- **[Dynamic Views](docs/design/dynamic-views.md)** - Query-based dynamic views and visualizations
+- **[Plugin System](docs/design/plugin-system.md)** - Extensible plugin architecture for views, themes, and integrations
 
 ## License
 
 MIT License - see LICENSE file for details
 
-## Support
-
-For issues, questions, or contributions, please open an issue on GitHub.

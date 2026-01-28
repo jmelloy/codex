@@ -1,0 +1,35 @@
+# Theme Metadata
+id: white
+name: White
+version: 1.0.0
+author: Codex Team
+description: Clean white pages
+license: MIT
+
+# Theme Type
+type: theme
+
+# Codex Compatibility
+codex_version: ">=1.0.0"
+
+# Theme Configuration
+theme:
+  display_name: White
+  category: light
+  className: theme-white
+  stylesheet: styles/main.css
+
+# Color Palette
+colors:
+  # Background colors
+  bg-primary: "#ffffff"
+  bg-secondary: "#f7fafc"
+  bg-tertiary: "#edf2f7"
+  
+  # Text colors
+  text-primary: "#1a1a1a"
+  text-secondary: "#4a5568"
+  text-tertiary: "#718096"
+  
+  # Accent
+  accent-primary: "#667eea"

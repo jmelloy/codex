@@ -1,0 +1,63 @@
+# Plugin Metadata
+id: gallery
+name: Photo Gallery Plugin
+version: 1.0.0
+author: Codex Team
+description: Image gallery views with grid layouts and lightbox
+license: MIT
+
+# Plugin Type
+type: view
+
+# Codex Compatibility
+codex_version: ">=1.0.0"
+api_version: 1
+
+# View Types
+views:
+  - id: gallery
+    name: Photo Gallery
+    description: Display images in a grid layout with lightbox
+    icon: 🖼️
+    config_schema:
+      layout:
+        type: string
+        enum: [grid, masonry]
+        default: grid
+      columns:
+        type: integer
+        description: Number of columns in grid
+        default: 4
+        minimum: 1
+        maximum: 8
+      thumbnail_size:
+        type: integer
+        description: Thumbnail size in pixels
+        default: 300
+      show_metadata:
+        type: boolean
+        description: Show image metadata
+        default: true
+      lightbox:
+        type: boolean
+        description: Enable lightbox viewer
+        default: true
+
+# Templates
+templates:
+  - id: photo-gallery
+    name: Photo Gallery
+    file: templates/photo-gallery.yaml
+    description: Display images in a grid layout
+    icon: 🖼️
+    default_name: gallery.cdx
+
+# Example Files
+examples:
+  - name: Photo Gallery
+    file: examples/photo-gallery.cdx
+    description: Example photo gallery with all workspace images
+
+# Permissions
+permissions:
+  - read_files

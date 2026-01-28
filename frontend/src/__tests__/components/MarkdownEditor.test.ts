@@ -18,11 +18,12 @@ describe("MarkdownEditor", () => {
     expect(wrapper.exists()).toBe(true)
   })
 
-  it("displays the provided content", () => {
+  it("displays the provided content in raw mode", () => {
     const content = "# Test Content"
     const wrapper = mount(MarkdownEditor, {
       props: {
         modelValue: content,
+        defaultMode: "raw",
       },
     })
 
@@ -30,10 +31,11 @@ describe("MarkdownEditor", () => {
     expect(textarea.element.value).toBe(content)
   })
 
-  it("emits update:modelValue when content changes", async () => {
+  it("emits update:modelValue when content changes in raw mode", async () => {
     const wrapper = mount(MarkdownEditor, {
       props: {
         modelValue: "",
+        defaultMode: "raw",
       },
     })
 
@@ -58,11 +60,12 @@ describe("MarkdownEditor", () => {
     expect(stats.text()).toContain("2 lines")
   })
 
-  it("displays placeholder text when content is empty", () => {
+  it("displays placeholder text when content is empty in raw mode", () => {
     const wrapper = mount(MarkdownEditor, {
       props: {
         modelValue: "",
         placeholder: "Custom placeholder",
+        defaultMode: "raw",
       },
     })
 
@@ -70,10 +73,11 @@ describe("MarkdownEditor", () => {
     expect(textarea.attributes("placeholder")).toBe("Custom placeholder")
   })
 
-  it("shows default placeholder when not provided", () => {
+  it("shows default placeholder when not provided in raw mode", () => {
     const wrapper = mount(MarkdownEditor, {
       props: {
         modelValue: "",
+        defaultMode: "raw",
       },
     })
 
@@ -109,10 +113,11 @@ describe("MarkdownEditor", () => {
     expect(wrapper.emitted("cancel")).toBeTruthy()
   })
 
-  it("displays editor only by default", () => {
+  it("displays editor only by default in raw mode", () => {
     const wrapper = mount(MarkdownEditor, {
       props: {
         modelValue: "# Test",
+        defaultMode: "raw",
       },
     })
 
@@ -126,10 +131,11 @@ describe("MarkdownEditor", () => {
     expect(wrapper.find(".split-view").exists()).toBe(false)
   })
 
-  it("toggles preview when preview button is clicked", async () => {
+  it("toggles preview when preview button is clicked in raw mode", async () => {
     const wrapper = mount(MarkdownEditor, {
       props: {
         modelValue: "# Test",
+        defaultMode: "raw",
       },
     })
 
@@ -168,10 +174,11 @@ describe("MarkdownEditor", () => {
     expect(buttons.length).toBeGreaterThan(0)
   })
 
-  it("inserts tab as spaces when Tab key is pressed", async () => {
+  it("inserts tab as spaces when Tab key is pressed in raw mode", async () => {
     const wrapper = mount(MarkdownEditor, {
       props: {
         modelValue: "test",
+        defaultMode: "raw",
       },
     })
 
@@ -223,10 +230,11 @@ describe("MarkdownEditor", () => {
     expect(stats.text()).toContain("0 words")
   })
 
-  it("emits change event when content changes", async () => {
+  it("emits change event when content changes in raw mode", async () => {
     const wrapper = mount(MarkdownEditor, {
       props: {
         modelValue: "",
+        defaultMode: "raw",
       },
     })
 
@@ -237,10 +245,11 @@ describe("MarkdownEditor", () => {
     expect(wrapper.emitted("change")![0]).toEqual(["New content"])
   })
 
-  it("updates character count correctly", async () => {
+  it("updates character count correctly in raw mode", async () => {
     const wrapper = mount(MarkdownEditor, {
       props: {
         modelValue: "Hello",
+        defaultMode: "raw",
       },
     })
 
@@ -268,7 +277,7 @@ describe("MarkdownEditor", () => {
     expect(wrapper.exists()).toBe(true)
   })
 
-  it("autosave emits save after delay when enabled", async () => {
+  it("autosave emits save after delay when enabled in raw mode", async () => {
     vi.useFakeTimers()
 
     const wrapper = mount(MarkdownEditor, {
@@ -276,6 +285,7 @@ describe("MarkdownEditor", () => {
         modelValue: "",
         autosave: true,
         autosaveDelay: 1000,
+        defaultMode: "raw",
       },
     })
 
@@ -294,13 +304,14 @@ describe("MarkdownEditor", () => {
     vi.useRealTimers()
   })
 
-  it("autosave does not emit when disabled", async () => {
+  it("autosave does not emit when disabled in raw mode", async () => {
     vi.useFakeTimers()
 
     const wrapper = mount(MarkdownEditor, {
       props: {
         modelValue: "",
         autosave: false,
+        defaultMode: "raw",
       },
     })
 
@@ -313,5 +324,73 @@ describe("MarkdownEditor", () => {
     expect(wrapper.emitted("save")).toBeFalsy()
 
     vi.useRealTimers()
+  })
+
+  // Live mode tests
+  it("displays live editor by default", () => {
+    const wrapper = mount(MarkdownEditor, {
+      props: {
+        modelValue: "# Test",
+      },
+    })
+
+    // Live mode should show the live editor content
+    expect(wrapper.find(".live-editor-content").exists()).toBe(true)
+    // Should not have textarea in live mode
+    expect(wrapper.find("textarea").exists()).toBe(false)
+  })
+
+  it("shows mode toggle buttons", () => {
+    const wrapper = mount(MarkdownEditor, {
+      props: {
+        modelValue: "",
+      },
+    })
+
+    const modeToggle = wrapper.find(".mode-toggle")
+    expect(modeToggle.exists()).toBe(true)
+
+    const buttons = modeToggle.findAll("button")
+    expect(buttons.length).toBe(2)
+    expect(buttons[0].text()).toBe("Live")
+    expect(buttons[1].text()).toBe("Raw")
+  })
+
+  it("switches between live and raw modes", async () => {
+    const wrapper = mount(MarkdownEditor, {
+      props: {
+        modelValue: "# Test",
+      },
+    })
+
+    // Initially in live mode
+    expect(wrapper.find(".live-editor-content").exists()).toBe(true)
+
+    // Click Raw button
+    const rawButton = wrapper.find(".mode-toggle").findAll("button")[1]
+    await rawButton.trigger("click")
+
+    // Should now show textarea
+    expect(wrapper.find("textarea").exists()).toBe(true)
+    expect(wrapper.find(".live-editor-content").exists()).toBe(false)
+
+    // Click Live button
+    const liveButton = wrapper.find(".mode-toggle").findAll("button")[0]
+    await liveButton.trigger("click")
+
+    // Should be back in live mode
+    expect(wrapper.find(".live-editor-content").exists()).toBe(true)
+  })
+
+  it("shows hint text in live mode", () => {
+    const wrapper = mount(MarkdownEditor, {
+      props: {
+        modelValue: "",
+      },
+    })
+
+    const hint = wrapper.find(".live-mode-hint .hint-text")
+    expect(hint.exists()).toBe(true)
+    expect(hint.text()).toContain("Type # for headings")
   })
 })

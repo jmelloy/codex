@@ -7,9 +7,9 @@ import pytest
 from codex.plugins.loader import PluginLoader
 from codex.plugins.models import ThemePlugin
 
-# Get the repository root directory
-REPO_ROOT = Path(__file__).parent.parent.parent
-PLUGINS_DIR = REPO_ROOT / "plugins"
+# Get the backend directory where plugins are located
+BACKEND_DIR = Path(__file__).parent.parent
+PLUGINS_DIR = BACKEND_DIR / "plugins"
 
 
 def test_plugin_loader_initialization():
@@ -136,7 +136,11 @@ def test_load_plugin_templates():
     
     from codex.api.routes.files import load_default_templates
     
-    templates = load_default_templates()
+    # Create a loader instance and load plugins
+    loader = PluginLoader(PLUGINS_DIR)
+    loader.load_all_plugins()
+    
+    templates = load_default_templates(loader)
     
     # Should have both legacy and plugin templates
     assert len(templates) > 0

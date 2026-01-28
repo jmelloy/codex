@@ -1,11 +1,8 @@
 """Basic tests for the API."""
 
-from pathlib import Path
-
 from fastapi.testclient import TestClient
 
 from codex.main import app
-from codex.plugins.loader import PluginLoader
 
 
 def test_read_root():

@@ -1,8 +1,9 @@
 import { defineStore } from "pinia"
 import { ref, computed } from "vue"
 import { authService } from "../services/auth"
+import { themeService, type Theme as ApiTheme } from "../services/codex"
 
-export type ThemeName = "cream" | "manila" | "white" | "blueprint"
+export type ThemeName = string
 
 export interface Theme {
   name: ThemeName
@@ -11,7 +12,8 @@ export interface Theme {
   className: string
 }
 
-const THEMES: Theme[] = [
+// Default fallback themes if API fails
+const DEFAULT_THEMES: Theme[] = [
   {
     name: "cream",
     label: "Cream",
@@ -43,13 +45,37 @@ const DEFAULT_THEME: ThemeName = "cream"
 
 export const useThemeStore = defineStore("theme", () => {
   const currentTheme = ref<ThemeName>(DEFAULT_THEME)
+  const themes = ref<Theme[]>(DEFAULT_THEMES)
+  const themesLoaded = ref(false)
 
   const theme = computed((): Theme => {
-    const found = THEMES.find((t) => t.name === currentTheme.value)
-    return found ?? THEMES[0]!
+    const found = themes.value.find((t) => t.name === currentTheme.value)
+    return found ?? themes.value[0]!
   })
 
-  const availableThemes = computed(() => THEMES)
+  const availableThemes = computed(() => themes.value)
+
+  async function loadThemes() {
+    if (themesLoaded.value) return
+
+    try {
+      const apiThemes = await themeService.list()
+      
+      // Convert API themes to store format
+      themes.value = apiThemes.map((t: ApiTheme) => ({
+        name: t.name,
+        label: t.label,
+        description: t.description,
+        className: t.className,
+      }))
+      
+      themesLoaded.value = true
+    } catch (error) {
+      console.error("Failed to load themes from API:", error)
+      // Keep using DEFAULT_THEMES as fallback
+      themes.value = DEFAULT_THEMES
+    }
+  }
 
   async function setTheme(themeName: ThemeName) {
     currentTheme.value = themeName
@@ -89,7 +115,7 @@ export const useThemeStore = defineStore("theme", () => {
   function loadFromLocalStorage(): ThemeName {
     try {
       const saved = localStorage.getItem(STORAGE_KEY)
-      if (saved && THEMES.some((t) => t.name === saved)) {
+      if (saved && themes.value.some((t) => t.name === saved)) {
         return saved as ThemeName
       }
     } catch (error) {
@@ -99,7 +125,7 @@ export const useThemeStore = defineStore("theme", () => {
   }
 
   function loadFromUser(themeSetting?: string) {
-    if (themeSetting && THEMES.some((t) => t.name === themeSetting)) {
+    if (themeSetting && themes.value.some((t) => t.name === themeSetting)) {
       currentTheme.value = themeSetting as ThemeName
     } else {
       // Fallback to localStorage if user doesn't have a theme
@@ -107,7 +133,11 @@ export const useThemeStore = defineStore("theme", () => {
     }
   }
 
-  function initialize() {
+  async function initialize() {
+    // Load themes from API first
+    await loadThemes()
+    
+    // Then set the current theme from localStorage
     currentTheme.value = loadFromLocalStorage()
   }
 
@@ -118,5 +148,6 @@ export const useThemeStore = defineStore("theme", () => {
     setTheme,
     initialize,
     loadFromUser,
+    loadThemes,
   }
 })

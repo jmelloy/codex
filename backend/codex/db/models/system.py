@@ -6,11 +6,15 @@ These models are stored in the system database (codex_system.db):
 - WorkspacePermission: Permission mapping between users and workspaces
 - Task: Tasks for agent work
 - Notebook: Notebook metadata
+- Plugin: Plugin registry
+- PluginConfig: Plugin configurations per workspace
+- PluginSecret: Secure plugin secrets (encrypted)
+- PluginAPILog: Plugin API request logs
 """
 
 from datetime import datetime
 
-from sqlmodel import Field, Relationship, SQLModel
+from sqlmodel import JSON, Column, Field, Relationship, SQLModel
 
 from .base import utc_now
 
@@ -98,3 +102,66 @@ class Notebook(SQLModel, table=True):
 
     # Relationships
     workspace: Workspace = Relationship(back_populates="notebooks")
+
+
+class Plugin(SQLModel, table=True):
+    """Plugin registry table."""
+
+    __tablename__ = "plugins"  # type: ignore[assignment]
+
+    id: int | None = Field(default=None, primary_key=True)
+    plugin_id: str = Field(unique=True, index=True)
+    name: str
+    version: str
+    type: str  # 'view', 'theme', 'integration'
+    enabled: bool = Field(default=True)
+    installed_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+    manifest: dict = Field(default={}, sa_column=Column(JSON))  # Full plugin manifest
+
+    # Relationships
+    configs: list["PluginConfig"] = Relationship(back_populates="plugin")
+
+
+class PluginConfig(SQLModel, table=True):
+    """Plugin configurations per workspace."""
+
+    __tablename__ = "plugin_configs"  # type: ignore[assignment]
+
+    id: int | None = Field(default=None, primary_key=True)
+    workspace_id: int = Field(foreign_key="workspaces.id", index=True)
+    plugin_id: str = Field(foreign_key="plugins.plugin_id", index=True)
+    config: dict = Field(default={}, sa_column=Column(JSON))
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+    # Relationships
+    plugin: Plugin = Relationship(back_populates="configs")
+
+
+class PluginSecret(SQLModel, table=True):
+    """Secure plugin secrets (encrypted)."""
+
+    __tablename__ = "plugin_secrets"  # type: ignore[assignment]
+
+    id: int | None = Field(default=None, primary_key=True)
+    workspace_id: int = Field(foreign_key="workspaces.id", index=True)
+    plugin_id: str = Field(foreign_key="plugins.plugin_id", index=True)
+    key: str
+    encrypted_value: str
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+
+class PluginAPILog(SQLModel, table=True):
+    """Plugin API request logs (for rate limiting and debugging)."""
+
+    __tablename__ = "plugin_api_logs"  # type: ignore[assignment]
+
+    id: int | None = Field(default=None, primary_key=True)
+    workspace_id: int = Field(foreign_key="workspaces.id", index=True)
+    plugin_id: str = Field(foreign_key="plugins.plugin_id", index=True)
+    endpoint_id: str
+    timestamp: datetime = Field(default_factory=utc_now, index=True)
+    status_code: int | None = None
+    error: str | None = None

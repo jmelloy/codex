@@ -1,39 +1,51 @@
 """Tests for file creation with folder paths."""
 
-import os
-import tempfile
 from pathlib import Path
 
 
-def test_create_file_with_folder_path(test_client, temp_workspace_dir):
-    """Test creating a file with a folder path creates the folder structure."""
-    # Login
+def setup_test_user_and_notebook(test_client, temp_workspace_dir, username, email, workspace_name, notebook_name):
+    """Helper function to set up a test user, workspace, and notebook.
+    
+    Returns:
+        tuple: (headers, workspace_id, workspace_path, notebook_id, notebook_path)
+    """
+    # Register and login
     test_client.post(
         "/api/register",
-        json={"username": "testuser_file", "email": "testfile@example.com", "password": "testpass123"},
+        json={"username": username, "email": email, "password": "testpass123"},
     )
 
-    login_response = test_client.post("/api/token", data={"username": "testuser_file", "password": "testpass123"})
+    login_response = test_client.post("/api/token", data={"username": username, "password": "testpass123"})
     token = login_response.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 
     # Create a workspace
     workspace_response = test_client.post(
-        "/api/v1/workspaces/", json={"name": "Test Workspace", "path": temp_workspace_dir}, headers=headers
+        "/api/v1/workspaces/", json={"name": workspace_name, "path": temp_workspace_dir}, headers=headers
     )
     assert workspace_response.status_code == 200
     workspace_data = workspace_response.json()
     workspace_id = workspace_data["id"]
-    # Use the actual workspace path returned by the API (not temp_workspace_dir)
     actual_workspace_path = Path(workspace_data["path"])
 
     # Create a notebook
     notebook_response = test_client.post(
-        "/api/v1/notebooks/", json={"name": "Test Notebook", "workspace_id": workspace_id}, headers=headers
+        "/api/v1/notebooks/", json={"name": notebook_name, "workspace_id": workspace_id}, headers=headers
     )
     assert notebook_response.status_code == 200
     notebook_data = notebook_response.json()
     notebook_id = notebook_data["id"]
+    notebook_path = actual_workspace_path / notebook_data["path"]
+
+    return headers, workspace_id, notebook_id, notebook_path
+
+
+def test_create_file_with_folder_path(test_client, temp_workspace_dir):
+    """Test creating a file with a folder path creates the folder structure."""
+    headers, workspace_id, notebook_id, notebook_path = setup_test_user_and_notebook(
+        test_client, temp_workspace_dir, "testuser_file", "testfile@example.com",
+        "Test Workspace", "Test Notebook"
+    )
 
     # Create a file with a folder path
     file_path = "folder1/folder2/testfile.md"
@@ -58,7 +70,6 @@ def test_create_file_with_folder_path(test_client, temp_workspace_dir):
 
     # Verify that the folder structure was created on disk
     # Use the actual workspace path and notebook.path from the API responses
-    notebook_path = actual_workspace_path / notebook_data["path"]
     full_file_path = notebook_path / file_path
     assert full_file_path.exists(), f"File does not exist at {full_file_path}"
 
@@ -76,33 +87,10 @@ def test_create_file_with_folder_path(test_client, temp_workspace_dir):
 
 def test_create_file_with_single_folder(test_client, temp_workspace_dir):
     """Test creating a file with a single folder path."""
-    # Login
-    test_client.post(
-        "/api/register",
-        json={"username": "testuser_single", "email": "testsingle@example.com", "password": "testpass123"},
+    headers, workspace_id, notebook_id, notebook_path = setup_test_user_and_notebook(
+        test_client, temp_workspace_dir, "testuser_single", "testsingle@example.com",
+        "Test Workspace 2", "Test Notebook 2"
     )
-
-    login_response = test_client.post("/api/token", data={"username": "testuser_single", "password": "testpass123"})
-    token = login_response.json()["access_token"]
-    headers = {"Authorization": f"Bearer {token}"}
-
-    # Create a workspace
-    workspace_response = test_client.post(
-        "/api/v1/workspaces/", json={"name": "Test Workspace 2", "path": temp_workspace_dir}, headers=headers
-    )
-    assert workspace_response.status_code == 200
-    workspace_data = workspace_response.json()
-    workspace_id = workspace_data["id"]
-    # Use the actual workspace path returned by the API
-    actual_workspace_path = Path(workspace_data["path"])
-
-    # Create a notebook
-    notebook_response = test_client.post(
-        "/api/v1/notebooks/", json={"name": "Test Notebook 2", "workspace_id": workspace_id}, headers=headers
-    )
-    assert notebook_response.status_code == 200
-    notebook_data = notebook_response.json()
-    notebook_id = notebook_data["id"]
 
     # Create a file with a single folder path
     file_path = "docs/readme.md"
@@ -127,7 +115,6 @@ def test_create_file_with_single_folder(test_client, temp_workspace_dir):
 
     # Verify that the folder was created on disk
     # Use the actual workspace path and notebook.path from the API responses
-    notebook_path = actual_workspace_path / notebook_data["path"]
     full_file_path = notebook_path / file_path
     assert full_file_path.exists(), f"File does not exist at {full_file_path}"
 
@@ -138,33 +125,10 @@ def test_create_file_with_single_folder(test_client, temp_workspace_dir):
 
 def test_create_file_without_folder(test_client, temp_workspace_dir):
     """Test creating a file without a folder path (in the root)."""
-    # Login
-    test_client.post(
-        "/api/register",
-        json={"username": "testuser_root", "email": "testroot@example.com", "password": "testpass123"},
+    headers, workspace_id, notebook_id, notebook_path = setup_test_user_and_notebook(
+        test_client, temp_workspace_dir, "testuser_root", "testroot@example.com",
+        "Test Workspace 3", "Test Notebook 3"
     )
-
-    login_response = test_client.post("/api/token", data={"username": "testuser_root", "password": "testpass123"})
-    token = login_response.json()["access_token"]
-    headers = {"Authorization": f"Bearer {token}"}
-
-    # Create a workspace
-    workspace_response = test_client.post(
-        "/api/v1/workspaces/", json={"name": "Test Workspace 3", "path": temp_workspace_dir}, headers=headers
-    )
-    assert workspace_response.status_code == 200
-    workspace_data = workspace_response.json()
-    workspace_id = workspace_data["id"]
-    # Use the actual workspace path returned by the API
-    actual_workspace_path = Path(workspace_data["path"])
-
-    # Create a notebook
-    notebook_response = test_client.post(
-        "/api/v1/notebooks/", json={"name": "Test Notebook 3", "workspace_id": workspace_id}, headers=headers
-    )
-    assert notebook_response.status_code == 200
-    notebook_data = notebook_response.json()
-    notebook_id = notebook_data["id"]
 
     # Create a file in the root (no folder)
     file_path = "notes.md"
@@ -189,6 +153,5 @@ def test_create_file_without_folder(test_client, temp_workspace_dir):
 
     # Verify that the file exists on disk
     # Use the actual workspace path and notebook.path from the API responses
-    notebook_path = actual_workspace_path / notebook_data["path"]
     full_file_path = notebook_path / file_path
     assert full_file_path.exists(), f"File does not exist at {full_file_path}"

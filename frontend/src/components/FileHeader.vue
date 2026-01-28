@@ -214,7 +214,6 @@ const fileIcon = computed(() => {
   padding: var(--spacing-xl);
   border-bottom: 1px solid var(--color-border-light);
   background: var(--color-bg-secondary);
-  overflow-x: auto;
 }
 
 .file-icon {

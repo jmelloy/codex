@@ -38,86 +38,7 @@ This document provides visual representations of the three implementation option
 
 ---
 
-## Option 1: Hybrid File-Reference Blocks ⭐ **RECOMMENDED**
-
-```
-┌─────────────────────────────────────────────┐
-│ User                                         │
-└─────────────────┬───────────────────────────┘
-                  │
-                  ▼
-┌─────────────────────────────────────────────┐
-│ Workspace                                    │
-└─────────────────┬───────────────────────────┘
-                  │
-                  ▼
-┌─────────────────────────────────────────────┐
-│ Notebook                                     │
-│ - .codex/notebook.db (pages, blocks tables) │
-└─────────────────┬───────────────────────────┘
-                  │
-                  ├─ Pages ─────────────────────┐
-                  │                             │
-                  │  ┌─────────────────────┐   │
-                  │  │ Page: "Experiment 1" │   │
-                  │  ├─────────────────────┤   │
-                  │  │ Block 1 (pos: 1)    │   │
-                  │  │  type: file_ref     │───┼──► experiment_notes.md
-                  │  │  file_id: abc123    │   │
-                  │  ├─────────────────────┤   │
-                  │  │ Block 2 (pos: 2)    │   │
-                  │  │  type: file_ref     │───┼──► setup_photo.jpg
-                  │  │  file_id: def456    │   │
-                  │  ├─────────────────────┤   │
-                  │  │ Block 3 (pos: 3)    │   │
-                  │  │  type: inline_text  │   │
-                  │  │  content: "Note..." │   │
-                  │  ├─────────────────────┤   │
-                  │  │ Block 4 (pos: 4)    │   │
-                  │  │  type: file_ref     │───┼──► analysis.ipynb
-                  │  │  file_id: ghi789    │   │
-                  │  └─────────────────────┘   │
-                  │                             │
-                  └─ Files (still accessible) ──┤
-                     - experiment_notes.md      │
-                     - setup_photo.jpg          │
-                     - analysis.ipynb           │
-                     - results.csv (not in page)│
-                                                 │
-Database: ──────────────────────────────────────┘
-  pages (id, notebook_id, title, description)
-  blocks (id, page_id, type, file_id, content, position)
-  file_metadata (id, path, hash, title, ...)
-```
-
-**Characteristics:**
-- Pages are organizational containers
-- Blocks reference existing files OR contain inline content
-- Files can exist with or without being in a page
-- Backward compatible (files still accessible directly)
-- Database tracks ordering and relationships
-
-**Database Queries:**
-
-```sql
--- Get page with all blocks
-SELECT p.*, b.* FROM pages p
-LEFT JOIN blocks b ON b.page_id = p.id
-WHERE p.id = 'page-uuid'
-ORDER BY b.position;
-
--- Get all pages in notebook
-SELECT * FROM pages WHERE notebook_id = 'notebook-uuid';
-
--- Find which pages contain a file
-SELECT p.* FROM pages p
-JOIN blocks b ON b.page_id = p.id
-WHERE b.file_id = 'file-uuid';
-```
-
----
-
-## Option 2: Pure File-Based Blocks
+## Option 2: Pure File-Based Blocks ⭐ **RECOMMENDED**
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -127,7 +48,7 @@ WHERE b.file_id = 'file-uuid';
                   ▼
 ┌─────────────────────────────────────────────┐
 │ Notebook                                     │
-│ - .codex/notebook.db (lighter, mostly index)│
+│ - .codex/notebook.db (lightweight index)    │
 └─────────────────┬───────────────────────────┘
                   │
                   ├─ pages/
@@ -138,7 +59,7 @@ WHERE b.file_id = 'file-uuid';
                   │     ├─ 004-analysis.ipynb
                   │     └─ .page.json
                   │
-                  └─ files/ (loose files)
+                  └─ files/ (traditional loose files)
                      └─ results.csv
 ```
 
@@ -160,21 +81,104 @@ WHERE b.file_id = 'file-uuid';
 
 **Characteristics:**
 - Directory per page
-- Numbered prefixes enforce ordering
+- Numbered prefixes enforce ordering (filesystem-native)
 - Metadata in .page.json file (version controlled)
-- Very git-friendly
-- Renumbering files required when reordering
+- 100% git-friendly
+- Works with any file browser/tool
+- Renumbering files when reordering
+- No database complexity for blocks
+
+**Filesystem Operations:**
+
+```bash
+# Create a page
+mkdir pages/experiment-1
+echo '{"id": "uuid", "title": "Experiment 1"}' > pages/experiment-1/.page.json
+
+# Add blocks
+cp ~/data/notes.md pages/experiment-1/001-notes.md
+cp ~/images/setup.jpg pages/experiment-1/002-setup.jpg
+
+# Reorder (move block 2 to position 1)
+git mv pages/experiment-1/001-notes.md pages/experiment-1/002-notes.md
+git mv pages/experiment-1/002-setup.jpg pages/experiment-1/001-setup.jpg
+```
+
+---
+
+## Option 1: Hybrid File-Reference Blocks
+
+```
+┌─────────────────────────────────────────────┐
+│ Notebook                                     │
+│ - .codex/notebook.db (pages, blocks tables) │
+└─────────────────┬───────────────────────────┘
+                  │
+                  ├─ Pages ─────────────────────┐
+                  │                             │
+                  │  ┌─────────────────────┐   │
+                  │  │ Page: "Experiment 1" │   │
+                  │  ├─────────────────────┤   │
+                  │  │ Block 1 (pos: 1)    │   │
+                  │  │  type: file_ref     │───┼──► files/experiment_notes.md
+                  │  │  file_id: abc123    │   │
+                  │  ├─────────────────────┤   │
+                  │  │ Block 2 (pos: 2)    │   │
+                  │  │  type: file_ref     │───┼──► files/setup_photo.jpg
+                  │  │  file_id: def456    │   │
+                  │  ├─────────────────────┤   │
+                  │  │ Block 3 (pos: 3)    │   │
+                  │  │  type: inline_text  │   │
+                  │  │  content: "Note..." │   │
+                  │  ├─────────────────────┤   │
+                  │  │ Block 4 (pos: 4)    │   │
+                  │  │  type: file_ref     │───┼──► files/analysis.ipynb
+                  │  │  file_id: ghi789    │   │
+                  │  └─────────────────────┘   │
+                  │                             │
+                  └─ Files ─────────────────────┤
+                     - experiment_notes.md      │
+                     - setup_photo.jpg          │
+                     - analysis.ipynb           │
+                     - results.csv              │
+```
+
+**Database Schema:**
+
+```sql
+CREATE TABLE pages (
+    id UUID PRIMARY KEY,
+    notebook_id UUID NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    created_time TIMESTAMP,
+    last_edited_time TIMESTAMP
+);
+
+CREATE TABLE blocks (
+    id UUID PRIMARY KEY,
+    page_id UUID NOT NULL REFERENCES pages(id),
+    block_type VARCHAR(50) NOT NULL,  -- 'file_reference', 'inline_text', etc.
+    file_id UUID REFERENCES file_metadata(id),  -- NULL for inline blocks
+    content JSONB,  -- For inline content
+    position INTEGER NOT NULL,
+    created_time TIMESTAMP,
+    UNIQUE(page_id, position)
+);
+```
+
+**Characteristics:**
+- Pages organize files as ordered blocks
+- Blocks can reference files OR contain inline content
+- Files can exist with or without being in a page
+- Database tracks ordering and relationships
+- Need .page.json export for git-friendliness
 
 ---
 
 ## Option 3: Database-First Blocks (Notion-style)
 
 ```
-┌─────────────────────────────────────────────┐
-│ Workspace                                    │
-└─────────────────┬───────────────────────────┘
-                  │
-                  ▼
 ┌─────────────────────────────────────────────┐
 │ Notebook                                     │
 │ - .codex/notebook.db (PRIMARY storage)      │
@@ -235,25 +239,46 @@ CREATE TABLE blocks (
 
 ## Feature Comparison Table
 
-| Feature | Current | Option 1 (Hybrid) | Option 2 (File-Based) | Option 3 (DB-First) |
-|---------|---------|-------------------|----------------------|---------------------|
-| **Storage Model** | Files only | Files + DB refs | Files + .page.json | DB primary |
-| **Page Concept** | ❌ None | ✅ DB table | ✅ Directory | ✅ Special block |
-| **Block Concept** | ❌ None | ✅ DB table | ⚠️ Implicit | ✅ Universal entity |
-| **Inline Content** | ❌ File only | ✅ JSONB field | ❌ File only | ✅ JSONB field |
+| Feature | Current | Option 2 (File-Based) ⭐ | Option 1 (Hybrid) | Option 3 (DB-First) |
+|---------|---------|----------------------|-------------------|---------------------|
+| **Storage Model** | Files only | Files + .page.json | Files + DB refs | DB primary |
+| **Page Concept** | ❌ None | ✅ Directory | ✅ DB table | ✅ Special block |
+| **Block Concept** | ❌ None | ⚠️ Implicit (files) | ✅ DB table | ✅ Universal entity |
+| **Inline Content** | ❌ File only | ❌ File only | ✅ JSONB field | ✅ JSONB field |
 | **Nested Blocks** | ❌ No | ❌ No | ❌ No | ✅ Yes |
-| **Reorder Speed** | N/A | Fast (DB update) | Slow (rename files) | Fast (DB update) |
-| **Git Versioning** | ✅ Perfect | ⚠️ Need .page.json export | ✅ Native | ❌ Export required |
-| **Query Complexity** | Simple | Moderate | Simple | Complex (recursive) |
-| **API Calls** | 1 (get file) | 2-3 (page + blocks + files) | 1-2 (dir + files) | Many (recursive tree) |
-| **Backward Compat** | N/A | ✅ Full | ⚠️ Migration needed | ❌ Breaking |
-| **Real-time Collab** | ❌ Hard | ⚠️ Possible | ❌ Hard | ✅ Excellent |
+| **Reorder Speed** | N/A | Slow (rename files) | Fast (DB update) | Fast (DB update) |
+| **Git Versioning** | ✅ Perfect | ✅ Native | ⚠️ Need export | ❌ Export required |
+| **Query Complexity** | Simple | Simple | Moderate | Complex (recursive) |
+| **API Calls** | 1 (get file) | 1-2 (dir + files) | 2-3 (page + blocks + files) | Many (recursive tree) |
+| **Backward Compat** | N/A | ✅ Full | ✅ Full | ❌ Breaking |
+| **Real-time Collab** | ❌ Hard | ❌ Hard | ⚠️ Possible | ✅ Excellent |
 
 ---
 
 ## Data Flow Diagrams
 
-### Option 1: Page Render Flow
+### Option 2: Page Render Flow (File-Based) ⭐
+
+```
+1. Client requests page
+   │
+   ▼
+2. API: Read pages/experiment-1/.page.json
+   │
+   ▼
+3. API: For each block in .page.json:
+   │   ├─► Read pages/experiment-1/001-file.md
+   │   ├─► Read pages/experiment-1/002-file.jpg
+   │   └─► ...
+   │
+   ▼
+4. Return JSON with file contents
+   │
+   ▼
+5. Client renders blocks in order
+```
+
+### Option 1: Page Render Flow (Hybrid)
 
 ```
 1. Client requests page
@@ -287,28 +312,7 @@ CREATE TABLE blocks (
 6. Client renders blocks in order
 ```
 
-### Option 2: Page Render Flow
-
-```
-1. Client requests page
-   │
-   ▼
-2. API: Read pages/experiment-1/.page.json
-   │
-   ▼
-3. API: For each block in .page.json:
-   │   ├─► Read pages/experiment-1/001-file.md
-   │   ├─► Read pages/experiment-1/002-file.jpg
-   │   └─► ...
-   │
-   ▼
-4. Return JSON with file contents
-   │
-   ▼
-5. Client renders blocks in order
-```
-
-### Option 3: Page Render Flow
+### Option 3: Page Render Flow (Database-First)
 
 ```
 1. Client requests page
@@ -431,16 +435,18 @@ Phase 3: Inline Blocks (Optional)
 
 ## Conclusion
 
-**Start with Option 1 (Hybrid File-Reference Blocks)** to get:
-- 80% of Notion's organizational benefits
-- 100% of current file-based benefits
-- Minimal risk and complexity
-- Clear evolution path
+**Start with Option 2 (Pure File-Based Blocks)** to get:
+- 100% git-friendliness and portability
+- Works with any file tool or CLI
+- Zero database overhead
+- Simple, transparent architecture
+- Full backward compatibility
 
 This approach lets you:
-1. **Ship quickly** - Build on existing infrastructure
-2. **Learn from users** - Understand what features matter most
-3. **Iterate** - Evolve based on real usage patterns
-4. **Rollback safely** - Drop feature if it doesn't work out
+1. **Ship quickly** - Minimal implementation (directories + naming convention)
+2. **Stay simple** - No complex database queries or state management
+3. **Tool-friendly** - Users can work with standard file commands
+4. **Git-native** - Perfect version control and history
+5. **Evolve later** - Can add database layer if inline content becomes essential
 
 See [BLOCK_BASED_PAGES.md](./BLOCK_BASED_PAGES.md) for complete analysis and implementation details.

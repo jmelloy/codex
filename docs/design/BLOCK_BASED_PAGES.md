@@ -613,97 +613,122 @@ Page: "API Authentication System"
 
 ### Short-Term (Next 3-6 Months)
 
-**Implement Option 1: Hybrid File-Reference Blocks**
+**Implement Option 2: Pure File-Based Blocks**
 
 #### Why?
-- **Preserves current strengths**: Files remain primary storage (git-friendly, portable)
-- **Adds structure**: Pages provide organization without breaking existing workflows
-- **Low risk**: Backward compatible, opt-in feature
-- **Manageable complexity**: Reuses existing file infrastructure
+- **Maximum git-friendliness**: Everything is a file, perfect version control
+- **Filesystem-native**: Uses directories and files, no database complexity
+- **Simple mental model**: Pages are directories, blocks are numbered files
+- **Portable**: Can be used with any file browser or git tools
+- **Zero database overhead**: Minimal schema, just indexes existing files
 
 #### Implementation Plan
 
-1. **Database Schema Addition**:
+1. **Directory Structure Convention**:
+   ```
+   workspace/
+     notebook1/
+       pages/
+         experiment-2026-01-28/
+           001-intro.md              -- Block 1
+           002-setup-photo.jpg       -- Block 2
+           003-observation.md        -- Block 3
+           004-analysis.ipynb        -- Block 4
+           .page.json                -- Page metadata
+       files/                        -- Traditional flat files (optional)
+         standalone-doc.md
+   ```
+
+2. **Page Metadata Format** (`.page.json`):
+   ```json
+   {
+     "id": "uuid",
+     "title": "Experiment Log - 2026-01-28",
+     "description": "Initial protein synthesis trial",
+     "created_time": "2026-01-28T10:00:00Z",
+     "last_edited_time": "2026-01-28T14:30:00Z",
+     "blocks": [
+       {"position": 1, "file": "001-intro.md", "type": "markdown"},
+       {"position": 2, "file": "002-setup-photo.jpg", "type": "image"},
+       {"position": 3, "file": "003-observation.md", "type": "markdown"},
+       {"position": 4, "file": "004-analysis.ipynb", "type": "notebook"}
+     ]
+   }
+   ```
+
+3. **Minimal Database Schema**:
    ```sql
-   -- Add to notebook.db migrations
+   -- Lightweight index for pages (optional, for search)
    CREATE TABLE pages (
        id UUID PRIMARY KEY,
        notebook_id UUID NOT NULL,
-       title VARCHAR(255) NOT NULL,
-       description TEXT,
-       created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-       last_edited_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-       created_by UUID
+       directory_path VARCHAR(512) NOT NULL,  -- e.g., 'pages/experiment-2026-01-28'
+       title VARCHAR(255),
+       created_time TIMESTAMP,
+       last_edited_time TIMESTAMP
    );
-
-   CREATE TABLE blocks (
-       id UUID PRIMARY KEY,
-       page_id UUID NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
-       block_type VARCHAR(50) NOT NULL,
-       file_id UUID REFERENCES file_metadata(id) ON DELETE SET NULL,
-       content JSONB,
-       position INTEGER NOT NULL,
-       created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-       last_edited_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-       UNIQUE(page_id, position)
-   );
-
-   CREATE INDEX idx_blocks_page ON blocks(page_id);
-   CREATE INDEX idx_blocks_file ON blocks(file_id);
-   ```
-
-2. **API Endpoints**:
-   ```
-   POST   /api/v1/notebooks/{notebook_id}/pages
-   GET    /api/v1/notebooks/{notebook_id}/pages
-   GET    /api/v1/pages/{page_id}
-   PUT    /api/v1/pages/{page_id}
-   DELETE /api/v1/pages/{page_id}
    
-   POST   /api/v1/pages/{page_id}/blocks
-   PUT    /api/v1/blocks/{block_id}
-   DELETE /api/v1/blocks/{block_id}
-   PUT    /api/v1/pages/{page_id}/blocks/reorder
+   -- Files are already indexed in file_metadata table
+   -- No separate blocks table needed - blocks are just files with numeric prefixes
    ```
 
-3. **Frontend Components**:
-   - `PagesView.vue` - List pages in notebook
-   - `PageDetailView.vue` - Display page with ordered blocks
-   - `BlockRenderer.vue` - Render individual blocks (file or inline)
-   - `BlockEditor.vue` - Add/edit/remove blocks
+4. **File Naming Convention**:
+   - Format: `NNN-descriptive-name.ext` where NNN is 001-999
+   - Position determined by numeric prefix
+   - Reordering = renaming files (can be done with git mv)
+   - Hidden `.page.json` file stores metadata
 
-4. **Core Features**:
-   - Create pages
-   - Add file references as blocks
-   - Add inline text blocks
-   - Reorder blocks (drag-and-drop)
-   - Delete blocks (doesn't delete file, just reference)
-   - Search pages and blocks
+5. **API Endpoints**:
+   ```
+   POST   /api/v1/notebooks/{notebook_id}/pages          -- Creates directory
+   GET    /api/v1/notebooks/{notebook_id}/pages          -- Lists page directories
+   GET    /api/v1/pages/{page_id}                        -- Reads directory + .page.json
+   PUT    /api/v1/pages/{page_id}                        -- Updates .page.json
+   DELETE /api/v1/pages/{page_id}                        -- Removes directory
+   
+   POST   /api/v1/pages/{page_id}/blocks                 -- Creates numbered file
+   PUT    /api/v1/pages/{page_id}/blocks/reorder         -- Renames files
+   DELETE /api/v1/pages/{page_id}/blocks/{block_id}      -- Deletes file
+   ```
+
+6. **Frontend Components**:
+   - `PagesView.vue` - List page directories
+   - `PageDetailView.vue` - Display blocks in order (sorted by filename)
+   - `BlockRenderer.vue` - Render files based on type
+   - `BlockEditor.vue` - Add/remove/reorder files in directory
+
+7. **Core Features**:
+   - Create page directories
+   - Add files to pages (auto-numbered)
+   - Reorder blocks (rename files with new numbers)
+   - Edit individual block files
+   - Full git history for all changes
+   - Works with standard file tools
 
 ### Medium-Term (6-12 Months)
 
 **Evaluate adoption and iterate**:
 
-- Gather user feedback on pages/blocks feature
-- Monitor performance (query times, database size)
-- Identify most-used block types
-- Consider adding more inline block types (code, lists, quotes)
-- Improve block editor (rich text, formatting)
+- Gather user feedback on file-based pages
+- Optimize renaming/reordering operations
+- Add CLI support for page creation/management
+- Enhance .page.json metadata options
+- Consider inline content via special file types (e.g., 001-note.txt)
 
 ### Long-Term (12+ Months)
 
 **Decision Point**: If pages/blocks are successful and heavily used:
 
-**Option A: Stay Hybrid**
-- Keep file-reference model
-- Enhance with better block types
-- Focus on performance optimization
+**Option A: Stay Pure File-Based**
+- Keep directory/file model
+- Enhance tooling for file management
+- Add templates for common page types
+- Optimize git integration
 
-**Option B: Move to Database-First** (Option 3)
-- Migrate toward Notion-like architecture
-- Implement nested blocks
-- Add real-time collaboration
-- Consider CRDT-based sync
+**Option B: Add Database Layer** (Option 1)
+- If inline content becomes essential
+- Migrate to hybrid file-reference model
+- Add database-backed block types
 
 **Option C: Simplify**
 - If adoption is low, consider deprecating
@@ -714,18 +739,19 @@ Page: "API Authentication System"
 
 ## Conclusion
 
-The block-based pages concept offers significant potential for organizing related files and inline content into cohesive narratives. However, it introduces complexity that must be carefully managed.
+The block-based pages concept offers significant potential for organizing related files into cohesive narratives. By using a pure file-based approach, we maintain maximum compatibility with existing tools while adding structure.
 
-**Recommended Approach**: Start with a **hybrid file-reference block system** (Option 1) that:
-- Preserves Codex's file-centric strengths
-- Adds optional page organization
-- Remains git-friendly and portable
-- Provides foundation for future enhancement
-- Allows users to opt-in gradually
+**Recommended Approach**: Start with a **pure file-based block system** (Option 2) that:
+- Uses directories for pages
+- Uses numbered files for blocks
+- Stores metadata in `.page.json` files
+- Remains 100% git-friendly and portable
+- Works with any file browser or editor
+- Requires minimal database changes
 
-This approach balances innovation with pragmatism, providing value to users who need structured organization while not forcing a mental model shift on those who prefer simple file management.
+This approach balances innovation with pragmatism, providing value to users who need structured organization while maintaining Codex's file-first philosophy. The system can be used entirely with standard file tools, making it accessible and transparent.
 
-The architecture is designed to be **evolutionary** - each phase can be evaluated independently, and the system can remain stable at any level without requiring completion of the full vision.
+The architecture is designed to be **simple and transparent** - users can create pages with `mkdir`, add blocks by copying files with numeric prefixes, and edit everything with their preferred tools. The API and UI provide convenience, but the underlying structure is pure filesystem.
 
 ---
 

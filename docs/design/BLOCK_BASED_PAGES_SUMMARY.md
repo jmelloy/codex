@@ -15,31 +15,20 @@ This document explores transforming Codex from a flat file system into a structu
 
 ## Three Implementation Options
 
-### Option 1: Hybrid File-Reference Blocks ⭐ **RECOMMENDED**
-
-Pages organize existing files as ordered blocks, with optional inline blocks.
-
-**Pros**: 
-- ✅ Preserves file-based strengths (git-friendly, portable)
-- ✅ Adds structure without breaking existing workflows
-- ✅ Backward compatible (opt-in)
-- ✅ Manageable complexity
-
-**Example**:
-```
-Page: "Experiment Log - 2026-01-28"
-  ├─ Block 1: File reference → experiment_notes.md
-  ├─ Block 2: File reference → setup_photo.jpg
-  ├─ Block 3: Inline text → "Key observation: temperature stable"
-  └─ Block 4: File reference → analysis.ipynb
-```
-
-### Option 2: Pure File-Based Blocks
+### Option 2: Pure File-Based Blocks ⭐ **RECOMMENDED**
 
 Each block is its own numbered file in a page directory.
 
-**Pros**: Filesystem-native, automatic ordering  
-**Cons**: Renumbering on reorder, awkward for inline content
+**Pros**: 
+- ✅ Maximum git-friendliness (everything in files)
+- ✅ Filesystem-native, works with any tool
+- ✅ Simple mental model (directories = pages, files = blocks)
+- ✅ Zero database overhead
+- ✅ Portable and transparent
+
+**Cons**: 
+- ⚠️ Renumbering files on reorder
+- ⚠️ Limited inline content options
 
 **Example**:
 ```
@@ -48,7 +37,23 @@ pages/experiment-2026-01-28/
   002-setup-photo.jpg
   003-observation.txt
   004-analysis.ipynb
-  .page.json
+  .page.json                    -- Metadata only
+```
+
+### Option 1: Hybrid File-Reference Blocks
+
+Pages organize existing files as ordered blocks, with optional inline blocks.
+
+**Pros**: Good balance, flexible
+**Cons**: Database complexity, needs .page.json export
+
+**Example**:
+```
+Page: "Experiment Log - 2026-01-28"
+  ├─ Block 1: File reference → experiment_notes.md
+  ├─ Block 2: File reference → setup_photo.jpg
+  ├─ Block 3: Inline text → "Key observation: temperature stable"
+  └─ Block 4: File reference → analysis.ipynb
 ```
 
 ### Option 3: Database-First Blocks (Notion-style)
@@ -62,48 +67,54 @@ Blocks are primarily database records, files referenced when needed.
 
 ## Comparison Matrix
 
-| Aspect | Current (Files Only) | Option 1 (Hybrid) | Option 2 (File-Based) | Option 3 (Database-First) |
-|--------|---------------------|-------------------|----------------------|---------------------------|
-| **Simplicity** | ✅ Very Simple | ⚠️ Moderate | ⚠️ Moderate | ❌ Complex |
-| **Performance** | ✅ Fast | ⚠️ Good | ✅ Fast | ❌ Query-heavy |
-| **Git-Friendly** | ✅ Perfect | ⚠️ Good (need .page.json) | ✅ Perfect | ❌ Poor |
-| **Flexibility** | ❌ Limited | ✅ Good balance | ⚠️ Moderate | ✅ Maximum |
-| **Real-time Collab** | ❌ File conflicts | ⚠️ Better | ❌ File conflicts | ✅ Excellent |
+| Aspect | Current (Files Only) | Option 2 (File-Based) ⭐ | Option 1 (Hybrid) | Option 3 (Database-First) |
+|--------|---------------------|----------------------|-------------------|---------------------------|
+| **Simplicity** | ✅ Very Simple | ✅ Simple | ⚠️ Moderate | ❌ Complex |
+| **Performance** | ✅ Fast | ✅ Fast | ⚠️ Good | ❌ Query-heavy |
+| **Git-Friendly** | ✅ Perfect | ✅ Perfect | ⚠️ Good (need .page.json) | ❌ Poor |
+| **Flexibility** | ❌ Limited | ⚠️ Moderate | ✅ Good balance | ✅ Maximum |
+| **Real-time Collab** | ❌ File conflicts | ❌ File conflicts | ⚠️ Better | ✅ Excellent |
 | **Structure** | ❌ Flat only | ✅ Pages + Blocks | ✅ Pages + Blocks | ✅ Nested blocks |
-| **Backward Compat** | N/A | ✅ Fully compatible | ⚠️ Needs migration | ❌ Breaking change |
+| **Backward Compat** | N/A | ✅ Fully compatible | ✅ Fully compatible | ❌ Breaking change |
+| **Tool Integration** | ✅ Any tool | ✅ Any tool | ⚠️ API/UI only | ⚠️ API/UI only |
 
 ---
 
 ## Recommended Approach
 
-**Start with Option 1 (Hybrid File-Reference Blocks)**
+**Start with Option 2 (Pure File-Based Blocks)**
 
 ### Implementation Phases
 
-#### Phase 1: Add Pages (3-6 months)
-- New `pages` table in notebook databases
-- API endpoints for page CRUD
+#### Phase 1: Directory-Based Pages (3-6 months)
+- Create `pages/` directory structure convention
+- Implement `.page.json` metadata format
+- API endpoints for page directory operations
 - Frontend pages view
 - **Status**: Opt-in, coexists with file browser
 
-#### Phase 2: Add Blocks (6-12 months)
-- New `blocks` table with file references
-- API for block operations (add, reorder, delete)
-- Frontend block renderer and editor
-- **Status**: Users can organize files into pages
+#### Phase 2: Numbered Block Files (6-12 months)
+- Implement `NNN-name.ext` naming convention
+- API for block file operations (add, reorder via rename, delete)
+- Frontend block renderer (sorted by filename)
+- Drag-and-drop reordering (renames files)
+- **Status**: Users can organize files into ordered pages
 
-#### Phase 3: Inline Blocks (12+ months)
-- Support inline block types (text, code, quotes)
-- Rich block editor
-- Auto-export large blocks to files
-- **Status**: Full page-based authoring
+#### Phase 3: Enhanced Tooling (12+ months)
+- CLI tools for page/block management
+- Templates for common page types
+- Git integration optimizations
+- Batch operations for reordering
+- **Status**: Mature file-based page system
 
 ### Rollback Safety
 
-Each phase is independent and backward compatible:
-- Phase 1 only: Pages are optional organizational tool
-- Phase 2 only: Blocks just reference existing files
-- Can drop feature at any phase without data loss
+Pure filesystem approach means:
+- Pages are just directories (can be browsed/edited with any tool)
+- Blocks are just files (can be managed with standard commands)
+- .page.json is optional metadata (pages work without it)
+- Zero database dependencies (minimal schema for indexing only)
+- Can abandon feature and still access all content
 
 ---
 
@@ -119,63 +130,88 @@ Each phase is independent and backward compatible:
 
 ## Key Challenges
 
-1. **Complexity**: Three-level hierarchy vs simple files
-2. **Performance**: Extra queries for page + blocks + files
-3. **Mental Model**: Users must learn pages vs files vs blocks
-4. **Sync**: Block order in DB, content on filesystem
-5. **Migration**: Must support mixed mode (files + pages)
+1. **File Renaming**: Reordering requires renaming files with new numeric prefixes
+2. **Inline Content**: Limited to small text files (001-note.txt) rather than rich database content
+3. **Bulk Operations**: Moving multiple blocks requires multiple file renames
 
 ---
 
 ## Decision Criteria
 
-**Implement blocks if**:
+**Implement file-based blocks if**:
 - Users frequently need to organize related files together
 - Narrative structure matters (experiments, reports, tutorials)
 - Order of presentation is important
-- Mix of file types and inline notes is common
+- Git-friendliness is paramount
+- Command-line/tool compatibility is essential
 
-**Don't implement blocks if**:
-- Users prefer simple file management
-- Performance is critical concern
-- Git/filesystem parity is non-negotiable
-- Target users are command-line oriented
+**Consider hybrid/database approach if**:
+- Rich inline content is critical
+- Real-time collaboration is needed
+- Complex nested structures required
+- UI-first approach acceptable
 
 ---
 
 ## Next Steps
 
-1. **Gather feedback** on this proposal from users
-2. **Prototype** Phase 1 (pages table + basic UI)
-3. **User testing** with small group
+1. **Gather feedback** on file-based approach from users
+2. **Prototype** Phase 1 (directory structure + .page.json)
+3. **User testing** with small group using file tools
 4. **Iterate** based on feedback
 5. **Full implementation** if validated
 
 ---
 
-## Database Schema Preview
+## File Structure Preview
+
+```
+workspace/
+  notebook1/
+    pages/
+      experiment-2026-01-28/
+        001-intro.md
+        002-setup-photo.jpg
+        003-observation.md
+        004-analysis.ipynb
+        .page.json              -- Optional metadata
+    files/
+      standalone-doc.md         -- Traditional files
+```
+
+## .page.json Format
+
+```json
+{
+  "id": "uuid",
+  "title": "Experiment Log - 2026-01-28",
+  "description": "Initial protein synthesis trial",
+  "created_time": "2026-01-28T10:00:00Z",
+  "last_edited_time": "2026-01-28T14:30:00Z",
+  "blocks": [
+    {"position": 1, "file": "001-intro.md", "type": "markdown"},
+    {"position": 2, "file": "002-setup-photo.jpg", "type": "image"},
+    {"position": 3, "file": "003-observation.md", "type": "markdown"},
+    {"position": 4, "file": "004-analysis.ipynb", "type": "notebook"}
+  ]
+}
+```
+
+## Minimal Database Schema
 
 ```sql
--- Phase 1: Pages
+-- Optional index table for search (files already in file_metadata)
 CREATE TABLE pages (
     id UUID PRIMARY KEY,
     notebook_id UUID NOT NULL,
-    title VARCHAR(255) NOT NULL,
-    description TEXT,
+    directory_path VARCHAR(512) NOT NULL,  -- 'pages/experiment-2026-01-28'
+    title VARCHAR(255),
     created_time TIMESTAMP,
     last_edited_time TIMESTAMP
 );
+```
 
--- Phase 2: Blocks
-CREATE TABLE blocks (
-    id UUID PRIMARY KEY,
-    page_id UUID NOT NULL REFERENCES pages(id),
-    block_type VARCHAR(50) NOT NULL,  -- 'file_reference', 'inline_text', etc.
-    file_id UUID REFERENCES file_metadata(id),  -- NULL for inline blocks
-    content JSONB,  -- For inline content and metadata
-    position INTEGER NOT NULL,  -- Ordering within page
-    created_time TIMESTAMP,
-    UNIQUE(page_id, position)
+**Note**: No separate blocks table needed - blocks are just files with numeric prefixes. The file_metadata table already tracks all files.
 );
 ```
 
@@ -184,18 +220,17 @@ CREATE TABLE blocks (
 ## API Endpoints Preview
 
 ```
-# Pages
-POST   /api/v1/notebooks/{notebook_id}/pages
-GET    /api/v1/notebooks/{notebook_id}/pages
-GET    /api/v1/pages/{page_id}
-PUT    /api/v1/pages/{page_id}
-DELETE /api/v1/pages/{page_id}
+# Pages (directory operations)
+POST   /api/v1/notebooks/{notebook_id}/pages          -- Create page directory
+GET    /api/v1/notebooks/{notebook_id}/pages          -- List page directories
+GET    /api/v1/pages/{page_id}                        -- Read directory + .page.json
+PUT    /api/v1/pages/{page_id}                        -- Update .page.json
+DELETE /api/v1/pages/{page_id}                        -- Remove directory
 
-# Blocks
-POST   /api/v1/pages/{page_id}/blocks
-PUT    /api/v1/blocks/{block_id}
-DELETE /api/v1/blocks/{block_id}
-PUT    /api/v1/pages/{page_id}/blocks/reorder
+# Blocks (file operations within page directory)
+POST   /api/v1/pages/{page_id}/blocks                 -- Create numbered file
+PUT    /api/v1/pages/{page_id}/blocks/reorder         -- Rename files with new numbers
+DELETE /api/v1/pages/{page_id}/blocks/{block_id}      -- Delete file
 ```
 
 ---

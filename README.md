@@ -333,6 +333,22 @@ date: 2024-01-01
 </metadata>
 ```
 
+## Documentation
+
+### Design Documents
+
+- **[Block-Based Pages Architecture](docs/design/BLOCK_BASED_PAGES.md)** - Comprehensive exploration of page/block structure similar to Notion
+  - [Executive Summary](docs/design/BLOCK_BASED_PAGES_SUMMARY.md) - Quick overview and comparison of implementation options
+- **[Notebook Migrations](docs/NOTEBOOK_MIGRATIONS.md)** - Database migration strategy
+- **[Filename Resolution](docs/FILENAME_RESOLUTION.md)** - File naming and resolution logic
+- **[Markdown Extensions](docs/MARKDOWN_EXTENSIONS.md)** - Custom markdown features
+
+### Additional Resources
+
+- [Test Credentials](TEST_CREDENTIALS.md) - Test user accounts and sample data
+- [Performance Improvements](PERFORMANCE_IMPROVEMENTS.md) - Optimization notes
+- [Claude Instructions](CLAUDE.md) - Development guidelines for AI assistants
+
 ## Contributing
 
 1. Fork the repository

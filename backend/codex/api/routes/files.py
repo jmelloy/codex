@@ -8,7 +8,7 @@ from datetime import UTC
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -94,36 +94,40 @@ class CreateFromTemplateRequest(BaseModel):
     filename: str | None = None  # Optional custom filename, otherwise use template default
 
 
-def load_default_templates() -> list[dict]:
-    """Load default templates from YAML files in the templates directory."""
+def load_default_templates(loader) -> list[dict]:
+    """Load default templates from YAML files in the templates directory and from plugins."""
     import yaml
 
-    templates_dir = Path(__file__).parent.parent.parent / "templates"
     templates = []
 
-    if templates_dir.exists():
-        for template_file in sorted(templates_dir.glob("*.yaml")):
-            try:
-                with open(template_file) as f:
-                    template_data = yaml.safe_load(f)
-                    if template_data and isinstance(template_data, dict):
-                        templates.append(template_data)
-            except Exception as e:
-                logger.warning(f"Failed to load template {template_file}: {e}")
+    # Load templates from view plugins using the provided loader
+    try:
+        # Get all view plugins
+        view_plugins = loader.get_plugins_by_type("view")
+        
+        for plugin in view_plugins:
+            # Add templates from this plugin
+            for template_def in plugin.templates:
+                template_file_path = plugin.plugin_dir / template_def.get("file", "")
+                if template_file_path.exists():
+                    try:
+                        with open(template_file_path) as f:
+                            template_data = yaml.safe_load(f)
+                            if template_data and isinstance(template_data, dict):
+                                # Add plugin source information
+                                template_data["plugin_id"] = plugin.id
+                                templates.append(template_data)
+                    except Exception as e:
+                        logger.warning(f"Failed to load plugin template {template_file_path}: {e}")
+    except Exception as e:
+        logger.warning(f"Failed to load plugin templates: {e}")
 
     return templates
 
 
-# Cache for default templates (loaded once)
-_default_templates_cache: list[dict] | None = None
-
-
-def get_default_templates() -> list[dict]:
-    """Get default templates, loading from cache if available."""
-    global _default_templates_cache
-    if _default_templates_cache is None:
-        _default_templates_cache = load_default_templates()
-    return _default_templates_cache
+def get_default_templates(loader) -> list[dict]:
+    """Get default templates using the plugin loader."""
+    return load_default_templates(loader)
 
 
 def expand_template_pattern(pattern: str, title: str = "untitled") -> str:
@@ -159,8 +163,29 @@ def expand_template_pattern(pattern: str, title: str = "untitled") -> str:
     return result
 
 
+def add_template_source(templates: list[dict]) -> list[dict]:
+    """Add source field to templates based on whether they're from plugins.
+    
+    Args:
+        templates: List of template dictionaries
+        
+    Returns:
+        List of templates with source field added
+    """
+    result = []
+    for t in templates:
+        template_copy = {**t}
+        if "plugin_id" in t:
+            template_copy["source"] = "plugin"
+        else:
+            template_copy["source"] = "default"
+        result.append(template_copy)
+    return result
+
+
 @router.get("/templates")
 async def list_templates(
+    request: Request,
     notebook_id: int,
     workspace_id: int,
     current_user: User = Depends(get_current_active_user),
@@ -173,59 +198,52 @@ async def list_templates(
     """
     notebook_path, _ = await get_notebook_path(notebook_id, workspace_id, current_user, session)
 
-    templates_dir = notebook_path / ".templates"
+    
+    defaults = get_default_templates(request.app.state.plugin_loader)
+    defaults_with_source = add_template_source(defaults)
 
+    templates_dir = notebook_path / ".templates"
     # Check if notebook has a .templates folder
+    templates = []
     if templates_dir.exists() and templates_dir.is_dir():
         # Load templates from the .templates folder
-        templates = []
-        nb_session = get_notebook_session(str(notebook_path))
-        try:
-            for template_file in templates_dir.iterdir():
-                if template_file.is_file() and not template_file.name.startswith("."):
-                    try:
-                        with open(template_file) as f:
-                            content = f.read()
+        
+        for template_file in templates_dir.iterdir():
+            if template_file.is_file() and not template_file.name.startswith("."):
+                try:
+                    with open(template_file) as f:
+                        content = f.read()
 
-                        # Parse frontmatter to get template metadata
-                        properties, body = MetadataParser.parse_frontmatter(content)
+                    # Parse frontmatter to get template metadata
+                    properties, body = MetadataParser.parse_frontmatter(content)
 
-                        # Template must have type: template in frontmatter
-                        if properties and properties.get("type") == "template":
-                            template_id = template_file.stem
-                            ext = properties.get("template_for", template_file.suffix)
+                    # Template must have type: template in frontmatter
+                    if properties and properties.get("type") == "template":
+                        template_id = template_file.stem
+                        ext = properties.get("template_for", template_file.suffix)
 
-                            templates.append(
-                                {
-                                    "id": template_id,
-                                    "name": properties.get("name", template_id),
-                                    "description": properties.get("description", ""),
-                                    "icon": properties.get("icon", "📄"),
-                                    "file_extension": ext,
-                                    "default_name": properties.get("default_name", f"{{title}}{ext}"),
-                                    "content": properties.get("template_content", body),
-                                    "source": "notebook",
-                                }
-                            )
-                    except Exception as e:
-                        logger.warning(f"Failed to parse template {template_file}: {e}")
-                        continue
-        finally:
-            nb_session.close()
+                        templates.append(
+                            {
+                                "id": template_id,
+                                "name": properties.get("name", template_id),
+                                "description": properties.get("description", ""),
+                                "icon": properties.get("icon", "📄"),
+                                "file_extension": ext,
+                                "default_name": properties.get("default_name", f"{{title}}{ext}"),
+                                "content": properties.get("template_content", body),
+                                "source": "notebook",
+                            }
+                        )
+                except Exception as e:
+                    logger.warning(f"Failed to parse template {template_file}: {e}")
+                    continue
 
-        # If we found custom templates, return them along with defaults
-        if templates:
-            # Add source to defaults
-            defaults_with_source = [{**t, "source": "default"} for t in get_default_templates()]
-            return {"templates": templates + defaults_with_source}
-
-    # Return default templates
-    defaults_with_source = [{**t, "source": "default"} for t in get_default_templates()]
-    return {"templates": defaults_with_source}
+    return {"templates": defaults_with_source+ templates}
 
 
 @router.post("/from-template")
 async def create_from_template(
+    req: Request,
     request: CreateFromTemplateRequest,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_system_session),
@@ -268,7 +286,7 @@ async def create_from_template(
 
     # Fall back to default templates
     if not template:
-        for t in get_default_templates():
+        for t in get_default_templates(req.app.state.plugin_loader):
             if t["id"] == template_id:
                 template = t
                 break

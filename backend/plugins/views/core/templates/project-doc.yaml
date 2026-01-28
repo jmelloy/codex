@@ -6,7 +6,7 @@ file_extension: .md
 default_name: "{title}.md"
 content: |
   ---
-  title: {title}
+  title: "{title}"
   tags:
     - project
     - documentation

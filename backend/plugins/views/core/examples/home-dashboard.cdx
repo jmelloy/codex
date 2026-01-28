@@ -1,0 +1,30 @@
+---
+type: view
+view_type: dashboard
+title: Home Dashboard
+description: Daily overview with tasks and recent activity
+layout:
+  - type: row
+    components:
+      - type: mini-view
+        span: 8
+        view: views/task-list-today.cdx
+      - type: mini-view
+        span: 4
+        view: views/task-stats.cdx
+  - type: row
+    components:
+      - type: mini-view
+        span: 12
+        view: views/recent-notes.cdx
+---
+
+# Home Dashboard
+
+Your daily command center with tasks, stats, and recent activity.
+
+## Sections
+
+- **Today's Tasks** (left panel): Tasks due today
+- **Task Statistics** (right panel): Quick stats
+- **Recent Notes** (bottom): Recently modified files

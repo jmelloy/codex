@@ -1,0 +1,62 @@
+# Plugin Metadata
+id: rollup
+name: Rollup Views Plugin
+version: 1.0.0
+author: Codex Team
+description: Time-based rollup views for activity tracking and reporting
+license: MIT
+
+# Plugin Type
+type: view
+
+# Codex Compatibility
+codex_version: ">=1.0.0"
+api_version: 1
+
+# View Types
+views:
+  - id: rollup
+    name: Rollup View
+    description: Activity report grouped by date with statistics
+    icon: 📈
+    config_schema:
+      group_by:
+        type: string
+        description: Field to group by (e.g., created_at, modified_at)
+        default: created_at
+      group_format:
+        type: string
+        enum: [hour, day, week, month]
+        description: Grouping granularity
+        default: day
+      show_stats:
+        type: boolean
+        description: Show statistics for each group
+        default: true
+      sections:
+        type: array
+        description: Categorized sections with filters
+        items:
+          type: object
+          properties:
+            title: { type: string }
+            filter: { type: object }
+
+# Templates
+templates:
+  - id: weekly-rollup
+    name: Weekly Rollup
+    file: templates/weekly-rollup.yaml
+    description: Summary of weekly activity grouped by date
+    icon: 📈
+    default_name: weekly-rollup.cdx
+
+# Example Files
+examples:
+  - name: Weekly Activity Report
+    file: examples/weekly-rollup.cdx
+    description: Rollup of all activity this week with categorized sections
+
+# Permissions
+permissions:
+  - read_files

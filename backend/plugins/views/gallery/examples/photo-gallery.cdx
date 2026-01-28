@@ -1,0 +1,28 @@
+---
+type: view
+view_type: gallery
+title: Photo Gallery
+description: All photos in the workspace
+query:
+  paths:
+    - "photos/**/*"
+    - "images/**/*"
+  sort: file_created_at desc
+config:
+  layout: grid
+  columns: 4
+  thumbnail_size: 300
+  show_metadata: true
+  lightbox: true
+---
+
+# Photo Gallery
+
+Browse all photos in the workspace. Click any image to view in lightbox mode.
+
+## Features
+
+- **Grid layout** with 4 columns
+- **Lightbox** for full-size viewing
+- **Metadata** display with EXIF data
+- **Keyboard navigation** (arrow keys in lightbox)

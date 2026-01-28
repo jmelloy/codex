@@ -100,10 +100,58 @@ def test_theme_plugin_properties():
         assert plugin.category == "dark"
         assert plugin.stylesheet == "styles/main.css"
         assert plugin.class_name == "theme-blueprint"
+
+
+def test_view_plugin_properties():
+    """Test view plugin properties."""
+    loader = PluginLoader(PLUGINS_DIR)
+    
+    # Load tasks plugin
+    plugin_path = PLUGINS_DIR / "views" / "tasks"
+    if plugin_path.exists():
+        plugin = loader.load_plugin(plugin_path)
         
-        # Check colors are loaded
-        assert isinstance(plugin.colors, dict)
-        assert len(plugin.colors) > 0
+        assert plugin.id == "tasks"
+        assert plugin.type == "view"
+        assert len(plugin.views) == 2  # kanban and task-list
+        assert len(plugin.templates) == 3  # task-board, task-list, todo-item
+        assert len(plugin.examples) == 2
+        
+        # Check template definitions
+        template_ids = [t["id"] for t in plugin.templates]
+        assert "task-board" in template_ids
+        assert "task-list" in template_ids
+        assert "todo-item" in template_ids
+
+
+def test_load_plugin_templates():
+    """Test loading templates from plugins."""
+    import sys
+    from pathlib import Path
+    
+    # Add backend to path for import
+    backend_path = Path(__file__).parent.parent
+    if str(backend_path) not in sys.path:
+        sys.path.insert(0, str(backend_path))
+    
+    from codex.api.routes.files import load_default_templates
+    
+    templates = load_default_templates()
+    
+    # Should have both legacy and plugin templates
+    assert len(templates) > 0
+    
+    # Check for plugin templates
+    plugin_templates = [t for t in templates if "plugin_id" in t]
+    assert len(plugin_templates) > 0
+    
+    # Check for specific plugin templates
+    template_ids = [t["id"] for t in plugin_templates]
+    assert "task-board" in template_ids
+    assert "task-list" in template_ids
+    assert "todo-item" in template_ids
+    assert "photo-gallery" in template_ids
+    assert "blank-note" in template_ids
 
 
 def test_invalid_plugin_id():

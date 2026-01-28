@@ -127,8 +127,52 @@ The plugin loader validates:
 - ✅ Required manifest fields: id, name, version, type
 - ✅ Plugin type matches directory structure
 
+## Theme API Integration
+
+Themes are dynamically loaded from the backend and available in the frontend through a REST API:
+
+### Backend API
+
+**Endpoint:** `GET /api/v1/themes`
+
+Returns all available theme plugins with their metadata:
+
+```json
+[
+  {
+    "id": "cream",
+    "name": "cream",
+    "label": "Cream",
+    "description": "Classic notebook with cream pages",
+    "className": "theme-cream",
+    "category": "light",
+    "version": "1.0.0",
+    "author": "Codex Team"
+  }
+]
+```
+
+### Frontend Integration
+
+The frontend theme store (`frontend/src/stores/theme.ts`) automatically loads themes from the API on initialization. This ensures that:
+
+- New themes are automatically available when added to `plugins/themes/`
+- Theme metadata stays synchronized between backend and frontend
+- No frontend code changes needed to add new themes
+- Fallback to default themes if API is unavailable
+
+### Adding New Themes
+
+1. Create theme directory in `plugins/themes/<theme-id>/`
+2. Add `theme.yaml` manifest with required fields
+3. Create `styles/main.css` with theme styles
+4. Theme automatically appears in User Settings
+
+No frontend rebuild or code changes required!
+
 ## See Also
 
 - [Plugin System Design Document](../docs/design/plugin-system.md) - Complete specification
 - [Dynamic Views Design](../docs/design/dynamic-views.md) - View plugin architecture
 - [Theme Store](../frontend/src/stores/theme.ts) - Frontend theme management
+- [Theme API Route](../backend/codex/api/routes/themes.py) - Backend theme endpoint

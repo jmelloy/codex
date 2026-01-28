@@ -16,6 +16,7 @@ from codex.api.routes import files, folders, markdown, notebooks, query, search,
 from codex.core.watcher import NotebookWatcher
 from codex.db.database import get_system_session_sync, init_notebook_db, init_system_db
 from codex.db.models import Notebook, Workspace
+from codex.plugins.loader import PluginLoader
 
 request_id_var: ContextVar[str] = ContextVar("request_id", default="")
 
@@ -32,9 +33,20 @@ def get_active_watchers() -> list[NotebookWatcher]:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Initialize database on startup."""
+    """Initialize database and plugins on startup."""
 
     await init_system_db()
+
+    # Initialize plugin loader
+    try:
+        plugins_dir = Path(os.getenv("CODEX_PLUGINS_DIR", Path(__file__).parent.parent / "plugins"))
+        logger.info(f"Loading plugins from directory: {plugins_dir}")
+        loader = PluginLoader(plugins_dir)
+        loader.load_all_plugins()
+        app.state.plugin_loader = loader
+        logger.info(f"Loaded plugins from {plugins_dir}")
+    except Exception as e:
+        logger.error(f"Error loading plugins: {e}", exc_info=True)
 
     try:
         # Run blocking file I/O in thread pool

@@ -6,7 +6,7 @@ import logging
 import os
 import threading
 from collections.abc import Callable
-from datetime import UTC
+from datetime import UTC, datetime
 from pathlib import Path
 
 from sqlmodel import select
@@ -379,19 +379,21 @@ class NotebookWatcher:
 
                     try:
                         file_stats = os.stat(filepath)
-                        file_mtime = datetime.fromtimestamp(file_stats.st_mtime)
-                        file_size = file_stats.st_size
+                        
                     except OSError:
                         # File may have been deleted between walk and stat
                         continue
-
+                    
+                    file_mtime = datetime.fromtimestamp(file_stats.st_mtime)
+                    file_size = file_stats.st_size
+                    
                     if existing and not is_sidecar:
                         # Compare size first (cheap check)
-                        if existing.size != file_size:
+                        if existing.size != file_size or file_mtime > existing.updated_at:
                             files_to_process.add(abs_filepath)
                         # Compare modification time (allow 1 second tolerance for filesystem precision)
                         elif existing.file_modified_at:
-                            if file_mtime > existing.updated_at or file_mtime > existing.file_modified_at:
+                            if file_mtime > existing.file_modified_at:
                                 files_to_process.add(abs_filepath)
                         elif existing.git_tracked and not existing.last_commit_hash:
                             files_to_process.add(abs_filepath)

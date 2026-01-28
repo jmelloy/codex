@@ -55,7 +55,7 @@ export const useThemeStore = defineStore("theme", () => {
   const theme = computed((): Theme => {
     const found = themes.value.find((t) => t.name === currentTheme.value)
     // Ensure we always return a valid theme, falling back to DEFAULT_THEMES if needed
-    return found ?? themes.value[0] ?? DEFAULT_THEMES[0]
+    return found ?? themes.value[0] ?? DEFAULT_THEMES[0]!
   })
 
   const availableThemes = computed(() => themes.value)

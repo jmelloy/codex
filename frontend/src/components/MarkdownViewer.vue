@@ -1,5 +1,5 @@
 <template>
-  <div class="markdown-viewer notebook-page" :class="[themeClassName, codeThemeClass]">
+  <div class="markdown-viewer notebook-page" :class="[themeStore.theme.className, codeThemeClass]">
     <div class="markdown-toolbar" v-if="showToolbar">
       <button @click="$emit('edit')" v-if="editable" class="btn-edit">Edit</button>
       <button @click="copyContent" class="btn-copy">Copy</button>

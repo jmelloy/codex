@@ -1,0 +1,151 @@
+# Integration Metadata
+id: weather-api
+name: Weather API Integration
+version: 1.0.0
+author: Codex Team
+description: Display current weather and forecasts from OpenWeatherMap
+license: MIT
+
+# Integration Type
+type: integration
+
+# Codex Compatibility
+codex_version: ">=1.0.0"
+api_version: 1
+
+# Integration Configuration
+integration:
+  # API type
+  api_type: rest
+  
+  # Base URL (can use variables)
+  base_url: "https://api.openweathermap.org/data/2.5"
+  
+  # Authentication method
+  auth_method: api_key
+  
+  # Rate limiting
+  rate_limit:
+    requests_per_minute: 60
+    requests_per_day: 1000
+
+# Configuration Properties
+# These are stored per-workspace in the database
+properties:
+  - name: api_key
+    type: string
+    description: OpenWeatherMap API key
+    required: true
+    secure: true  # Encrypted in database
+    ui:
+      type: password
+      label: API Key
+      help: Get your API key from openweathermap.org
+      
+  - name: default_location
+    type: string
+    description: Default location for weather queries
+    required: false
+    default: "San Francisco, US"
+    ui:
+      type: text
+      label: Default Location
+      placeholder: "City, Country"
+      
+  - name: units
+    type: string
+    description: Temperature units
+    required: false
+    default: imperial
+    enum:
+      - metric
+      - imperial
+      - kelvin
+    ui:
+      type: select
+      label: Temperature Units
+      options:
+        - { value: metric, label: Celsius }
+        - { value: imperial, label: Fahrenheit }
+        - { value: kelvin, label: Kelvin }
+
+# API Endpoints
+# Define available API operations
+endpoints:
+  - id: current_weather
+    name: Get Current Weather
+    method: GET
+    path: "/weather"
+    description: Get current weather for a location
+    parameters:
+      - name: q
+        type: string
+        description: City name
+        required: true
+      - name: appid
+        type: string
+        description: API key
+        required: true
+        from_config: api_key
+      - name: units
+        type: string
+        description: Units of measurement
+        required: false
+        from_config: units
+    response_schema:
+      type: object
+      properties:
+        main:
+          type: object
+          properties:
+            temp: { type: number }
+            feels_like: { type: number }
+            humidity: { type: number }
+        weather:
+          type: array
+          items:
+            type: object
+            properties:
+              description: { type: string }
+              icon: { type: string }
+              
+  - id: forecast
+    name: Get 5-Day Forecast
+    method: GET
+    path: "/forecast"
+    description: Get 5-day weather forecast
+    parameters:
+      - name: q
+        type: string
+        description: City name
+        required: true
+      - name: appid
+        type: string
+        from_config: api_key
+      - name: units
+        type: string
+        from_config: units
+
+# Block Types
+# Custom block renderers for embedding in markdown
+blocks:
+  - id: weather
+    name: Weather Block
+    description: Display current weather for a location
+    icon: ☀️
+    syntax: "```weather\nlocation: San Francisco\n```"
+    config_schema:
+      location:
+        type: string
+        description: Location to display weather for
+        required: false
+      units:
+        type: string
+        enum: [metric, imperial, kelvin]
+        required: false
+
+# Permissions
+permissions:
+  - network_request
+  - store_config
+  - render_blocks

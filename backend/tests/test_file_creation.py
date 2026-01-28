@@ -7,7 +7,7 @@ def setup_test_user_and_notebook(test_client, temp_workspace_dir, username, emai
     """Helper function to set up a test user, workspace, and notebook.
     
     Returns:
-        tuple: (headers, workspace_id, workspace_path, notebook_id, notebook_path)
+        tuple: (headers, workspace_id, notebook_id, notebook_path)
     """
     # Register and login
     test_client.post(

@@ -56,27 +56,27 @@ describe("Theme Store", () => {
   })
 
   describe("initialize", () => {
-    it("loads theme from localStorage on initialize", () => {
+    it("loads theme from localStorage on initialize", async () => {
       localStorage.setItem("codex-theme-preference", "blueprint")
 
       const store = useThemeStore()
-      store.initialize()
+      await store.initialize()
 
       expect(store.currentTheme).toBe("blueprint")
     })
 
-    it("uses default theme when localStorage is empty", () => {
+    it("uses default theme when localStorage is empty", async () => {
       const store = useThemeStore()
-      store.initialize()
+      await store.initialize()
 
       expect(store.currentTheme).toBe("cream")
     })
 
-    it("ignores invalid theme in localStorage", () => {
+    it("ignores invalid theme in localStorage", async () => {
       localStorage.setItem("codex-theme-preference", "invalid-theme")
 
       const store = useThemeStore()
-      store.initialize()
+      await store.initialize()
 
       expect(store.currentTheme).toBe("cream")
     })

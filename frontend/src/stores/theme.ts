@@ -10,6 +10,9 @@ export interface Theme {
   label: string
   description: string
   className: string
+  category?: string
+  version?: string
+  author?: string
 }
 
 // Default fallback themes if API fails
@@ -47,6 +50,7 @@ export const useThemeStore = defineStore("theme", () => {
   const currentTheme = ref<ThemeName>(DEFAULT_THEME)
   const themes = ref<Theme[]>(DEFAULT_THEMES)
   const themesLoaded = ref(false)
+  const themesLoadError = ref(false)
 
   const theme = computed((): Theme => {
     const found = themes.value.find((t) => t.name === currentTheme.value)
@@ -56,7 +60,8 @@ export const useThemeStore = defineStore("theme", () => {
   const availableThemes = computed(() => themes.value)
 
   async function loadThemes() {
-    if (themesLoaded.value) return
+    // Only load once unless there was an error
+    if (themesLoaded.value && !themesLoadError.value) return
 
     try {
       const apiThemes = await themeService.list()
@@ -67,13 +72,18 @@ export const useThemeStore = defineStore("theme", () => {
         label: t.label,
         description: t.description,
         className: t.className,
+        category: t.category,
+        version: t.version,
+        author: t.author,
       }))
       
       themesLoaded.value = true
+      themesLoadError.value = false
     } catch (error) {
       console.error("Failed to load themes from API:", error)
       // Keep using DEFAULT_THEMES as fallback
       themes.value = DEFAULT_THEMES
+      themesLoadError.value = true
     }
   }
 

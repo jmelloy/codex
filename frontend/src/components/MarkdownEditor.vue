@@ -1,7 +1,23 @@
 <template>
   <div class="markdown-editor notebook-page ruled-paper" :class="themeStore.theme.className">
     <div class="editor-toolbar">
-      <div class="toolbar-group">
+      <div class="toolbar-group mode-toggle">
+        <button
+          @click="setEditMode('live')"
+          :class="{ active: editMode === 'live' }"
+          title="Live Edit - Format as you type"
+        >
+          Live
+        </button>
+        <button
+          @click="setEditMode('raw')"
+          :class="{ active: editMode === 'raw' }"
+          title="Raw - Plain text editing"
+        >
+          Raw
+        </button>
+      </div>
+      <div class="toolbar-group" v-show="editMode === 'raw'">
         <button @click="insertBold" title="Bold">
           <strong>B</strong>
         </button>
@@ -12,25 +28,39 @@
         <button @click="insertLink" title="Link">🔗</button>
         <button @click="insertImage" title="Image">🖼️</button>
       </div>
-      <div class="toolbar-group">
+      <div class="toolbar-group" v-show="editMode === 'raw'">
         <button @click="insertHeading(1)" title="Heading 1">H1</button>
         <button @click="insertHeading(2)" title="Heading 2">H2</button>
         <button @click="insertHeading(3)" title="Heading 3">H3</button>
       </div>
-      <div class="toolbar-group">
+      <div class="toolbar-group" v-show="editMode === 'raw'">
         <button @click="insertList('ul')" title="Bullet List">• List</button>
         <button @click="insertList('ol')" title="Numbered List">1. List</button>
         <button @click="insertQuote" title="Quote">"</button>
       </div>
-      <div class="toolbar-group">
+      <div class="toolbar-group" v-show="editMode === 'raw'">
         <button @click="togglePreview" :class="{ active: showPreview }">
           {{ showPreview ? "Edit" : "Preview" }}
         </button>
       </div>
+      <div class="toolbar-group live-mode-hint" v-show="editMode === 'live'">
+        <span class="hint-text">Type # for headings, - for lists, > for quotes, ``` for code</span>
+      </div>
       <slot name="toolbar-actions"></slot>
     </div>
 
-    <div class="editor-content" :class="{ 'split-view': showPreview && showEditor }">
+    <!-- Live Edit Mode -->
+    <div class="editor-content live-mode" v-if="editMode === 'live'">
+      <MarkdownLiveEditor
+        ref="liveEditorRef"
+        v-model="localContent"
+        :placeholder="placeholder"
+        @change="handleLiveChange"
+      />
+    </div>
+
+    <!-- Raw Edit Mode -->
+    <div class="editor-content" :class="{ 'split-view': showPreview && showEditor }" v-else>
       <div class="editor-pane" v-show="showEditor">
         <textarea
           ref="editorTextarea"
@@ -69,9 +99,13 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from "vue"
 import MarkdownViewer, { type MarkdownExtension } from "./MarkdownViewer.vue"
+import MarkdownLiveEditor from "./MarkdownLiveEditor.vue"
 import { useThemeStore } from "../stores/theme"
 
 const themeStore = useThemeStore()
+
+// Types
+type EditMode = "live" | "raw"
 
 // Props
 interface Props {
@@ -81,6 +115,7 @@ interface Props {
   autosave?: boolean
   autosaveDelay?: number
   extensions?: MarkdownExtension[]
+  defaultMode?: EditMode
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -89,6 +124,7 @@ const props = withDefaults(defineProps<Props>(), {
   autosave: false,
   autosaveDelay: 1000,
   extensions: () => [],
+  defaultMode: "live",
 })
 
 // Emits
@@ -102,9 +138,11 @@ const emit = defineEmits<{
 // State
 const localContent = ref(props.modelValue)
 const editorTextarea = ref<HTMLTextAreaElement | null>(null)
+const liveEditorRef = ref<InstanceType<typeof MarkdownLiveEditor> | null>(null)
 const showPreview = ref(false)
 const showEditor = ref(true)
 const autosaveTimer = ref<number | null>(null)
+const editMode = ref<EditMode>(props.defaultMode)
 
 // Computed
 const characterCount = computed(() => localContent.value.length)
@@ -141,6 +179,30 @@ watch(localContent, (newValue) => {
 })
 
 // Methods
+const setEditMode = (mode: EditMode) => {
+  editMode.value = mode
+  // When switching modes, ensure content is synced
+  nextTick(() => {
+    if (mode === "raw" && editorTextarea.value) {
+      editorTextarea.value.focus()
+    } else if (mode === "live" && liveEditorRef.value) {
+      liveEditorRef.value.focus()
+    }
+  })
+}
+
+const handleLiveChange = (content: string) => {
+  // Content is already updated via v-model, just trigger autosave if enabled
+  if (props.autosave) {
+    if (autosaveTimer.value) {
+      clearTimeout(autosaveTimer.value)
+    }
+    autosaveTimer.value = window.setTimeout(() => {
+      emit("save", content)
+    }, props.autosaveDelay)
+  }
+}
+
 const handleInput = () => {
   // Input is handled by v-model
 }
@@ -284,6 +346,37 @@ defineExpose({
   margin-left: auto;
 }
 
+.toolbar-group.mode-toggle {
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-md);
+  padding: 2px;
+  gap: 2px;
+}
+
+.toolbar-group.mode-toggle button {
+  border: none;
+  background: transparent;
+  padding: var(--spacing-xs) var(--spacing-md);
+  min-width: auto;
+}
+
+.toolbar-group.mode-toggle button.active {
+  background: var(--color-bg-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.toolbar-group.live-mode-hint {
+  border-right: none;
+  flex: 1;
+  justify-content: center;
+}
+
+.toolbar-group.live-mode-hint .hint-text {
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
+  font-style: italic;
+}
+
 .editor-toolbar button {
   padding: var(--spacing-sm) var(--spacing-md);
   border: 1px solid var(--color-border-medium);
@@ -312,6 +405,10 @@ defineExpose({
   flex: 1;
   display: flex;
   overflow: hidden;
+}
+
+.editor-content.live-mode {
+  flex-direction: column;
 }
 
 .editor-content.split-view .editor-pane,

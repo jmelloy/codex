@@ -333,6 +333,22 @@ date: 2024-01-01
 </metadata>
 ```
 
+## Documentation
+
+### Design Documents
+
+Comprehensive design documents are available in the `/docs/design/` directory:
+
+- **[Dynamic Views](docs/design/dynamic-views.md)** - Query-based dynamic views and visualizations
+- **[Plugin System](docs/design/plugin-system.md)** - Extensible plugin architecture for views, themes, and integrations
+
+### Additional Documentation
+
+- **[Markdown Extensions](docs/MARKDOWN_EXTENSIONS.md)** - Supported markdown syntax and extensions
+- **[Filename Resolution](docs/FILENAME_RESOLUTION.md)** - How Codex resolves file references
+- **[Notebook Migrations](docs/NOTEBOOK_MIGRATIONS.md)** - Database migration system
+- **[Test Credentials](TEST_CREDENTIALS.md)** - Test user accounts and sample data
+
 ## Contributing
 
 1. Fork the repository

@@ -95,12 +95,14 @@ class CreateFromTemplateRequest(BaseModel):
 
 
 def load_default_templates() -> list[dict]:
-    """Load default templates from YAML files in the templates directory."""
+    """Load default templates from YAML files in the templates directory and from plugins."""
     import yaml
+    from codex.plugins.loader import PluginLoader
 
-    templates_dir = Path(__file__).parent.parent.parent / "templates"
     templates = []
-
+    
+    # Load legacy templates from backend/codex/templates/
+    templates_dir = Path(__file__).parent.parent.parent / "templates"
     if templates_dir.exists():
         for template_file in sorted(templates_dir.glob("*.yaml")):
             try:
@@ -110,6 +112,33 @@ def load_default_templates() -> list[dict]:
                         templates.append(template_data)
             except Exception as e:
                 logger.warning(f"Failed to load template {template_file}: {e}")
+
+    # Load templates from view plugins
+    plugins_dir = Path(__file__).parent.parent.parent.parent.parent / "plugins"
+    if plugins_dir.exists():
+        try:
+            loader = PluginLoader(plugins_dir)
+            loader.load_all_plugins()
+            
+            # Get all view plugins
+            view_plugins = loader.get_plugins_by_type("view")
+            
+            for plugin in view_plugins:
+                # Add templates from this plugin
+                for template_def in plugin.templates:
+                    template_file_path = plugin.plugin_dir / template_def.get("file", "")
+                    if template_file_path.exists():
+                        try:
+                            with open(template_file_path) as f:
+                                template_data = yaml.safe_load(f)
+                                if template_data and isinstance(template_data, dict):
+                                    # Add plugin source information
+                                    template_data["plugin_id"] = plugin.id
+                                    templates.append(template_data)
+                        except Exception as e:
+                            logger.warning(f"Failed to load plugin template {template_file_path}: {e}")
+        except Exception as e:
+            logger.warning(f"Failed to load plugin templates: {e}")
 
     return templates
 
@@ -216,11 +245,27 @@ async def list_templates(
         # If we found custom templates, return them along with defaults
         if templates:
             # Add source to defaults
-            defaults_with_source = [{**t, "source": "default"} for t in get_default_templates()]
+            defaults = get_default_templates()
+            defaults_with_source = []
+            for t in defaults:
+                template_copy = {**t}
+                if "plugin_id" in t:
+                    template_copy["source"] = "plugin"
+                else:
+                    template_copy["source"] = "default"
+                defaults_with_source.append(template_copy)
             return {"templates": templates + defaults_with_source}
 
-    # Return default templates
-    defaults_with_source = [{**t, "source": "default"} for t in get_default_templates()]
+    # Return default templates with source information
+    defaults = get_default_templates()
+    defaults_with_source = []
+    for t in defaults:
+        template_copy = {**t}
+        if "plugin_id" in t:
+            template_copy["source"] = "plugin"
+        else:
+            template_copy["source"] = "default"
+        defaults_with_source.append(template_copy)
     return {"templates": defaults_with_source}
 
 

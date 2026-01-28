@@ -45,9 +45,10 @@ class FileMetadata(SQLModel, table=True):
     hash: str | None = None  # For detecting changes
 
     # Metadata - properties from frontmatter (source of truth is file)
-    # title and description are indexed fields extracted from properties for search
+    # title, description, and file_type are indexed fields extracted from properties for search
     title: str | None = None
     description: str | None = None
+    file_type: str | None = Field(default=None, index=True)  # e.g., "todo", "note", "view"
     properties: str | None = None  # JSON-encoded dict from frontmatter
     sidecar_path: str | None = None
 

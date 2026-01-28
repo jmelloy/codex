@@ -7,7 +7,12 @@
         {{ definition.description }}
       </p>
       <div class="text-sm text-text-tertiary mt-2">
-        {{ images.length }} {{ images.length === 1 ? "image" : "images" }}
+        <template v-if="totalImages > images.length">
+          Showing {{ images.length }} of {{ totalImages }} {{ totalImages === 1 ? "image" : "images" }}
+        </template>
+        <template v-else>
+          {{ images.length }} {{ images.length === 1 ? "image" : "images" }}
+        </template>
       </div>
     </div>
 
@@ -52,6 +57,43 @@
     <div v-if="images.length === 0" class="text-center py-12 text-text-tertiary">
       <div class="text-4xl mb-2">🖼️</div>
       <div class="text-lg">No images found</div>
+    </div>
+
+    <!-- Pagination -->
+    <div v-if="totalPages > 1" class="flex items-center justify-center gap-4 mt-6 pt-4 border-t border-border-light">
+      <button
+        :disabled="currentPage <= 1"
+        class="px-4 py-2 rounded-md bg-bg-hover text-text-primary hover:bg-bg-active disabled:opacity-50 disabled:cursor-not-allowed transition"
+        @click="goToPage(currentPage - 1)"
+      >
+        Previous
+      </button>
+
+      <div class="flex items-center gap-2">
+        <template v-for="page in visiblePages" :key="page">
+          <button
+            v-if="page !== '...'"
+            :class="[
+              'w-10 h-10 rounded-md transition',
+              page === currentPage
+                ? 'bg-blue-600 text-white'
+                : 'bg-bg-hover text-text-primary hover:bg-bg-active'
+            ]"
+            @click="goToPage(page as number)"
+          >
+            {{ page }}
+          </button>
+          <span v-else class="text-text-tertiary">...</span>
+        </template>
+      </div>
+
+      <button
+        :disabled="currentPage >= totalPages"
+        class="px-4 py-2 rounded-md bg-bg-hover text-text-primary hover:bg-bg-active disabled:opacity-50 disabled:cursor-not-allowed transition"
+        @click="goToPage(currentPage + 1)"
+      >
+        Next
+      </button>
     </div>
 
     <!-- Lightbox -->
@@ -163,8 +205,60 @@ const props = defineProps<{
   workspaceId: number
 }>()
 
+const emit = defineEmits<{
+  (e: "page-change", page: number): void
+}>()
+
 const lightboxOpen = ref(false)
 const lightboxIndex = ref(0)
+
+// Pagination
+const totalImages = computed(() => props.data?.total || 0)
+const pageSize = computed(() => props.data?.limit || 20)
+const currentPage = computed(() => {
+  const offset = props.data?.offset || 0
+  return Math.floor(offset / pageSize.value) + 1
+})
+const totalPages = computed(() => Math.ceil(totalImages.value / pageSize.value))
+
+const visiblePages = computed(() => {
+  const total = totalPages.value
+  const current = currentPage.value
+  const pages: (number | string)[] = []
+
+  if (total <= 7) {
+    for (let i = 1; i <= total; i++) {
+      pages.push(i)
+    }
+  } else {
+    pages.push(1)
+
+    if (current > 3) {
+      pages.push("...")
+    }
+
+    const start = Math.max(2, current - 1)
+    const end = Math.min(total - 1, current + 1)
+
+    for (let i = start; i <= end; i++) {
+      pages.push(i)
+    }
+
+    if (current < total - 2) {
+      pages.push("...")
+    }
+
+    pages.push(total)
+  }
+
+  return pages
+})
+
+const goToPage = (page: number) => {
+  if (page >= 1 && page <= totalPages.value && page !== currentPage.value) {
+    emit("page-change", page)
+  }
+}
 
 // Get all image files
 const images = computed(() => {

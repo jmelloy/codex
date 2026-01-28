@@ -11,8 +11,8 @@ content: |
   title: Task List
   description: Simple task checklist
   query:
-    tags:
-      - task
+    file_types:
+      - todo
   config:
     compact: true
     show_details: true
@@ -21,4 +21,4 @@ content: |
 
   # Task List
 
-  This is a dynamic task list view.
+  This is a dynamic task list view that displays files with type: todo in their frontmatter.

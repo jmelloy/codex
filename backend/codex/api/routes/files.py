@@ -358,6 +358,7 @@ async def list_files(
                     "hash": f.hash,
                     "title": f.title,
                     "description": f.description,
+                    "file_type": f.file_type,
                     "properties": properties,
                     "created_at": f.created_at.isoformat() if f.created_at else None,
                     "updated_at": f.updated_at.isoformat() if f.updated_at else None,
@@ -421,6 +422,7 @@ async def get_file(
             "hash": file_meta.hash,
             "title": file_meta.title,
             "description": file_meta.description,
+            "file_type": file_meta.file_type,
             "properties": properties,
             "created_at": file_meta.created_at.isoformat() if file_meta.created_at else None,
             "updated_at": file_meta.updated_at.isoformat() if file_meta.updated_at else None,
@@ -492,12 +494,14 @@ async def get_file_text(
             properties_json = json.dumps(properties) if properties else None
             if file_meta.properties != properties_json:
                 file_meta.properties = properties_json
-                # Extract title/description for indexed search
+                # Extract title/description/type for indexed search
                 if properties:
                     if "title" in properties:
                         file_meta.title = properties["title"]
                     if "description" in properties:
                         file_meta.description = properties["description"]
+                    if "type" in properties:
+                        file_meta.file_type = properties["type"]
                 nb_session.commit()
             # For view files, return raw content so frontend can parse the full view definition
             # For markdown files, return body content without frontmatter
@@ -664,6 +668,7 @@ async def get_file_by_path(
             "hash": file_meta.hash,
             "title": file_meta.title,
             "description": file_meta.description,
+            "file_type": file_meta.file_type,
             "properties": properties,
             "created_at": file_meta.created_at.isoformat() if file_meta.created_at else None,
             "updated_at": file_meta.updated_at.isoformat() if file_meta.updated_at else None,
@@ -748,12 +753,14 @@ async def get_file_text_by_path(
             properties_json = json.dumps(properties) if properties else None
             if file_meta.properties != properties_json:
                 file_meta.properties = properties_json
-                # Extract title/description for indexed search
+                # Extract title/description/type for indexed search
                 if properties:
                     if "title" in properties:
                         file_meta.title = properties["title"]
                     if "description" in properties:
                         file_meta.description = properties["description"]
+                    if "type" in properties:
+                        file_meta.file_type = properties["type"]
                 nb_session.commit()
             # For view files, return raw content so frontend can parse the full view definition
             # For markdown files, return body content without frontmatter
@@ -951,6 +958,7 @@ async def resolve_link(
             "hash": file_meta.hash,
             "title": file_meta.title,
             "description": file_meta.description,
+            "file_type": file_meta.file_type,
             "properties": properties,
             "resolved_path": resolved_path,
             "created_at": file_meta.created_at.isoformat() if file_meta.created_at else None,

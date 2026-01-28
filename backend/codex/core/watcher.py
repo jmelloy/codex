@@ -144,6 +144,8 @@ class NotebookFileHandler(FileSystemEventHandler):
                             file_meta.title = metadata["title"]
                         if "description" in metadata:
                             file_meta.description = metadata["description"]
+                        if "type" in metadata:
+                            file_meta.file_type = metadata["type"]
 
                         if "created" in metadata:
                             from datetime import datetime
@@ -175,6 +177,8 @@ class NotebookFileHandler(FileSystemEventHandler):
                             file_meta.title = metadata["title"]
                         if "description" in metadata:
                             file_meta.description = metadata["description"]
+                        if "type" in metadata:
+                            file_meta.file_type = metadata["type"]
 
                         if "created" in metadata:
                             try:

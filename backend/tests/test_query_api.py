@@ -416,3 +416,263 @@ class TestQueryResult:
         assert result.groups is not None
         assert "todo" in result.groups
         assert "done" in result.groups
+
+
+class TestDynamicViewsWithTagsFilters:
+    """Test dynamic views with tags and file_types filters."""
+
+    def test_view_query_with_tags_filter(self):
+        """Test ViewQuery with tags filter (AND logic)."""
+        from codex.api.routes.query import ViewQuery
+
+        query = ViewQuery(
+            tags=["task", "urgent"],
+            limit=50,
+        )
+
+        assert query.tags == ["task", "urgent"]
+        assert query.tags_any is None
+
+    def test_view_query_with_tags_any_filter(self):
+        """Test ViewQuery with tags_any filter (OR logic)."""
+        from codex.api.routes.query import ViewQuery
+
+        query = ViewQuery(
+            tags_any=["task", "note", "project"],
+            limit=50,
+        )
+
+        assert query.tags_any == ["task", "note", "project"]
+        assert query.tags is None
+
+    def test_view_query_with_file_types_filter(self):
+        """Test ViewQuery with file_types filter."""
+        from codex.api.routes.query import ViewQuery
+
+        query = ViewQuery(
+            file_types=["todo", "note"],
+            limit=50,
+        )
+
+        assert query.file_types == ["todo", "note"]
+
+    def test_view_query_combined_tags_and_file_types(self):
+        """Test ViewQuery with combined tags and file_types filters."""
+        from codex.api.routes.query import ViewQuery
+
+        query = ViewQuery(
+            tags=["important"],
+            file_types=["todo"],
+            properties={"status": "in-progress"},
+            limit=25,
+        )
+
+        assert query.tags == ["important"]
+        assert query.file_types == ["todo"]
+        assert query.properties == {"status": "in-progress"}
+        assert query.limit == 25
+
+    def test_file_to_dict_includes_file_type(self):
+        """Test that file_to_dict includes file_type field."""
+        now = datetime.now()
+        file = FileMetadata(
+            id=1,
+            notebook_id=1,
+            path="task.md",
+            filename="task.md",
+            content_type="text/markdown",
+            size=100,
+            hash="abc123",
+            title="My Task",
+            description="A task item",
+            file_type="todo",
+            properties=json.dumps({"status": "todo", "priority": "high"}),
+            created_at=now,
+            updated_at=now,
+            file_modified_at=now,
+        )
+
+        result = file_to_dict(file)
+        assert result["file_type"] == "todo"
+        assert result["title"] == "My Task"
+        assert result["properties"]["status"] == "todo"
+
+    def test_group_files_by_file_type(self):
+        """Test grouping files by file_type field."""
+        files = [
+            FileMetadata(
+                id=1,
+                notebook_id=1,
+                path="task1.md",
+                filename="task1.md",
+                content_type="text/markdown",
+                size=100,
+                hash="abc123",
+                file_type="todo",
+            ),
+            FileMetadata(
+                id=2,
+                notebook_id=1,
+                path="note1.md",
+                filename="note1.md",
+                content_type="text/markdown",
+                size=200,
+                hash="def456",
+                file_type="note",
+            ),
+            FileMetadata(
+                id=3,
+                notebook_id=1,
+                path="task2.md",
+                filename="task2.md",
+                content_type="text/markdown",
+                size=150,
+                hash="ghi789",
+                file_type="todo",
+            ),
+        ]
+
+        groups = group_files(files, "file_type")
+        assert "todo" in groups
+        assert "note" in groups
+        assert len(groups["todo"]) == 2
+        assert len(groups["note"]) == 1
+
+    def test_group_files_by_file_type_undefined(self):
+        """Test grouping files when file_type is None."""
+        files = [
+            FileMetadata(
+                id=1,
+                notebook_id=1,
+                path="task1.md",
+                filename="task1.md",
+                content_type="text/markdown",
+                size=100,
+                hash="abc123",
+                file_type="todo",
+            ),
+            FileMetadata(
+                id=2,
+                notebook_id=1,
+                path="file.md",
+                filename="file.md",
+                content_type="text/markdown",
+                size=200,
+                hash="def456",
+                file_type=None,
+            ),
+        ]
+
+        groups = group_files(files, "file_type")
+        assert "todo" in groups
+        assert "None" in groups or "undefined" in groups  # None becomes string "None"
+
+    def test_view_query_for_kanban_view(self):
+        """Test ViewQuery configuration for a kanban view."""
+        from codex.api.routes.query import ViewQuery
+
+        # Simulates a kanban board query that filters by file_type
+        query = ViewQuery(
+            file_types=["todo"],
+            properties_exists=["status"],
+            sort="properties.priority desc",
+            limit=100,
+        )
+
+        assert query.file_types == ["todo"]
+        assert query.properties_exists == ["status"]
+        assert query.sort == "properties.priority desc"
+
+    def test_view_query_for_task_list_view(self):
+        """Test ViewQuery configuration for a task list view."""
+        from codex.api.routes.query import ViewQuery
+
+        # Simulates a task list query
+        query = ViewQuery(
+            file_types=["todo"],
+            properties={"status": ["todo", "in-progress"]},
+            sort="created_at desc",
+            limit=50,
+        )
+
+        assert query.file_types == ["todo"]
+        assert query.properties == {"status": ["todo", "in-progress"]}
+
+    def test_view_query_for_gallery_with_pagination(self):
+        """Test ViewQuery configuration for gallery view with pagination."""
+        from codex.api.routes.query import ViewQuery
+
+        # Simulates a gallery query with pagination
+        query = ViewQuery(
+            content_types=["image/jpeg", "image/png", "image/gif", "image/webp"],
+            sort="file_modified_at desc",
+            limit=24,
+            offset=48,  # Page 3 with 24 items per page
+        )
+
+        assert query.content_types == ["image/jpeg", "image/png", "image/gif", "image/webp"]
+        assert query.limit == 24
+        assert query.offset == 48
+
+    def test_view_query_combined_content_types_and_tags(self):
+        """Test ViewQuery with both content_types and tags for filtered gallery."""
+        from codex.api.routes.query import ViewQuery
+
+        # Simulates a gallery showing only tagged images
+        query = ViewQuery(
+            content_types=["image/jpeg", "image/png"],
+            tags_any=["favorites", "portfolio"],
+            limit=20,
+        )
+
+        assert query.content_types == ["image/jpeg", "image/png"]
+        assert query.tags_any == ["favorites", "portfolio"]
+
+
+class TestFileMetadataWithFileType:
+    """Test FileMetadata model with file_type field."""
+
+    def test_file_metadata_with_file_type(self):
+        """Test creating FileMetadata with file_type."""
+        file = FileMetadata(
+            id=1,
+            notebook_id=1,
+            path="task.md",
+            filename="task.md",
+            content_type="text/markdown",
+            size=100,
+            hash="abc123",
+            file_type="todo",
+        )
+
+        assert file.file_type == "todo"
+
+    def test_file_metadata_file_type_none(self):
+        """Test FileMetadata with no file_type."""
+        file = FileMetadata(
+            id=1,
+            notebook_id=1,
+            path="random.md",
+            filename="random.md",
+            content_type="text/markdown",
+            size=100,
+            hash="abc123",
+        )
+
+        assert file.file_type is None
+
+    def test_file_to_dict_file_type_none(self):
+        """Test file_to_dict when file_type is None."""
+        file = FileMetadata(
+            id=1,
+            notebook_id=1,
+            path="test.md",
+            filename="test.md",
+            content_type="text/markdown",
+            size=100,
+            hash="abc123",
+            file_type=None,
+        )
+
+        result = file_to_dict(file)
+        assert result["file_type"] is None

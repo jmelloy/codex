@@ -7,7 +7,7 @@ from typing import Any
 
 @dataclass
 class Plugin:
-    """Base plugin class."""
+    """Base plugin class that can expose any combination of themes, templates, views, or integrations."""
 
     plugin_dir: Path
     manifest: dict[str, Any]
@@ -42,11 +42,7 @@ class Plugin:
         """Get plugin author."""
         return self.manifest.get("author", "")
 
-
-@dataclass
-class ViewPlugin(Plugin):
-    """View plugin with custom views and templates."""
-
+    # View/Template capabilities (available to any plugin)
     @property
     def properties(self) -> list[dict[str, Any]]:
         """Get custom properties defined by this plugin."""
@@ -67,11 +63,7 @@ class ViewPlugin(Plugin):
         """Get example files provided by this plugin."""
         return self.manifest.get("examples", [])
 
-
-@dataclass
-class ThemePlugin(Plugin):
-    """Theme plugin with CSS styling."""
-
+    # Theme capabilities (available to any plugin)
     @property
     def theme_config(self) -> dict[str, Any]:
         """Get theme configuration."""
@@ -116,11 +108,7 @@ class ThemePlugin(Plugin):
         """Get full path to a stylesheet."""
         return self.plugin_dir / relative_path
 
-
-@dataclass
-class IntegrationPlugin(Plugin):
-    """Integration plugin with API connections."""
-
+    # Integration capabilities (available to any plugin)
     @property
     def integration_config(self) -> dict[str, Any]:
         """Get integration configuration."""
@@ -142,11 +130,6 @@ class IntegrationPlugin(Plugin):
         return self.integration_config.get("auth_method")
 
     @property
-    def properties(self) -> list[dict[str, Any]]:
-        """Get configuration properties."""
-        return self.manifest.get("properties", [])
-
-    @property
     def blocks(self) -> list[dict[str, Any]]:
         """Get block types provided by this plugin."""
         return self.manifest.get("blocks", [])
@@ -165,3 +148,53 @@ class IntegrationPlugin(Plugin):
     def permissions(self) -> list[str]:
         """Get required permissions."""
         return self.manifest.get("permissions", [])
+
+    # Helper methods to check what capabilities this plugin provides
+    def has_theme(self) -> bool:
+        """Check if this plugin provides a theme."""
+        return bool(self.theme_config)
+
+    def has_templates(self) -> bool:
+        """Check if this plugin provides templates."""
+        return bool(self.templates)
+
+    def has_views(self) -> bool:
+        """Check if this plugin provides views."""
+        return bool(self.views)
+
+    def has_integration(self) -> bool:
+        """Check if this plugin provides an integration."""
+        return bool(self.integration_config)
+
+
+# Backward compatibility: Type-specific plugin classes
+# These are now just aliases/wrappers of the base Plugin class
+# They exist for backward compatibility but don't add any exclusive capabilities
+@dataclass
+class ViewPlugin(Plugin):
+    """View plugin - backward compatibility wrapper.
+    
+    Note: Any plugin can now provide views and templates, not just ViewPlugin.
+    This class exists for backward compatibility.
+    """
+    pass
+
+
+@dataclass
+class ThemePlugin(Plugin):
+    """Theme plugin - backward compatibility wrapper.
+    
+    Note: Any plugin can now provide themes, not just ThemePlugin.
+    This class exists for backward compatibility.
+    """
+    pass
+
+
+@dataclass
+class IntegrationPlugin(Plugin):
+    """Integration plugin - backward compatibility wrapper.
+    
+    Note: Any plugin can now provide integrations, not just IntegrationPlugin.
+    This class exists for backward compatibility.
+    """
+    pass

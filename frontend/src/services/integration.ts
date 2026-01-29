@@ -41,11 +41,14 @@ export interface IntegrationDetails extends Integration {
     name: string
     description: string
     icon: string
+    syntax?: string
   }>
   endpoints?: Array<{
     id: string
     name: string
     description: string
+    method?: string
+    path?: string
   }>
 }
 

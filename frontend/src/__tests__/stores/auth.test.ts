@@ -15,6 +15,14 @@ vi.mock("../../services/auth", () => ({
   },
 }))
 
+// Mock the integration store
+vi.mock("../../stores/integration", () => ({
+  useIntegrationStore: () => ({
+    loadIntegrations: vi.fn(),
+    reset: vi.fn(),
+  }),
+}))
+
 describe("Auth Store", () => {
   beforeEach(() => {
     // Create a fresh pinia instance for each test

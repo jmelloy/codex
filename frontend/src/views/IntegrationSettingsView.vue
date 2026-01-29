@@ -55,28 +55,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { listIntegrations, type Integration } from '../services/integration'
+import { useIntegrationStore } from '../stores/integration'
 
 const router = useRouter()
+const integrationStore = useIntegrationStore()
 
-const integrations = ref<Integration[]>([])
-const loading = ref(true)
-const error = ref<string | null>(null)
+const integrations = computed(() => integrationStore.availableIntegrations)
+const loading = computed(() => !integrationStore.integrationsLoaded)
+const error = computed(() => integrationStore.integrationsLoadError ? 'Failed to load integrations' : null)
 
 async function loadIntegrations() {
-  loading.value = true
-  error.value = null
-  
-  try {
-    integrations.value = await listIntegrations()
-  } catch (err: any) {
-    error.value = err.message || 'Failed to load integrations'
-    console.error('Error loading integrations:', err)
-  } finally {
-    loading.value = false
-  }
+  await integrationStore.loadIntegrations()
 }
 
 function selectIntegration(integrationId: string) {
@@ -84,7 +75,10 @@ function selectIntegration(integrationId: string) {
 }
 
 onMounted(() => {
-  loadIntegrations()
+  // Trigger load if not already loaded
+  if (!integrationStore.integrationsLoaded) {
+    loadIntegrations()
+  }
 })
 </script>
 

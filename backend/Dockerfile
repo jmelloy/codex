@@ -9,7 +9,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=ghcr.io/astral-sh/uv:0.9.27 /uv /uvx /bin/
-ENV UV_NO_DEV=1
 
 # Copy requirements first for better caching
 COPY pyproject.toml ./

@@ -1,5 +1,7 @@
 """API schemas for request/response validation."""
 
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
@@ -40,3 +42,59 @@ class ThemeResponse(BaseModel):
     category: str
     version: str
     author: str
+
+
+class IntegrationResponse(BaseModel):
+    """Schema for integration plugin information."""
+
+    id: str
+    name: str
+    description: str
+    version: str
+    author: str
+    api_type: str
+    base_url: str | None = None
+    auth_method: str | None = None
+    enabled: bool = True
+
+
+class IntegrationConfigRequest(BaseModel):
+    """Schema for updating integration configuration."""
+
+    config: dict[str, Any]
+
+
+class IntegrationConfigResponse(BaseModel):
+    """Schema for integration configuration response."""
+
+    plugin_id: str
+    config: dict[str, Any]
+
+
+class IntegrationTestRequest(BaseModel):
+    """Schema for testing integration connection."""
+
+    config: dict[str, Any] | None = None
+
+
+class IntegrationTestResponse(BaseModel):
+    """Schema for integration test result."""
+
+    success: bool
+    message: str
+    details: dict[str, Any] | None = None
+
+
+class IntegrationExecuteRequest(BaseModel):
+    """Schema for executing integration endpoint."""
+
+    endpoint_id: str
+    parameters: dict[str, Any] | None = None
+
+
+class IntegrationExecuteResponse(BaseModel):
+    """Schema for integration execution result."""
+
+    success: bool
+    data: dict[str, Any] | None = None
+    error: str | None = None

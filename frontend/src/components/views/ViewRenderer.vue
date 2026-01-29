@@ -18,6 +18,7 @@
       :workspace-id="workspaceId"
       @update="handleUpdate"
       @refresh="loadView"
+      @select-file="(file: any) => emit('selectFile', file)"
     />
 
     <div v-else class="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
@@ -51,6 +52,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: "error", error: string): void
   (e: "loaded", definition: ViewDefinition): void
+  (e: "selectFile", file: any): void
 }>()
 
 const loading = ref(true)

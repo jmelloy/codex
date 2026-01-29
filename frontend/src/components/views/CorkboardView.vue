@@ -80,6 +80,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: "update", event: { fileId: number; updates: Record<string, any> }): void
   (e: "refresh"): void
+  (e: "selectFile", file: FileMetadata): void
 }>()
 
 const draggedCard = ref<FileMetadata | null>(null)
@@ -194,10 +195,8 @@ const handleDrop = (event: DragEvent) => {
 
 // Handle card click
 const handleCardClick = (card: FileMetadata) => {
-  if (props.config.editable !== false) {
-    console.log("Card clicked:", card)
-    // TODO: Open edit modal or navigate to file
-  }
+  // Emit event to select the file
+  emit("selectFile", card)
 }
 </script>
 

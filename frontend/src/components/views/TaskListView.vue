@@ -113,6 +113,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: "update", event: { fileId: number; updates: Record<string, any> }): void
   (e: "refresh"): void
+  (e: "selectFile", file: FileMetadata): void
 }>()
 
 const showAll = ref(false)
@@ -182,8 +183,8 @@ const toggleTaskStatus = (task: FileMetadata) => {
 
 // Handle task click
 const handleTaskClick = (task: FileMetadata) => {
-  console.log("Task clicked:", task)
-  // TODO: Open task in editor or modal
+  // Emit event to select the file/task
+  emit("selectFile", task)
 }
 
 // Format date

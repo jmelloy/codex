@@ -28,6 +28,7 @@
             :view-path="component.view"
             :workspace-id="workspaceId"
             :span="component.span || 12"
+            @select-file="(file: any) => emit('selectFile', file)"
           />
           <div v-else class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
             <p class="text-yellow-700">Unknown component type: {{ component.type }}</p>
@@ -57,6 +58,10 @@ const props = defineProps<{
   config: Record<string, any>
   definition?: ViewDefinition
   workspaceId: number
+}>()
+
+const emit = defineEmits<{
+  (e: "selectFile", file: any): void
 }>()
 </script>
 

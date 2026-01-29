@@ -19,10 +19,14 @@ from codex.api.schemas import (
 )
 from codex.db.database import get_system_session
 from codex.db.models import PluginConfig, User
+from codex.plugins.executor import IntegrationExecutor
 from codex.plugins.models import IntegrationPlugin
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+# Create executor instance
+executor = IntegrationExecutor()
 
 
 @router.get("", response_model=list[IntegrationResponse])
@@ -201,19 +205,29 @@ async def test_integration_connection(
     if not integration or not isinstance(integration, IntegrationPlugin):
         raise HTTPException(status_code=404, detail="Integration not found")
     
-    # TODO: Implement actual connection testing
-    # For now, return a placeholder response
-    logger.info(f"Testing integration {integration_id} with config: {request_data.config}")
+    logger.info(f"Testing integration {integration_id}")
     
-    return IntegrationTestResponse(
-        success=True,
-        message="Connection test not yet implemented",
-        details={
-            "integration_id": integration_id,
-            "api_type": integration.api_type,
-            "base_url": integration.base_url,
-        },
-    )
+    try:
+        result = await executor.test_connection(integration, request_data.config)
+        return IntegrationTestResponse(
+            success=result["success"],
+            message=result["message"],
+            details={
+                "integration_id": integration_id,
+                "api_type": integration.api_type,
+                "base_url": integration.base_url,
+            },
+        )
+    except Exception as e:
+        logger.error(f"Error testing integration {integration_id}: {e}")
+        return IntegrationTestResponse(
+            success=False,
+            message=f"Test failed: {str(e)}",
+            details={
+                "integration_id": integration_id,
+                "error": str(e),
+            },
+        )
 
 
 @router.post("/{integration_id}/execute", response_model=IntegrationExecuteResponse)
@@ -255,21 +269,36 @@ async def execute_integration_endpoint(
             detail="Integration not configured for this workspace",
         )
     
-    # TODO: Implement actual endpoint execution
-    # For now, return a placeholder response
     logger.info(
         f"Executing endpoint {request_data.endpoint_id} for integration {integration_id}"
     )
     
-    return IntegrationExecuteResponse(
-        success=True,
-        data={
-            "endpoint_id": request_data.endpoint_id,
-            "parameters": request_data.parameters,
-            "message": "Endpoint execution not yet implemented",
-        },
-        error=None,
-    )
+    try:
+        data = await executor.execute_endpoint(
+            integration,
+            request_data.endpoint_id,
+            config.config,
+            request_data.parameters,
+        )
+        return IntegrationExecuteResponse(
+            success=True,
+            data=data,
+            error=None,
+        )
+    except ValueError as e:
+        logger.error(f"Validation error executing integration: {e}")
+        return IntegrationExecuteResponse(
+            success=False,
+            data=None,
+            error=str(e),
+        )
+    except Exception as e:
+        logger.error(f"Error executing integration: {e}")
+        return IntegrationExecuteResponse(
+            success=False,
+            data=None,
+            error=f"Execution failed: {str(e)}",
+        )
 
 
 @router.get("/{integration_id}/blocks")

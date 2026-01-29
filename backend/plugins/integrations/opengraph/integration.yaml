@@ -1,0 +1,73 @@
+# Integration Metadata
+id: opengraph-unfurl
+name: Open Graph Link Unfurling
+version: 1.0.0
+author: Codex Team
+description: Rich preview of any URL with Open Graph metadata
+license: MIT
+
+# Integration Type
+type: integration
+
+# Codex Compatibility
+codex_version: ">=1.0.0"
+api_version: 1
+
+# Integration Configuration
+integration:
+  # API type
+  api_type: rest
+  
+  # Authentication method
+  auth_method: none
+
+# Configuration Properties
+properties: []
+
+# Block Types
+# Custom block renderers for embedding in markdown
+blocks:
+  - id: link-preview
+    name: Link Preview
+    description: Rich preview of any URL with Open Graph metadata
+    icon: 🔗
+    auto_detect: true
+    url_patterns:
+      - "https?://.*"
+    syntax: "```link-preview\nurl: https://example.com\n```"
+    config_schema:
+      url:
+        type: string
+        description: URL to preview
+        required: true
+
+# API Endpoints
+# Define available API operations
+endpoints:
+  - id: fetch_metadata
+    name: Fetch Open Graph Metadata
+    method: GET
+    description: Fetch Open Graph metadata for a URL
+    parameters:
+      - name: url
+        type: string
+        description: URL to fetch metadata for
+        required: true
+    response_schema:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        image:
+          type: string
+        url:
+          type: string
+        site_name:
+          type: string
+
+# Permissions
+permissions:
+  - network_request
+  - render_blocks

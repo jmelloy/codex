@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import frontmatter
+from PIL import Image
 
 logger = logging.getLogger(__name__)
 
@@ -142,16 +143,63 @@ class MetadataParser:
             return None
 
     @staticmethod
+    def extract_image_metadata(filepath: str) -> dict[str, Any] | None:
+        """Extract metadata from an image file.
+        
+        Returns a dictionary with:
+        - width: Image width in pixels
+        - height: Image height in pixels
+        - format: Image format (e.g., PNG, JPEG, GIF)
+        - mode: Image mode (e.g., RGB, RGBA, L for grayscale)
+        
+        Returns None if the file is not an image or cannot be read.
+        """
+        # Check if file might be an image based on extension (performance optimization)
+        # Common image extensions supported by Pillow
+        image_extensions = {
+            '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.tiff', '.tif', 
+            '.webp', '.ico', '.svg', '.heic', '.heif', '.avif'
+        }
+        file_ext = Path(filepath).suffix.lower()
+        if file_ext not in image_extensions:
+            return None
+            
+        try:
+            with Image.open(filepath) as img:
+                return {
+                    "width": img.width,
+                    "height": img.height,
+                    "format": img.format,
+                    "mode": img.mode,
+                }
+        except Exception as e:
+            logger.debug(f"Could not extract image metadata from {filepath}: {e}")
+            return None
+
+    @staticmethod
     def extract_all_metadata(filepath: str, content: str | None = None) -> dict[str, Any]:
-        """Extract all available metadata from a file."""
+        """Extract all available metadata from a file.
+        
+        Priority order (later sources override earlier ones):
+        1. Image metadata (automatic extraction)
+        2. Frontmatter (for markdown files)
+        3. Sidecar files (JSON, XML, Markdown)
+        
+        This allows user-provided metadata in sidecars to override automatic extraction.
+        """
         metadata: dict[str, Any] = {}
+
+        # Try extracting image metadata first (so sidecars can override)
+        image_metadata = MetadataParser.extract_image_metadata(filepath)
+        if image_metadata:
+            metadata.update(image_metadata)
 
         # Try frontmatter if content provided and file is markdown
         if content and filepath.endswith(".md"):
             fm_metadata, _ = MetadataParser.parse_frontmatter(content)
             metadata.update(fm_metadata)
 
-        # Try sidecar files
+        # Try sidecar files (these have highest priority and can override everything)
         json_metadata = MetadataParser.parse_json_sidecar(filepath)
         if json_metadata:
             metadata.update(json_metadata)

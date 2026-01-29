@@ -1,9 +1,11 @@
 """Tests for integration executor."""
 
+from pathlib import Path
+
 import pytest
+
 from codex.plugins.executor import IntegrationExecutor
 from codex.plugins.loader import PluginLoader
-from pathlib import Path
 
 
 @pytest.fixture

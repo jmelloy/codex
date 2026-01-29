@@ -206,12 +206,17 @@ class IntegrationExecutor:
         path = endpoint.get("path", "")
 
         # Replace path parameters like {owner} with actual values
+        # Collect parameters used in path so we can remove them later
+        used_params = []
         for param_name, param_value in parameters.items():
             placeholder = f"{{{param_name}}}"
             if placeholder in path:
                 path = path.replace(placeholder, str(param_value))
-                # Remove from parameters dict so it's not added as query param
-                parameters.pop(param_name)
+                used_params.append(param_name)
+
+        # Remove parameters that were used in the path
+        for param_name in used_params:
+            parameters.pop(param_name)
 
         if base_url:
             return urljoin(base_url, path.lstrip("/"))

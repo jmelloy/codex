@@ -1,0 +1,196 @@
+# Integration Metadata
+id: github
+name: GitHub Integration
+version: 1.0.0
+author: Codex Team
+description: Embed GitHub issues, pull requests, and repositories in your notebooks
+license: MIT
+
+# Integration Type
+type: integration
+
+# Codex Compatibility
+codex_version: ">=1.0.0"
+api_version: 1
+
+# Integration Configuration
+integration:
+  # API type
+  api_type: rest
+  
+  # Base URL
+  base_url: "https://api.github.com"
+  
+  # Authentication method
+  auth_method: token
+  
+  # Rate limiting
+  rate_limit:
+    requests_per_minute: 60
+    requests_per_hour: 5000
+
+# Configuration Properties
+properties:
+  - name: access_token
+    type: string
+    description: GitHub personal access token
+    required: true
+    secure: true
+    ui:
+      type: password
+      label: Access Token
+      help: Generate a token at https://github.com/settings/tokens
+      
+  - name: default_org
+    type: string
+    description: Default GitHub organization
+    required: false
+    ui:
+      type: text
+      label: Default Organization
+      placeholder: "your-org"
+
+# Block Types
+blocks:
+  - id: github-issue
+    name: GitHub Issue
+    description: Display a GitHub issue with details
+    icon: 🐛
+    url_patterns:
+      - "https://github.com/.*/issues/.*"
+    syntax: "```github-issue\nurl: https://github.com/owner/repo/issues/123\n```"
+    config_schema:
+      url:
+        type: string
+        description: GitHub issue URL
+        required: true
+        
+  - id: github-pr
+    name: GitHub Pull Request
+    description: Display a GitHub pull request
+    icon: 🔀
+    url_patterns:
+      - "https://github.com/.*/pull/.*"
+    syntax: "```github-pr\nurl: https://github.com/owner/repo/pull/456\n```"
+    config_schema:
+      url:
+        type: string
+        description: GitHub PR URL
+        required: true
+        
+  - id: github-repo
+    name: GitHub Repository
+    description: Display GitHub repository information
+    icon: 📦
+    url_patterns:
+      - "https://github.com/[^/]+/[^/]+"
+    syntax: "```github-repo\nurl: https://github.com/owner/repo\n```"
+    config_schema:
+      url:
+        type: string
+        description: GitHub repository URL
+        required: true
+
+# API Endpoints
+endpoints:
+  - id: get_issue
+    name: Get Issue
+    method: GET
+    path: "/repos/{owner}/{repo}/issues/{issue_number}"
+    description: Get details of a GitHub issue
+    parameters:
+      - name: owner
+        type: string
+        description: Repository owner
+        required: true
+      - name: repo
+        type: string
+        description: Repository name
+        required: true
+      - name: issue_number
+        type: integer
+        description: Issue number
+        required: true
+    response_schema:
+      type: object
+      properties:
+        number:
+          type: integer
+        title:
+          type: string
+        body:
+          type: string
+        state:
+          type: string
+        user:
+          type: object
+        labels:
+          type: array
+        
+  - id: get_pr
+    name: Get Pull Request
+    method: GET
+    path: "/repos/{owner}/{repo}/pulls/{pull_number}"
+    description: Get details of a GitHub pull request
+    parameters:
+      - name: owner
+        type: string
+        description: Repository owner
+        required: true
+      - name: repo
+        type: string
+        description: Repository name
+        required: true
+      - name: pull_number
+        type: integer
+        description: Pull request number
+        required: true
+    response_schema:
+      type: object
+      properties:
+        number:
+          type: integer
+        title:
+          type: string
+        body:
+          type: string
+        state:
+          type: string
+        user:
+          type: object
+        
+  - id: get_repo
+    name: Get Repository
+    method: GET
+    path: "/repos/{owner}/{repo}"
+    description: Get details of a GitHub repository
+    parameters:
+      - name: owner
+        type: string
+        description: Repository owner
+        required: true
+      - name: repo
+        type: string
+        description: Repository name
+        required: true
+    response_schema:
+      type: object
+      properties:
+        name:
+          type: string
+        full_name:
+          type: string
+        description:
+          type: string
+        stargazers_count:
+          type: integer
+        forks_count:
+          type: integer
+        open_issues_count:
+          type: integer
+
+# Permissions
+permissions:
+  - network_request
+  - store_config
+  - render_blocks

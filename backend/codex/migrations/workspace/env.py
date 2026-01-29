@@ -4,10 +4,9 @@ import os
 import sys
 from pathlib import Path
 
+from alembic import context
 from sqlalchemy import create_engine, pool
 from sqlalchemy.engine import Connection
-
-from alembic import context
 
 # Add backend directory to path for imports when running alembic CLI
 backend_dir = Path(__file__).resolve().parent.parent

@@ -2,9 +2,9 @@
 
 import asyncio
 import logging
-from pathlib import Path
 import threading
 from contextlib import asynccontextmanager, contextmanager
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 

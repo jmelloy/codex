@@ -1,7 +1,6 @@
 """API routes for integration plugin management."""
 
 import logging
-from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlmodel import select
@@ -19,10 +18,14 @@ from codex.api.schemas import (
 )
 from codex.db.database import get_system_session
 from codex.db.models import PluginConfig, User
+from codex.plugins.executor import IntegrationExecutor
 from codex.plugins.models import IntegrationPlugin
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+# Create executor instance
+executor = IntegrationExecutor()
 
 
 @router.get("", response_model=list[IntegrationResponse])
@@ -31,13 +34,13 @@ async def list_integrations(
     current_user: User = Depends(get_current_user),
 ):
     """List all available integration plugins.
-    
+
     Returns:
         List of integration plugins with their metadata.
     """
     loader = request.app.state.plugin_loader
     integrations = loader.get_plugins_by_type("integration")
-    
+
     responses = []
     for integration in integrations:
         if isinstance(integration, IntegrationPlugin):
@@ -54,7 +57,7 @@ async def list_integrations(
                     enabled=True,  # TODO: Check if enabled for this workspace
                 )
             )
-    
+
     return responses
 
 
@@ -65,19 +68,19 @@ async def get_integration(
     current_user: User = Depends(get_current_user),
 ):
     """Get details of a specific integration plugin.
-    
+
     Args:
         integration_id: Integration plugin ID
-        
+
     Returns:
         Integration plugin details
     """
     loader = request.app.state.plugin_loader
     integration = loader.get_plugin(integration_id)
-    
+
     if not integration or not isinstance(integration, IntegrationPlugin):
         raise HTTPException(status_code=404, detail="Integration not found")
-    
+
     return IntegrationResponse(
         id=integration.id,
         name=integration.name,
@@ -102,11 +105,11 @@ async def get_integration_config(
     current_user: User = Depends(get_current_user),
 ):
     """Get integration configuration for a workspace.
-    
+
     Args:
         integration_id: Integration plugin ID
         workspace_id: Workspace ID
-        
+
     Returns:
         Integration configuration
     """
@@ -117,13 +120,13 @@ async def get_integration_config(
     )
     result = await session.execute(stmt)
     config = result.scalar_one_or_none()
-    
+
     if not config:
         return IntegrationConfigResponse(
             plugin_id=integration_id,
             config={},
         )
-    
+
     return IntegrationConfigResponse(
         plugin_id=integration_id,
         config=config.config,
@@ -139,12 +142,12 @@ async def update_integration_config(
     current_user: User = Depends(get_current_user),
 ):
     """Update integration configuration for a workspace.
-    
+
     Args:
         integration_id: Integration plugin ID
         workspace_id: Workspace ID
         request_data: Configuration data
-        
+
     Returns:
         Updated integration configuration
     """
@@ -155,7 +158,7 @@ async def update_integration_config(
     )
     result = await session.execute(stmt)
     config = result.scalar_one_or_none()
-    
+
     if config:
         # Update existing config
         config.config = request_data.config
@@ -172,7 +175,7 @@ async def update_integration_config(
         session.add(config)
         await session.commit()
         await session.refresh(config)
-    
+
     return IntegrationConfigResponse(
         plugin_id=integration_id,
         config=config.config,
@@ -187,33 +190,43 @@ async def test_integration_connection(
     current_user: User = Depends(get_current_user),
 ):
     """Test integration connection with given configuration.
-    
+
     Args:
         integration_id: Integration plugin ID
         request_data: Test configuration
-        
+
     Returns:
         Test result
     """
     loader = request.app.state.plugin_loader
     integration = loader.get_plugin(integration_id)
-    
+
     if not integration or not isinstance(integration, IntegrationPlugin):
         raise HTTPException(status_code=404, detail="Integration not found")
-    
-    # TODO: Implement actual connection testing
-    # For now, return a placeholder response
-    logger.info(f"Testing integration {integration_id} with config: {request_data.config}")
-    
-    return IntegrationTestResponse(
-        success=True,
-        message="Connection test not yet implemented",
-        details={
-            "integration_id": integration_id,
-            "api_type": integration.api_type,
-            "base_url": integration.base_url,
-        },
-    )
+
+    logger.info(f"Testing integration {integration_id}")
+
+    try:
+        result = await executor.test_connection(integration, request_data.config)
+        return IntegrationTestResponse(
+            success=result["success"],
+            message=result["message"],
+            details={
+                "integration_id": integration_id,
+                "api_type": integration.api_type,
+                "base_url": integration.base_url,
+            },
+        )
+    except Exception as e:
+        logger.error(f"Error testing integration {integration_id}: {e}")
+        return IntegrationTestResponse(
+            success=False,
+            message=f"Test failed: {str(e)}",
+            details={
+                "integration_id": integration_id,
+                "error": str(e),
+            },
+        )
 
 
 @router.post("/{integration_id}/execute", response_model=IntegrationExecuteResponse)
@@ -226,21 +239,21 @@ async def execute_integration_endpoint(
     current_user: User = Depends(get_current_user),
 ):
     """Execute an integration endpoint.
-    
+
     Args:
         integration_id: Integration plugin ID
         workspace_id: Workspace ID
         request_data: Execution parameters
-        
+
     Returns:
         Execution result
     """
     loader = request.app.state.plugin_loader
     integration = loader.get_plugin(integration_id)
-    
+
     if not integration or not isinstance(integration, IntegrationPlugin):
         raise HTTPException(status_code=404, detail="Integration not found")
-    
+
     # Get workspace configuration
     stmt = select(PluginConfig).where(
         PluginConfig.workspace_id == workspace_id,
@@ -248,28 +261,43 @@ async def execute_integration_endpoint(
     )
     result = await session.execute(stmt)
     config = result.scalar_one_or_none()
-    
+
     if not config:
         raise HTTPException(
             status_code=400,
             detail="Integration not configured for this workspace",
         )
-    
-    # TODO: Implement actual endpoint execution
-    # For now, return a placeholder response
+
     logger.info(
         f"Executing endpoint {request_data.endpoint_id} for integration {integration_id}"
     )
-    
-    return IntegrationExecuteResponse(
-        success=True,
-        data={
-            "endpoint_id": request_data.endpoint_id,
-            "parameters": request_data.parameters,
-            "message": "Endpoint execution not yet implemented",
-        },
-        error=None,
-    )
+
+    try:
+        data = await executor.execute_endpoint(
+            integration,
+            request_data.endpoint_id,
+            config.config,
+            request_data.parameters,
+        )
+        return IntegrationExecuteResponse(
+            success=True,
+            data=data,
+            error=None,
+        )
+    except ValueError as e:
+        logger.error(f"Validation error executing integration: {e}")
+        return IntegrationExecuteResponse(
+            success=False,
+            data=None,
+            error=str(e),
+        )
+    except Exception as e:
+        logger.error(f"Error executing integration: {e}")
+        return IntegrationExecuteResponse(
+            success=False,
+            data=None,
+            error=f"Execution failed: {str(e)}",
+        )
 
 
 @router.get("/{integration_id}/blocks")
@@ -279,19 +307,19 @@ async def get_integration_blocks(
     current_user: User = Depends(get_current_user),
 ):
     """Get available block types for an integration.
-    
+
     Args:
         integration_id: Integration plugin ID
-        
+
     Returns:
         List of available blocks
     """
     loader = request.app.state.plugin_loader
     integration = loader.get_plugin(integration_id)
-    
+
     if not integration or not isinstance(integration, IntegrationPlugin):
         raise HTTPException(status_code=404, detail="Integration not found")
-    
+
     return {
         "integration_id": integration_id,
         "blocks": integration.blocks,

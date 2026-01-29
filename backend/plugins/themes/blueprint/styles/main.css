@@ -8,6 +8,7 @@
   --pen-red: #fca5a5;
   --pen-green: #86efac;
   --grid-color: rgba(255, 255, 255, 0.1);
+  --grid-size: 24px;
   --ruled-line-color: rgba(255, 255, 255, 0.15);
   --page-border: rgba(255, 255, 255, 0.2);
   --page-shadow: rgba(0, 0, 0, 0.3);
@@ -30,6 +31,23 @@
   --color-border-dark: #4d6a8f;
 
   background-color: var(--notebook-bg);
+  background-image:
+    /* Vertical grid lines */ repeating-linear-gradient(
+      to right,
+      transparent 0,
+      transparent calc(var(--grid-size) - 1px),
+      var(--grid-color) calc(var(--grid-size) - 1px),
+      var(--grid-color) var(--grid-size)
+    ),
+    /* Horizontal grid lines */
+      repeating-linear-gradient(
+        to bottom,
+        transparent 0,
+        transparent calc(var(--grid-size) - 1px),
+        var(--grid-color) calc(var(--grid-size) - 1px),
+        var(--grid-color) var(--grid-size)
+      );
+  background-size: var(--grid-size) var(--grid-size);
   color: var(--notebook-text);
 }
 

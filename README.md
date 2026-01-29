@@ -261,41 +261,6 @@ mypy backend/
 
 See `.env.example` for all available configuration options.
 
-### MCP Server Setup
-
-The Codex MCP server allows AI assistants like GitHub Copilot to interact with the application. To set it up:
-
-1. **Install dependencies**:
-
-   ```bash
-   pip install -e ".[dev]"
-   playwright install chromium
-   ```
-
-2. **Configure your MCP client** (e.g., GitHub Copilot):
-   Point to `.github/mcp-server.json` or add to your settings:
-
-   ```json
-   {
-     "github.copilot.mcp": {
-       "codex": {
-         "command": "python",
-         "args": ["-m", "codex.mcp_server"],
-         "cwd": "${workspaceFolder}"
-       }
-     }
-   }
-   ```
-
-3. **Available tools**:
-   - `start_frontend` - Start the frontend dev server
-   - `start_backend` - Start the backend API server
-   - `take_screenshot` - Take a screenshot of the frontend
-   - `navigate_and_screenshot` - Navigate and screenshot a specific page
-   - `cleanup` - Stop servers and clean up resources
-
-See `backend/mcp_server/README.md` for detailed documentation.
-
 ### Metadata Formats
 
 #### Markdown Frontmatter
@@ -347,7 +312,7 @@ date: 2024-01-01
 - [Test Credentials](TEST_CREDENTIALS.md) - Test user accounts and sample data
 - [Performance Improvements](PERFORMANCE_IMPROVEMENTS.md) - Optimization notes
 - [Claude Instructions](CLAUDE.md) - Development guidelines for AI assistants
-Comprehensive design documents are available in the `/docs/design/` directory:
+  Comprehensive design documents are available in the `/docs/design/` directory:
 
 - **[Dynamic Views](docs/design/dynamic-views.md)** - Query-based dynamic views and visualizations
 - **[Plugin System](docs/design/plugin-system.md)** - Extensible plugin architecture for views, themes, and integrations
@@ -355,4 +320,3 @@ Comprehensive design documents are available in the `/docs/design/` directory:
 ## License
 
 MIT License - see LICENSE file for details
-

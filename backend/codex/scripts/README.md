@@ -64,56 +64,6 @@ This will:
 2. Remove workspace directories and all files
 3. Clean up any associated data
 
-## Use Cases
-
-### Taking Screenshots
-
-#### Automated Screenshots
-
-Use the screenshot utility to automatically capture all themes and pages:
-
-```bash
-# Start the servers first
-uvicorn codex.main:app --reload --port 8000
-cd frontend && npm run dev  # In another terminal
-
-# Take all screenshots (themes, pages, workflows, mobile)
-python -m codex.scripts.take_screenshots
-
-# Take only theme screenshots
-python -m codex.scripts.take_screenshots --themes-only
-
-# Take only page screenshots
-python -m codex.scripts.take_screenshots --pages-only
-
-# Take only workflow screenshots
-python -m codex.scripts.take_screenshots --workflows-only
-
-# Take only mobile screenshots
-python -m codex.scripts.take_screenshots --mobile-only
-
-# Specify custom output directory
-python -m codex.scripts.take_screenshots --output-dir ./docs/images
-```
-
-The screenshot utility will automatically:
-
-- Login with the demo user
-- Capture all 4 themes (cream, manila, white, blueprint)
-- Screenshot all pages (login, register, home, settings)
-- Capture common workflows (login flow, browsing notebooks)
-- Take mobile viewport screenshots
-
-#### Manual Screenshots
-
-You can also manually take screenshots:
-
-```bash
-# Navigate to http://localhost:5173
-# Login with demo/demo123456
-# Take screenshots of various pages and themes
-```
-
 ### Testing Authentication Flow
 
 Use the testuser account for basic authentication testing:

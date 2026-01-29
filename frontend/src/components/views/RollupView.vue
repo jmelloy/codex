@@ -143,6 +143,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: "refresh"): void
+  (e: "selectFile", file: FileMetadata): void
 }>()
 
 const expandedGroups = ref<Set<string>>(new Set())
@@ -306,8 +307,8 @@ const uniqueTags = computed(() => {
 
 // Handle file click
 const handleFileClick = (file: FileMetadata) => {
-  console.log("File clicked:", file)
-  // TODO: Open file in editor
+  // Emit event to select the file
+  emit("selectFile", file)
 }
 </script>
 

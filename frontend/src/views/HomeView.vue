@@ -598,6 +598,7 @@
             :workspace-id="workspaceStore.currentWorkspace!.id"
             :notebook-id="workspaceStore.currentFile.notebook_id"
             class="flex-1"
+            @select-file="selectFile"
           />
 
           <!-- Code Viewer -->

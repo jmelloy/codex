@@ -91,6 +91,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: "update", event: { fileId: number; updates: Record<string, any> }): void
   (e: "refresh"): void
+  (e: "selectFile", file: FileMetadata): void
 }>()
 
 const draggedCard = ref<FileMetadata | null>(null)
@@ -176,8 +177,8 @@ const handleDrop = (event: DragEvent, columnId: string) => {
 
 // Handle card click
 const handleCardClick = (card: FileMetadata) => {
-  // Open file in editor (TODO: implement navigation)
-  console.log("Card clicked:", card)
+  // Emit event to select the file
+  emit("selectFile", card)
 }
 </script>
 

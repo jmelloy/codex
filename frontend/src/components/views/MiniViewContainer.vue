@@ -19,6 +19,7 @@
       :workspace-id="workspaceId"
       :notebook-id="notebookId"
       :compact="true"
+      @select-file="(file: any) => emit('selectFile', file)"
     />
 
     <!-- Not Found State -->
@@ -37,6 +38,10 @@ const props = defineProps<{
   viewPath: string
   workspaceId: number
   span: number
+}>()
+
+const emit = defineEmits<{
+  (e: "selectFile", file: any): void
 }>()
 
 const viewFileId = ref<number | null>(null)

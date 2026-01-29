@@ -429,3 +429,40 @@ class TestImageMetadata:
         assert metadata["format"] == "PNG"
         assert metadata["title"] == "My Photo"
         assert metadata["description"] == "A test photo"
+
+    def test_sidecar_metadata_overrides_image_metadata(self, tmp_path):
+        """Test that sidecar metadata can override automatically extracted image metadata."""
+        from PIL import Image
+        
+        # Create a test image with specific dimensions
+        img_path = tmp_path / "custom.png"
+        img = Image.new("RGB", (1920, 1080), color="cyan")
+        img.save(img_path, format="PNG")
+        
+        # Create a sidecar file that overrides the width
+        sidecar_path = tmp_path / "custom.png.json"
+        sidecar_path.write_text('{"width": 999, "description": "Custom width override"}')
+        
+        metadata = MetadataParser.extract_all_metadata(str(img_path))
+        
+        # Sidecar metadata should override image metadata
+        assert metadata["width"] == 999  # Overridden by sidecar
+        assert metadata["height"] == 1080  # Still from image
+        assert metadata["format"] == "PNG"  # Still from image
+        assert metadata["description"] == "Custom width override"
+
+    def test_non_image_file_skips_image_extraction(self, tmp_path):
+        """Test that non-image files are not processed by image extraction (performance)."""
+        from PIL import Image
+        
+        # Create a text file with an image-like name but wrong content
+        text_path = tmp_path / "not_an_image.txt"
+        text_path.write_text("This is definitely not an image")
+        
+        # This should not raise an error and should not extract image metadata
+        metadata = MetadataParser.extract_all_metadata(str(text_path))
+        
+        # No image metadata should be present
+        assert "width" not in metadata
+        assert "height" not in metadata
+        assert "format" not in metadata

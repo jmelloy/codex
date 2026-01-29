@@ -154,6 +154,16 @@ class MetadataParser:
         
         Returns None if the file is not an image or cannot be read.
         """
+        # Check if file might be an image based on extension (performance optimization)
+        # Common image extensions supported by Pillow
+        image_extensions = {
+            '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.tiff', '.tif', 
+            '.webp', '.ico', '.svg', '.heic', '.heif', '.avif'
+        }
+        file_ext = Path(filepath).suffix.lower()
+        if file_ext not in image_extensions:
+            return None
+            
         try:
             with Image.open(filepath) as img:
                 return {
@@ -168,15 +178,28 @@ class MetadataParser:
 
     @staticmethod
     def extract_all_metadata(filepath: str, content: str | None = None) -> dict[str, Any]:
-        """Extract all available metadata from a file."""
+        """Extract all available metadata from a file.
+        
+        Priority order (later sources override earlier ones):
+        1. Image metadata (automatic extraction)
+        2. Frontmatter (for markdown files)
+        3. Sidecar files (JSON, XML, Markdown)
+        
+        This allows user-provided metadata in sidecars to override automatic extraction.
+        """
         metadata: dict[str, Any] = {}
+
+        # Try extracting image metadata first (so sidecars can override)
+        image_metadata = MetadataParser.extract_image_metadata(filepath)
+        if image_metadata:
+            metadata.update(image_metadata)
 
         # Try frontmatter if content provided and file is markdown
         if content and filepath.endswith(".md"):
             fm_metadata, _ = MetadataParser.parse_frontmatter(content)
             metadata.update(fm_metadata)
 
-        # Try sidecar files
+        # Try sidecar files (these have highest priority and can override everything)
         json_metadata = MetadataParser.parse_json_sidecar(filepath)
         if json_metadata:
             metadata.update(json_metadata)
@@ -188,11 +211,6 @@ class MetadataParser:
         markdown_metadata = MetadataParser.parse_markdown_sidecar(filepath)
         if markdown_metadata:
             metadata.update(markdown_metadata)
-
-        # Try extracting image metadata for image files
-        image_metadata = MetadataParser.extract_image_metadata(filepath)
-        if image_metadata:
-            metadata.update(image_metadata)
 
         return metadata
 

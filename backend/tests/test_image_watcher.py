@@ -3,11 +3,10 @@
 import json
 import os
 import tempfile
-from pathlib import Path
 
 import pytest
 from PIL import Image
-from sqlmodel import Session, select
+from sqlmodel import select
 
 from codex.core.watcher import NotebookFileHandler
 from codex.db.database import get_notebook_session, init_notebook_db

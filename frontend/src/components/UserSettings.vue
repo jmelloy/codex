@@ -79,6 +79,22 @@
         </div>
       </div>
 
+      <!-- Integrations Section -->
+      <div
+        class="rounded-lg shadow-md p-6 mb-6 border border-border-medium bg-bg-primary/80 backdrop-blur-sm"
+      >
+        <h3 class="text-xl font-semibold mb-4 text-text-primary">Integrations</h3>
+        <p class="mb-6 text-text-secondary">
+          Connect Codex to external services and APIs to extend functionality.
+        </p>
+        <button
+          @click="goToIntegrations"
+          class="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors"
+        >
+          Manage Integrations
+        </button>
+      </div>
+
       <!-- Account Settings Section (Placeholder) -->
       <div
         class="rounded-lg shadow-md p-6 border border-border-medium bg-bg-primary/80 backdrop-blur-sm"
@@ -103,9 +119,11 @@
 
 <script setup lang="ts">
 import { ref } from "vue"
+import { useRouter } from "vue-router"
 import { useAuthStore } from "../stores/auth"
 import { useThemeStore, type ThemeName } from "../stores/theme"
 
+const router = useRouter()
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
 
@@ -123,6 +141,10 @@ function selectTheme(themeName: ThemeName) {
   themeSavedTimeout = setTimeout(() => {
     themeSaved.value = false
   }, 3000) as unknown as number
+}
+
+function goToIntegrations() {
+  router.push({ name: "integrations" })
 }
 </script>
 

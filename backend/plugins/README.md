@@ -1,10 +1,39 @@
 # Codex Plugins
 
-This directory contains plugins for Codex. Plugins extend functionality through three types:
+This directory contains plugins for Codex. Plugins are flexible components that can provide any combination of:
 
-1. **Views** (`plugins/views/`) - Custom view components with templates and examples
-2. **Themes** (`plugins/themes/`) - Visual styling with CSS
-3. **Integrations** (`plugins/integrations/`) - External API connections
+1. **Views** - Custom view components with query configurations
+2. **Templates** - File templates for creating new content
+3. **Themes** - Visual styling with CSS
+4. **Integrations** - External API connections
+
+## Flexible Plugin Architecture
+
+**Important**: As of the latest changes, **any plugin type can expose themes, templates, views, or integrations**. The plugin system is no longer hierarchical - it's capability-based.
+
+### Examples of Mixed Capabilities:
+
+- A **theme plugin** can also provide templates (e.g., Manila theme includes a "Manila Note" template)
+- An **integration plugin** can provide templates (e.g., GitHub integration includes an "Issue Tracker" template)
+- A **view plugin** could theoretically include a matching theme
+- Any plugin can mix and match capabilities as needed
+
+### Plugin Types (by manifest)
+
+While plugins are declared with a `type` field in their manifest (`view`, `theme`, or `integration`), this is primarily for organizational purposes. The actual capabilities are determined by what sections are present in the manifest:
+
+- `theme` section → Plugin provides a theme
+- `templates` section → Plugin provides templates
+- `views` section → Plugin provides custom views
+- `integration` section → Plugin provides API integration
+
+## Directory Structure
+
+Plugins are organized by their primary type for convenience:
+
+1. **Views** (`plugins/views/`) - Primarily focused on custom views
+2. **Themes** (`plugins/themes/`) - Primarily focused on visual styling
+3. **Integrations** (`plugins/integrations/`) - Primarily focused on API connections
 
 ## Built-in View Plugins
 
@@ -71,7 +100,103 @@ Codex includes four built-in themes:
 
 ## Plugin Structure
 
-Each plugin type has a specific structure:
+### Creating Plugins with Mixed Capabilities
+
+Any plugin can now include multiple capability sections in its manifest. Here are some examples:
+
+#### Example 1: Theme Plugin with Templates
+
+A theme plugin can provide matching templates:
+
+```yaml
+# theme.yaml
+id: manila
+name: Manila
+type: theme
+version: 1.0.0
+
+# Theme configuration
+theme:
+  display_name: Manila
+  category: light
+  className: theme-manila
+  stylesheet: styles/main.css
+
+# Templates - themes can now include these!
+templates:
+  - id: manila-note
+    name: Manila Note
+    file: templates/manila-note.yaml
+    description: A note template matching the Manila theme
+    icon: 📄
+    default_name: manila-note.cdx
+```
+
+#### Example 2: Integration Plugin with Templates and Theme
+
+An integration plugin can provide both templates and even a theme:
+
+```yaml
+# integration.yaml
+id: github
+name: GitHub Integration
+type: integration
+version: 1.0.0
+
+# Integration configuration
+integration:
+  api_type: rest
+  base_url: "https://api.github.com"
+  auth_method: token
+
+# Templates - integrations can provide these!
+templates:
+  - id: github-issue-tracker
+    name: GitHub Issue Tracker
+    file: templates/issue-tracker.yaml
+    description: Track GitHub issues
+    icon: 🐛
+
+# Optional: Theme configuration
+theme:
+  display_name: GitHub Dark
+  category: dark
+  className: theme-github
+  stylesheet: styles/github.css
+```
+
+#### Example 3: View Plugin with Theme
+
+A view plugin could include a matching theme:
+
+```yaml
+# plugin.yaml
+id: kanban
+name: Kanban View
+type: view
+version: 1.0.0
+
+# Views
+views:
+  - id: kanban-board
+    name: Kanban Board
+    description: Task board view
+
+# Templates
+templates:
+  - id: task-board
+    name: Task Board
+
+# Optional: Theme for the view
+theme:
+  display_name: Kanban Theme
+  category: light
+  className: theme-kanban
+```
+
+### Standard Plugin Structures
+
+Each plugin type still has a recommended primary structure:
 
 ### View Plugin Structure
 
@@ -323,3 +448,74 @@ The following templates have been migrated to plugins:
 - `weekly-rollup.yaml` - Weekly activity rollup template
 
 Example CDX files have also been migrated from `examples/views/` to their respective plugin `examples/` directories.
+
+## Using the Capability-Based Plugin API
+
+The plugin loader now provides capability-based methods in addition to type-based filtering:
+
+### Python API
+
+```python
+from codex.plugins.loader import PluginLoader
+
+loader = PluginLoader(plugins_dir)
+loader.load_all_plugins()
+
+# Get all plugins with specific capabilities (regardless of type)
+themes = loader.get_plugins_with_themes()  # All plugins providing themes
+templates = loader.get_plugins_with_templates()  # All plugins providing templates
+views = loader.get_plugins_with_views()  # All plugins providing views
+integrations = loader.get_plugins_with_integrations()  # All plugins providing integrations
+
+# Traditional type-based filtering still works
+theme_plugins = loader.get_plugins_by_type("theme")  # Only "theme" type plugins
+```
+
+### Checking Plugin Capabilities
+
+Every plugin instance has capability checking methods:
+
+```python
+plugin = loader.get_plugin("manila")
+
+if plugin.has_theme():
+    print(f"Theme: {plugin.display_name}")
+    
+if plugin.has_templates():
+    print(f"Templates: {[t['id'] for t in plugin.templates]}")
+    
+if plugin.has_views():
+    print(f"Views: {[v['id'] for v in plugin.views]}")
+    
+if plugin.has_integration():
+    print(f"Integration: {plugin.api_type}")
+```
+
+## Migration Guide
+
+### For Plugin Developers
+
+If you have existing plugins, they will continue to work without changes. To add new capabilities:
+
+1. **Add templates to a theme**:
+   - Create a `templates/` directory in your theme plugin
+   - Add template YAML files
+   - Add a `templates` section to your `theme.yaml`
+
+2. **Add a theme to a view or integration**:
+   - Create a `styles/` directory
+   - Add CSS files
+   - Add a `theme` section to your manifest
+
+3. **Add templates to an integration**:
+   - Create a `templates/` directory
+   - Add template YAML files
+   - Add a `templates` section to your `integration.yaml`
+
+### For API Consumers
+
+If you're using the plugin API:
+
+- **Recommended**: Use capability-based methods (`get_plugins_with_themes()`, etc.)
+- **Still supported**: Type-based methods (`get_plugins_by_type()`)
+- The capability-based methods are more flexible and future-proof

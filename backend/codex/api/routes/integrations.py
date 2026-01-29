@@ -88,6 +88,9 @@ async def get_integration(
         base_url=integration.base_url,
         auth_method=integration.auth_method,
         enabled=True,  # TODO: Check if enabled for this workspace
+        properties=integration.properties,
+        blocks=integration.blocks,
+        endpoints=integration.endpoints,
     )
 
 

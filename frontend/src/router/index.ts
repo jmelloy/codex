@@ -3,6 +3,8 @@ import { useAuthStore } from "../stores/auth"
 import HomeView from "../views/HomeView.vue"
 import LoginView from "../views/LoginView.vue"
 import RegisterView from "../views/RegisterView.vue"
+import IntegrationSettingsView from "../views/IntegrationSettingsView.vue"
+import IntegrationConfigView from "../views/IntegrationConfigView.vue"
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -21,6 +23,18 @@ const router = createRouter({
     {
       path: "/settings",
       redirect: { path: "/", query: { view: "settings" } },
+    },
+    {
+      path: "/integrations",
+      name: "integrations",
+      component: IntegrationSettingsView,
+      meta: { requiresAuth: true },
+    },
+    {
+      path: "/integrations/:integrationId",
+      name: "integration-config",
+      component: IntegrationConfigView,
+      meta: { requiresAuth: true },
     },
     {
       path: "/login",

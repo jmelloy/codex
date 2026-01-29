@@ -1,6 +1,7 @@
 /* Blueprint Theme - Dark mode with blueprint styling */
 
 .theme-blueprint {
+  --page-blueprint: #1e3a5f;
   --notebook-bg: var(--page-blueprint);
   --notebook-text: #e0e7ff;
   --pen-gray: #a5b4cb;

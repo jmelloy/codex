@@ -1010,6 +1010,35 @@ watch(
   { deep: true }
 )
 
+// Watch for file/folder selection to update document title
+watch(
+  () => [workspaceStore.currentFile, workspaceStore.currentFolder, workspaceStore.currentNotebook] as const,
+  () => {
+    const file = workspaceStore.currentFile
+    const folder = workspaceStore.currentFolder
+    const notebook = workspaceStore.currentNotebook
+
+    if (file) {
+      // File selected: "Codex - Notebook / Title (or Filename)"
+      const notebookName = notebook?.name || "Notebook"
+      const fileTitle = file.title || file.filename
+      document.title = `Codex - ${notebookName} / ${fileTitle}`
+    } else if (folder) {
+      // Folder selected: "Codex - Notebook / Folder"
+      const notebookName = notebook?.name || "Notebook"
+      const folderTitle = folder.title || folder.name
+      document.title = `Codex - ${notebookName} / ${folderTitle}`
+    } else if (notebook) {
+      // Only notebook selected: "Codex - Notebook"
+      document.title = `Codex - ${notebook.name}`
+    } else {
+      // Nothing selected: just "Codex"
+      document.title = "Codex"
+    }
+  },
+  { immediate: true }
+)
+
 function handleLogout() {
   authStore.logout()
   router.push("/login")

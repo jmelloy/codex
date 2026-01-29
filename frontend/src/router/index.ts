@@ -52,6 +52,12 @@ const router = createRouter({
 router.beforeEach(async (to, _from, next) => {
   const authStore = useAuthStore()
 
+  // Ensure auth store is initialized on first navigation
+  // This handles hot reload scenarios where the store may have been reset
+  if (!authStore.isAuthenticated && localStorage.getItem("access_token")) {
+    await authStore.initialize()
+  }
+
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     next("/login")
   } else if ((to.path === "/login" || to.path === "/register") && authStore.isAuthenticated) {

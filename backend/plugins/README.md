@@ -9,7 +9,7 @@ This directory contains plugins for Codex. Plugins are flexible components that 
 
 ## Flexible Plugin Architecture
 
-**Important**: As of the latest changes, **any plugin type can expose themes, templates, views, or integrations**. The plugin system is no longer hierarchical - it's capability-based.
+**The plugin system uses a capability-based architecture** where any plugin type can expose themes, templates, views, or integrations. The plugin system is no longer hierarchical.
 
 ### Examples of Mixed Capabilities:
 
@@ -122,7 +122,7 @@ theme:
   className: theme-manila
   stylesheet: styles/main.css
 
-# Templates - themes can now include these!
+# Templates - themes can also include templates
 templates:
   - id: manila-note
     name: Manila Note
@@ -149,7 +149,7 @@ integration:
   base_url: "https://api.github.com"
   auth_method: token
 
-# Templates - integrations can provide these!
+# Templates - integrations can also provide templates
 templates:
   - id: github-issue-tracker
     name: GitHub Issue Tracker
@@ -451,7 +451,7 @@ Example CDX files have also been migrated from `examples/views/` to their respec
 
 ## Using the Capability-Based Plugin API
 
-The plugin loader now provides capability-based methods in addition to type-based filtering:
+The plugin loader provides capability-based methods in addition to type-based filtering:
 
 ### Python API
 

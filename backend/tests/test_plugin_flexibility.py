@@ -3,7 +3,6 @@
 import tempfile
 from pathlib import Path
 
-import pytest
 import yaml
 
 from codex.plugins.loader import PluginLoader
@@ -77,13 +76,15 @@ def test_integration_plugin_still_has_integration_capabilities():
 def test_get_plugins_with_themes_includes_all_types():
     """Test that get_plugins_with_themes returns plugins of any type with theme config."""
     loader = PluginLoader(Path("/tmp/test_plugins"))
-    loader.load_plugin(Path("/tmp/test_plugins/mixed"))
+    plugin = loader.load_plugin(Path("/tmp/test_plugins/mixed"))
     
     # Get all plugins with themes
     plugins_with_themes = loader.get_plugins_with_themes()
     
     # Should include the integration plugin that has theme config
-    assert len(plugins_with_themes) >= 1
+    assert any(p.id == "test-mixed-integration" for p in plugins_with_themes), \
+        "Mixed integration plugin with theme should be in results"
+    
     mixed_plugin = next((p for p in plugins_with_themes if p.id == "test-mixed-integration"), None)
     assert mixed_plugin is not None
     assert mixed_plugin.type == "integration"
@@ -92,13 +93,15 @@ def test_get_plugins_with_themes_includes_all_types():
 def test_get_plugins_with_templates_includes_all_types():
     """Test that get_plugins_with_templates returns plugins of any type with templates."""
     loader = PluginLoader(Path("/tmp/test_plugins"))
-    loader.load_plugin(Path("/tmp/test_plugins/mixed"))
+    plugin = loader.load_plugin(Path("/tmp/test_plugins/mixed"))
     
     # Get all plugins with templates
     plugins_with_templates = loader.get_plugins_with_templates()
     
     # Should include the integration plugin that has templates
-    assert len(plugins_with_templates) >= 1
+    assert any(p.id == "test-mixed-integration" for p in plugins_with_templates), \
+        "Mixed integration plugin with templates should be in results"
+    
     mixed_plugin = next((p for p in plugins_with_templates if p.id == "test-mixed-integration"), None)
     assert mixed_plugin is not None
     assert mixed_plugin.type == "integration"
@@ -107,13 +110,15 @@ def test_get_plugins_with_templates_includes_all_types():
 def test_get_plugins_with_views_includes_all_types():
     """Test that get_plugins_with_views returns plugins of any type with views."""
     loader = PluginLoader(Path("/tmp/test_plugins"))
-    loader.load_plugin(Path("/tmp/test_plugins/mixed"))
+    plugin = loader.load_plugin(Path("/tmp/test_plugins/mixed"))
     
     # Get all plugins with views
     plugins_with_views = loader.get_plugins_with_views()
     
     # Should include the integration plugin that has views
-    assert len(plugins_with_views) >= 1
+    assert any(p.id == "test-mixed-integration" for p in plugins_with_views), \
+        "Mixed integration plugin with views should be in results"
+    
     mixed_plugin = next((p for p in plugins_with_views if p.id == "test-mixed-integration"), None)
     assert mixed_plugin is not None
     assert mixed_plugin.type == "integration"
@@ -265,7 +270,7 @@ def test_plugin_without_capabilities():
 
 
 def test_real_world_theme_with_templates():
-    """Test that the manila theme plugin now provides templates."""
+    """Test that the manila theme plugin provides templates."""
     from pathlib import Path
     
     # Load the actual manila theme
@@ -273,22 +278,23 @@ def test_real_world_theme_with_templates():
     loader.load_all_plugins()
     
     manila = loader.get_plugin("manila")
-    if manila:
-        # Verify it's a theme
-        assert manila.type == "theme"
-        assert manila.has_theme()
-        
-        # Verify it now also has templates
-        assert manila.has_templates()
-        assert len(manila.templates) >= 1
-        
-        # Check the template details
-        template_ids = [t["id"] for t in manila.templates]
-        assert "manila-note" in template_ids
+    assert manila is not None, "Manila theme plugin should be loaded"
+    
+    # Verify it's a theme
+    assert manila.type == "theme"
+    assert manila.has_theme()
+    
+    # Verify it also has templates
+    assert manila.has_templates()
+    assert len(manila.templates) >= 1
+    
+    # Check the template details
+    template_ids = [t["id"] for t in manila.templates]
+    assert "manila-note" in template_ids
 
 
 def test_real_world_integration_with_templates():
-    """Test that the github integration plugin now provides templates."""
+    """Test that the github integration plugin provides templates."""
     from pathlib import Path
     
     # Load the actual github integration
@@ -296,18 +302,19 @@ def test_real_world_integration_with_templates():
     loader.load_all_plugins()
     
     github = loader.get_plugin("github")
-    if github:
-        # Verify it's an integration
-        assert github.type == "integration"
-        assert github.has_integration()
-        
-        # Verify it now also has templates
-        assert github.has_templates()
-        assert len(github.templates) >= 1
-        
-        # Check the template details
-        template_ids = [t["id"] for t in github.templates]
-        assert "github-issue-tracker" in template_ids
+    assert github is not None, "GitHub integration plugin should be loaded"
+    
+    # Verify it's an integration
+    assert github.type == "integration"
+    assert github.has_integration()
+    
+    # Verify it also has templates
+    assert github.has_templates()
+    assert len(github.templates) >= 1
+    
+    # Check the template details
+    template_ids = [t["id"] for t in github.templates]
+    assert "github-issue-tracker" in template_ids
 
 
 def test_get_plugins_with_templates_includes_theme_and_integration():

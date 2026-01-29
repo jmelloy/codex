@@ -97,7 +97,7 @@ class CreateFromTemplateRequest(BaseModel):
 def load_default_templates(loader) -> list[dict]:
     """Load default templates from YAML files in the templates directory and from plugins.
     
-    This now loads templates from ANY plugin that provides them, not just view plugins.
+    This loads templates from any plugin that provides them, not just view plugins.
     This allows themes, integrations, or any other plugin type to provide templates.
     """
     import yaml

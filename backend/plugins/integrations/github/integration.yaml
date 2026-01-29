@@ -196,7 +196,7 @@ permissions:
   - render_blocks
 
 # Templates
-# Demonstrates that integration plugins can now also provide templates
+# Demonstrates that integration plugins can also provide templates
 templates:
   - id: github-issue-tracker
     name: GitHub Issue Tracker

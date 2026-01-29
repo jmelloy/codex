@@ -3,7 +3,6 @@
 from fastapi import APIRouter, Request
 
 from codex.api.schemas import ThemeResponse
-from codex.plugins.models import ThemePlugin
 
 router = APIRouter()
 

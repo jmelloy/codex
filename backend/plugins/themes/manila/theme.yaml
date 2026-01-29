@@ -35,7 +35,7 @@ colors:
   accent-primary: "#667eea"
 
 # Templates
-# Demonstrates that theme plugins can now also provide templates
+# Demonstrates that theme plugins can also provide templates
 templates:
   - id: manila-note
     name: Manila Note

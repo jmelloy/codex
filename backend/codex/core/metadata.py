@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import frontmatter
+from PIL import Image
 
 logger = logging.getLogger(__name__)
 
@@ -142,6 +143,30 @@ class MetadataParser:
             return None
 
     @staticmethod
+    def extract_image_metadata(filepath: str) -> dict[str, Any] | None:
+        """Extract metadata from an image file.
+        
+        Returns a dictionary with:
+        - width: Image width in pixels
+        - height: Image height in pixels
+        - format: Image format (e.g., PNG, JPEG, GIF)
+        - mode: Image mode (e.g., RGB, RGBA, L for grayscale)
+        
+        Returns None if the file is not an image or cannot be read.
+        """
+        try:
+            with Image.open(filepath) as img:
+                return {
+                    "width": img.width,
+                    "height": img.height,
+                    "format": img.format,
+                    "mode": img.mode,
+                }
+        except Exception as e:
+            logger.debug(f"Could not extract image metadata from {filepath}: {e}")
+            return None
+
+    @staticmethod
     def extract_all_metadata(filepath: str, content: str | None = None) -> dict[str, Any]:
         """Extract all available metadata from a file."""
         metadata: dict[str, Any] = {}
@@ -163,6 +188,11 @@ class MetadataParser:
         markdown_metadata = MetadataParser.parse_markdown_sidecar(filepath)
         if markdown_metadata:
             metadata.update(markdown_metadata)
+
+        # Try extracting image metadata for image files
+        image_metadata = MetadataParser.extract_image_metadata(filepath)
+        if image_metadata:
+            metadata.update(image_metadata)
 
         return metadata
 

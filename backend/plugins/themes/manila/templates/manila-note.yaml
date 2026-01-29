@@ -1,0 +1,32 @@
+id: manila-note
+name: Manila Note
+description: A vintage-styled note template matching the Manila theme
+content: |
+  ---
+  title: {title}
+  created: {yyyy}-{mm}-{dd}
+  theme: manila
+  tags: []
+  ---
+  
+  # {title}
+  
+  *Created: {yyyy}-{mm}-{dd}*
+  
+  ---
+  
+  ## Overview
+  
+  A new note with the Manila theme aesthetic.
+  
+  ## Notes
+  
+  - 
+  
+  ## Links
+  
+  - 
+  
+  ---
+  
+  *This note uses the Manila theme, evoking the timeless look of manila folders.*

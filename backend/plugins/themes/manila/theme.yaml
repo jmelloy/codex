@@ -33,3 +33,13 @@ colors:
   
   # Accent
   accent-primary: "#667eea"
+
+# Templates
+# Demonstrates that theme plugins can now also provide templates
+templates:
+  - id: manila-note
+    name: Manila Note
+    file: templates/manila-note.yaml
+    description: A vintage-styled note template matching the Manila theme
+    icon: 📄
+    default_name: manila-note.cdx

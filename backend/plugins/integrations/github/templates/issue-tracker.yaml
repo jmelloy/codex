@@ -1,0 +1,33 @@
+id: github-issue-tracker
+name: GitHub Issue Tracker
+description: Track GitHub issues with embedded issue blocks
+content: |
+  ---
+  title: {title}
+  created: {yyyy}-{mm}-{dd}
+  tags: [github, issues, tracking]
+  ---
+  
+  # {title}
+  
+  ## Issue Tracking
+  
+  Track GitHub issues and their status.
+  
+  ### Open Issues
+  
+  ```github-issue
+  url: https://github.com/owner/repo/issues/1
+  ```
+  
+  ### In Progress
+  
+  - [ ] Issue #1 - Description
+  
+  ### Completed
+  
+  - [x] Issue #0 - Initial setup
+  
+  ## Notes
+  
+  Add your notes here.

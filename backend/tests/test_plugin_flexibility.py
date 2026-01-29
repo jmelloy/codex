@@ -262,3 +262,68 @@ def test_plugin_without_capabilities():
     assert plugin.views == []
     assert plugin.theme_config == {}
     assert plugin.integration_config == {}
+
+
+def test_real_world_theme_with_templates():
+    """Test that the manila theme plugin now provides templates."""
+    from pathlib import Path
+    
+    # Load the actual manila theme
+    loader = PluginLoader(Path(__file__).parent.parent / "plugins")
+    loader.load_all_plugins()
+    
+    manila = loader.get_plugin("manila")
+    if manila:
+        # Verify it's a theme
+        assert manila.type == "theme"
+        assert manila.has_theme()
+        
+        # Verify it now also has templates
+        assert manila.has_templates()
+        assert len(manila.templates) >= 1
+        
+        # Check the template details
+        template_ids = [t["id"] for t in manila.templates]
+        assert "manila-note" in template_ids
+
+
+def test_real_world_integration_with_templates():
+    """Test that the github integration plugin now provides templates."""
+    from pathlib import Path
+    
+    # Load the actual github integration
+    loader = PluginLoader(Path(__file__).parent.parent / "plugins")
+    loader.load_all_plugins()
+    
+    github = loader.get_plugin("github")
+    if github:
+        # Verify it's an integration
+        assert github.type == "integration"
+        assert github.has_integration()
+        
+        # Verify it now also has templates
+        assert github.has_templates()
+        assert len(github.templates) >= 1
+        
+        # Check the template details
+        template_ids = [t["id"] for t in github.templates]
+        assert "github-issue-tracker" in template_ids
+
+
+def test_get_plugins_with_templates_includes_theme_and_integration():
+    """Test that capability-based filtering includes all plugin types."""
+    from pathlib import Path
+    
+    loader = PluginLoader(Path(__file__).parent.parent / "plugins")
+    loader.load_all_plugins()
+    
+    # Get all plugins with templates
+    plugins_with_templates = loader.get_plugins_with_templates()
+    
+    # Should include templates from various plugin types
+    plugin_types = {p.type for p in plugins_with_templates}
+    
+    # We should have at least view and theme plugins with templates
+    # (and possibly integration if github is loaded)
+    assert "view" in plugin_types  # e.g., tasks, gallery
+    assert "theme" in plugin_types or "integration" in plugin_types  # manila or github

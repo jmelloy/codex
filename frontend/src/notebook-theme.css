@@ -282,6 +282,23 @@
   --color-info-bg: rgba(37, 99, 235, 0.1);
 
   background-color: var(--notebook-bg);
+  background-image:
+    /* Vertical grid lines */ repeating-linear-gradient(
+      to right,
+      transparent 0,
+      transparent calc(var(--grid-size) - 1px),
+      var(--grid-color) calc(var(--grid-size) - 1px),
+      var(--grid-color) var(--grid-size)
+    ),
+    /* Horizontal grid lines */
+      repeating-linear-gradient(
+        to bottom,
+        transparent 0,
+        transparent calc(var(--grid-size) - 1px),
+        var(--grid-color) calc(var(--grid-size) - 1px),
+        var(--grid-color) var(--grid-size)
+      );
+  background-size: var(--grid-size) var(--grid-size);
   color: var(--notebook-text);
 }
 

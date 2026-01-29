@@ -56,6 +56,9 @@ class IntegrationResponse(BaseModel):
     base_url: str | None = None
     auth_method: str | None = None
     enabled: bool = True
+    properties: list[dict[str, Any]] | None = None
+    blocks: list[dict[str, Any]] | None = None
+    endpoints: list[dict[str, Any]] | None = None
 
 
 class IntegrationConfigRequest(BaseModel):

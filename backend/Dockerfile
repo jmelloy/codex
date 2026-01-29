@@ -8,12 +8,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=ghcr.io/astral-sh/uv:0.9.27 /uv /uvx /bin/
-ENV UV_NO_DEV=1
+RUN pip install uv
 
 # Copy requirements first for better caching
 COPY pyproject.toml ./
-RUN uv sync --locked
+RUN uv pip install --system .
 
 # Copy the entire backend directory
 COPY . .

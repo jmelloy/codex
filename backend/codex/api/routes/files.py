@@ -160,6 +160,8 @@ def expand_template_pattern(pattern: str, title: str = "untitled") -> str:
     for key, value in replacements.items():
         result = result.replace(key, value)
 
+    result = now.strftime(result)
+
     return result
 
 

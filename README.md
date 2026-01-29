@@ -37,14 +37,6 @@ A hierarchical digital laboratory journal system for tracking computational expe
 - Tag-based organization
 - Full-text search capabilities
 
-### MCP Server
-
-- Model Context Protocol server for AI assistant integration
-- Start/stop development servers
-- Take screenshots of the frontend
-- Browser automation with Playwright
-- Compatible with GitHub Copilot and other MCP clients
-
 ## Quick Start
 
 ### Prerequisites
@@ -96,9 +88,9 @@ A hierarchical digital laboratory journal system for tracking computational expe
    ```
 
 7. **Access the application**
-   - Frontend: http://localhost:5173
-   - API: http://localhost:8000
-   - API Docs: http://localhost:8000/docs
+   - Frontend: http://localhost:5165
+   - API: http://localhost:8765
+   - API Docs: http://localhost:8765/docs
 
 8. **Load test data** (optional, recommended for testing)
 

@@ -104,12 +104,17 @@ const isSelectedFolder = computed(() => {
   )
 })
 
-const handleFolderClick = () => {
-  // Toggle folder expansion
-  emit("toggleFolder", props.notebookId, props.node.path)
-  // Only select the folder (show folder view) when expanding, not when collapsing
-  if (!isFolderExpanded.value) {
+const handleFolderClick = async () => {
+  const wasExpanded = isFolderExpanded.value
+  
+  if (wasExpanded) {
+    // Just collapse
+    emit("toggleFolder", props.notebookId, props.node.path)
+  } else {
+    // First select the folder to load contents
     emit("selectFolder", props.notebookId, props.node.path)
+    // Note: The parent component will handle toggling the folder expansion
+    // after the contents are loaded
   }
 }
 

@@ -1040,49 +1040,57 @@ function toggleFolder(notebookId: number, folderPath: string) {
   }
 }
 
-function handleFolderClick(event: MouseEvent, notebookId: number, folderPath: string) {
+async function handleFolderClick(event: MouseEvent, notebookId: number, folderPath: string) {
   // If clicking on the expand arrow area, just toggle expansion
   const target = event.target as HTMLElement
-  if (target.classList.contains("text-[10px]") || target.closest(".text-\\[10px\\]")) {
-    toggleFolder(notebookId, folderPath)
-    return
-  }
+  const isArrowClick = target.classList.contains("text-[10px]") || target.closest(".text-\\[10px\\]")
+  
+  await expandOrCollapseFolder(notebookId, folderPath, !isArrowClick)
+}
 
-  // Check if folder is currently expanded
+async function expandOrCollapseFolder(notebookId: number, folderPath: string, closeSidebar: boolean = false) {
   const isExpanded = isFolderExpanded(notebookId, folderPath)
-
-  // Toggle the folder expansion
-  toggleFolder(notebookId, folderPath)
-
-  // Only select the folder (show folder view) when expanding, not when collapsing
-  if (!isExpanded) {
-    workspaceStore.selectFolder(folderPath, notebookId)
-    // Close sidebar on mobile after selection
-    closeSidebarOnMobile()
+  
+  if (isExpanded) {
+    // Just collapse
+    toggleFolder(notebookId, folderPath)
+  } else {
+    // Expand and select - fetch contents first
+    await workspaceStore.selectFolder(folderPath, notebookId)
+    // Only expand in UI after successful fetch
+    if (workspaceStore.currentFolder?.path === folderPath) {
+      toggleFolder(notebookId, folderPath)
+    }
+    // Close sidebar on mobile after selection if requested
+    if (closeSidebar) {
+      closeSidebarOnMobile()
+    }
   }
 }
 
-function handleSelectFolder(notebookId: number, folderPath: string) {
-  // Select the folder and show folder view
-  workspaceStore.selectFolder(folderPath, notebookId)
+async function handleSelectFolder(notebookId: number, folderPath: string) {
+  // Select the folder and show folder view - this fetches contents
+  await workspaceStore.selectFolder(folderPath, notebookId)
   // Close sidebar on mobile after selection
   closeSidebarOnMobile()
 
-  // Expand the folder if it's not already expanded
-  if (!expandedFolders.value.has(notebookId)) {
-    expandedFolders.value.set(notebookId, new Set())
-  }
-  const folders = expandedFolders.value.get(notebookId)!
-  if (!folders.has(folderPath)) {
-    folders.add(folderPath)
+  // Expand the folder in UI only after contents are loaded
+  if (workspaceStore.currentFolder?.path === folderPath) {
+    if (!expandedFolders.value.has(notebookId)) {
+      expandedFolders.value.set(notebookId, new Set())
+    }
+    const folders = expandedFolders.value.get(notebookId)!
+    if (!folders.has(folderPath)) {
+      folders.add(folderPath)
+    }
   }
 }
 
-function handleSelectSubfolder(subfolder: { path: string }) {
+async function handleSelectSubfolder(subfolder: { path: string }) {
   // Get the notebook_id from the current folder
   if (workspaceStore.currentFolder) {
     const notebookId = workspaceStore.currentFolder.notebook_id
-    handleSelectFolder(notebookId, subfolder.path)
+    await handleSelectFolder(notebookId, subfolder.path)
   }
 }
 

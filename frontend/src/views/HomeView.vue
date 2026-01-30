@@ -1387,6 +1387,7 @@ async function handleDeleteFile() {
   }
 }
 
+// Handle renaming a file by changing its filename while keeping the same directory
 async function handleRenameFile(newFilename: string) {
   if (!workspaceStore.currentFile) return
   

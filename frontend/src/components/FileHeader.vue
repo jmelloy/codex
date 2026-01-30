@@ -4,7 +4,15 @@
       <component :is="fileIcon" />
     </div>
     <div class="file-info">
-      <h1 v-if="!isEditing" class="file-title" @click="startEditing" :title="'Click to rename'">
+      <h1 
+        v-if="!isEditing" 
+        class="file-title" 
+        @click="startEditing"
+        @keydown.enter="startEditing"
+        @keydown.space="startEditing"
+        tabindex="0"
+        :title="'Click to rename'"
+      >
         {{ displayTitle }}
       </h1>
       <input
@@ -16,6 +24,7 @@
         @keydown.esc="cancelEditing"
         class="file-title-input"
         type="text"
+        aria-label="Edit file name"
       />
       <p v-if="file.properties?.description" class="file-description">
         {{ file.properties.description }}
@@ -107,13 +116,49 @@ async function startEditing() {
   titleInput.value?.select()
 }
 
+function validateFilename(filename: string): { valid: boolean; error?: string } {
+  // Check for invalid characters that could break file paths
+  const invalidChars = /[<>:"|?*\\/]/
+  if (invalidChars.test(filename)) {
+    return { valid: false, error: "Filename contains invalid characters" }
+  }
+  
+  // Check for reserved names (Windows)
+  const reservedNames = /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$/i
+  if (reservedNames.test(filename.replace(/\.[^.]*$/, ""))) {
+    return { valid: false, error: "Filename is a reserved name" }
+  }
+  
+  // Check length (most filesystems support at least 255 characters)
+  if (filename.length > 255) {
+    return { valid: false, error: "Filename is too long" }
+  }
+  
+  return { valid: true }
+}
+
 function finishEditing() {
   if (!isEditing.value) return
   
   const newFilename = editingTitle.value.trim()
   
-  // Only emit rename if the filename actually changed and is not empty
-  if (newFilename && newFilename !== props.file.filename) {
+  // Check if filename is empty
+  if (!newFilename) {
+    isEditing.value = false
+    return
+  }
+  
+  // Validate filename
+  const validation = validateFilename(newFilename)
+  if (!validation.valid) {
+    // Could emit an error event here, but for now just cancel
+    console.warn("Invalid filename:", validation.error)
+    isEditing.value = false
+    return
+  }
+  
+  // Only emit rename if the filename actually changed
+  if (newFilename !== props.file.filename) {
     emit("rename", newFilename)
   }
   

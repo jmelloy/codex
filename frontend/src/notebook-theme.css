@@ -225,6 +225,18 @@
 .theme-cream {
   --notebook-bg: var(--page-cream);
   --notebook-text: var(--pen-black);
+  
+  /* Cream-tinted UI colors for better integration */
+  --color-bg-primary: #fef9f3;
+  --color-bg-secondary: #f7f5f0;
+  --color-bg-tertiary: #efeae3;
+  --color-bg-hover: #f7f5f0;
+  --color-bg-active: #efeae3;
+  
+  /* Slightly warmer borders to match cream aesthetic */
+  --color-border-light: #e8e3d8;
+  --color-border-medium: #d4cfc4;
+  
   background-color: var(--notebook-bg);
   color: var(--notebook-text);
 }
@@ -233,6 +245,19 @@
 .theme-manila {
   --notebook-bg: var(--page-manila);
   --notebook-text: var(--pen-black);
+  
+  /* Manila-tinted UI colors for vintage folder aesthetic */
+  --color-bg-primary: #f4e8d0;
+  --color-bg-secondary: #ede1c9;
+  --color-bg-tertiary: #e6dac2;
+  --color-bg-hover: #ede1c9;
+  --color-bg-active: #e6dac2;
+  
+  /* Sepia-toned borders for manila folder look */
+  --color-border-light: #d8ccb4;
+  --color-border-medium: #c4b89f;
+  --color-border-dark: #a89775;
+  
   background-color: var(--notebook-bg);
   color: var(--notebook-text);
 }

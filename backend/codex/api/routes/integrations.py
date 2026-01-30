@@ -15,6 +15,7 @@ from codex.api.schemas import (
     IntegrationResponse,
     IntegrationTestRequest,
     IntegrationTestResponse,
+    PluginEnableRequest,
 )
 from codex.db.database import get_system_session
 from codex.db.models import PluginConfig, User
@@ -31,9 +32,14 @@ executor = IntegrationExecutor()
 @router.get("", response_model=list[IntegrationResponse])
 async def list_integrations(
     request: Request,
+    workspace_id: int | None = None,
+    session: AsyncSession = Depends(get_system_session),
     current_user: User = Depends(get_current_user),
 ):
     """List all available integration plugins.
+    
+    Args:
+        workspace_id: Optional workspace ID to check enabled status
 
     Returns:
         List of integration plugins with their metadata.
@@ -44,6 +50,19 @@ async def list_integrations(
     responses = []
     for integration in integrations:
         if isinstance(integration, IntegrationPlugin):
+            enabled = True
+            
+            # Check workspace-level enabled status
+            if workspace_id is not None:
+                stmt = select(PluginConfig).where(
+                    PluginConfig.workspace_id == workspace_id,
+                    PluginConfig.plugin_id == integration.id,
+                )
+                result = await session.execute(stmt)
+                config = result.scalar_one_or_none()
+                if config is not None:
+                    enabled = config.enabled
+            
             responses.append(
                 IntegrationResponse(
                     id=integration.id,
@@ -54,7 +73,7 @@ async def list_integrations(
                     api_type=integration.api_type,
                     base_url=integration.base_url,
                     auth_method=integration.auth_method,
-                    enabled=True,  # TODO: Check if enabled for this workspace
+                    enabled=enabled,
                 )
             )
 
@@ -91,6 +110,73 @@ async def get_integration(
         base_url=integration.base_url,
         auth_method=integration.auth_method,
         enabled=True,  # TODO: Check if enabled for this workspace
+        properties=integration.properties,
+        blocks=integration.blocks,
+        endpoints=integration.endpoints,
+    )
+
+
+@router.put("/{integration_id}/enable", response_model=IntegrationResponse)
+async def enable_disable_integration(
+    integration_id: str,
+    workspace_id: int,
+    request_data: PluginEnableRequest,
+    request: Request,
+    session: AsyncSession = Depends(get_system_session),
+    current_user: User = Depends(get_current_user),
+):
+    """Enable or disable an integration plugin for a workspace.
+    
+    Args:
+        integration_id: Integration plugin ID
+        workspace_id: Workspace ID
+        request_data: Enable/disable flag
+        
+    Returns:
+        Updated integration plugin details
+    """
+    loader = request.app.state.plugin_loader
+    integration = loader.get_plugin(integration_id)
+    
+    if not integration or not isinstance(integration, IntegrationPlugin):
+        raise HTTPException(status_code=404, detail="Integration not found")
+    
+    # Check if config exists
+    stmt = select(PluginConfig).where(
+        PluginConfig.workspace_id == workspace_id,
+        PluginConfig.plugin_id == integration_id,
+    )
+    result = await session.execute(stmt)
+    config = result.scalar_one_or_none()
+    
+    if config:
+        # Update existing config
+        config.enabled = request_data.enabled
+        session.add(config)
+        await session.commit()
+        await session.refresh(config)
+    else:
+        # Create new config with default settings
+        config = PluginConfig(
+            workspace_id=workspace_id,
+            plugin_id=integration_id,
+            enabled=request_data.enabled,
+            config={},
+        )
+        session.add(config)
+        await session.commit()
+        await session.refresh(config)
+    
+    return IntegrationResponse(
+        id=integration.id,
+        name=integration.name,
+        description=integration.description,
+        version=integration.version,
+        author=integration.author,
+        api_type=integration.api_type,
+        base_url=integration.base_url,
+        auth_method=integration.auth_method,
+        enabled=config.enabled,
         properties=integration.properties,
         blocks=integration.blocks,
         endpoints=integration.endpoints,

@@ -5,7 +5,7 @@ Models are organized into two categories:
 
 System models (backend/db/models/system.py):
   - User, Workspace, WorkspacePermission, Task, Notebook
-  - Plugin, PluginConfig, PluginSecret, PluginAPILog
+  - Plugin, PluginConfig, NotebookPluginConfig, PluginSecret, PluginAPILog
   - Stored in the system database (codex_system.db)
 
 Notebook models (backend/db/models/notebook.py):
@@ -27,6 +27,7 @@ from .notebook import (
 # Re-export system models
 from .system import (
     Notebook,
+    NotebookPluginConfig,
     Plugin,
     PluginAPILog,
     PluginConfig,
@@ -48,6 +49,7 @@ __all__ = [
     "Notebook",
     "Plugin",
     "PluginConfig",
+    "NotebookPluginConfig",
     "PluginSecret",
     "PluginAPILog",
     # Notebook models

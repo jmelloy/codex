@@ -132,7 +132,12 @@ const error = ref<string | null>(null)
 // Get route parameters
 const notebookId = ref<number>(parseInt(route.params.notebookId as string))
 const workspaceId = ref<number>(parseInt(route.query.workspace_id as string))
-const pagePath = ref<string>(route.params.pagePath as string)
+// Handle pagePath which might be an array due to the + route pattern
+const pagePath = ref<string>(
+  Array.isArray(route.params.pagePath) 
+    ? route.params.pagePath.join("/")
+    : route.params.pagePath as string
+)
 
 // Helper functions
 const formatDate = (dateStr: string) => {

@@ -100,6 +100,32 @@ export interface Template {
   source: "default" | "notebook"
 }
 
+export interface Page {
+  id: number
+  notebook_id: number
+  directory_path: string
+  title?: string
+  description?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface PageListItem extends Page {
+  block_count: number
+}
+
+export interface Block {
+  position: number
+  file: string
+  name: string
+  type: string
+  path: string
+}
+
+export interface PageWithBlocks extends Page {
+  blocks: Block[]
+}
+
 export const workspaceService = {
   async list(): Promise<Workspace[]> {
     const response = await apiClient.get<Workspace[]>("/api/v1/workspaces/")
@@ -143,6 +169,70 @@ export const notebookService = {
       name,
     })
     return response.data
+  },
+}
+
+export const pageService = {
+  async list(notebookId: number, workspaceId: number): Promise<PageListItem[]> {
+    const response = await apiClient.get<PageListItem[]>(
+      `/api/v1/notebooks/${notebookId}/pages?workspace_id=${workspaceId}`
+    )
+    return response.data
+  },
+
+  async get(pageId: number, workspaceId: number): Promise<PageWithBlocks> {
+    const response = await apiClient.get<PageWithBlocks>(
+      `/api/v1/pages/${pageId}?workspace_id=${workspaceId}`
+    )
+    return response.data
+  },
+
+  async create(notebookId: number, workspaceId: number, title: string, description?: string): Promise<Page> {
+    const response = await apiClient.post<Page>(
+      `/api/v1/notebooks/${notebookId}/pages?workspace_id=${workspaceId}`,
+      {
+        title,
+        description,
+      }
+    )
+    return response.data
+  },
+
+  async update(pageId: number, workspaceId: number, title?: string, description?: string): Promise<Page> {
+    const response = await apiClient.put<Page>(
+      `/api/v1/pages/${pageId}?workspace_id=${workspaceId}`,
+      {
+        title,
+        description,
+      }
+    )
+    return response.data
+  },
+
+  async delete(pageId: number, workspaceId: number): Promise<void> {
+    await apiClient.delete(`/api/v1/pages/${pageId}?workspace_id=${workspaceId}`)
+  },
+
+  async createBlock(pageId: number, workspaceId: number, filename: string): Promise<Block> {
+    const response = await apiClient.post<Block>(
+      `/api/v1/pages/${pageId}/blocks?workspace_id=${workspaceId}`,
+      {
+        filename,
+      }
+    )
+    return response.data
+  },
+
+  async reorderBlocks(
+    pageId: number,
+    workspaceId: number,
+    blocks: { file: string; new_position: number }[]
+  ): Promise<void> {
+    await apiClient.put(`/api/v1/pages/${pageId}/blocks/reorder?workspace_id=${workspaceId}`, blocks)
+  },
+
+  async deleteBlock(pageId: number, workspaceId: number, blockFilename: string): Promise<void> {
+    await apiClient.delete(`/api/v1/pages/${pageId}/blocks/${blockFilename}?workspace_id=${workspaceId}`)
   },
 }
 

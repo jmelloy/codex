@@ -4,7 +4,19 @@
       <component :is="fileIcon" />
     </div>
     <div class="file-info">
-      <h1 class="file-title">{{ displayTitle }}</h1>
+      <h1 v-if="!isEditing" class="file-title" @click="startEditing" :title="'Click to rename'">
+        {{ displayTitle }}
+      </h1>
+      <input
+        v-else
+        ref="titleInput"
+        v-model="editingTitle"
+        @blur="finishEditing"
+        @keydown.enter="finishEditing"
+        @keydown.esc="cancelEditing"
+        class="file-title-input"
+        type="text"
+      />
       <p v-if="file.properties?.description" class="file-description">
         {{ file.properties.description }}
       </p>
@@ -68,7 +80,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, h } from "vue"
+import { computed, h, ref, nextTick } from "vue"
 import type { FileMetadata } from "../services/codex"
 import { getDisplayType } from "../utils/contentType"
 
@@ -78,9 +90,40 @@ interface Props {
 
 const props = defineProps<Props>()
 
-defineEmits<{
+const emit = defineEmits<{
   toggleProperties: []
+  rename: [newFilename: string]
 }>()
+
+const isEditing = ref(false)
+const editingTitle = ref("")
+const titleInput = ref<HTMLInputElement | null>(null)
+
+async function startEditing() {
+  isEditing.value = true
+  editingTitle.value = props.file.filename
+  await nextTick()
+  titleInput.value?.focus()
+  titleInput.value?.select()
+}
+
+function finishEditing() {
+  if (!isEditing.value) return
+  
+  const newFilename = editingTitle.value.trim()
+  
+  // Only emit rename if the filename actually changed and is not empty
+  if (newFilename && newFilename !== props.file.filename) {
+    emit("rename", newFilename)
+  }
+  
+  isEditing.value = false
+}
+
+function cancelEditing() {
+  isEditing.value = false
+  editingTitle.value = ""
+}
 
 const displayTitle = computed(() => {
   return props.file.properties?.title || props.file.title || props.file.filename
@@ -261,6 +304,27 @@ const fileIcon = computed(() => {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  line-height: 1.4;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.file-title:hover {
+  color: var(--color-primary);
+}
+
+.file-title-input {
+  margin: 0 0 var(--spacing-sm);
+  font-size: var(--text-2xl);
+  font-weight: var(--font-semibold);
+  color: var(--color-text-primary);
+  background: var(--color-bg-primary);
+  border: 2px solid var(--color-primary);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  width: 100%;
+  outline: none;
+  font-family: inherit;
   line-height: 1.4;
 }
 

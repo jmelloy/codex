@@ -491,7 +491,7 @@
       <div v-else-if="workspaceStore.currentFile" class="flex-1 flex overflow-hidden p-4">
         <!-- All file types use a consistent header + content pattern -->
         <div class="flex-1 flex flex-col overflow-hidden">
-          <FileHeader :file="workspaceStore.currentFile" @toggle-properties="toggleProperties">
+          <FileHeader :file="workspaceStore.currentFile" @toggle-properties="toggleProperties" @rename="handleRenameFile">
             <template #actions>
               <!-- Media files (image, pdf, audio, video, html) get Open button -->
               <button
@@ -1384,6 +1384,31 @@ async function handleDeleteFile() {
     } catch {
       // Error handled in store
     }
+  }
+}
+
+async function handleRenameFile(newFilename: string) {
+  if (!workspaceStore.currentFile) return
+  
+  const currentFile = workspaceStore.currentFile
+  const currentPath = currentFile.path
+  
+  // Get the directory part of the current path
+  const lastSlashIndex = currentPath.lastIndexOf("/")
+  const directory = lastSlashIndex >= 0 ? currentPath.substring(0, lastSlashIndex + 1) : ""
+  
+  // Construct the new path with the same directory but new filename
+  const newPath = directory + newFilename
+  
+  // Don't do anything if the path hasn't changed
+  if (newPath === currentPath) return
+  
+  try {
+    await workspaceStore.moveFile(currentFile.id, currentFile.notebook_id, newPath)
+    showToast({ message: "File renamed successfully" })
+  } catch (e) {
+    console.error("Failed to rename file:", e)
+    showToast({ message: "Failed to rename file", type: "error" })
   }
 }
 

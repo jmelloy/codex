@@ -32,6 +32,10 @@ export const useAuthStore = defineStore("auth", () => {
       // Load theme from user settings
       const themeStore = useThemeStore()
       themeStore.loadFromUser(user.value.theme_setting)
+      // Load integrations
+      const { useIntegrationStore } = await import("./integration")
+      const integrationStore = useIntegrationStore()
+      await integrationStore.loadIntegrations()
     } catch (e) {
       logout()
     }
@@ -41,6 +45,11 @@ export const useAuthStore = defineStore("auth", () => {
     authService.logout()
     user.value = null
     isAuthenticated.value = false
+    // Reset integrations on logout
+    import("./integration").then(({ useIntegrationStore }) => {
+      const integrationStore = useIntegrationStore()
+      integrationStore.reset()
+    })
   }
 
   async function initialize() {

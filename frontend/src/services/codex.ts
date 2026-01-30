@@ -101,13 +101,11 @@ export interface Template {
 }
 
 export interface Page {
-  id: number
-  notebook_id: number
-  directory_path: string
+  directory_path: string  // e.g., "experiment-log.page" or "protein-trial"
   title?: string
   description?: string
-  created_at: string
-  updated_at: string
+  created_at?: string
+  updated_at?: string
 }
 
 export interface PageListItem extends Page {
@@ -173,68 +171,274 @@ export const notebookService = {
 }
 
 export const pageService = {
+  /**
+   * Helper to check if a path looks like a page directory.
+   */
+  _isPageDirectory(path: string): boolean {
+    return path.endsWith(".page")
+  },
+
+  /**
+   * Helper to get display name (remove .page suffix).
+   */
+  _getDisplayName(path: string): string {
+    if (path.endsWith(".page")) {
+      return path.slice(0, -5)
+    }
+    return path
+  },
+
+  /**
+   * Helper to slugify a title for directory name.
+   */
+  _slugify(text: string): string {
+    return text
+      .toLowerCase()
+      .replace(/[^\w\s-]/g, "")
+      .replace(/[-\s]+/g, "-")
+      .trim()
+      .replace(/^-+|-+$/g, "") || "page"
+  },
+
+  /**
+   * List all pages in a notebook by scanning for page directories.
+   */
   async list(notebookId: number, workspaceId: number): Promise<PageListItem[]> {
-    const response = await apiClient.get<PageListItem[]>(
-      `/api/v1/notebooks/${notebookId}/pages?workspace_id=${workspaceId}`
+    // Get all files in the notebook
+    const files = await fileService.list(notebookId, workspaceId)
+    
+    // Find all .page and .page.json files
+    const pageFiles = files.filter(f => 
+      f.filename === ".page" || f.filename === ".page.json"
     )
-    return response.data
+    
+    // Also find directories with .page suffix
+    const pageDirs = new Set<string>()
+    for (const file of files) {
+      const parts = file.path.split("/")
+      for (let i = 0; i < parts.length; i++) {
+        if (parts[i].endsWith(".page")) {
+          pageDirs.add(parts.slice(0, i + 1).join("/"))
+        }
+      }
+    }
+    
+    // Build page list
+    const pages: PageListItem[] = []
+    
+    // Add pages from .page files
+    for (const pageFile of pageFiles) {
+      const dirPath = pageFile.path.substring(0, pageFile.path.lastIndexOf("/"))
+      if (dirPath) {
+        try {
+          const content = await fileService.getContentByPath(pageFile.path, workspaceId, notebookId)
+          const metadata = JSON.parse(content.content)
+          
+          // Count blocks in this directory
+          const blockCount = files.filter(f => 
+            f.path.startsWith(dirPath + "/") && 
+            /^\d{3}-/.test(f.filename)
+          ).length
+          
+          pages.push({
+            directory_path: dirPath,
+            title: metadata.title || this._getDisplayName(dirPath),
+            description: metadata.description,
+            created_at: metadata.created_time,
+            updated_at: metadata.last_edited_time,
+            block_count: blockCount,
+          })
+        } catch (e) {
+          console.error(`Failed to read page metadata for ${pageFile.path}:`, e)
+        }
+      }
+    }
+    
+    // Add pages from .page suffix directories  
+    for (const dirPath of pageDirs) {
+      if (pages.some(p => p.directory_path === dirPath)) {
+        continue
+      }
+      
+      const blockCount = files.filter(f => 
+        f.path.startsWith(dirPath + "/") && 
+        /^\d{3}-/.test(f.filename)
+      ).length
+      
+      let metadata: any = {}
+      try {
+        const pageFilePath = `${dirPath}/.page`
+        const content = await fileService.getContentByPath(pageFilePath, workspaceId, notebookId)
+        metadata = JSON.parse(content.content)
+      } catch (e) {
+        // No metadata file
+      }
+      
+      pages.push({
+        directory_path: dirPath,
+        title: metadata.title || this._getDisplayName(dirPath),
+        description: metadata.description,
+        created_at: metadata.created_time,
+        updated_at: metadata.last_edited_time,
+        block_count: blockCount,
+      })
+    }
+    
+    return pages
   },
 
-  async get(pageId: number, workspaceId: number): Promise<PageWithBlocks> {
-    const response = await apiClient.get<PageWithBlocks>(
-      `/api/v1/pages/${pageId}?workspace_id=${workspaceId}`
-    )
-    return response.data
+  /**
+   * Get page details with blocks.
+   */
+  async get(directoryPath: string, notebookId: number, workspaceId: number): Promise<PageWithBlocks> {
+    let metadata: any = {}
+    const pageFilePath = `${directoryPath}/.page`
+    
+    try {
+      const content = await fileService.getContentByPath(pageFilePath, workspaceId, notebookId)
+      metadata = JSON.parse(content.content)
+    } catch (e) {
+      try {
+        const content = await fileService.getContentByPath(`${directoryPath}/.page.json`, workspaceId, notebookId)
+        metadata = JSON.parse(content.content)
+      } catch (e2) {
+        // No metadata file
+      }
+    }
+    
+    const files = await fileService.list(notebookId, workspaceId)
+    const blockFiles = files
+      .filter(f => f.path.startsWith(directoryPath + "/") && /^\d{3}-/.test(f.filename))
+      .sort((a, b) => a.filename.localeCompare(b.filename))
+    
+    const blocks: Block[] = blockFiles.map(f => {
+      const match = f.filename.match(/^(\d{3})-(.+)$/)
+      const position = match ? parseInt(match[1]) : 0
+      const name = match ? match[2] : f.filename
+      const type = f.filename.match(/\.(md|markdown)$/i) ? "markdown" : "file"
+      
+      return {
+        position,
+        file: f.filename,
+        name,
+        type,
+        path: f.path,
+      }
+    })
+    
+    return {
+      directory_path: directoryPath,
+      title: metadata.title || this._getDisplayName(directoryPath),
+      description: metadata.description,
+      created_at: metadata.created_time,
+      updated_at: metadata.last_edited_time,
+      blocks,
+    }
   },
 
+  /**
+   * Create a new page directory with .page metadata file.
+   * Note: This requires backend support for creating directories and files.
+   */
   async create(notebookId: number, workspaceId: number, title: string, description?: string): Promise<Page> {
-    const response = await apiClient.post<Page>(
-      `/api/v1/notebooks/${notebookId}/pages?workspace_id=${workspaceId}`,
-      {
-        title,
-        description,
-      }
-    )
-    return response.data
+    const slug = this._slugify(title)
+    const directory_path = `${slug}.page`
+    
+    const metadata = {
+      title,
+      description,
+      created_time: new Date().toISOString(),
+      last_edited_time: new Date().toISOString(),
+      blocks: [],
+    }
+    
+    // TODO: Need backend endpoint to create directory and file
+    throw new Error("Creating pages requires backend directory creation support")
   },
 
-  async update(pageId: number, workspaceId: number, title?: string, description?: string): Promise<Page> {
-    const response = await apiClient.put<Page>(
-      `/api/v1/pages/${pageId}?workspace_id=${workspaceId}`,
-      {
-        title,
-        description,
-      }
-    )
-    return response.data
+  /**
+   * Update page metadata by updating the .page file.
+   */
+  async update(
+    directoryPath: string,
+    notebookId: number,
+    workspaceId: number,
+    title?: string,
+    description?: string
+  ): Promise<Page> {
+    const pageFilePath = `${directoryPath}/.page`
+    let metadata: any = {}
+    
+    try {
+      const content = await fileService.getContentByPath(pageFilePath, workspaceId, notebookId)
+      metadata = JSON.parse(content.content)
+    } catch (e) {
+      // Create new metadata if doesn't exist
+    }
+    
+    if (title !== undefined) metadata.title = title
+    if (description !== undefined) metadata.description = description
+    metadata.last_edited_time = new Date().toISOString()
+    
+    // TODO: Need backend endpoint to update file content by path
+    throw new Error("Updating pages requires backend file update support")
   },
 
-  async delete(pageId: number, workspaceId: number): Promise<void> {
-    await apiClient.delete(`/api/v1/pages/${pageId}?workspace_id=${workspaceId}`)
+  /**
+   * Delete a page by deleting the directory.
+   */
+  async delete(directoryPath: string, notebookId: number, workspaceId: number): Promise<void> {
+    // TODO: Need backend endpoint to delete directory
+    throw new Error("Deleting pages requires backend directory deletion support")
   },
 
-  async createBlock(pageId: number, workspaceId: number, filename: string): Promise<Block> {
-    const response = await apiClient.post<Block>(
-      `/api/v1/pages/${pageId}/blocks?workspace_id=${workspaceId}`,
-      {
-        filename,
-      }
-    )
-    return response.data
+  /**
+   * Create a block (numbered file) in the page.
+   */
+  async createBlock(
+    directoryPath: string,
+    notebookId: number,
+    workspaceId: number,
+    filename: string
+  ): Promise<Block> {
+    const page = await this.get(directoryPath, notebookId, workspaceId)
+    const nextPosition = page.blocks.length > 0 
+      ? Math.max(...page.blocks.map(b => b.position)) + 1
+      : 1
+    
+    const numberedFilename = `${String(nextPosition).padStart(3, "0")}-${filename}`
+    
+    // TODO: Need backend endpoint to create file at specific path
+    throw new Error("Creating blocks requires backend file creation support")
   },
 
+  /**
+   * Reorder blocks by renaming files.
+   */
   async reorderBlocks(
-    pageId: number,
+    directoryPath: string,
+    notebookId: number,
     workspaceId: number,
     blocks: { file: string; new_position: number }[]
   ): Promise<void> {
-    await apiClient.put(`/api/v1/pages/${pageId}/blocks/reorder?workspace_id=${workspaceId}`, blocks)
+    // TODO: Need backend endpoint to rename files
+    throw new Error("Reordering blocks requires backend file rename support")
   },
 
-  async deleteBlock(pageId: number, workspaceId: number, blockFilename: string): Promise<void> {
-    await apiClient.delete(`/api/v1/pages/${pageId}/blocks/${blockFilename}?workspace_id=${workspaceId}`)
+  /**
+   * Delete a block file.
+   */
+  async deleteBlock(
+    directoryPath: string,
+    notebookId: number,
+    workspaceId: number,
+    blockFilename: string
+  ): Promise<void> {
+    // TODO: Need backend endpoint to delete file by path
+    throw new Error("Deleting blocks requires backend file deletion support")
   },
 }
+
 
 export const fileService = {
   async list(notebookId: number, workspaceId: number): Promise<FileMetadata[]> {

@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from codex.api.auth import get_current_active_user
+from codex.core.custom_blocks import CustomBlock, CustomBlockParser
 from codex.core.metadata import MetadataParser
 from codex.db.database import get_system_session
 from codex.db.models import User, Workspace
@@ -45,21 +46,55 @@ class MarkdownRenderResponse(BaseModel):
 
     html: str
     frontmatter: dict[str, Any] | None = None
+    custom_blocks: list[dict[str, Any]] | None = None
+
+
+class CustomBlockInfo(BaseModel):
+    """Information about a custom block."""
+
+    block_type: str
+    config: dict[str, Any]
+    start_pos: int
+    end_pos: int
 
 
 @router.post("/render", response_model=MarkdownRenderResponse)
 async def render_markdown(request: MarkdownRenderRequest, current_user: User = Depends(get_current_active_user)):
     """
-    Render markdown content to HTML.
-    This is an extensible endpoint that can be enhanced with custom renderers.
+    Render markdown content to HTML and detect custom blocks.
+    
+    This endpoint:
+    1. Parses frontmatter
+    2. Detects custom blocks (like ```weather, ```link-preview, etc.)
+    3. Returns both content and custom block metadata
+    
+    The frontend can then render custom blocks using integration plugins.
     """
     try:
         # Parse frontmatter if present
         frontmatter_data, content = MetadataParser.parse_frontmatter(request.content)
 
-        # For now, return the raw content (can be extended with markdown-to-html library)
-        # This is intentionally minimal to allow frontend flexibility
-        return MarkdownRenderResponse(html=content, frontmatter=frontmatter_data if frontmatter_data else None)
+        # Detect custom blocks (without a whitelist - detect all non-standard code blocks)
+        # The frontend will filter based on available integrations
+        parser = CustomBlockParser()
+        custom_blocks = parser.parse(content)
+
+        # Convert custom blocks to serializable format
+        blocks_data = [
+            {
+                "block_type": block.block_type,
+                "config": block.config,
+                "start_pos": block.start_pos,
+                "end_pos": block.end_pos,
+            }
+            for block in custom_blocks
+        ]
+
+        return MarkdownRenderResponse(
+            html=content, 
+            frontmatter=frontmatter_data if frontmatter_data else None,
+            custom_blocks=blocks_data if blocks_data else None
+        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error rendering markdown: {str(e)}"

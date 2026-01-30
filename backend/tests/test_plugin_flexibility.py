@@ -3,18 +3,107 @@
 import tempfile
 from pathlib import Path
 
+import pytest
 import yaml
 
 from codex.plugins.loader import PluginLoader
 from codex.plugins.models import IntegrationPlugin, Plugin
 
 
-def test_integration_plugin_can_provide_theme():
+@pytest.fixture
+def mixed_plugin_dir():
+    """Create a temporary mixed integration plugin for testing."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        plugin_dir = Path(tmpdir) / "mixed"
+        plugin_dir.mkdir()
+        templates_dir = plugin_dir / "templates"
+        templates_dir.mkdir()
+        
+        # Create integration manifest with all capabilities
+        manifest = {
+            "id": "test-mixed-integration",
+            "name": "Test Mixed Integration",
+            "version": "1.0.0",
+            "author": "Test Author",
+            "description": "Integration plugin that also provides theme and templates",
+            "type": "integration",
+            "integration": {
+                "api_type": "rest",
+                "base_url": "https://api.example.com",
+                "auth_method": "api_key",
+            },
+            "theme": {
+                "display_name": "Mixed Theme",
+                "category": "dark",
+                "className": "theme-mixed",
+                "stylesheet": "styles/main.css",
+            },
+            "colors": {
+                "bg-primary": "#1a1a1a",
+                "text-primary": "#ffffff",
+            },
+            "templates": [
+                {
+                    "id": "mixed-template",
+                    "name": "Mixed Template",
+                    "file": "templates/test.yaml",
+                    "description": "Template from integration plugin",
+                    "icon": "🎨",
+                    "default_name": "mixed.cdx",
+                }
+            ],
+            "views": [
+                {
+                    "id": "mixed-view",
+                    "name": "Mixed View",
+                    "description": "View from integration plugin",
+                    "icon": "👁️",
+                }
+            ],
+            "properties": [
+                {
+                    "name": "api_key",
+                    "type": "string",
+                    "description": "API key",
+                    "required": True,
+                    "secure": True,
+                }
+            ],
+            "endpoints": [
+                {
+                    "id": "test_endpoint",
+                    "name": "Test Endpoint",
+                    "method": "GET",
+                    "path": "/test",
+                }
+            ],
+            "permissions": ["network_request"],
+        }
+        
+        manifest_path = plugin_dir / "integration.yaml"
+        with open(manifest_path, "w") as f:
+            yaml.dump(manifest, f)
+        
+        # Create template file
+        template = {
+            "id": "mixed-template",
+            "name": "Mixed Template",
+            "description": "Template from integration plugin",
+            "content": "# Mixed Template\n\nThis is a test template.",
+        }
+        template_path = templates_dir / "test.yaml"
+        with open(template_path, "w") as f:
+            yaml.dump(template, f)
+        
+        yield Path(tmpdir)
+
+
+def test_integration_plugin_can_provide_theme(mixed_plugin_dir):
     """Test that an integration plugin can provide theme configuration."""
-    loader = PluginLoader(Path("/tmp/test_plugins"))
+    loader = PluginLoader(mixed_plugin_dir)
     
     # Load the mixed integration plugin
-    plugin = loader.load_plugin(Path("/tmp/test_plugins/mixed"))
+    plugin = loader.load_plugin(mixed_plugin_dir / "mixed")
     
     # Verify it's an IntegrationPlugin
     assert isinstance(plugin, IntegrationPlugin)
@@ -29,12 +118,12 @@ def test_integration_plugin_can_provide_theme():
     assert plugin.colors["bg-primary"] == "#1a1a1a"
 
 
-def test_integration_plugin_can_provide_templates():
+def test_integration_plugin_can_provide_templates(mixed_plugin_dir):
     """Test that an integration plugin can provide templates."""
-    loader = PluginLoader(Path("/tmp/test_plugins"))
+    loader = PluginLoader(mixed_plugin_dir)
     
     # Load the mixed integration plugin
-    plugin = loader.load_plugin(Path("/tmp/test_plugins/mixed"))
+    plugin = loader.load_plugin(mixed_plugin_dir / "mixed")
     
     # Verify it has template capabilities
     assert plugin.has_templates()
@@ -43,12 +132,12 @@ def test_integration_plugin_can_provide_templates():
     assert plugin.templates[0]["name"] == "Mixed Template"
 
 
-def test_integration_plugin_can_provide_views():
+def test_integration_plugin_can_provide_views(mixed_plugin_dir):
     """Test that an integration plugin can provide views."""
-    loader = PluginLoader(Path("/tmp/test_plugins"))
+    loader = PluginLoader(mixed_plugin_dir)
     
     # Load the mixed integration plugin
-    plugin = loader.load_plugin(Path("/tmp/test_plugins/mixed"))
+    plugin = loader.load_plugin(mixed_plugin_dir / "mixed")
     
     # Verify it has view capabilities
     assert plugin.has_views()
@@ -57,12 +146,12 @@ def test_integration_plugin_can_provide_views():
     assert plugin.views[0]["name"] == "Mixed View"
 
 
-def test_integration_plugin_still_has_integration_capabilities():
+def test_integration_plugin_still_has_integration_capabilities(mixed_plugin_dir):
     """Test that integration capabilities are still available."""
-    loader = PluginLoader(Path("/tmp/test_plugins"))
+    loader = PluginLoader(mixed_plugin_dir)
     
     # Load the mixed integration plugin
-    plugin = loader.load_plugin(Path("/tmp/test_plugins/mixed"))
+    plugin = loader.load_plugin(mixed_plugin_dir / "mixed")
     
     # Verify it still has integration capabilities
     assert plugin.has_integration()
@@ -73,10 +162,10 @@ def test_integration_plugin_still_has_integration_capabilities():
     assert len(plugin.properties) == 1
 
 
-def test_get_plugins_with_themes_includes_all_types():
+def test_get_plugins_with_themes_includes_all_types(mixed_plugin_dir):
     """Test that get_plugins_with_themes returns plugins of any type with theme config."""
-    loader = PluginLoader(Path("/tmp/test_plugins"))
-    plugin = loader.load_plugin(Path("/tmp/test_plugins/mixed"))
+    loader = PluginLoader(mixed_plugin_dir)
+    plugin = loader.load_plugin(mixed_plugin_dir / "mixed")
     
     # Get all plugins with themes
     plugins_with_themes = loader.get_plugins_with_themes()
@@ -90,10 +179,10 @@ def test_get_plugins_with_themes_includes_all_types():
     assert mixed_plugin.type == "integration"
 
 
-def test_get_plugins_with_templates_includes_all_types():
+def test_get_plugins_with_templates_includes_all_types(mixed_plugin_dir):
     """Test that get_plugins_with_templates returns plugins of any type with templates."""
-    loader = PluginLoader(Path("/tmp/test_plugins"))
-    plugin = loader.load_plugin(Path("/tmp/test_plugins/mixed"))
+    loader = PluginLoader(mixed_plugin_dir)
+    plugin = loader.load_plugin(mixed_plugin_dir / "mixed")
     
     # Get all plugins with templates
     plugins_with_templates = loader.get_plugins_with_templates()
@@ -107,10 +196,10 @@ def test_get_plugins_with_templates_includes_all_types():
     assert mixed_plugin.type == "integration"
 
 
-def test_get_plugins_with_views_includes_all_types():
+def test_get_plugins_with_views_includes_all_types(mixed_plugin_dir):
     """Test that get_plugins_with_views returns plugins of any type with views."""
-    loader = PluginLoader(Path("/tmp/test_plugins"))
-    plugin = loader.load_plugin(Path("/tmp/test_plugins/mixed"))
+    loader = PluginLoader(mixed_plugin_dir)
+    plugin = loader.load_plugin(mixed_plugin_dir / "mixed")
     
     # Get all plugins with views
     plugins_with_views = loader.get_plugins_with_views()

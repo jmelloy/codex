@@ -221,10 +221,10 @@
 
 /* ========== Page Theme Classes ========== */
 
-/* 
+/*
  * Theme classes are now loaded from plugin stylesheets.
  * Each theme plugin provides its own CSS via /api/v1/themes/{id}/stylesheet
- * See backend/plugins/themes/{theme-name}/styles/main.css for theme definitions.
+ * See plugins/{theme-name}/styles/main.css for theme definitions.
  */
 
 /* ========== Pen Color Classes ========== */

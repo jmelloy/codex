@@ -23,8 +23,9 @@ import { ref, computed, watch, onMounted } from "vue"
 import { marked } from "marked"
 import hljs from "highlight.js"
 import { useThemeStore } from "../stores/theme"
-import WeatherBlock from "./blocks/WeatherBlock.vue"
-import LinkPreviewBlock from "./blocks/LinkPreviewBlock.vue"
+// Import plugin components from the plugins directory
+import WeatherBlock from "@plugins/weather-api/components/WeatherBlock.vue"
+import LinkPreviewBlock from "@plugins/opengraph/components/LinkPreviewBlock.vue"
 import { createApp } from "vue"
 
 const themeStore = useThemeStore()

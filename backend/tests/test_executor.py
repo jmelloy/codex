@@ -11,7 +11,8 @@ from codex.plugins.loader import PluginLoader
 @pytest.fixture
 def loader():
     """Create plugin loader."""
-    return PluginLoader(Path("plugins"))
+    # Plugins are at the repository root, tests run from backend/
+    return PluginLoader(Path(__file__).parent.parent.parent / "plugins")
 
 
 @pytest.fixture

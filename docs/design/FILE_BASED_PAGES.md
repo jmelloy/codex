@@ -39,20 +39,28 @@ Workspace → Notebook → Pages (directories) → Blocks (numbered files)
 
 ### Directory Structure
 
+Pages are identified by either:
+1. **Directory with `.page` suffix** (e.g., `experiment-2026-01-28.page/`)
+2. **Directory containing `.page` file** (e.g., `experiment-2026-01-28/.page`)
+
+The `.page` suffix is hidden in the UI display.
+
 ```
 workspace/
   notebook1/
-    pages/
-      experiment-2026-01-28/
-        001-intro.md
-        002-setup-photo.jpg
-        003-observation.md
-        004-analysis.ipynb
-        .page.json              -- Optional metadata
-    files/
-      standalone-doc.md         -- Traditional flat files (coexist)
+    experiment-2026-01-28.page/       -- Page directory with .page suffix
+      001-intro.md
+      002-setup-photo.jpg
+      003-observation.md
+      004-analysis.ipynb
+      .page                           -- Page metadata
+    protein-synthesis/                -- Alternative: directory with .page file inside
+      001-hypothesis.md
+      002-data.csv
+      .page                           -- Page marker + metadata
+    standalone-doc.md                 -- Traditional flat file (coexists)
     .codex/
-      notebook.db               -- Minimal index
+      notebook.db                     -- Minimal index
 ```
 
 ### File Naming Convention
@@ -69,9 +77,9 @@ workspace/
 - `003-raw-data.csv`
 - `004-analysis.ipynb`
 
-### Page Metadata (.page.json)
+### Page Metadata (.page or .page.json)
 
-Optional file providing page-level information:
+Optional file providing page-level information. Can be named either `.page` or `.page.json`:
 
 ```json
 {

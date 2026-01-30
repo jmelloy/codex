@@ -80,6 +80,31 @@ def slugify(text: str) -> str:
     return slug or "page"
 
 
+def is_page_directory(directory: Path) -> bool:
+    """Check if a directory is a page directory.
+    
+    A directory is considered a page if:
+    1. It has a .page suffix (e.g., experiment.page/)
+    2. It contains a .page or .page.json file
+    """
+    # Check for .page suffix
+    if directory.name.endswith(".page"):
+        return True
+    
+    # Check for .page or .page.json file inside
+    if (directory / ".page").exists() or (directory / ".page.json").exists():
+        return True
+    
+    return False
+
+
+def get_page_display_name(directory_path: str) -> str:
+    """Get the display name for a page, hiding the .page suffix if present."""
+    if directory_path.endswith(".page"):
+        return directory_path[:-5]  # Remove .page suffix
+    return directory_path
+
+
 async def get_notebook_path(
     notebook_id: int, workspace_id: int, current_user: User, session: AsyncSession
 ) -> tuple[Path, Notebook]:
@@ -118,9 +143,9 @@ async def create_page(
     # Get notebook session (synchronous)
     notebook_session = get_notebook_session(str(notebook_path))
 
-    # Create directory path from title
+    # Create directory path from title with .page suffix
     slug = slugify(page_data.title)
-    directory_path = f"pages/{slug}"
+    directory_path = f"{slug}.page"
     page_dir = notebook_path / directory_path
 
     # Check if page already exists
@@ -135,7 +160,7 @@ async def create_page(
     # Create page directory
     page_dir.mkdir(parents=True, exist_ok=True)
 
-    # Create .page.json metadata file
+    # Create .page metadata file (marks this as a page directory)
     metadata = {
         "title": page_data.title,
         "description": page_data.description,
@@ -143,7 +168,7 @@ async def create_page(
         "last_edited_time": datetime.utcnow().isoformat() + "Z",
         "blocks": [],
     }
-    metadata_file = page_dir / ".page.json"
+    metadata_file = page_dir / ".page"
     metadata_file.write_text(json.dumps(metadata, indent=2))
 
     # Create database entry
@@ -176,39 +201,95 @@ async def list_pages(
     current_user: User = Depends(get_current_active_user),
     system_session: AsyncSession = Depends(get_system_session),
 ):
-    """List all pages in a notebook."""
+    """List all pages in a notebook.
+    
+    Pages are detected by:
+    1. Directories with .page suffix (e.g., experiment.page/)
+    2. Directories containing .page or .page.json files
+    """
     notebook_path, notebook = await get_notebook_path(notebook_id, workspace_id, current_user, system_session)
 
     # Get notebook session (synchronous)
     notebook_session = get_notebook_session(str(notebook_path))
 
-    # Query pages from notebook database
+    # Scan filesystem for page directories
+    page_dirs_found = {}
+    if notebook_path.exists():
+        for item in notebook_path.iterdir():
+            if item.is_dir() and is_page_directory(item):
+                # Get relative path from notebook
+                rel_path = str(item.relative_to(notebook_path))
+                page_dirs_found[rel_path] = item
+
+    # Query existing pages from database
     result = notebook_session.execute(select(Page).where(Page.notebook_id == notebook_id))
-    pages = result.scalars().all()
+    existing_pages = {page.directory_path: page for page in result.scalars().all()}
 
-    # Count blocks for each page
+    # Merge filesystem pages with database pages
     pages_with_counts = []
-    for page in pages:
-        page_dir = notebook_path / page.directory_path
-        if page_dir.exists():
-            # Count files that match block pattern (NNN-*.*)
-            block_files = [f for f in page_dir.iterdir() if f.is_file() and re.match(r"^\d{3}-", f.name)]
-            block_count = len(block_files)
-        else:
-            block_count = 0
-
-        pages_with_counts.append(
-            PageListResponse(
-                id=page.id,
-                notebook_id=page.notebook_id,
-                directory_path=page.directory_path,
-                title=page.title,
-                description=page.description,
-                created_at=page.created_at,
-                updated_at=page.updated_at,
-                block_count=block_count,
+    
+    # Add all filesystem pages
+    for rel_path, page_dir in page_dirs_found.items():
+        # Count blocks
+        block_files = [f for f in page_dir.iterdir() if f.is_file() and re.match(r"^\d{3}-", f.name)]
+        block_count = len(block_files)
+        
+        # Get or create page metadata
+        if rel_path in existing_pages:
+            page = existing_pages[rel_path]
+            pages_with_counts.append(
+                PageListResponse(
+                    id=page.id,
+                    notebook_id=page.notebook_id,
+                    directory_path=page.directory_path,
+                    title=page.title,
+                    description=page.description,
+                    created_at=page.created_at,
+                    updated_at=page.updated_at,
+                    block_count=block_count,
+                )
             )
-        )
+        else:
+            # Page exists on filesystem but not in database
+            # Read metadata from .page or .page.json file
+            metadata_file = page_dir / ".page"
+            if not metadata_file.exists():
+                metadata_file = page_dir / ".page.json"
+            
+            title = get_page_display_name(rel_path)
+            description = None
+            
+            if metadata_file.exists():
+                try:
+                    metadata = json.loads(metadata_file.read_text())
+                    title = metadata.get("title", title)
+                    description = metadata.get("description")
+                except:
+                    pass
+            
+            # Create page in database
+            page = Page(
+                notebook_id=notebook_id,
+                directory_path=rel_path,
+                title=title,
+                description=description,
+            )
+            notebook_session.add(page)
+            notebook_session.commit()
+            notebook_session.refresh(page)
+            
+            pages_with_counts.append(
+                PageListResponse(
+                    id=page.id,
+                    notebook_id=page.notebook_id,
+                    directory_path=page.directory_path,
+                    title=page.title,
+                    description=page.description,
+                    created_at=page.created_at,
+                    updated_at=page.updated_at,
+                    block_count=block_count,
+                )
+            )
 
     notebook_session.close()
     return pages_with_counts
@@ -342,8 +423,11 @@ async def update_page(
         page.description = page_update.description
     page.updated_at = datetime.utcnow()
 
-    # Update .page.json if it exists
-    metadata_file = page_dir / ".page.json"
+    # Update .page or .page.json file if it exists
+    metadata_file = page_dir / ".page"
+    if not metadata_file.exists():
+        metadata_file = page_dir / ".page.json"
+    
     if metadata_file.exists():
         metadata = json.loads(metadata_file.read_text())
         if page_update.title is not None:

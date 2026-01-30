@@ -88,7 +88,7 @@ def test_create_page(test_client, test_user_and_workspace):
     page = response.json()
     assert page["title"] == "Test Page"
     assert page["description"] == "A test page"
-    assert page["directory_path"] == "pages/test-page"
+    assert page["directory_path"] == "test-page.page"
     assert page["notebook_id"] == notebook["id"]
 
     # Verify directory was created (use actual workspace path from response)
@@ -97,8 +97,8 @@ def test_create_page(test_client, test_user_and_workspace):
     assert page_dir.exists()
     assert page_dir.is_dir()
 
-    # Verify .page.json was created
-    metadata_file = page_dir / ".page.json"
+    # Verify .page file was created
+    metadata_file = page_dir / ".page"
     assert metadata_file.exists()
     metadata = json.loads(metadata_file.read_text())
     assert metadata["title"] == "Test Page"

@@ -3,6 +3,19 @@
 .theme-manila {
   --notebook-bg: var(--page-manila);
   --notebook-text: var(--pen-black);
+  
+  /* Manila-tinted UI colors for vintage folder aesthetic */
+  --color-bg-primary: #f4e8d0;
+  --color-bg-secondary: #ede1c9;
+  --color-bg-tertiary: #e6dac2;
+  --color-bg-hover: #ede1c9;
+  --color-bg-active: #e6dac2;
+  
+  /* Sepia-toned borders for manila folder look */
+  --color-border-light: #d8ccb4;
+  --color-border-medium: #c4b89f;
+  --color-border-dark: #a89775;
+  
   background-color: var(--notebook-bg);
   color: var(--notebook-text);
 }

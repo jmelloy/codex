@@ -3,6 +3,18 @@
 .theme-cream {
   --notebook-bg: var(--page-cream);
   --notebook-text: var(--pen-black);
+  
+  /* Cream-tinted UI colors for better integration */
+  --color-bg-primary: #fef9f3;
+  --color-bg-secondary: #f7f5f0;
+  --color-bg-tertiary: #efeae3;
+  --color-bg-hover: #f7f5f0;
+  --color-bg-active: #efeae3;
+  
+  /* Slightly warmer borders to match cream aesthetic */
+  --color-border-light: #e8e3d8;
+  --color-border-medium: #d4cfc4;
+  
   background-color: var(--notebook-bg);
   color: var(--notebook-text);
 }

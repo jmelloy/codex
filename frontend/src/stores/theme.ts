@@ -91,6 +91,9 @@ export const useThemeStore = defineStore("theme", () => {
   async function setTheme(themeName: ThemeName) {
     currentTheme.value = themeName
 
+    // Load the theme stylesheet dynamically
+    await loadThemeStylesheet(themeName)
+
     // Save to user account if authenticated
     if (authService.isAuthenticated()) {
       try {
@@ -115,6 +118,25 @@ export const useThemeStore = defineStore("theme", () => {
     }
   }
 
+  async function loadThemeStylesheet(themeName: ThemeName) {
+    // Remove any existing theme stylesheets
+    const existingLinks = document.querySelectorAll('link[data-theme-stylesheet]')
+    existingLinks.forEach(link => link.remove())
+
+    // Create and append new stylesheet link
+    const link = document.createElement('link')
+    link.rel = 'stylesheet'
+    link.href = `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/v1/themes/${themeName}/stylesheet`
+    link.setAttribute('data-theme-stylesheet', themeName)
+    
+    // Add error handling
+    link.onerror = () => {
+      console.error(`Failed to load stylesheet for theme: ${themeName}`)
+    }
+    
+    document.head.appendChild(link)
+  }
+
   function saveToLocalStorage(themeName: ThemeName) {
     try {
       localStorage.setItem(STORAGE_KEY, themeName)
@@ -135,13 +157,15 @@ export const useThemeStore = defineStore("theme", () => {
     return DEFAULT_THEME
   }
 
-  function loadFromUser(themeSetting?: string) {
+  async function loadFromUser(themeSetting?: string) {
     if (themeSetting && themes.value.some((t) => t.name === themeSetting)) {
       currentTheme.value = themeSetting as ThemeName
     } else {
       // Fallback to localStorage if user doesn't have a theme
       currentTheme.value = loadFromLocalStorage()
     }
+    // Load the theme stylesheet
+    await loadThemeStylesheet(currentTheme.value)
   }
 
   async function initialize() {
@@ -150,6 +174,9 @@ export const useThemeStore = defineStore("theme", () => {
     
     // Then set the current theme from localStorage
     currentTheme.value = loadFromLocalStorage()
+    
+    // Load the theme stylesheet
+    await loadThemeStylesheet(currentTheme.value)
   }
 
   return {

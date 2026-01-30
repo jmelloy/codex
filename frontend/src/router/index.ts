@@ -5,6 +5,7 @@ import LoginView from "../views/LoginView.vue"
 import RegisterView from "../views/RegisterView.vue"
 import IntegrationSettingsView from "../views/IntegrationSettingsView.vue"
 import IntegrationConfigView from "../views/IntegrationConfigView.vue"
+import PageDetailView from "../views/PageDetailView.vue"
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -23,6 +24,12 @@ const router = createRouter({
     {
       path: "/settings",
       redirect: { path: "/", query: { view: "settings" } },
+    },
+    {
+      path: "/page/:notebookId/:pagePath+",
+      name: "page-detail",
+      component: PageDetailView,
+      meta: { requiresAuth: true },
     },
     {
       path: "/integrations",

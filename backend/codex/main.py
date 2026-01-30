@@ -18,7 +18,6 @@ from codex.api.routes import (
     integrations,
     markdown,
     notebooks,
-    pages,
     query,
     search,
     tasks,
@@ -173,7 +172,6 @@ async def health():
 app.include_router(users.router, prefix="/api", tags=["users"])
 app.include_router(workspaces.router, prefix="/api/v1/workspaces", tags=["workspaces"])
 app.include_router(notebooks.router, prefix="/api/v1/notebooks", tags=["notebooks"])
-app.include_router(pages.router, prefix="/api/v1", tags=["pages"])
 app.include_router(files.router, prefix="/api/v1/files", tags=["files"])
 app.include_router(folders.router, prefix="/api/v1/folders", tags=["folders"])
 app.include_router(search.router, prefix="/api/v1/search", tags=["search"])

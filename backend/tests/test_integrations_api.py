@@ -116,6 +116,24 @@ def test_test_integration_not_found(client, auth_headers):
     assert response.status_code == 404
 
 
+def test_test_integration_exists(client, auth_headers):
+    """Test testing an existing integration (should not return 404)."""
+    # Test with weather-api integration which exists in the test environment
+    response = client.post(
+        "/api/v1/integrations/weather-api/test",
+        headers=auth_headers,
+        json={"config": {"api_key": "test_key_123"}},
+    )
+    # Should return 200, not 404, even if the connection fails
+    # The integration exists, so we should get a proper response
+    assert response.status_code == 200
+    data = response.json()
+    assert "success" in data
+    assert "message" in data
+    # The test may fail due to network issues, but it should not be a 404
+    assert isinstance(data["success"], bool)
+
+
 def test_execute_integration_not_found(client, auth_headers):
     """Test executing endpoint on non-existent integration."""
     response = client.post(

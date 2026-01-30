@@ -194,3 +194,13 @@ permissions:
   - network_request
   - store_config
   - render_blocks
+
+# Templates
+# Demonstrates that integration plugins can also provide templates
+templates:
+  - id: github-issue-tracker
+    name: GitHub Issue Tracker
+    file: templates/issue-tracker.yaml
+    description: Track GitHub issues with embedded issue blocks
+    icon: 🐛
+    default_name: github-issues.cdx

@@ -135,6 +135,50 @@ class PluginLoader:
         """
         return [p for p in self.plugins.values() if p.type == plugin_type]
 
+    def get_plugins_with_themes(self) -> list[Plugin]:
+        """Get all plugins that provide themes.
+        
+        This includes any plugin type that has theme configuration,
+        not just ThemePlugin instances.
+
+        Returns:
+            List of plugins that provide themes
+        """
+        return [p for p in self.plugins.values() if p.has_theme()]
+
+    def get_plugins_with_templates(self) -> list[Plugin]:
+        """Get all plugins that provide templates.
+        
+        This includes any plugin type that has templates,
+        not just ViewPlugin instances.
+
+        Returns:
+            List of plugins that provide templates
+        """
+        return [p for p in self.plugins.values() if p.has_templates()]
+
+    def get_plugins_with_views(self) -> list[Plugin]:
+        """Get all plugins that provide views.
+        
+        This includes any plugin type that has views,
+        not just ViewPlugin instances.
+
+        Returns:
+            List of plugins that provide views
+        """
+        return [p for p in self.plugins.values() if p.has_views()]
+
+    def get_plugins_with_integrations(self) -> list[Plugin]:
+        """Get all plugins that provide integrations.
+        
+        This includes any plugin type that has integration configuration,
+        not just IntegrationPlugin instances.
+
+        Returns:
+            List of plugins that provide integrations
+        """
+        return [p for p in self.plugins.values() if p.has_integration()]
+
     def _validate_manifest(self, manifest: dict[str, Any], plugin_type: str) -> None:
         """Validate plugin manifest.
 

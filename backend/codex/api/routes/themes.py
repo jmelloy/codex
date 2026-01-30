@@ -3,7 +3,6 @@
 from fastapi import APIRouter, Request
 
 from codex.api.schemas import ThemeResponse
-from codex.plugins.models import ThemePlugin
 
 router = APIRouter()
 
@@ -16,29 +15,32 @@ async def get_available_themes(request: Request):
     theme previews before login. Theme metadata does not contain
     sensitive information.
     
+    Returns all plugins that provide themes, regardless of plugin type.
+    This allows any plugin (view, theme, integration) to expose themes.
+    
     Returns:
         List of available theme plugins with their metadata.
     """
     loader = request.app.state.plugin_loader
-    themes = loader.get_plugins_by_type("theme")
+    # Use capability-based filtering instead of type-based
+    plugins_with_themes = loader.get_plugins_with_themes()
     
-    # Convert theme plugins to response format
+    # Convert plugins with themes to response format
     theme_responses = []
-    for theme in themes:
-        if isinstance(theme, ThemePlugin):
-            theme_responses.append(
-                ThemeResponse(
-                    id=theme.id,
-                    # Use ID as name for theme identifier in frontend
-                    # This is the stable identifier (e.g., "cream", "manila")
-                    name=theme.id,
-                    label=theme.display_name,
-                    description=theme.description,
-                    className=theme.class_name,
-                    category=theme.category,
-                    version=theme.version,
-                    author=theme.author,
-                )
+    for plugin in plugins_with_themes:
+        theme_responses.append(
+            ThemeResponse(
+                id=plugin.id,
+                # Use ID as name for theme identifier in frontend
+                # This is the stable identifier (e.g., "cream", "manila")
+                name=plugin.id,
+                label=plugin.display_name,
+                description=plugin.description,
+                className=plugin.class_name,
+                category=plugin.category,
+                version=plugin.version,
+                author=plugin.author,
             )
+        )
     
     return theme_responses

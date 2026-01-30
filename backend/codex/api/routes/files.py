@@ -95,17 +95,21 @@ class CreateFromTemplateRequest(BaseModel):
 
 
 def load_default_templates(loader) -> list[dict]:
-    """Load default templates from YAML files in the templates directory and from plugins."""
+    """Load default templates from YAML files in the templates directory and from plugins.
+    
+    This loads templates from any plugin that provides them, not just view plugins.
+    This allows themes, integrations, or any other plugin type to provide templates.
+    """
     import yaml
 
     templates = []
 
-    # Load templates from view plugins using the provided loader
+    # Load templates from any plugin that provides them, using capability-based filtering
     try:
-        # Get all view plugins
-        view_plugins = loader.get_plugins_by_type("view")
+        # Get all plugins that have templates (regardless of type)
+        plugins_with_templates = loader.get_plugins_with_templates()
         
-        for plugin in view_plugins:
+        for plugin in plugins_with_templates:
             # Add templates from this plugin
             for template_def in plugin.templates:
                 template_file_path = plugin.plugin_dir / template_def.get("file", "")

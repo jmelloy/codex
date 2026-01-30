@@ -1,8 +1,6 @@
 """Tests for markdown API endpoints."""
 
 
-
-
 def test_render_markdown_simple(test_client):
     """Test basic markdown rendering."""
     # First register and login
@@ -23,6 +21,8 @@ def test_render_markdown_simple(test_client):
     data = response.json()
     assert "html" in data
     assert data["html"] is not None
+    # Should not have custom blocks for plain markdown
+    assert data.get("custom_blocks") is None or data.get("custom_blocks") == []
 
 
 def test_render_markdown_with_frontmatter(test_client):
@@ -155,3 +155,98 @@ tags:
     assert data["frontmatter"]["created"] == "2025-08-15T10:08:46-07:00"
     # Date should also be serialized as ISO string
     assert data["frontmatter"]["modified"] == "2025-08-15"
+
+
+def test_render_markdown_with_custom_blocks(test_client):
+    """Test that custom blocks are detected and returned."""
+    # Login
+    test_client.post(
+        "/api/register", json={"username": "testuser_cb", "email": "testcb@example.com", "password": "testpass123"}
+    )
+
+    login_response = test_client.post("/api/token", data={"username": "testuser_cb", "password": "testpass123"})
+    token = login_response.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Test markdown with custom blocks
+    content = """# Weather Report
+
+Here's the current weather:
+
+```weather
+location: San Francisco
+units: imperial
+```
+
+And a link preview:
+
+```link-preview
+url: https://github.com
+```
+
+Some regular code:
+
+```python
+print("hello")
+```
+"""
+
+    response = test_client.post("/api/v1/markdown/render", json={"content": content}, headers=headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert "html" in data
+    assert "custom_blocks" in data
+    assert data["custom_blocks"] is not None
+    assert len(data["custom_blocks"]) == 2  # weather and link-preview, not python
+
+    # Check weather block
+    weather_block = next(b for b in data["custom_blocks"] if b["block_type"] == "weather")
+    assert weather_block["config"]["location"] == "San Francisco"
+    assert weather_block["config"]["units"] == "imperial"
+
+    # Check link-preview block
+    link_block = next(b for b in data["custom_blocks"] if b["block_type"] == "link-preview")
+    assert link_block["config"]["url"] == "https://github.com"
+
+
+def test_render_markdown_with_multiple_same_blocks(test_client):
+    """Test rendering markdown with multiple blocks of the same type."""
+    # Login
+    test_client.post(
+        "/api/register", json={"username": "testuser_mb", "email": "testmb@example.com", "password": "testpass123"}
+    )
+
+    login_response = test_client.post("/api/token", data={"username": "testuser_mb", "password": "testpass123"})
+    token = login_response.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    content = """
+```weather
+location: New York
+```
+
+```weather
+location: London
+units: metric
+```
+
+```weather
+location: Tokyo
+units: metric
+```
+"""
+
+    response = test_client.post("/api/v1/markdown/render", json={"content": content}, headers=headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["custom_blocks"] is not None
+    assert len(data["custom_blocks"]) == 3
+    assert all(b["block_type"] == "weather" for b in data["custom_blocks"])
+
+    # Verify each location
+    locations = [b["config"]["location"] for b in data["custom_blocks"]]
+    assert "New York" in locations
+    assert "London" in locations
+    assert "Tokyo" in locations

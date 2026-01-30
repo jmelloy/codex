@@ -23,6 +23,9 @@ import { ref, computed, watch, onMounted } from "vue"
 import { marked } from "marked"
 import hljs from "highlight.js"
 import { useThemeStore } from "../stores/theme"
+import WeatherBlock from "./blocks/WeatherBlock.vue"
+import LinkPreviewBlock from "./blocks/LinkPreviewBlock.vue"
+import { createApp } from "vue"
 
 const themeStore = useThemeStore()
 
@@ -179,6 +182,80 @@ const extractLanguage = (className: string): string | null => {
   return match && match[1] ? match[1] : null
 }
 
+// Custom block registry
+const customBlockComponents: Record<string, any> = {
+  weather: WeatherBlock,
+  "link-preview": LinkPreviewBlock,
+  // More block types can be registered here
+}
+
+// Parse custom blocks from code fences
+const parseCustomBlocks = (html: string): { html: string; blocks: any[] } => {
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(html, "text/html")
+  const blocks: any[] = []
+
+  // Find code blocks that might be custom blocks
+  const codeBlocks = doc.querySelectorAll("pre code")
+  codeBlocks.forEach((codeBlock, index) => {
+    const className = codeBlock.className
+    const language = extractLanguage(className)
+
+    if (language && language in customBlockComponents) {
+      // This is a custom block
+      const content = codeBlock.textContent || ""
+      
+      // Try to parse as YAML config
+      let config: Record<string, any> = {}
+      try {
+        // Simple YAML parser for key: value pairs
+        content.split("\n").forEach((line) => {
+          const match = line.match(/^(\w+):\s*(.+)$/)
+          if (match && match[1] && match[2]) {
+            config[match[1]] = match[2].trim()
+          }
+        })
+      } catch (e) {
+        console.warn("Failed to parse custom block config:", e)
+      }
+
+      // Create a placeholder div with a unique ID
+      const blockId = `custom-block-${language}-${index}`
+      const placeholder = doc.createElement("div")
+      placeholder.id = blockId
+      placeholder.className = "custom-block-placeholder"
+
+      // Replace the pre element with our placeholder
+      codeBlock.parentElement?.replaceWith(placeholder)
+
+      blocks.push({
+        id: blockId,
+        type: language,
+        config,
+        component: customBlockComponents[language],
+      })
+    }
+  })
+
+  return {
+    html: doc.body.innerHTML,
+    blocks,
+  }
+}
+
+// Mount Vue components for custom blocks
+const mountCustomBlocks = (blocks: any[]) => {
+  blocks.forEach((block) => {
+    setTimeout(() => {
+      const container = document.getElementById(block.id)
+      if (container) {
+        const app = createApp(block.component, { config: block.config })
+        app.mount(container)
+      }
+    }, 0)
+  })
+}
+
 // Computed
 const renderedHtml = computed(() => {
   if (!props.content) {
@@ -187,9 +264,13 @@ const renderedHtml = computed(() => {
 
   try {
     const html = marked(props.content) as string
-    // Apply syntax highlighting to code blocks safely
+    
+    // Parse and handle custom blocks first
+    const { html: htmlWithPlaceholders, blocks } = parseCustomBlocks(html)
+    
+    // Apply syntax highlighting to remaining standard code blocks
     const parser = new DOMParser()
-    const doc = parser.parseFromString(html, "text/html")
+    const doc = parser.parseFromString(htmlWithPlaceholders, "text/html")
     const codeBlocks = doc.querySelectorAll("pre code")
     codeBlocks.forEach((block) => {
       const code = block.textContent || ""
@@ -220,7 +301,15 @@ const renderedHtml = computed(() => {
       // Replace the code block
       block.parentNode?.replaceChild(highlightedElement, block)
     })
-    return doc.body.innerHTML
+    
+    const finalHtml = doc.body.innerHTML
+    
+    // Mount custom blocks after HTML is rendered
+    if (blocks.length > 0) {
+      mountCustomBlocks(blocks)
+    }
+    
+    return finalHtml
   } catch (e) {
     console.error("Markdown parsing error:", e)
     return '<p class="error-content">Error rendering markdown</p>'

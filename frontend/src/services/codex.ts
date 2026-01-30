@@ -217,7 +217,8 @@ export const pageService = {
     for (const file of files) {
       const parts = file.path.split("/")
       for (let i = 0; i < parts.length; i++) {
-        if (parts[i].endsWith(".page")) {
+        const part = parts[i]
+        if (part && part.endsWith(".page")) {
           pageDirs.add(parts.slice(0, i + 1).join("/"))
         }
       }
@@ -313,8 +314,8 @@ export const pageService = {
     
     const blocks: Block[] = blockFiles.map(f => {
       const match = f.filename.match(/^(\d{3})-(.+)$/)
-      const position = match ? parseInt(match[1]) : 0
-      const name = match ? match[2] : f.filename
+      const position = match && match[1] ? parseInt(match[1]) : 0
+      const name = match && match[2] ? match[2] : f.filename
       const type = f.filename.match(/\.(md|markdown)$/i) ? "markdown" : "file"
       
       return {
@@ -340,17 +341,11 @@ export const pageService = {
    * Create a new page directory with .page metadata file.
    * Note: This requires backend support for creating directories and files.
    */
-  async create(notebookId: number, workspaceId: number, title: string, description?: string): Promise<Page> {
-    const slug = this._slugify(title)
-    const directory_path = `${slug}.page`
-    
-    const metadata = {
-      title,
-      description,
-      created_time: new Date().toISOString(),
-      last_edited_time: new Date().toISOString(),
-      blocks: [],
-    }
+  async create(_notebookId: number, _workspaceId: number, _title: string, _description?: string): Promise<Page> {
+    // Future implementation would:
+    // 1. Create slug from title
+    // 2. Create directory with .page suffix
+    // 3. Create .page file with metadata
     
     // TODO: Need backend endpoint to create directory and file
     throw new Error("Creating pages requires backend directory creation support")
@@ -387,7 +382,7 @@ export const pageService = {
   /**
    * Delete a page by deleting the directory.
    */
-  async delete(directoryPath: string, notebookId: number, workspaceId: number): Promise<void> {
+  async delete(_directoryPath: string, _notebookId: number, _workspaceId: number): Promise<void> {
     // TODO: Need backend endpoint to delete directory
     throw new Error("Deleting pages requires backend directory deletion support")
   },
@@ -396,17 +391,14 @@ export const pageService = {
    * Create a block (numbered file) in the page.
    */
   async createBlock(
-    directoryPath: string,
-    notebookId: number,
-    workspaceId: number,
-    filename: string
+    _directoryPath: string,
+    _notebookId: number,
+    _workspaceId: number,
+    _filename: string
   ): Promise<Block> {
-    const page = await this.get(directoryPath, notebookId, workspaceId)
-    const nextPosition = page.blocks.length > 0 
-      ? Math.max(...page.blocks.map(b => b.position)) + 1
-      : 1
-    
-    const numberedFilename = `${String(nextPosition).padStart(3, "0")}-${filename}`
+    // Future implementation would:
+    // 1. Get current page and find next position number
+    // 2. Create file with pattern: NNN-filename
     
     // TODO: Need backend endpoint to create file at specific path
     throw new Error("Creating blocks requires backend file creation support")
@@ -416,10 +408,10 @@ export const pageService = {
    * Reorder blocks by renaming files.
    */
   async reorderBlocks(
-    directoryPath: string,
-    notebookId: number,
-    workspaceId: number,
-    blocks: { file: string; new_position: number }[]
+    _directoryPath: string,
+    _notebookId: number,
+    _workspaceId: number,
+    _blocks: { file: string; new_position: number }[]
   ): Promise<void> {
     // TODO: Need backend endpoint to rename files
     throw new Error("Reordering blocks requires backend file rename support")
@@ -429,10 +421,10 @@ export const pageService = {
    * Delete a block file.
    */
   async deleteBlock(
-    directoryPath: string,
-    notebookId: number,
-    workspaceId: number,
-    blockFilename: string
+    _directoryPath: string,
+    _notebookId: number,
+    _workspaceId: number,
+    _blockFilename: string
   ): Promise<void> {
     // TODO: Need backend endpoint to delete file by path
     throw new Error("Deleting blocks requires backend file deletion support")

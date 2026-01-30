@@ -67,6 +67,12 @@ class IntegrationConfigRequest(BaseModel):
     config: dict[str, Any]
 
 
+class PluginEnableRequest(BaseModel):
+    """Schema for enabling/disabling a plugin."""
+
+    enabled: bool
+
+
 class IntegrationConfigResponse(BaseModel):
     """Schema for integration configuration response."""
 

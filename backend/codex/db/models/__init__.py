@@ -9,7 +9,7 @@ System models (backend/db/models/system.py):
   - Stored in the system database (codex_system.db)
 
 Notebook models (backend/db/models/notebook.py):
-  - FileMetadata, Tag, FileTag, SearchIndex
+  - FileMetadata, Tag, FileTag, SearchIndex, Page
   - Stored in per-notebook databases (notebook.db)
 """
 
@@ -20,6 +20,7 @@ from .base import utc_now
 from .notebook import (
     FileMetadata,
     FileTag,
+    Page,
     SearchIndex,
     Tag,
 )
@@ -55,4 +56,5 @@ __all__ = [
     "Tag",
     "FileTag",
     "SearchIndex",
+    "Page",
 ]

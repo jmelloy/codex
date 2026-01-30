@@ -5,6 +5,7 @@ These models are stored in per-notebook databases (notebook.db):
 - Tag: Tags for organizing content
 - FileTag: Link table for file tags
 - SearchIndex: Full-text search index for file content
+- Page: Page metadata for organizing files into pages
 
 Note: notebook_id in these models is stored as an integer reference
 to the system database (not a foreign key, since it's in a different database).
@@ -89,4 +90,22 @@ class SearchIndex(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     file_id: int = Field(foreign_key="file_metadata.id", index=True)
     content: str  # Full text content for searching
+    updated_at: datetime = Field(default_factory=utc_now)
+
+
+class Page(SQLModel, table=True):
+    """Page metadata for organizing files into pages."""
+
+    __tablename__ = "pages"  # type: ignore[assignment]
+    __table_args__ = (
+        UniqueConstraint("notebook_id", "directory_path", name="uq_page_notebook_path"),
+        {"sqlite_autoincrement": True},
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    notebook_id: int = Field(index=True)  # Reference to notebook in system database
+    directory_path: str = Field(index=True)  # Relative path from notebook (e.g., 'pages/experiment-2026-01-28')
+    title: str | None = None
+    description: str | None = None
+    created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)

@@ -12,8 +12,10 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - LOG_FORMAT=${LOG_FORMAT:-colored}
       - PYTHONUNBUFFERED=1
+      - CODEX_PLUGINS_DIR=/app/plugins
     volumes:
       - ./data:/app/data
+      - ./plugins:/app/plugins:ro
     restart: unless-stopped
     command: >
       sh -c "alembic upgrade head && python -m codex.main"
@@ -30,8 +32,11 @@ services:
       dockerfile: Dockerfile
       args:
         - VITE_API_BASE_URL=${VITE_API_BASE_URL:-/api}
+        - PLUGINS_DIR=/plugins
     ports:
       - 8065:80
+    volumes:
+      - ./plugins:/plugins:ro
     depends_on:
       backend:
         condition: service_healthy

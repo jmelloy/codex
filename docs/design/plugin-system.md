@@ -1478,7 +1478,7 @@ The PluginLoader class has been fully implemented with the following features:
 from codex.plugins.loader import PluginLoader
 from pathlib import Path
 
-loader = PluginLoader(Path("backend/plugins"))
+loader = PluginLoader(Path("plugins"))
 plugins = loader.load_all_plugins()
 
 # Get all themes
@@ -1546,7 +1546,7 @@ cream_theme = loader.get_plugin("cream")
 - [x] Plugin loader and registry (PluginLoader class with discovery and validation)
 - [x] Basic plugin models (Plugin, ViewPlugin, ThemePlugin, IntegrationPlugin)
 - [x] Plugin manifest validation (ID, version, type validation)
-- [x] Plugin directory structure (backend/plugins/{views,themes,integrations})
+- [x] Plugin directory structure (plugins/{plugin-name}/ with flat organization)
 
 ### Phase 2: View Plugins (v1.1) ✅ COMPLETED
 

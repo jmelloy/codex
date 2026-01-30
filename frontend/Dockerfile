@@ -3,8 +3,9 @@ FROM node:25-slim AS builder
 
 WORKDIR /app
 
-# Build argument for API URL (baked into the build)
+# Build arguments
 ARG VITE_API_BASE_URL=/api
+ARG PLUGINS_DIR=/plugins
 
 # Copy package files first for better caching
 COPY package*.json ./
@@ -15,8 +16,12 @@ RUN npm ci --only=production=false
 # Copy source code
 COPY . ./
 
-# Set environment variable for build
+# Create plugins directory for build (will be populated by build context or mounted)
+RUN mkdir -p /plugins
+
+# Set environment variables for build
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+ENV VITE_PLUGINS_DIR=${PLUGINS_DIR}
 
 # Build application
 RUN npm run build

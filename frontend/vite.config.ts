@@ -2,6 +2,28 @@
 import { defineConfig } from "vite"
 import vue from "@vitejs/plugin-vue"
 import path from "path"
+import fs from "fs"
+
+// Resolve plugins directory - check multiple locations
+const resolvePluginsDir = () => {
+  // Check environment variable first
+  if (process.env.VITE_PLUGINS_DIR && fs.existsSync(process.env.VITE_PLUGINS_DIR)) {
+    return process.env.VITE_PLUGINS_DIR
+  }
+  // Check parent directory (standard layout: codex/plugins when running from codex/frontend)
+  const parentPlugins = path.resolve(__dirname, "../plugins")
+  if (fs.existsSync(parentPlugins)) {
+    return parentPlugins
+  }
+  // Docker mount location
+  if (fs.existsSync("/plugins")) {
+    return "/plugins"
+  }
+  // Fallback to a local plugins directory
+  return path.resolve(__dirname, "./plugins")
+}
+
+const pluginsDir = resolvePluginsDir()
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -9,6 +31,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "@plugins": pluginsDir,
     },
   },
   server: {
@@ -25,6 +48,21 @@ export default defineConfig({
         target: process.env.VITE_PROXY_TARGET || "http://localhost:8000",
         changeOrigin: true,
       },
+    },
+    // Watch plugins directory for changes
+    fs: {
+      allow: [path.resolve(__dirname, ".."), pluginsDir],
+    },
+  },
+  // Allow importing from plugins directory
+  optimizeDeps: {
+    include: [],
+    exclude: [],
+  },
+  build: {
+    // Include plugins in the build
+    rollupOptions: {
+      external: [],
     },
   },
   // @ts-ignore - Vitest config: There's a known type conflict between vite and vitest versions

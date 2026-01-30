@@ -51,9 +51,9 @@ async def lifespan(app: FastAPI):
 
     # Initialize plugin loader
     try:
-        # Default plugins directory is at the repository root (../../../plugins from this file)
+        # Default plugins directory is at the repository root (../../plugins from this file)
         # or use CODEX_PLUGINS_DIR environment variable to override
-        default_plugins_dir = Path(__file__).parent.parent.parent.parent / "plugins"
+        default_plugins_dir = Path(__file__).parent.parent.parent / "plugins"
         plugins_dir = Path(os.getenv("CODEX_PLUGINS_DIR", default_plugins_dir))
         logger.info(f"Loading plugins from directory: {plugins_dir}")
         loader = PluginLoader(plugins_dir)

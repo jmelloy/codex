@@ -1,6 +1,9 @@
 """API routes for theme management."""
 
-from fastapi import APIRouter, Request
+from pathlib import Path
+
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import Response
 
 from codex.api.schemas import ThemeResponse
 
@@ -44,3 +47,46 @@ async def get_available_themes(request: Request):
         )
     
     return theme_responses
+
+
+@router.get("/{theme_id}/stylesheet")
+async def get_theme_stylesheet(theme_id: str, request: Request):
+    """Get the CSS stylesheet for a specific theme.
+    
+    This endpoint is public to allow theme stylesheets to be loaded
+    before authentication.
+    
+    Args:
+        theme_id: The theme identifier (e.g., "cream", "manila")
+        request: FastAPI request object
+        
+    Returns:
+        CSS stylesheet content with text/css content type
+        
+    Raises:
+        HTTPException: If theme not found or stylesheet doesn't exist
+    """
+    loader = request.app.state.plugin_loader
+    plugin = loader.get_plugin(theme_id)
+    
+    if not plugin or not plugin.has_theme():
+        raise HTTPException(status_code=404, detail=f"Theme '{theme_id}' not found")
+    
+    # Get stylesheet path from plugin
+    stylesheet_path = plugin.get_stylesheet_path(plugin.stylesheet)
+    
+    if not stylesheet_path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail=f"Stylesheet not found for theme '{theme_id}'"
+        )
+    
+    # Read and return CSS content
+    try:
+        css_content = stylesheet_path.read_text(encoding="utf-8")
+        return Response(content=css_content, media_type="text/css")
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error reading stylesheet: {str(e)}"
+        )

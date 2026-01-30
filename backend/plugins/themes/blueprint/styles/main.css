@@ -1,7 +1,6 @@
 /* Blueprint Theme - Dark mode with blueprint styling */
 
 .theme-blueprint {
-  --page-blueprint: #1e3a5f;
   --notebook-bg: var(--page-blueprint);
   --notebook-text: #e0e7ff;
   --pen-gray: #a5b4cb;
@@ -9,7 +8,6 @@
   --pen-red: #fca5a5;
   --pen-green: #86efac;
   --grid-color: rgba(255, 255, 255, 0.1);
-  --grid-size: 24px;
   --ruled-line-color: rgba(255, 255, 255, 0.15);
   --page-border: rgba(255, 255, 255, 0.2);
   --page-shadow: rgba(0, 0, 0, 0.3);
@@ -23,13 +21,19 @@
 
   --color-bg-primary: #1a2332;
   --color-bg-secondary: #0f1720;
-  --color-bg-tertiary: #1e3a5f;
-  --color-bg-hover: #2a3f5f;
-  --color-bg-active: #334b6f;
+  --color-bg-tertiary: #283548;
+  --color-bg-hover: #283548;
+  --color-bg-active: #334155;
+  --color-bg-disabled: #1e293b;
 
-  --color-border-light: #2d4a6f;
-  --color-border-medium: #3d5a7f;
-  --color-border-dark: #4d6a8f;
+  --color-border-light: #334155;
+  --color-border-medium: #475569;
+  --color-border-dark: #64748b;
+
+  --color-success-bg: rgba(22, 163, 74, 0.1);
+  --color-error-bg: rgba(220, 38, 38, 0.1);
+  --color-warning-bg: rgba(217, 119, 6, 0.1);
+  --color-info-bg: rgba(37, 99, 235, 0.1);
 
   background-color: var(--notebook-bg);
   background-image:
@@ -52,16 +56,7 @@
   color: var(--notebook-text);
 }
 
+/* Dark theme sidebar adjustments for better contrast */
 .theme-blueprint .notebook-sidebar {
   background: color-mix(in srgb, var(--notebook-bg) 85%, white 15%);
-}
-
-.theme-blueprint .notebook-button {
-  color: var(--color-text-primary);
-  border-color: var(--color-border-light);
-}
-
-.theme-blueprint .notebook-button:hover:not(:disabled) {
-  background-color: var(--color-bg-hover);
-  border-color: var(--color-border-medium);
 }

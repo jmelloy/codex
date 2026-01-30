@@ -221,86 +221,11 @@
 
 /* ========== Page Theme Classes ========== */
 
-/* Cream Notebook (Default) */
-.theme-cream {
-  --notebook-bg: var(--page-cream);
-  --notebook-text: var(--pen-black);
-  background-color: var(--notebook-bg);
-  color: var(--notebook-text);
-}
-
-/* Manila/Tan Notebook */
-.theme-manila {
-  --notebook-bg: var(--page-manila);
-  --notebook-text: var(--pen-black);
-  background-color: var(--notebook-bg);
-  color: var(--notebook-text);
-}
-
-/* White Notebook */
-.theme-white {
-  --notebook-bg: var(--page-white);
-  --notebook-text: var(--pen-black);
-  background-color: var(--notebook-bg);
-  color: var(--notebook-text);
-}
-
-/* Blueprint/Dark Notebook */
-.theme-blueprint {
-  --notebook-bg: var(--page-blueprint);
-  --notebook-text: #e0e7ff;
-  --pen-gray: #a5b4cb;
-  --pen-blue: #93c5fd;
-  --pen-red: #fca5a5;
-  --pen-green: #86efac;
-  --grid-color: rgba(255, 255, 255, 0.1);
-  --ruled-line-color: rgba(255, 255, 255, 0.15);
-  --page-border: rgba(255, 255, 255, 0.2);
-  --page-shadow: rgba(0, 0, 0, 0.3);
-
-  /* Dark mode UI colors */
-  --color-text-primary: #e2e8f0;
-  --color-text-secondary: #cbd5e0;
-  --color-text-tertiary: #a0aec0;
-  --color-text-placeholder: #718096;
-  --color-text-disabled: #4a5568;
-
-  --color-bg-primary: #1a2332;
-  --color-bg-secondary: #0f1720;
-  --color-bg-tertiary: #283548;
-  --color-bg-hover: #283548;
-  --color-bg-active: #334155;
-  --color-bg-disabled: #1e293b;
-
-  --color-border-light: #334155;
-  --color-border-medium: #475569;
-  --color-border-dark: #64748b;
-
-  --color-success-bg: rgba(22, 163, 74, 0.1);
-  --color-error-bg: rgba(220, 38, 38, 0.1);
-  --color-warning-bg: rgba(217, 119, 6, 0.1);
-  --color-info-bg: rgba(37, 99, 235, 0.1);
-
-  background-color: var(--notebook-bg);
-  background-image:
-    /* Vertical grid lines */ repeating-linear-gradient(
-      to right,
-      transparent 0,
-      transparent calc(var(--grid-size) - 1px),
-      var(--grid-color) calc(var(--grid-size) - 1px),
-      var(--grid-color) var(--grid-size)
-    ),
-    /* Horizontal grid lines */
-      repeating-linear-gradient(
-        to bottom,
-        transparent 0,
-        transparent calc(var(--grid-size) - 1px),
-        var(--grid-color) calc(var(--grid-size) - 1px),
-        var(--grid-color) var(--grid-size)
-      );
-  background-size: var(--grid-size) var(--grid-size);
-  color: var(--notebook-text);
-}
+/* 
+ * Theme classes are now loaded from plugin stylesheets.
+ * Each theme plugin provides its own CSS via /api/v1/themes/{id}/stylesheet
+ * See backend/plugins/themes/{theme-name}/styles/main.css for theme definitions.
+ */
 
 /* ========== Pen Color Classes ========== */
 .pen-black {
@@ -450,11 +375,6 @@
 .notebook-toolbar {
   background: var(--notebook-bg);
   border-bottom: 1px solid var(--page-border);
-}
-
-/* Dark theme sidebar adjustments for better contrast */
-.theme-blueprint .notebook-sidebar {
-  background: color-mix(in srgb, var(--notebook-bg) 85%, white 15%);
 }
 
 /* ========== Responsive Adjustments ========== */

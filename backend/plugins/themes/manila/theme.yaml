@@ -26,6 +26,11 @@ colors:
   bg-secondary: "#ede1c9"
   bg-tertiary: "#e6dac2"
   
+  # Border colors (sepia-toned for manila folder aesthetic)
+  border-light: "#d8ccb4"
+  border-medium: "#c4b89f"
+  border-dark: "#a89775"
+  
   # Text colors
   text-primary: "#1a1a1a"
   text-secondary: "#4a5568"

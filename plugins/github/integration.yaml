@@ -51,6 +51,7 @@ properties:
       placeholder: "your-org"
 
 # Block Types
+# Note: Blocks are ordered from most specific to least specific for pattern matching
 blocks:
   - id: github-issue
     name: GitHub Issue
@@ -83,7 +84,8 @@ blocks:
     description: Display GitHub repository information
     icon: 📦
     url_patterns:
-      - "https://github.com/[^/]+/[^/]+"
+      # Match owner/repo but not paths like /issues/ or /pull/
+      - "https://github.com/[^/]+/[^/]+/?$"
     syntax: "```github-repo\nurl: https://github.com/owner/repo\n```"
     config_schema:
       url:

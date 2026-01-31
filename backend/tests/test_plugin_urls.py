@@ -91,10 +91,14 @@ def test_github_url_patterns_validity(loader):
     assert repo_regex.search("https://github.com/facebook/react")
     assert repo_regex.search("https://github.com/owner/repo/")  # With trailing slash
     
-    # Should NOT match issue/PR URLs with the anchored pattern
+    # Should NOT match issue/PR URLs or other paths with the anchored pattern
     assert not repo_regex.search("https://github.com/owner/repo/issues/123")
     assert not repo_regex.search("https://github.com/owner/repo/pull/456")
     assert not repo_regex.search("https://github.com/owner/repo/tree/main")
+    assert not repo_regex.search("https://github.com/owner/repo/blob/main/README.md")
+    assert not repo_regex.search("https://github.com/owner/repo/tree/main/src")
+    assert not repo_regex.search("https://github.com/owner/repo/wiki")
+    assert not repo_regex.search("https://github.com/owner/repo/actions")
 
 
 def test_weather_integration_urls(loader):

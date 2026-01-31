@@ -19,14 +19,52 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from "vue"
+import { ref, computed, watch, onMounted, defineAsyncComponent, h, type Component } from "vue"
 import { marked } from "marked"
 import hljs from "highlight.js"
 import { useThemeStore } from "../stores/theme"
-// Import plugin components from the plugins directory
-import WeatherBlock from "@plugins/weather-api/components/WeatherBlock.vue"
-import LinkPreviewBlock from "@plugins/opengraph/components/LinkPreviewBlock.vue"
 import { createApp } from "vue"
+
+// Fallback component for when plugin blocks fail to load
+const createFallbackComponent = (blockType: string) => ({
+  props: ["config"] as const,
+  setup(props: { config?: Record<string, unknown> }) {
+    return () =>
+      h("div", { class: "custom-block plugin-fallback-block" }, [
+        h("div", { class: "block-header" }, [
+          h("span", { class: "block-icon" }, "⚠️"),
+          h("span", { class: "block-title" }, `${blockType} Block`),
+        ]),
+        h("div", { class: "block-content" }, [
+          h("div", { class: "block-note" }, [
+            h("em", {}, "Plugin component not available. Please ensure the plugin is installed."),
+          ]),
+          props.config &&
+            h("pre", { class: "config-preview" }, JSON.stringify(props.config, null, 2)),
+        ]),
+      ])
+  },
+})
+
+// Loading component
+const LoadingComponent = {
+  setup() {
+    return () => h("div", { class: "custom-block loading-block" }, "Loading...")
+  },
+}
+
+// Dynamically load plugin components with fallback
+const loadPluginComponent = (pluginPath: string, blockType: string): Component => {
+  return defineAsyncComponent({
+    loader: () => import(/* @vite-ignore */ `@plugins/${pluginPath}`),
+    errorComponent: createFallbackComponent(blockType),
+    loadingComponent: LoadingComponent,
+  })
+}
+
+// Plugin block components - loaded dynamically
+const WeatherBlock = loadPluginComponent("weather-api/components/WeatherBlock.vue", "Weather")
+const LinkPreviewBlock = loadPluginComponent("opengraph/components/LinkPreviewBlock.vue", "Link Preview")
 
 const themeStore = useThemeStore()
 
@@ -648,5 +686,52 @@ watch(
   overflow-x: auto;
   margin: 0;
   color: var(--color-text-primary);
+}
+
+/* Plugin block fallback styles */
+.markdown-content :deep(.plugin-fallback-block) {
+  border: 2px dashed var(--color-border-medium);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+  margin: var(--spacing-lg) 0;
+  background: var(--color-bg-secondary);
+}
+
+.markdown-content :deep(.plugin-fallback-block .block-header) {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+  font-weight: var(--font-semibold);
+  color: var(--color-text-secondary);
+}
+
+.markdown-content :deep(.plugin-fallback-block .block-icon) {
+  font-size: var(--text-xl);
+}
+
+.markdown-content :deep(.plugin-fallback-block .block-note) {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.markdown-content :deep(.plugin-fallback-block .config-preview) {
+  margin-top: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  background: var(--color-bg-primary);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  overflow-x: auto;
+}
+
+.markdown-content :deep(.loading-block) {
+  border: 2px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+  margin: var(--spacing-lg) 0;
+  background: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  text-align: center;
+  font-style: italic;
 }
 </style>

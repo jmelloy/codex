@@ -1,0 +1,30 @@
+{
+  "name": "@codex/plugins",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Build system for Codex plugin Vue components",
+  "scripts": {
+    "build": "tsx build.ts",
+    "build:watch": "tsx build.ts --watch",
+    "clean": "tsx build.ts --clean",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "vue": "^3.5.27"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^25.0.10",
+    "@vitejs/plugin-vue": "^6.0.1",
+    "glob": "^11.0.0",
+    "js-yaml": "^4.1.1",
+    "tsx": "^4.19.0",
+    "typescript": "~5.9.3",
+    "vite": "^7.3.1",
+    "vue-tsc": "^3.2.4"
+  },
+  "peerDependencies": {
+    "vue": "^3.5.0"
+  }
+}

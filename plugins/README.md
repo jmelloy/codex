@@ -2,6 +2,37 @@
 
 This directory contains plugins for Codex. Plugins are flexible components that can provide any combination of:
 
+## Quick Start - Building Plugins
+
+If plugins contain Vue components (like custom blocks), they need to be compiled before use:
+
+```bash
+cd plugins
+
+# Install dependencies (first time only)
+npm install
+
+# Build all plugin components
+npm run build
+
+# Watch mode for development
+npm run build:watch
+
+# Clean build artifacts
+npm run clean
+```
+
+The build script:
+1. Discovers plugins with Vue components
+2. Compiles them to ES modules in `<plugin>/dist/`
+3. Generates `components.json` manifest for the frontend
+
+**Note:** Theme CSS and YAML manifests don't require building - only Vue components do.
+
+---
+
+## Plugin Capabilities
+
 1. **Views** - Custom view components with query configurations
 2. **Templates** - File templates for creating new content
 3. **Themes** - Visual styling with CSS

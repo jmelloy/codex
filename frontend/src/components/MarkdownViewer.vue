@@ -19,52 +19,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, defineAsyncComponent, h, type Component } from "vue"
+import { ref, computed, watch, onMounted } from "vue"
 import { marked } from "marked"
 import hljs from "highlight.js"
 import { useThemeStore } from "../stores/theme"
 import { createApp } from "vue"
-
-// Fallback component for when plugin blocks fail to load
-const createFallbackComponent = (blockType: string) => ({
-  props: ["config"] as const,
-  setup(props: { config?: Record<string, unknown> }) {
-    return () =>
-      h("div", { class: "custom-block plugin-fallback-block" }, [
-        h("div", { class: "block-header" }, [
-          h("span", { class: "block-icon" }, "⚠️"),
-          h("span", { class: "block-title" }, `${blockType} Block`),
-        ]),
-        h("div", { class: "block-content" }, [
-          h("div", { class: "block-note" }, [
-            h("em", {}, "Plugin component not available. Please ensure the plugin is installed."),
-          ]),
-          props.config &&
-            h("pre", { class: "config-preview" }, JSON.stringify(props.config, null, 2)),
-        ]),
-      ])
-  },
-})
-
-// Loading component
-const LoadingComponent = {
-  setup() {
-    return () => h("div", { class: "custom-block loading-block" }, "Loading...")
-  },
-}
-
-// Dynamically load plugin components with fallback
-const loadPluginComponent = (pluginPath: string, blockType: string): Component => {
-  return defineAsyncComponent({
-    loader: () => import(/* @vite-ignore */ `@plugins/${pluginPath}`),
-    errorComponent: createFallbackComponent(blockType),
-    loadingComponent: LoadingComponent,
-  })
-}
-
-// Plugin block components - loaded dynamically
-const WeatherBlock = loadPluginComponent("weather-api/components/WeatherBlock.vue", "Weather")
-const LinkPreviewBlock = loadPluginComponent("opengraph/components/LinkPreviewBlock.vue", "Link Preview")
+import { loadPluginComponent } from "../services/pluginLoader"
 
 const themeStore = useThemeStore()
 
@@ -221,12 +181,9 @@ const extractLanguage = (className: string): string | null => {
   return match && match[1] ? match[1] : null
 }
 
-// Custom block registry
-const customBlockComponents: Record<string, any> = {
-  weather: WeatherBlock,
-  "link-preview": LinkPreviewBlock,
-  // More block types can be registered here
-}
+// Known block types that can be rendered by plugins
+// This list is used to identify code blocks that should be rendered as custom components
+const knownBlockTypes = new Set(["weather", "link-preview"])
 
 // Parse custom blocks from code fences
 const parseCustomBlocks = (html: string): { html: string; blocks: any[] } => {
@@ -240,7 +197,7 @@ const parseCustomBlocks = (html: string): { html: string; blocks: any[] } => {
     const className = codeBlock.className
     const language = extractLanguage(className)
 
-    if (language && language in customBlockComponents) {
+    if (language && knownBlockTypes.has(language)) {
       // This is a custom block
       const content = codeBlock.textContent || ""
       
@@ -271,7 +228,7 @@ const parseCustomBlocks = (html: string): { html: string; blocks: any[] } => {
         id: blockId,
         type: language,
         config,
-        component: customBlockComponents[language],
+        component: loadPluginComponent(language),
       })
     }
   })

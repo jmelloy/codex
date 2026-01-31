@@ -2,52 +2,62 @@
 # ==================
 # Build and development commands for the Codex project.
 #
-# Quick Start (Docker Deployment):
-#   make deploy       - Build plugins and start Docker containers
-#   make deploy-prod  - Build and deploy production
+# Quick Start:
+#   make              - Build plugins and start production containers
+#   make dev-docker   - Setup and start development containers (with hot-reload)
 #
-# Development:
+# Local Development (no Docker):
 #   make install      - Install all dependencies
-#   make dev          - Start development servers
-#   make test         - Run all tests
+#   make dev          - Start local development servers
 
 .PHONY: all install build dev test clean help
 .PHONY: install-backend install-frontend install-plugins
 .PHONY: build-plugins build-frontend
-.PHONY: dev-backend dev-frontend
+.PHONY: dev-backend dev-frontend dev-docker
 .PHONY: test-backend test-frontend
 .PHONY: lint lint-backend lint-frontend
 .PHONY: typecheck typecheck-backend typecheck-frontend typecheck-plugins
 .PHONY: clean-plugins clean-frontend clean-backend
-.PHONY: deploy deploy-prod docker-build docker-up docker-down docker-logs
+.PHONY: deploy docker-build docker-up docker-down docker-logs
 
-# Default target - deploy with Docker
+# Default target - production deployment
 all: deploy
 
 # =============================================================================
-# Docker Deployment (Primary Use Case)
+# Docker Deployment
 # =============================================================================
 
-# Build plugins and start Docker development environment
+# Production: Build plugins and start containers
 deploy: build-plugins docker-up
 	@echo ""
-	@echo "Deployment complete!"
+	@echo "Production deployment complete!"
 	@echo "  Backend:  http://localhost:8765"
 	@echo "  Frontend: http://localhost:8065"
 
-# Build plugins and start Docker production environment
-deploy-prod: build-plugins docker-build-prod docker-up-prod
+# Development: Setup override file and start with hot-reload
+dev-docker: build-plugins
+	@if [ ! -f docker-compose.override.yml ]; then \
+		echo "Setting up development environment..."; \
+		cp docker-compose.override.yml.example docker-compose.override.yml; \
+		echo "Created docker-compose.override.yml"; \
+	fi
+	@if [ ! -f .env ]; then \
+		cp .env.example .env; \
+		echo "Created .env from .env.example"; \
+	fi
+	@echo "Starting development containers..."
+	docker compose up -d
 	@echo ""
-	@echo "Production deployment complete!"
+	@echo "Development environment ready!"
+	@echo "  Backend:  http://localhost:8765 (hot-reload enabled)"
+	@echo "  Frontend: http://localhost:5165 (Vite dev server)"
+	@echo ""
+	@echo "Run 'make docker-logs' to view logs"
 
-# Build Docker images (rebuilds if Dockerfiles changed)
+# Build Docker images
 docker-build: build-plugins
 	@echo "Building Docker images..."
 	docker compose build
-
-docker-build-prod: build-plugins
-	@echo "Building production Docker images..."
-	docker compose -f docker-compose.prod.yml build
 
 # Start Docker containers
 docker-up:
@@ -59,10 +69,6 @@ docker-up:
 	@echo "  Frontend: http://localhost:8065"
 	@echo ""
 	@echo "Run 'make docker-logs' to view logs"
-
-docker-up-prod:
-	@echo "Starting production Docker containers..."
-	docker compose -f docker-compose.prod.yml up -d
 
 # Stop Docker containers
 docker-down:
@@ -86,7 +92,7 @@ docker-rebuild: build-plugins docker-build
 	@echo "Rebuild complete!"
 
 # =============================================================================
-# Installation (for local development)
+# Installation (for local development without Docker)
 # =============================================================================
 
 install: install-backend install-frontend install-plugins
@@ -132,11 +138,10 @@ watch-plugins:
 	cd plugins && npm run build:watch
 
 # =============================================================================
-# Development (Local, non-Docker)
+# Local Development (without Docker)
 # =============================================================================
 
 dev: dev-backend
-	@echo "Starting development servers..."
 
 dev-backend:
 	@echo "Starting backend server on http://localhost:8000..."
@@ -146,7 +151,6 @@ dev-frontend:
 	@echo "Starting frontend dev server on http://localhost:5173..."
 	cd frontend && npm run dev
 
-# Run both servers (requires separate terminals)
 dev-all:
 	@echo "Start servers in separate terminals:"
 	@echo "  Terminal 1: make dev-backend"
@@ -267,41 +271,34 @@ help:
 	@echo "Codex Build System"
 	@echo "=================="
 	@echo ""
-	@echo "Docker Deployment (recommended):"
-	@echo "  make              Build plugins and start dev containers"
+	@echo "Docker (recommended):"
+	@echo "  make              Build plugins + start production containers"
 	@echo "  make deploy       Same as above"
-	@echo "  make deploy-prod  Build and start production containers"
-	@echo "  make docker-up    Start containers (assumes plugins built)"
+	@echo "  make dev-docker   Setup + start development containers (hot-reload)"
 	@echo "  make docker-down  Stop containers"
 	@echo "  make docker-logs  View container logs"
 	@echo "  make docker-restart  Restart after plugin changes"
 	@echo "  make docker-rebuild  Full rebuild and restart"
 	@echo ""
-	@echo "Build Commands:"
+	@echo "Build:"
 	@echo "  make build        Build plugins + frontend"
 	@echo "  make build-plugins  Build plugin Vue components only"
 	@echo "  make watch-plugins  Watch and rebuild plugins"
 	@echo ""
-	@echo "Install Commands (local dev):"
+	@echo "Local Development (no Docker):"
 	@echo "  make install      Install all dependencies"
-	@echo ""
-	@echo "Development (local, non-Docker):"
 	@echo "  make dev          Start backend dev server"
 	@echo "  make dev-frontend Start frontend dev server"
 	@echo ""
-	@echo "Test Commands:"
+	@echo "Testing:"
 	@echo "  make test         Run all tests"
 	@echo "  make test-coverage Run tests with coverage"
 	@echo ""
-	@echo "Quality Commands:"
+	@echo "Quality:"
 	@echo "  make lint         Run all linters"
 	@echo "  make typecheck    Run type checkers"
 	@echo "  make format       Format code"
 	@echo ""
-	@echo "Clean Commands:"
+	@echo "Clean:"
 	@echo "  make clean        Clean build artifacts"
 	@echo "  make clean-all    Clean everything including Docker"
-	@echo ""
-	@echo "Database Commands:"
-	@echo "  make db-migrate   Run database migrations"
-	@echo "  make db-seed      Seed test data"

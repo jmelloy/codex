@@ -45,8 +45,10 @@ async function loadManifest(): Promise<PluginComponentManifest | null> {
   manifestLoadPromise = (async () => {
     try {
       // Try to load the manifest from the plugins directory
+      // Use a dynamic expression to avoid Vite's static analysis during tests
+      const manifestPath = "@plugins/components.json"
       const response = await import(
-        /* @vite-ignore */ "@plugins/components.json"
+        /* @vite-ignore */ manifestPath
       )
       manifestCache = response.default || response
       return manifestCache
@@ -112,7 +114,7 @@ export function loadPluginComponent(blockType: string): Component {
 
       if (manifest) {
         // Find the component in manifest
-        for (const [key, entry] of Object.entries(manifest.components)) {
+        for (const entry of Object.values(manifest.components)) {
           if (entry.blockId === blockType) {
             // Load the compiled component
             try {

@@ -114,7 +114,7 @@ export function loadPluginComponent(blockType: string): Component {
 
       if (manifest) {
         // Find the component in manifest
-        for (const [key, entry] of Object.entries(manifest.components)) {
+        for (const entry of Object.values(manifest.components)) {
           if (entry.blockId === blockType) {
             // Load the compiled component
             try {

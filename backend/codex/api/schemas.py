@@ -139,10 +139,16 @@ class RenderResponse(BaseModel):
 
     Returns raw data from the integration API for the frontend to render.
     The backend does NOT render HTML/markdown - that's the frontend's job.
+
+    Data can be:
+    - dict/list for JSON responses (content_type: application/json)
+    - str for HTML/text responses (content_type: text/html, text/plain)
+    - base64-encoded str for binary data (content_type: image/*, application/octet-stream)
     """
 
     success: bool
-    data: dict[str, Any] | None = None
+    data: Any = None  # Can be dict, list, str, or base64-encoded binary
+    content_type: str = "application/json"  # MIME type of the data
     error: str | None = None
     cached: bool = False  # Whether data was served from cache
     fetched_at: str | None = None  # ISO timestamp when data was fetched

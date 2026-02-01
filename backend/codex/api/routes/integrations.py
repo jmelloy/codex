@@ -4,6 +4,7 @@ This module provides API routes for managing integration plugins.
 It now uses the database-stored plugin registry instead of filesystem-based loading.
 """
 
+import base64
 import hashlib
 import json
 import logging
@@ -39,6 +40,21 @@ router = APIRouter()
 # Create executor instance
 executor = IntegrationExecutor()
 
+# Map content types to file extensions
+CONTENT_TYPE_EXTENSIONS = {
+    "application/json": "json",
+    "text/html": "html",
+    "text/plain": "txt",
+    "text/xml": "xml",
+    "application/xml": "xml",
+    "image/png": "png",
+    "image/jpeg": "jpg",
+    "image/gif": "gif",
+    "image/webp": "webp",
+    "image/svg+xml": "svg",
+    "application/pdf": "pdf",
+}
+
 
 def _compute_parameters_hash(block_type: str, parameters: dict) -> str:
     """Compute a hash of block_type and parameters for cache key."""
@@ -46,33 +62,86 @@ def _compute_parameters_hash(block_type: str, parameters: dict) -> str:
     return hashlib.sha256(key_data.encode()).hexdigest()[:32]
 
 
-def _get_artifact_path(workspace_path: str, plugin_id: str, params_hash: str) -> Path:
+def _get_extension_for_content_type(content_type: str) -> str:
+    """Get file extension for a content type."""
+    return CONTENT_TYPE_EXTENSIONS.get(content_type, "bin")
+
+
+def _get_artifact_path(workspace_path: str, plugin_id: str, params_hash: str, content_type: str) -> Path:
     """Get the filesystem path for an artifact file."""
-    return Path(workspace_path) / ".codex" / "artifacts" / plugin_id / f"{params_hash}.json"
+    ext = _get_extension_for_content_type(content_type)
+    return Path(workspace_path) / ".codex" / "artifacts" / plugin_id / f"{params_hash}.{ext}"
 
 
-def _get_artifact_relative_path(plugin_id: str, params_hash: str) -> str:
+def _get_artifact_relative_path(plugin_id: str, params_hash: str, content_type: str) -> str:
     """Get the relative path for storing in the database."""
-    return f".codex/artifacts/{plugin_id}/{params_hash}.json"
+    ext = _get_extension_for_content_type(content_type)
+    return f".codex/artifacts/{plugin_id}/{params_hash}.{ext}"
 
 
-async def _read_artifact_data(artifact_path: Path) -> dict[str, Any] | None:
-    """Read artifact data from filesystem."""
+def _is_binary_content_type(content_type: str) -> bool:
+    """Check if a content type represents binary data."""
+    return content_type.startswith("image/") or content_type in (
+        "application/octet-stream",
+        "application/pdf",
+    )
+
+
+async def _read_artifact_data(artifact_path: Path, content_type: str) -> Any:
+    """Read artifact data from filesystem.
+
+    Args:
+        artifact_path: Path to the artifact file
+        content_type: MIME type of the artifact
+
+    Returns:
+        The artifact data (dict for JSON, str for text, base64 str for binary)
+        or None if reading failed
+    """
     try:
-        if artifact_path.exists():
+        if not artifact_path.exists():
+            return None
+
+        if content_type == "application/json":
             with open(artifact_path, encoding="utf-8") as f:
                 return json.load(f)
+        elif _is_binary_content_type(content_type):
+            with open(artifact_path, "rb") as f:
+                return base64.b64encode(f.read()).decode("ascii")
+        else:
+            # Text-based content (HTML, plain text, XML, etc.)
+            with open(artifact_path, encoding="utf-8") as f:
+                return f.read()
     except (OSError, json.JSONDecodeError) as e:
         logger.warning(f"Failed to read artifact from {artifact_path}: {e}")
     return None
 
 
-async def _write_artifact_data(artifact_path: Path, data: dict[str, Any]) -> bool:
-    """Write artifact data to filesystem."""
+async def _write_artifact_data(artifact_path: Path, data: Any, content_type: str) -> bool:
+    """Write artifact data to filesystem.
+
+    Args:
+        artifact_path: Path to write the artifact
+        data: The data to write (dict for JSON, str for text, base64 str for binary)
+        content_type: MIME type of the artifact
+
+    Returns:
+        True if successful, False otherwise
+    """
     try:
         artifact_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(artifact_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2)
+
+        if content_type == "application/json":
+            with open(artifact_path, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2)
+        elif _is_binary_content_type(content_type):
+            # Data is base64 encoded, decode and write as binary
+            with open(artifact_path, "wb") as f:
+                f.write(base64.b64decode(data))
+        else:
+            # Text-based content
+            with open(artifact_path, "w", encoding="utf-8") as f:
+                f.write(data)
         return True
     except OSError as e:
         logger.error(f"Failed to write artifact to {artifact_path}: {e}")
@@ -401,12 +470,18 @@ async def execute_integration_endpoint(
     )
 
     try:
-        data = await executor.execute_endpoint(
+        execution_result = await executor.execute_endpoint(
             integration,
             request_data.endpoint_id,
             config.config,
-            request_data.parameters,
+            request_data.parameters or {},
         )
+        # For execute endpoint, we return data directly
+        # Non-JSON data will be returned as string (text) or base64 (binary)
+        data = execution_result.data
+        if not isinstance(data, dict):
+            # Wrap non-dict data in a response dict
+            data = {"content": data, "content_type": execution_result.content_type}
         return IntegrationExecuteResponse(
             success=True,
             data=data,
@@ -474,7 +549,8 @@ async def render_integration_block(
     render markdown or HTML. This keeps rendering logic in one place (frontend).
 
     Artifacts are stored in the filesystem at:
-      {workspace_path}/.codex/artifacts/{plugin_id}/{hash}.json
+      {workspace_path}/.codex/artifacts/{plugin_id}/{hash}.{ext}
+    where ext is determined by content_type (json, html, txt, bin, etc.)
 
     Args:
         integration_id: Integration plugin ID
@@ -513,8 +589,6 @@ async def render_integration_block(
 
     # Compute cache key
     params_hash = _compute_parameters_hash(request_data.block_type, request_data.parameters)
-    artifact_path = _get_artifact_path(workspace.path, integration_id, params_hash)
-    relative_path = _get_artifact_relative_path(integration_id, params_hash)
 
     # Check cache if requested
     if request_data.use_cache:
@@ -531,13 +605,15 @@ async def render_integration_block(
             # Check if cache is still valid (not expired)
             now = datetime.now(UTC)
             if cached_artifact.expires_at is None or cached_artifact.expires_at > now:
-                # Read data from filesystem
-                cached_data = await _read_artifact_data(artifact_path)
+                # Read data from filesystem using stored content type
+                artifact_path = Path(workspace.path) / cached_artifact.artifact_path
+                cached_data = await _read_artifact_data(artifact_path, cached_artifact.content_type)
                 if cached_data is not None:
                     logger.debug(f"Cache hit for {integration_id}/{request_data.block_type}")
                     return RenderResponse(
                         success=True,
                         data=cached_data,
+                        content_type=cached_artifact.content_type,
                         cached=True,
                         fetched_at=cached_artifact.fetched_at.isoformat(),
                     )
@@ -571,15 +647,23 @@ async def render_integration_block(
 
     try:
         # Execute the integration API call
-        data = await executor.execute_endpoint(
+        execution_result = await executor.execute_endpoint(
             integration,
             endpoint_id,
             config.config,
             request_data.parameters,
         )
 
+        # Get artifact path based on content type
+        artifact_path = _get_artifact_path(
+            workspace.path, integration_id, params_hash, execution_result.content_type
+        )
+        relative_path = _get_artifact_relative_path(
+            integration_id, params_hash, execution_result.content_type
+        )
+
         # Write artifact to filesystem
-        if not await _write_artifact_data(artifact_path, data):
+        if not await _write_artifact_data(artifact_path, execution_result.data, execution_result.content_type):
             logger.warning(f"Failed to cache artifact for {integration_id}/{request_data.block_type}")
 
         # Update database record
@@ -600,6 +684,7 @@ async def render_integration_block(
 
         if artifact:
             artifact.artifact_path = relative_path
+            artifact.content_type = execution_result.content_type
             artifact.fetched_at = now
             artifact.expires_at = expires_at
         else:
@@ -609,6 +694,7 @@ async def render_integration_block(
                 block_type=request_data.block_type,
                 parameters_hash=params_hash,
                 artifact_path=relative_path,
+                content_type=execution_result.content_type,
                 fetched_at=now,
                 expires_at=expires_at,
             )
@@ -618,7 +704,8 @@ async def render_integration_block(
 
         return RenderResponse(
             success=True,
-            data=data,
+            data=execution_result.data,
+            content_type=execution_result.content_type,
             cached=False,
             fetched_at=now.isoformat(),
         )

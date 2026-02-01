@@ -189,7 +189,8 @@ class IntegrationArtifact(SQLModel, table=True):
     data is stored in the filesystem at the artifact_path location. This allows
     for more scalable storage of large API responses.
 
-    Files are stored at: {workspace_path}/.codex/artifacts/{plugin_id}/{hash}.json
+    Files are stored at: {workspace_path}/.codex/artifacts/{plugin_id}/{hash}.{ext}
+    where ext is determined by content_type (json, html, txt, bin, etc.)
     """
 
     __tablename__ = "integration_artifacts"  # type: ignore[assignment]
@@ -200,5 +201,6 @@ class IntegrationArtifact(SQLModel, table=True):
     block_type: str = Field(index=True)  # e.g., "weather", "github-issue"
     parameters_hash: str = Field(index=True)  # Hash of request parameters for cache key
     artifact_path: str  # Relative path to artifact file within workspace
+    content_type: str = Field(default="application/json")  # MIME type of the artifact
     fetched_at: datetime = Field(default_factory=utc_now)
     expires_at: datetime | None = None  # Optional expiration time for cache

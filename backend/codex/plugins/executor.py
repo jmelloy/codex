@@ -1,12 +1,22 @@
 """Integration execution service for making API calls."""
 
+import base64
 import logging
+from dataclasses import dataclass
 from typing import Any, Protocol
 from urllib.parse import urljoin
 
 import httpx
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class ExecutionResult:
+    """Result from executing an integration endpoint."""
+
+    data: Any  # Can be dict, list, str, or bytes (as base64)
+    content_type: str  # MIME type of the response
 
 
 class IntegrationPluginProtocol(Protocol):
@@ -43,7 +53,7 @@ class IntegrationExecutor:
         endpoint_id: str,
         config: dict[str, Any],
         parameters: dict[str, Any],
-    ) -> dict[str, Any]:
+    ) -> ExecutionResult:
         """Execute an integration endpoint.
 
         Args:
@@ -53,7 +63,7 @@ class IntegrationExecutor:
             parameters: Request parameters
 
         Returns:
-            API response data
+            ExecutionResult with data and content type
 
         Raises:
             ValueError: If endpoint not found or parameters invalid
@@ -75,8 +85,8 @@ class IntegrationExecutor:
         # Build URL
         url = self._build_url(integration, endpoint, request_params)
 
-        # Build headers
-        headers = self._build_headers(integration, config)
+        # Build headers (pass endpoint to check for expected response type)
+        headers = self._build_headers(integration, config, endpoint)
 
         # Make request
         method = endpoint.get("method", "GET").upper()
@@ -94,7 +104,7 @@ class IntegrationExecutor:
                 raise ValueError(f"Unsupported HTTP method: {method}")
 
             response.raise_for_status()
-            return response.json()
+            return self._parse_response(response)
 
     async def test_connection(
         self,
@@ -241,19 +251,25 @@ class IntegrationExecutor:
         self,
         integration: IntegrationPluginProtocol,
         config: dict[str, Any],
+        endpoint: dict[str, Any] | None = None,
     ) -> dict[str, str]:
         """Build request headers.
 
         Args:
             integration: Integration plugin instance
             config: Integration configuration
+            endpoint: Optional endpoint definition (for response_type)
 
         Returns:
             Request headers
         """
+        # Determine Accept header based on endpoint's expected response type
+        response_type = endpoint.get("response_type", "json") if endpoint else "json"
+        accept_header = self._get_accept_header(response_type)
+
         headers = {
             "User-Agent": "Codex Integration Client/1.0",
-            "Accept": "application/json",
+            "Accept": accept_header,
         }
 
         # Add authentication based on auth method
@@ -266,6 +282,55 @@ class IntegrationExecutor:
             headers["X-API-Key"] = config["api_key"]
 
         return headers
+
+    def _get_accept_header(self, response_type: str) -> str:
+        """Get Accept header value based on response type.
+
+        Args:
+            response_type: Expected response type (json, html, text, image, binary)
+
+        Returns:
+            Accept header value
+        """
+        accept_map = {
+            "json": "application/json",
+            "html": "text/html",
+            "text": "text/plain",
+            "xml": "application/xml, text/xml",
+            "image": "image/*",
+            "binary": "application/octet-stream",
+        }
+        return accept_map.get(response_type, "*/*")
+
+    def _parse_response(self, response: httpx.Response) -> ExecutionResult:
+        """Parse HTTP response based on content type.
+
+        Args:
+            response: HTTP response object
+
+        Returns:
+            ExecutionResult with data and content type
+        """
+        content_type = response.headers.get("content-type", "application/octet-stream")
+        # Extract base content type (remove charset and other params)
+        base_content_type = content_type.split(";")[0].strip().lower()
+
+        # JSON response
+        if base_content_type in ("application/json", "text/json"):
+            return ExecutionResult(data=response.json(), content_type="application/json")
+
+        # Text-based responses (HTML, plain text, XML)
+        if base_content_type.startswith("text/") or base_content_type in (
+            "application/xml",
+            "application/xhtml+xml",
+        ):
+            return ExecutionResult(data=response.text, content_type=base_content_type)
+
+        # Binary responses (images, PDFs, etc.) - encode as base64
+        return ExecutionResult(
+            data=base64.b64encode(response.content).decode("ascii"),
+            content_type=base_content_type,
+        )
 
     def _get_test_value(self, param_def: dict[str, Any]) -> Any:
         """Get a test value for a parameter.

@@ -3,6 +3,7 @@
  */
 
 import * as yaml from "js-yaml"
+import { viewPluginService } from "./viewPluginService"
 
 export interface ViewQuery {
   // Scope
@@ -249,18 +250,26 @@ export function validateViewDefinition(viewDef: ViewDefinition): {
     errors.push("View definition must have view_type")
   }
 
-  // Check valid view types
-  const validViewTypes = [
-    "kanban",
-    "gallery",
-    "rollup",
-    "dashboard",
-    "corkboard",
-    "calendar",
-    "task-list",
-  ]
-  if (viewDef.view_type && !validViewTypes.includes(viewDef.view_type)) {
-    errors.push(`view_type must be one of: ${validViewTypes.join(", ")}`)
+  // Check valid view types from plugin system
+  const validViewTypes = viewPluginService.getValidViewTypes()
+  if (validViewTypes.length === 0) {
+    // Fallback to hardcoded list if plugin service not initialized
+    const fallbackViewTypes = [
+      "kanban",
+      "gallery",
+      "rollup",
+      "dashboard",
+      "corkboard",
+      "calendar",
+      "task-list",
+    ]
+    if (viewDef.view_type && !fallbackViewTypes.includes(viewDef.view_type)) {
+      errors.push(`view_type must be one of: ${fallbackViewTypes.join(", ")}`)
+    }
+  } else {
+    if (viewDef.view_type && !validViewTypes.includes(viewDef.view_type)) {
+      errors.push(`view_type must be one of: ${validViewTypes.join(", ")}`)
+    }
   }
 
   // View-specific validation

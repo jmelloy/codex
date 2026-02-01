@@ -23,6 +23,7 @@ from codex.api.routes import (
     tasks,
     themes,
     users,
+    views,
     workspaces,
 )
 from codex.core.watcher import NotebookWatcher
@@ -182,6 +183,7 @@ app.include_router(tasks.router, prefix="/api/v1/tasks", tags=["tasks"])
 app.include_router(markdown.router, prefix="/api/v1/markdown", tags=["markdown"])
 app.include_router(query.router, prefix="/api/v1/query", tags=["query"])
 app.include_router(themes.router, prefix="/api/v1/themes", tags=["themes"])
+app.include_router(views.router, prefix="/api/v1/views", tags=["views"])
 app.include_router(integrations.router, prefix="/api/v1/integrations", tags=["integrations"])
 
 if __name__ == "__main__":

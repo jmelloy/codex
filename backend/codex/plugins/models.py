@@ -1,8 +1,13 @@
 """Plugin type classes."""
 
-from dataclasses import dataclass
+from __future__ import annotations
+
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from .version import Dependency, Version
 
 
 @dataclass
@@ -11,6 +16,8 @@ class Plugin:
 
     plugin_dir: Path
     manifest: dict[str, Any]
+    _dependencies: list[Dependency] = field(default_factory=list, repr=False)
+    _parsed_version: Version | None = field(default=None, repr=False)
 
     @property
     def id(self) -> str:
@@ -28,6 +35,15 @@ class Plugin:
         return self.manifest["version"]
 
     @property
+    def parsed_version(self) -> Version:
+        """Get parsed Version object."""
+        if self._parsed_version is None:
+            from .version import Version
+
+            self._parsed_version = Version.parse(self.version)
+        return self._parsed_version
+
+    @property
     def type(self) -> str:
         """Get plugin type."""
         return self.manifest["type"]
@@ -41,6 +57,62 @@ class Plugin:
     def author(self) -> str:
         """Get plugin author."""
         return self.manifest.get("author", "")
+
+    # Versioning and compatibility properties
+    @property
+    def codex_version(self) -> str | None:
+        """Get the required Codex version constraint."""
+        return self.manifest.get("codex_version")
+
+    @property
+    def api_version(self) -> int | None:
+        """Get the plugin API version."""
+        return self.manifest.get("api_version")
+
+    @property
+    def license(self) -> str | None:
+        """Get the plugin license."""
+        return self.manifest.get("license")
+
+    @property
+    def repository(self) -> str | None:
+        """Get the plugin repository URL."""
+        return self.manifest.get("repository")
+
+    @property
+    def dependencies(self) -> list[Dependency]:
+        """Get plugin dependencies.
+
+        Returns:
+            List of Dependency objects
+        """
+        if not self._dependencies:
+            from .dependencies import parse_dependencies
+
+            self._dependencies = parse_dependencies(self.manifest)
+        return self._dependencies
+
+    @property
+    def has_dependencies(self) -> bool:
+        """Check if this plugin has any dependencies."""
+        return len(self.dependencies) > 0
+
+    @property
+    def dependency_ids(self) -> list[str]:
+        """Get list of dependency plugin IDs."""
+        return [dep.plugin_id for dep in self.dependencies]
+
+    def is_codex_compatible(self) -> bool:
+        """Check if this plugin is compatible with the current Codex version.
+
+        Returns:
+            True if compatible (or no constraint specified)
+        """
+        from .version import check_codex_compatibility
+
+        if not self.codex_version:
+            return True
+        return check_codex_compatibility(self.codex_version)
 
     # View/Template capabilities (available to any plugin)
     @property

@@ -5,6 +5,7 @@ version: 1.0.0
 author: Codex Team
 description: Essential note templates and dashboard views
 license: MIT
+repository: https://github.com/codex/plugins
 
 # Plugin Type
 type: view
@@ -12,6 +13,10 @@ type: view
 # Codex Compatibility
 codex_version: ">=1.0.0"
 api_version: 1
+
+# Plugin Dependencies
+# Core has no dependencies as it's the base plugin
+dependencies: []
 
 # View Types
 views:

@@ -5,6 +5,7 @@ version: 1.0.0
 author: Codex Team
 description: Kanban boards, task lists, and todo management views
 license: MIT
+repository: https://github.com/codex/plugins
 
 # Plugin Type
 type: view
@@ -12,6 +13,11 @@ type: view
 # Codex Compatibility
 codex_version: ">=1.0.0"
 api_version: 1
+
+# Plugin Dependencies
+# Plugins that this plugin depends on
+dependencies:
+  core: ">=1.0.0"  # Tasks integrates with core dashboard views
 
 # Custom Properties
 # Define custom frontmatter properties this plugin uses

@@ -119,3 +119,102 @@ class ViewResponse(BaseModel):
     plugin_id: str
     plugin_name: str
     config_schema: dict[str, Any]
+
+
+# Plugin versioning and dependency schemas
+
+
+class PluginVersionResponse(BaseModel):
+    """Schema for plugin version information."""
+
+    major: int
+    minor: int
+    patch: int
+    prerelease: str | None = None
+    build: str | None = None
+    string: str
+
+
+class DependencyResponse(BaseModel):
+    """Schema for a single dependency."""
+
+    plugin_id: str
+    version_constraint: str
+    optional: bool = False
+
+
+class DependencyCheckResponse(BaseModel):
+    """Schema for dependency check result."""
+
+    plugin_id: str
+    required_version: str
+    optional: bool
+    status: str  # satisfied, missing, version_mismatch, optional_missing
+    installed_version: str | None = None
+    error: str | None = None
+    satisfied: bool
+
+
+class PluginDependencyResponse(BaseModel):
+    """Schema for complete plugin dependency information."""
+
+    plugin_id: str
+    plugin_version: str
+    codex_version_constraint: str | None = None
+    codex_compatible: bool
+    all_dependencies_satisfied: bool
+    can_load: bool
+    dependencies: list[DependencyCheckResponse]
+    dependents: list[str]
+
+
+class PluginResponse(BaseModel):
+    """Schema for plugin information with dependencies."""
+
+    id: str
+    name: str
+    version: str
+    type: str
+    description: str
+    author: str
+    license: str | None = None
+    repository: str | None = None
+    codex_version: str | None = None
+    api_version: int | None = None
+    has_dependencies: bool = False
+    dependency_ids: list[str] = []
+    dependencies: list[DependencyResponse] = []
+
+
+class PluginLoadResultResponse(BaseModel):
+    """Schema for plugin load result."""
+
+    loaded_count: int
+    failed_count: int
+    load_order: list[str]
+    loaded: list[str]
+    failed: list[dict[str, str]]
+    incompatible: list[dict[str, str]]
+    warnings: list[str]
+
+
+class DependencyTreeResponse(BaseModel):
+    """Schema for dependency tree."""
+
+    id: str
+    version: str | None = None
+    missing: bool = False
+    circular: bool = False
+    truncated: bool = False
+    optional: bool = False
+    version_constraint: str | None = None
+    dependencies: list["DependencyTreeResponse"] = []
+
+
+class CodexVersionResponse(BaseModel):
+    """Schema for Codex version information."""
+
+    version: str
+    major: int
+    minor: int
+    patch: int

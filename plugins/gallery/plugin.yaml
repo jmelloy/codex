@@ -5,6 +5,7 @@ version: 1.0.0
 author: Codex Team
 description: Image gallery views with grid layouts and lightbox
 license: MIT
+repository: https://github.com/codex/plugins
 
 # Plugin Type
 type: view
@@ -12,6 +13,13 @@ type: view
 # Codex Compatibility
 codex_version: ">=1.0.0"
 api_version: 1
+
+# Plugin Dependencies
+dependencies:
+  # Gallery can optionally integrate with core dashboard views
+  - plugin_id: core
+    version: ">=1.0.0"
+    optional: true
 
 # View Types
 views:

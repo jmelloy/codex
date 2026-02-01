@@ -310,6 +310,7 @@ version: 1.0.0
 author: Author Name
 description: Plugin description
 license: MIT
+repository: https://github.com/your-org/plugin
 
 # Plugin Type
 type: view
@@ -317,6 +318,13 @@ type: view
 # Codex Compatibility
 codex_version: ">=1.0.0"
 api_version: 1
+
+# Plugin Dependencies (see Versioning & Dependencies section below)
+dependencies:
+  core: ">=1.0.0"  # Required dependency
+  - plugin_id: gallery
+    version: ">=1.0.0"
+    optional: true  # Optional dependency
 
 # View Types
 views:
@@ -442,9 +450,145 @@ Example CSS structure:
 The plugin loader validates:
 
 - ✅ Plugin ID format: lowercase letters, numbers, hyphens only
-- ✅ Version format: semantic versioning (e.g., 1.0.0)
+- ✅ Version format: semantic versioning (e.g., 1.0.0, 1.0.0-beta.1)
 - ✅ Required manifest fields: id, name, version, type
 - ✅ Plugin type matches directory structure
+- ✅ Codex version compatibility constraints
+- ✅ Plugin dependencies and their version constraints
+
+## Versioning & Dependencies
+
+Plugins support semantic versioning and can declare dependencies on other plugins.
+
+### Semantic Versioning
+
+Plugin versions follow [semver](https://semver.org/) format: `MAJOR.MINOR.PATCH[-PRERELEASE][+BUILD]`
+
+Examples:
+- `1.0.0` - Standard release
+- `1.0.0-alpha` - Alpha prerelease
+- `1.0.0-beta.1` - Beta prerelease
+- `2.0.0-rc.1+build.123` - Release candidate with build metadata
+
+### Version Constraints
+
+Version constraints specify which versions of a dependency are acceptable:
+
+| Constraint | Meaning | Example |
+|------------|---------|---------|
+| `1.0.0` | Exact version | Only `1.0.0` |
+| `>=1.0.0` | Greater or equal | `1.0.0`, `1.5.0`, `2.0.0` |
+| `>1.0.0` | Greater than | `1.0.1`, `2.0.0` |
+| `<2.0.0` | Less than | `1.0.0`, `1.9.9` |
+| `<=2.0.0` | Less or equal | `1.0.0`, `2.0.0` |
+| `^1.2.3` | Compatible with | `>=1.2.3, <2.0.0` |
+| `~1.2.3` | Approximately | `>=1.2.3, <1.3.0` |
+| `1.x` or `1.*` | Wildcard | `>=1.0.0, <2.0.0` |
+| `>=1.0.0,<2.0.0` | Range | `1.0.0` to `1.9.9` |
+| `*` | Any version | All versions |
+
+### Codex Compatibility
+
+Plugins can specify which Codex versions they're compatible with:
+
+```yaml
+# Require Codex 1.0.0 or higher
+codex_version: ">=1.0.0"
+
+# Require Codex 1.x (compatible updates)
+codex_version: "^1.0.0"
+
+# Require specific Codex version range
+codex_version: ">=1.0.0,<2.0.0"
+```
+
+### Declaring Dependencies
+
+Plugins can depend on other plugins using the `dependencies` field. Dependencies are specified using either dict or list format:
+
+**Dict Format (Simple)**
+```yaml
+dependencies:
+  core: ">=1.0.0"
+  gallery: "^1.0.0"
+```
+
+**List Format (With Options)**
+```yaml
+dependencies:
+  - plugin_id: core
+    version: ">=1.0.0"
+  - plugin_id: gallery
+    version: ">=1.0.0"
+    optional: true  # Won't block loading if missing
+```
+
+**String Format**
+```yaml
+dependencies:
+  - "core@>=1.0.0"
+  - "gallery"  # Any version
+```
+
+### Optional Dependencies
+
+Mark dependencies as optional when your plugin can work without them but provides enhanced functionality when available:
+
+```yaml
+dependencies:
+  - plugin_id: advanced-charts
+    version: ">=1.0.0"
+    optional: true  # Plugin loads even if advanced-charts isn't installed
+```
+
+### Load Order
+
+The plugin system automatically determines the correct load order based on dependencies. Dependencies are always loaded before the plugins that depend on them.
+
+### Dependency API
+
+The plugins API provides endpoints for querying dependency information:
+
+```
+GET /api/v1/plugins                    # List all plugins with dependencies
+GET /api/v1/plugins/{id}               # Get plugin details
+GET /api/v1/plugins/{id}/dependencies  # Get dependency status
+GET /api/v1/plugins/{id}/dependency-tree  # Get full dependency tree
+GET /api/v1/plugins/{id}/can-disable   # Check if safe to disable
+GET /api/v1/plugins/load-order         # Get plugin load order
+GET /api/v1/plugins/load-result        # Get last load result
+GET /api/v1/plugins/circular-dependencies  # Check for cycles
+GET /api/v1/plugins/codex-version      # Get Codex version
+```
+
+### Using Dependencies in Python
+
+```python
+from codex.plugins import PluginLoader, Version, VersionConstraint
+
+# Load plugins with dependency resolution
+loader = PluginLoader(plugins_dir)
+plugins = loader.load_all_plugins()
+
+# Get load order (dependencies first)
+order = loader.get_load_order()
+
+# Check plugin dependencies
+info = loader.get_plugin_dependencies("my-plugin")
+if info.all_dependencies_satisfied:
+    print("All dependencies satisfied")
+else:
+    for dep in info.missing_dependencies:
+        print(f"Missing: {dep.dependency.plugin_id}")
+
+# Check if a plugin can be safely disabled
+can_disable, dependents = loader.can_disable_plugin("core")
+if not can_disable:
+    print(f"Cannot disable: required by {dependents}")
+
+# Get full dependency tree
+tree = loader.get_dependency_tree("my-plugin")
+```
 
 ## Theme API Integration
 

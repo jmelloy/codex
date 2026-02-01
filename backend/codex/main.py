@@ -18,6 +18,7 @@ from codex.api.routes import (
     integrations,
     markdown,
     notebooks,
+    plugins,
     query,
     search,
     tasks,
@@ -185,6 +186,7 @@ app.include_router(query.router, prefix="/api/v1/query", tags=["query"])
 app.include_router(themes.router, prefix="/api/v1/themes", tags=["themes"])
 app.include_router(views.router, prefix="/api/v1/views", tags=["views"])
 app.include_router(integrations.router, prefix="/api/v1/integrations", tags=["integrations"])
+app.include_router(plugins.router, prefix="/api/v1/plugins", tags=["plugins"])
 
 if __name__ == "__main__":
     import uvicorn

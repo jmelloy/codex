@@ -1,14 +1,29 @@
 """Integration execution service for making API calls."""
 
 import logging
-from typing import Any
+from typing import Any, Protocol
 from urllib.parse import urljoin
 
 import httpx
 
-from codex.plugins.models import IntegrationPlugin
-
 logger = logging.getLogger(__name__)
+
+
+class IntegrationPluginProtocol(Protocol):
+    """Protocol for integration plugin-like objects.
+
+    This protocol allows the executor to work with both filesystem-based
+    plugins and database-stored plugins.
+    """
+
+    @property
+    def endpoints(self) -> list[dict[str, Any]]: ...
+
+    @property
+    def base_url(self) -> str | None: ...
+
+    @property
+    def auth_method(self) -> str | None: ...
 
 
 class IntegrationExecutor:
@@ -24,7 +39,7 @@ class IntegrationExecutor:
 
     async def execute_endpoint(
         self,
-        integration: IntegrationPlugin,
+        integration: IntegrationPluginProtocol,
         endpoint_id: str,
         config: dict[str, Any],
         parameters: dict[str, Any],
@@ -83,7 +98,7 @@ class IntegrationExecutor:
 
     async def test_connection(
         self,
-        integration: IntegrationPlugin,
+        integration: IntegrationPluginProtocol,
         config: dict[str, Any],
     ) -> dict[str, Any]:
         """Test integration connection.
@@ -188,7 +203,7 @@ class IntegrationExecutor:
 
     def _build_url(
         self,
-        integration: IntegrationPlugin,
+        integration: IntegrationPluginProtocol,
         endpoint: dict[str, Any],
         parameters: dict[str, Any],
     ) -> str:
@@ -224,7 +239,7 @@ class IntegrationExecutor:
 
     def _build_headers(
         self,
-        integration: IntegrationPlugin,
+        integration: IntegrationPluginProtocol,
         config: dict[str, Any],
     ) -> dict[str, str]:
         """Build request headers.

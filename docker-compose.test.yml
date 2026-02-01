@@ -1,0 +1,26 @@
+services:
+  backend-test:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - 8766:8000
+    environment:
+      - DATABASE_URL=sqlite:///./data/codex_system.db
+      - SECRET_KEY=test-secret-key-for-integration-tests
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
+      - LOG_FORMAT=plain
+      - PYTHONUNBUFFERED=1
+      - CODEX_PLUGINS_DIR=/app/plugins
+    volumes:
+      - ./data-test:/app/data
+      - ./plugins:/app/plugins:ro
+    command: >
+      sh -c "alembic upgrade head && python -m codex.main"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 5s
+      timeout: 10s
+      retries: 10
+      start_period: 15s

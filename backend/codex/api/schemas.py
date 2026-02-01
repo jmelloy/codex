@@ -119,3 +119,30 @@ class ViewResponse(BaseModel):
     plugin_id: str
     plugin_name: str
     config_schema: dict[str, Any]
+
+
+class RenderRequest(BaseModel):
+    """Schema for rendering an integration block.
+
+    The frontend sends this request to fetch data for a custom block.
+    The backend executes the integration API call and returns raw data
+    for the frontend to render (frontend-driven rendering).
+    """
+
+    block_type: str  # e.g., "weather", "github-issue", "link-preview"
+    parameters: dict[str, Any] = Field(default_factory=dict)
+    use_cache: bool = True  # Whether to use cached data if available
+
+
+class RenderResponse(BaseModel):
+    """Schema for render response.
+
+    Returns raw data from the integration API for the frontend to render.
+    The backend does NOT render HTML/markdown - that's the frontend's job.
+    """
+
+    success: bool
+    data: dict[str, Any] | None = None
+    error: str | None = None
+    cached: bool = False  # Whether data was served from cache
+    fetched_at: str | None = None  # ISO timestamp when data was fetched

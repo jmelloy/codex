@@ -41,8 +41,8 @@ A hierarchical digital laboratory journal system for tracking computational expe
 
 ### Prerequisites
 
-- Python 3.14+
-- Node.js 20+
+- Python 3.13+
+- Node.js 24+
 - Docker and Docker Compose (optional)
 
 ### Local Development

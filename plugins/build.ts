@@ -22,6 +22,7 @@ import * as fs from "fs"
 import * as path from "path"
 import { glob } from "glob"
 import * as yaml from "js-yaml"
+import { execSync } from "child_process"
 
 const PLUGINS_DIR = path.dirname(new URL(import.meta.url).pathname)
 
@@ -73,6 +74,64 @@ interface PluginComponentManifest {
       description?: string
     }
   >
+}
+
+/**
+ * Check if a plugin has its own package.json
+ */
+function hasPluginPackageJson(pluginDir: string): boolean {
+  const packageJsonPath = path.join(PLUGINS_DIR, pluginDir, "package.json")
+  return fs.existsSync(packageJsonPath)
+}
+
+/**
+ * Install plugin-specific dependencies
+ */
+function installPluginDependencies(pluginDir: string): void {
+  const pluginPath = path.join(PLUGINS_DIR, pluginDir)
+  const packageJsonPath = path.join(pluginPath, "package.json")
+  
+  if (!fs.existsSync(packageJsonPath)) {
+    return
+  }
+  
+  console.log(`  Installing dependencies for ${pluginDir}...`)
+  
+  try {
+    // Check if node_modules exists and package-lock.json is present
+    const nodeModulesPath = path.join(pluginPath, "node_modules")
+    const packageLockPath = path.join(pluginPath, "package-lock.json")
+    
+    // Run npm install in the plugin directory
+    execSync("npm install", {
+      cwd: pluginPath,
+      stdio: "inherit",
+    })
+    
+    console.log(`  ✓ Dependencies installed for ${pluginDir}`)
+  } catch (err) {
+    console.error(`  ✗ Failed to install dependencies for ${pluginDir}:`, err)
+    throw err
+  }
+}
+
+/**
+ * Get the node_modules path to use for a plugin
+ * Returns plugin-specific node_modules if it exists, otherwise falls back to shared
+ */
+function getPluginNodeModulesPath(pluginDir: string): string | undefined {
+  const pluginNodeModules = path.join(PLUGINS_DIR, pluginDir, "node_modules")
+  const sharedNodeModules = path.join(PLUGINS_DIR, "node_modules")
+  
+  if (fs.existsSync(pluginNodeModules)) {
+    return pluginNodeModules
+  }
+  
+  if (fs.existsSync(sharedNodeModules)) {
+    return sharedNodeModules
+  }
+  
+  return undefined
 }
 
 /**
@@ -222,6 +281,10 @@ async function discoverComponents(): Promise<ComponentEntry[]> {
  */
 async function buildComponent(entry: ComponentEntry): Promise<void> {
   const outputDir = path.join(PLUGINS_DIR, entry.pluginDir, "dist")
+  const pluginPath = path.join(PLUGINS_DIR, entry.pluginDir)
+  
+  // Get the appropriate node_modules path for this plugin
+  const nodeModulesPath = getPluginNodeModulesPath(entry.pluginDir)
 
   const config: InlineConfig = {
     plugins: [vue()],
@@ -246,6 +309,8 @@ async function buildComponent(entry: ComponentEntry): Promise<void> {
       sourcemap: true,
     },
     logLevel: "warn",
+    // Use plugin-specific root if it has its own package.json
+    root: hasPluginPackageJson(entry.pluginDir) ? pluginPath : PLUGINS_DIR,
   }
 
   await build(config)
@@ -368,6 +433,22 @@ async function main(): Promise<void> {
     console.log(`  - ${entry.pluginId}/${entry.blockId} (${entry.blockName})`)
   }
   console.log("")
+
+  // Install plugin-specific dependencies
+  const pluginsWithDeps = new Set<string>()
+  for (const entry of entries) {
+    if (hasPluginPackageJson(entry.pluginDir)) {
+      pluginsWithDeps.add(entry.pluginDir)
+    }
+  }
+  
+  if (pluginsWithDeps.size > 0) {
+    console.log("Installing plugin-specific dependencies...")
+    for (const pluginDir of pluginsWithDeps) {
+      installPluginDependencies(pluginDir)
+    }
+    console.log("")
+  }
 
   // Build each component
   console.log("Building components...")

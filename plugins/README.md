@@ -19,6 +19,7 @@ npm run build
 # Note: Use -- to pass arguments to the build script
 npm run build -- --plugin=weather-api
 npm run build -- --plugin=opengraph
+npm run build -- --plugin=chart-example
 
 # Watch mode for development
 npm run build:watch
@@ -41,15 +42,154 @@ make build-plugins
 # Build a specific plugin independently
 make build-plugin PLUGIN=weather-api
 make build-plugin PLUGIN=opengraph
+make build-plugin PLUGIN=chart-example
 ```
 
 The build script:
 1. Discovers plugins with Vue components
-2. Compiles them to ES modules in `<plugin>/dist/`
-3. Generates `components.json` manifest for the frontend
-4. Supports building all plugins or a specific plugin independently
+2. Installs plugin-specific dependencies (if plugin has its own package.json)
+3. Compiles them to ES modules in `<plugin>/dist/`
+4. Generates `components.json` manifest for the frontend
+5. Supports building all plugins or a specific plugin independently
 
 **Note:** Theme CSS and YAML manifests don't require building - only Vue components do.
+
+---
+
+## Plugin Self-Managed Dependencies
+
+**New in this version:** Plugins can now manage their own build dependencies and versioning!
+
+### Why Plugin-Specific Dependencies?
+
+Previously, all plugins shared a single `package.json` at the root of the plugins directory. This created several limitations:
+
+- ❌ All plugins had to use the same dependency versions
+- ❌ Adding a specialized library affected all plugins
+- ❌ Version conflicts when different plugins needed different versions
+- ❌ No dependency isolation between plugins
+
+### How It Works
+
+Now, each plugin can optionally have its own `package.json` file:
+
+```
+plugins/
+  my-plugin/
+    package.json          ← Plugin-specific dependencies
+    node_modules/         ← Automatically installed & gitignored
+    components/
+      MyComponent.vue
+    integration.yaml
+```
+
+### Creating a Plugin with Dependencies
+
+1. **Create your plugin directory:**
+   ```bash
+   mkdir plugins/my-plugin
+   cd plugins/my-plugin
+   ```
+
+2. **Create a `package.json`:**
+   ```json
+   {
+     "name": "@codex-plugin/my-plugin",
+     "version": "1.0.0",
+     "description": "My awesome plugin",
+     "type": "module",
+     "private": true,
+     "dependencies": {
+       "chart.js": "^4.4.1",
+       "date-fns": "^3.0.0"
+     },
+     "peerDependencies": {
+       "vue": "^3.5.0"
+     }
+   }
+   ```
+
+3. **Use the dependencies in your component:**
+   ```vue
+   <script setup lang="ts">
+   import { Chart } from 'chart.js'
+   import { format } from 'date-fns'
+   
+   // Your component code
+   </script>
+   ```
+
+4. **Build the plugin:**
+   ```bash
+   # From plugins directory
+   npm run build -- --plugin=my-plugin
+   
+   # Or from root
+   make build-plugin PLUGIN=my-plugin
+   ```
+
+The build system will:
+- Detect your plugin has its own `package.json`
+- Install dependencies in `my-plugin/node_modules/`
+- Build using those local dependencies
+- Keep dependencies isolated from other plugins
+
+### Example: Chart Plugin
+
+See `plugins/chart-example/` for a complete working example that uses Chart.js:
+
+```bash
+# Build the example
+make build-plugin PLUGIN=chart-example
+
+# Check the results
+ls plugins/chart-example/dist/
+ls plugins/chart-example/node_modules/
+```
+
+### Best Practices
+
+1. **Always specify peerDependencies:**
+   - List `vue` as a peer dependency (provided by the main app)
+   - List any other dependencies that should come from the parent
+
+2. **Use private: true:**
+   - Prevents accidental publishing to npm
+
+3. **Pin dependency versions:**
+   - Use specific versions or narrow ranges for stability
+   - Example: `"chart.js": "^4.4.1"` (allows patches, not minor)
+
+4. **Keep dependencies minimal:**
+   - Only add what you actually need
+   - Consider bundle size impact
+
+5. **Document dependencies:**
+   - Explain why each dependency is needed
+   - Note any special version requirements
+
+### Backward Compatibility
+
+Plugins **without** their own `package.json` continue to work normally:
+- They use the shared dependencies from `plugins/package.json`
+- No changes needed to existing plugins
+- Mix and match: some plugins with dependencies, some without
+
+### Troubleshooting
+
+**"Cannot find module" error:**
+- Make sure you ran the build with the plugin-specific flag
+- Check that `package.json` is in the plugin root directory
+- Verify dependencies are listed in `package.json`
+
+**Build fails for plugin with dependencies:**
+- Check that `npm install` succeeded (watch build output)
+- Verify node_modules exists in plugin directory
+- Try cleaning and rebuilding: `npm run clean && npm run build`
+
+**Dependency version conflicts:**
+- Each plugin has isolated node_modules - no conflicts!
+- If using shared dependencies, check `plugins/package.json`
 
 ---
 

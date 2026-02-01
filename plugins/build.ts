@@ -7,6 +7,7 @@
  *
  * Usage:
  *   npm run build          - Build all plugin components
+ *   npm run build -- <plugin>  - Build a specific plugin (e.g., npm run build -- opengraph)
  *   npm run build:watch    - Watch mode for development
  *   npm run clean          - Remove all dist directories
  */
@@ -299,29 +300,60 @@ async function clean(): Promise<void> {
 }
 
 /**
+ * Parse CLI arguments
+ */
+function parseArgs(args: string[]): {
+  clean: boolean
+  watch: boolean
+  plugins: string[]
+} {
+  const clean = args.includes("--clean")
+  const watch = args.includes("--watch")
+  const plugins = args.filter((arg) => !arg.startsWith("--"))
+  return { clean, watch, plugins }
+}
+
+/**
  * Main build function
  */
 async function main(): Promise<void> {
   const args = process.argv.slice(2)
+  const { clean: shouldClean, watch: watchMode, plugins: targetPlugins } =
+    parseArgs(args)
 
-  if (args.includes("--clean")) {
+  if (shouldClean) {
     await clean()
     return
   }
 
-  const watchMode = args.includes("--watch")
-
   console.log("Codex Plugin Build")
   console.log("==================")
   console.log(`Mode: ${watchMode ? "watch" : "build"}`)
+  if (targetPlugins.length > 0) {
+    console.log(`Target plugins: ${targetPlugins.join(", ")}`)
+  }
   console.log("")
 
   // Discover components to build
   console.log("Discovering plugin components...")
-  const entries = await discoverComponents()
+  let entries = await discoverComponents()
+
+  // Filter to specific plugins if requested
+  if (targetPlugins.length > 0) {
+    entries = entries.filter(
+      (entry) =>
+        targetPlugins.includes(entry.pluginDir) ||
+        targetPlugins.includes(entry.pluginId)
+    )
+  }
 
   if (entries.length === 0) {
-    console.log("No Vue components found in plugins.")
+    if (targetPlugins.length > 0) {
+      console.log(`No Vue components found for plugins: ${targetPlugins.join(", ")}`)
+      console.log("Available plugins can be found in subdirectories with plugin.yaml, theme.yaml, or integration.yaml")
+    } else {
+      console.log("No Vue components found in plugins.")
+    }
     return
   }
 
@@ -333,26 +365,39 @@ async function main(): Promise<void> {
 
   // Build each component
   console.log("Building components...")
+  let hasErrors = false
   for (const entry of entries) {
     console.log(`  Building: ${entry.pluginDir}/${entry.blockId}...`)
     try {
       await buildComponent(entry)
       console.log(`    -> ${entry.pluginDir}/dist/${entry.outputFile}`)
     } catch (err) {
+      hasErrors = true
       console.error(`    Error building ${entry.pluginDir}/${entry.blockId}:`, err)
     }
   }
   console.log("")
 
-  // Generate manifest
+  // Generate manifest (always regenerate full manifest)
   console.log("Generating component manifest...")
-  const manifest = generateManifest(entries)
+  // If we built only specific plugins, we need to merge with existing manifest
+  let allEntries = entries
+  if (targetPlugins.length > 0) {
+    // Rebuild full manifest by discovering all components
+    allEntries = await discoverComponents()
+  }
+  const manifest = generateManifest(allEntries)
   const manifestPath = path.join(PLUGINS_DIR, "components.json")
   fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2))
   console.log(`  -> components.json`)
   console.log("")
 
-  console.log("Build complete!")
+  if (hasErrors) {
+    console.log("Build completed with errors!")
+    process.exit(1)
+  } else {
+    console.log("Build complete!")
+  }
 
   if (watchMode) {
     console.log("")

@@ -13,7 +13,7 @@
 
 **Tech Stack:**
 
-- **Backend**: Python 3.12+ with FastAPI, SQLAlchemy, SQLite, Alembic migrations
+- **Backend**: Python 3.14+ with FastAPI, SQLAlchemy, SQLite, Alembic migrations
 - **Frontend**: Vue.js 3, TypeScript, Vite
 - **CLI**: Click-based command-line interface
 - **Deployment**: Docker Compose with production/development configurations
@@ -25,7 +25,7 @@
 
 ### Python Backend
 
-**Python Version Required**: 3.12+ (3.14 in CI)
+**Python Version Required**: 3.14+ (3.14 in CI)
 
 **Installation Steps (Always run in this order):**
 

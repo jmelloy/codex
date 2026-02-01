@@ -29,18 +29,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, shallowRef } from "vue"
+import { computed, ref, watch, shallowRef, onMounted } from "vue"
 import { parseViewDefinition, type ViewDefinition } from "@/services/viewParser"
 import { queryService, type QueryResult } from "@/services/queryService"
 import { fileService } from "@/services/codex"
-
-// Lazy load view components
-const KanbanView = () => import("./KanbanView.vue")
-const TaskListView = () => import("./TaskListView.vue")
-const RollupView = () => import("./RollupView.vue")
-const GalleryView = () => import("./GalleryView.vue")
-const CorkboardView = () => import("./CorkboardView.vue")
-const DashboardView = () => import("./DashboardView.vue")
+import { viewPluginService } from "@/services/viewPluginService"
 
 const props = defineProps<{
   fileId: number
@@ -60,6 +53,15 @@ const error = ref<string | null>(null)
 const viewDefinition = ref<ViewDefinition | null>(null)
 const queryResults = ref<QueryResult | null>(null)
 const viewComponent = shallowRef<any>(null)
+
+// Initialize view plugin service on component mount
+onMounted(async () => {
+  try {
+    await viewPluginService.initialize()
+  } catch (err) {
+    console.error("Failed to initialize view plugin service:", err)
+  }
+})
 
 // Load view definition and execute query
 const loadView = async () => {
@@ -98,7 +100,7 @@ const loadView = async () => {
   }
 }
 
-// Map view type to component
+// Map view type to component using plugin service
 watch(
   () => viewDefinition.value?.view_type,
   async (viewType) => {
@@ -108,27 +110,13 @@ watch(
     }
 
     try {
-      switch (viewType) {
-        case "kanban":
-          viewComponent.value = (await KanbanView()).default
-          break
-        case "task-list":
-          viewComponent.value = (await TaskListView()).default
-          break
-        case "rollup":
-          viewComponent.value = (await RollupView()).default
-          break
-        case "gallery":
-          viewComponent.value = (await GalleryView()).default
-          break
-        case "corkboard":
-          viewComponent.value = (await CorkboardView()).default
-          break
-        case "dashboard":
-          viewComponent.value = (await DashboardView()).default
-          break
-        default:
-          viewComponent.value = null
+      // Try to load component from plugin service
+      if (viewPluginService.hasViewComponent(viewType)) {
+        viewComponent.value = await viewPluginService.loadViewComponent(viewType)
+      } else {
+        // View type exists in plugins but component not registered
+        console.warn(`View component not found for type: ${viewType}`)
+        viewComponent.value = null
       }
     } catch (err) {
       console.error("Failed to load view component:", err)

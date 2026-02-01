@@ -20,15 +20,34 @@ class ViewPluginService {
   private availableViews: Map<string, ViewPlugin> = new Map()
   private viewComponents: Map<string, any> = new Map()
   private initialized = false
+  private initPromise: Promise<void> | null = null
 
   /**
    * Initialize the view plugin service by fetching available views from the API
+   * This method is safe to call multiple times - it will only initialize once
    */
   async initialize(): Promise<void> {
+    // Return existing promise if initialization is in progress
+    if (this.initPromise) {
+      return this.initPromise
+    }
+
+    // Return immediately if already initialized
     if (this.initialized) {
       return
     }
 
+    // Create and store the initialization promise
+    this.initPromise = this._doInitialize()
+    
+    try {
+      await this.initPromise
+    } finally {
+      this.initPromise = null
+    }
+  }
+
+  private async _doInitialize(): Promise<void> {
     try {
       const response = await api.get<ViewPlugin[]>("/api/v1/views")
       const views = response.data

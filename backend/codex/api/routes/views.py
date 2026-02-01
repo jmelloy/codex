@@ -7,7 +7,7 @@ from codex.api.schemas import ViewResponse
 router = APIRouter()
 
 
-@router.get("", response_model=list[ViewResponse])
+@router.get("/", response_model=list[ViewResponse])
 async def get_available_views(request: Request):
     """Get all available view types from the plugin system.
     

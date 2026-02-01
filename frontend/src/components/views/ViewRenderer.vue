@@ -29,7 +29,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, shallowRef, onMounted } from "vue"
+import { computed, ref, watch, shallowRef } from "vue"
 import { parseViewDefinition, type ViewDefinition } from "@/services/viewParser"
 import { queryService, type QueryResult } from "@/services/queryService"
 import { fileService } from "@/services/codex"
@@ -53,15 +53,6 @@ const error = ref<string | null>(null)
 const viewDefinition = ref<ViewDefinition | null>(null)
 const queryResults = ref<QueryResult | null>(null)
 const viewComponent = shallowRef<any>(null)
-
-// Initialize view plugin service on component mount
-onMounted(async () => {
-  try {
-    await viewPluginService.initialize()
-  } catch (err) {
-    console.error("Failed to initialize view plugin service:", err)
-  }
-})
 
 // Load view definition and execute query
 const loadView = async () => {

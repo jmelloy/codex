@@ -1,6 +1,19 @@
 """API routes package."""
 
-from . import files, folders, integrations, markdown, notebooks, query, search, tasks, themes, users, workspaces
+from . import (
+    files,
+    folders,
+    integrations,
+    markdown,
+    notebooks,
+    query,
+    search,
+    tasks,
+    themes,
+    users,
+    views,
+    workspaces,
+)
 
 __all__ = [
     "files",
@@ -13,5 +26,6 @@ __all__ = [
     "tasks",
     "themes",
     "users",
+    "views",
     "workspaces",
 ]

@@ -1,8 +1,0 @@
-/* Manila Theme - Vintage manila folder aesthetic */
-
-.theme-manila {
-  --notebook-bg: var(--page-manila);
-  --notebook-text: var(--pen-black);
-  background-color: var(--notebook-bg);
-  color: var(--notebook-text);
-}

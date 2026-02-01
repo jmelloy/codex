@@ -1,0 +1,13 @@
+{
+  "name": "@codex-plugin/chart-example",
+  "version": "1.0.0",
+  "description": "Chart plugin demonstrating plugin-specific dependencies",
+  "type": "module",
+  "private": true,
+  "dependencies": {
+    "chart.js": "^4.4.1"
+  },
+  "peerDependencies": {
+    "vue": "^3.5.0"
+  }
+}

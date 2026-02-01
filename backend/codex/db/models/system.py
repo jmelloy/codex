@@ -131,12 +131,27 @@ class PluginConfig(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     workspace_id: int = Field(foreign_key="workspaces.id", index=True)
     plugin_id: str = Field(foreign_key="plugins.plugin_id", index=True)
+    enabled: bool = Field(default=True)  # Workspace-level enable/disable
     config: dict = Field(default={}, sa_column=Column(JSON))
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
 
     # Relationships
     plugin: Plugin = Relationship(back_populates="configs")
+
+
+class NotebookPluginConfig(SQLModel, table=True):
+    """Plugin configurations per notebook (overrides workspace settings)."""
+
+    __tablename__ = "notebook_plugin_configs"  # type: ignore[assignment]
+
+    id: int | None = Field(default=None, primary_key=True)
+    notebook_id: int = Field(foreign_key="notebooks.id", index=True)
+    plugin_id: str = Field(foreign_key="plugins.plugin_id", index=True)
+    enabled: bool = Field(default=True)  # Notebook-level enable/disable (overrides workspace)
+    config: dict = Field(default={}, sa_column=Column(JSON))
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
 
 
 class PluginSecret(SQLModel, table=True):

@@ -26,6 +26,10 @@ colors:
   bg-secondary: "#f7f5f0"
   bg-tertiary: "#efeae3"
   
+  # Border colors
+  border-light: "#e8e3d8"
+  border-medium: "#d4cfc4"
+  
   # Text colors
   text-primary: "#1a1a1a"
   text-secondary: "#4a5568"

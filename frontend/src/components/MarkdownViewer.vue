@@ -23,6 +23,8 @@ import { ref, computed, watch, onMounted } from "vue"
 import { marked } from "marked"
 import hljs from "highlight.js"
 import { useThemeStore } from "../stores/theme"
+import { createApp } from "vue"
+import { loadPluginComponent } from "../services/pluginLoader"
 
 const themeStore = useThemeStore()
 
@@ -179,6 +181,77 @@ const extractLanguage = (className: string): string | null => {
   return match && match[1] ? match[1] : null
 }
 
+// Known block types that can be rendered by plugins
+// This list is used to identify code blocks that should be rendered as custom components
+const knownBlockTypes = new Set(["weather", "link-preview"])
+
+// Parse custom blocks from code fences
+const parseCustomBlocks = (html: string): { html: string; blocks: any[] } => {
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(html, "text/html")
+  const blocks: any[] = []
+
+  // Find code blocks that might be custom blocks
+  const codeBlocks = doc.querySelectorAll("pre code")
+  codeBlocks.forEach((codeBlock, index) => {
+    const className = codeBlock.className
+    const language = extractLanguage(className)
+
+    if (language && knownBlockTypes.has(language)) {
+      // This is a custom block
+      const content = codeBlock.textContent || ""
+      
+      // Try to parse as YAML config
+      let config: Record<string, any> = {}
+      try {
+        // Simple YAML parser for key: value pairs
+        content.split("\n").forEach((line) => {
+          const match = line.match(/^(\w+):\s*(.+)$/)
+          if (match && match[1] && match[2]) {
+            config[match[1]] = match[2].trim()
+          }
+        })
+      } catch (e) {
+        console.warn("Failed to parse custom block config:", e)
+      }
+
+      // Create a placeholder div with a unique ID
+      const blockId = `custom-block-${language}-${index}`
+      const placeholder = doc.createElement("div")
+      placeholder.id = blockId
+      placeholder.className = "custom-block-placeholder"
+
+      // Replace the pre element with our placeholder
+      codeBlock.parentElement?.replaceWith(placeholder)
+
+      blocks.push({
+        id: blockId,
+        type: language,
+        config,
+        component: loadPluginComponent(language),
+      })
+    }
+  })
+
+  return {
+    html: doc.body.innerHTML,
+    blocks,
+  }
+}
+
+// Mount Vue components for custom blocks
+const mountCustomBlocks = (blocks: any[]) => {
+  blocks.forEach((block) => {
+    setTimeout(() => {
+      const container = document.getElementById(block.id)
+      if (container) {
+        const app = createApp(block.component, { config: block.config })
+        app.mount(container)
+      }
+    }, 0)
+  })
+}
+
 // Computed
 const renderedHtml = computed(() => {
   if (!props.content) {
@@ -187,9 +260,13 @@ const renderedHtml = computed(() => {
 
   try {
     const html = marked(props.content) as string
-    // Apply syntax highlighting to code blocks safely
+    
+    // Parse and handle custom blocks first
+    const { html: htmlWithPlaceholders, blocks } = parseCustomBlocks(html)
+    
+    // Apply syntax highlighting to remaining standard code blocks
     const parser = new DOMParser()
-    const doc = parser.parseFromString(html, "text/html")
+    const doc = parser.parseFromString(htmlWithPlaceholders, "text/html")
     const codeBlocks = doc.querySelectorAll("pre code")
     codeBlocks.forEach((block) => {
       const code = block.textContent || ""
@@ -220,7 +297,15 @@ const renderedHtml = computed(() => {
       // Replace the code block
       block.parentNode?.replaceChild(highlightedElement, block)
     })
-    return doc.body.innerHTML
+    
+    const finalHtml = doc.body.innerHTML
+    
+    // Mount custom blocks after HTML is rendered
+    if (blocks.length > 0) {
+      mountCustomBlocks(blocks)
+    }
+    
+    return finalHtml
   } catch (e) {
     console.error("Markdown parsing error:", e)
     return '<p class="error-content">Error rendering markdown</p>'
@@ -558,5 +643,52 @@ watch(
   overflow-x: auto;
   margin: 0;
   color: var(--color-text-primary);
+}
+
+/* Plugin block fallback styles */
+.markdown-content :deep(.plugin-fallback-block) {
+  border: 2px dashed var(--color-border-medium);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+  margin: var(--spacing-lg) 0;
+  background: var(--color-bg-secondary);
+}
+
+.markdown-content :deep(.plugin-fallback-block .block-header) {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+  font-weight: var(--font-semibold);
+  color: var(--color-text-secondary);
+}
+
+.markdown-content :deep(.plugin-fallback-block .block-icon) {
+  font-size: var(--text-xl);
+}
+
+.markdown-content :deep(.plugin-fallback-block .block-note) {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.markdown-content :deep(.plugin-fallback-block .config-preview) {
+  margin-top: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  background: var(--color-bg-primary);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  overflow-x: auto;
+}
+
+.markdown-content :deep(.loading-block) {
+  border: 2px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+  margin: var(--spacing-lg) 0;
+  background: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  text-align: center;
+  font-style: italic;
 }
 </style>

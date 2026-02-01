@@ -361,9 +361,9 @@ def test_plugin_without_capabilities():
 def test_real_world_theme_with_templates():
     """Test that the manila theme plugin provides templates."""
     from pathlib import Path
-    
-    # Load the actual manila theme
-    loader = PluginLoader(Path(__file__).parent.parent / "plugins")
+
+    # Load the actual manila theme (plugins are at repository root)
+    loader = PluginLoader(Path(__file__).parent.parent.parent / "plugins")
     loader.load_all_plugins()
     
     manila = loader.get_plugin("manila")
@@ -385,9 +385,9 @@ def test_real_world_theme_with_templates():
 def test_real_world_integration_with_templates():
     """Test that the github integration plugin provides templates."""
     from pathlib import Path
-    
-    # Load the actual github integration
-    loader = PluginLoader(Path(__file__).parent.parent / "plugins")
+
+    # Load the actual github integration (plugins are at repository root)
+    loader = PluginLoader(Path(__file__).parent.parent.parent / "plugins")
     loader.load_all_plugins()
     
     github = loader.get_plugin("github")
@@ -409,8 +409,9 @@ def test_real_world_integration_with_templates():
 def test_get_plugins_with_templates_includes_theme_and_integration():
     """Test that capability-based filtering includes all plugin types."""
     from pathlib import Path
-    
-    loader = PluginLoader(Path(__file__).parent.parent / "plugins")
+
+    # Plugins are at repository root
+    loader = PluginLoader(Path(__file__).parent.parent.parent / "plugins")
     loader.load_all_plugins()
     
     # Get all plugins with templates

@@ -1,0 +1,43 @@
+# Integration Metadata
+id: chart-example
+name: Chart Example Plugin
+version: 1.0.0
+author: Codex Team
+description: Example plugin demonstrating plugin-specific dependencies using Chart.js
+license: MIT
+
+# Integration Type
+type: integration
+
+# Codex Compatibility
+codex_version: ">=1.0.0"
+api_version: 1
+
+# Integration Configuration
+integration:
+  # API type
+  api_type: none
+  
+# Block Types
+# Custom block renderers for embedding in markdown
+blocks:
+  - id: chart
+    name: Chart Block
+    description: Display charts using Chart.js
+    icon: 📊
+    component: components/ChartBlock.vue
+    syntax: "```chart\ntype: bar\ndata: ...\n```"
+    config_schema:
+      type:
+        type: string
+        enum: [bar, line, pie, doughnut]
+        description: Chart type
+        required: true
+      data:
+        type: object
+        description: Chart data
+        required: true
+
+# Permissions
+permissions:
+  - render_blocks

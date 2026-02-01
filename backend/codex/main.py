@@ -23,6 +23,7 @@ from codex.api.routes import (
     tasks,
     themes,
     users,
+    views,
     workspaces,
 )
 from codex.core.watcher import NotebookWatcher
@@ -51,7 +52,10 @@ async def lifespan(app: FastAPI):
 
     # Initialize plugin loader
     try:
-        plugins_dir = Path(os.getenv("CODEX_PLUGINS_DIR", Path(__file__).parent.parent / "plugins"))
+        # Default plugins directory is at the repository root (../../plugins from this file)
+        # or use CODEX_PLUGINS_DIR environment variable to override
+        default_plugins_dir = Path(__file__).parent.parent.parent / "plugins"
+        plugins_dir = Path(os.getenv("CODEX_PLUGINS_DIR", default_plugins_dir))
         logger.info(f"Loading plugins from directory: {plugins_dir}")
         loader = PluginLoader(plugins_dir)
         loader.load_all_plugins()
@@ -179,6 +183,7 @@ app.include_router(tasks.router, prefix="/api/v1/tasks", tags=["tasks"])
 app.include_router(markdown.router, prefix="/api/v1/markdown", tags=["markdown"])
 app.include_router(query.router, prefix="/api/v1/query", tags=["query"])
 app.include_router(themes.router, prefix="/api/v1/themes", tags=["themes"])
+app.include_router(views.router, prefix="/api/v1/views", tags=["views"])
 app.include_router(integrations.router, prefix="/api/v1/integrations", tags=["integrations"])
 
 if __name__ == "__main__":

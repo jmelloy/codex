@@ -67,6 +67,12 @@ class IntegrationConfigRequest(BaseModel):
     config: dict[str, Any]
 
 
+class PluginEnableRequest(BaseModel):
+    """Schema for enabling/disabling a plugin."""
+
+    enabled: bool
+
+
 class IntegrationConfigResponse(BaseModel):
     """Schema for integration configuration response."""
 
@@ -101,3 +107,15 @@ class IntegrationExecuteResponse(BaseModel):
     success: bool
     data: dict[str, Any] | None = None
     error: str | None = None
+
+
+class ViewResponse(BaseModel):
+    """Schema for view plugin information."""
+
+    id: str
+    name: str
+    description: str
+    icon: str
+    plugin_id: str
+    plugin_name: str
+    config_schema: dict[str, Any]

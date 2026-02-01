@@ -24,24 +24,40 @@ class PluginLoader:
     def discover_plugins(self) -> list[Path]:
         """Discover all available plugins.
 
+        Supports two directory structures:
+        1. Flat structure (new): plugins/{plugin-name}/{manifest}.yaml
+        2. Type-based structure (legacy): plugins/{type}/{plugin-name}/{manifest}.yaml
+
         Returns:
             List of plugin directory paths
         """
         plugins = []
 
-        # Check for plugins in type-specific directories
-        for plugin_type in ["views", "themes", "integrations"]:
-            type_dir = self.plugins_dir / plugin_type
-            if not type_dir.exists():
+        if not self.plugins_dir.exists():
+            return plugins
+
+        # First, check for plugins in the flat structure (each subdirectory is a plugin)
+        for item in self.plugins_dir.iterdir():
+            if not item.is_dir():
                 continue
 
-            for plugin_dir in type_dir.iterdir():
-                if not plugin_dir.is_dir():
-                    continue
+            # Skip legacy type-specific directories (they'll be handled below)
+            if item.name in ["views", "themes", "integrations"]:
+                # Check for plugins in type-specific directories (legacy structure)
+                for plugin_dir in item.iterdir():
+                    if not plugin_dir.is_dir():
+                        continue
 
-                manifest_path = plugin_dir / self._get_manifest_name(plugin_type)
-                if manifest_path.exists():
-                    plugins.append(plugin_dir)
+                    manifest_path = plugin_dir / self._get_manifest_name(item.name)
+                    if manifest_path.exists():
+                        plugins.append(plugin_dir)
+            else:
+                # Flat structure: check for any manifest file directly in the directory
+                for manifest_file in ["plugin.yaml", "theme.yaml", "integration.yaml"]:
+                    manifest_path = item / manifest_file
+                    if manifest_path.exists():
+                        plugins.append(item)
+                        break  # Only add once even if multiple manifests exist
 
         return plugins
 

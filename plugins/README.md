@@ -2,6 +2,214 @@
 
 This directory contains plugins for Codex. Plugins are flexible components that can provide any combination of:
 
+## Quick Start - Building Plugins
+
+If plugins contain Vue components (like custom blocks), they need to be compiled before use:
+
+```bash
+cd plugins
+
+# Install dependencies (first time only)
+npm install
+
+# Build all plugin components
+npm run build
+
+# Build a specific plugin independently
+# Note: Use -- to pass arguments to the build script
+npm run build -- --plugin=weather-api
+npm run build -- --plugin=opengraph
+npm run build -- --plugin=chart-example
+
+# Watch mode for development
+npm run build:watch
+
+# Clean build artifacts
+npm run clean
+
+# Type checking
+npm run typecheck
+```
+
+### Building Plugins from Root
+
+You can also build plugins from the project root using Make:
+
+```bash
+# Build all plugins
+make build-plugins
+
+# Build a specific plugin independently
+make build-plugin PLUGIN=weather-api
+make build-plugin PLUGIN=opengraph
+make build-plugin PLUGIN=chart-example
+```
+
+The build script:
+1. Discovers plugins with Vue components
+2. Installs plugin-specific dependencies (if plugin has its own package.json)
+3. Compiles them to ES modules in `<plugin>/dist/`
+4. Generates `components.json` manifest for the frontend
+5. Supports building all plugins or a specific plugin independently
+
+**Note:** Theme CSS and YAML manifests don't require building - only Vue components do.
+
+---
+
+## Plugin Self-Managed Dependencies
+
+**New in this version:** Plugins can now manage their own build dependencies and versioning!
+
+### Why Plugin-Specific Dependencies?
+
+Previously, all plugins shared a single `package.json` at the root of the plugins directory. This created several limitations:
+
+- ❌ All plugins had to use the same dependency versions
+- ❌ Adding a specialized library affected all plugins
+- ❌ Version conflicts when different plugins needed different versions
+- ❌ No dependency isolation between plugins
+
+### How It Works
+
+Now, each plugin can optionally have its own `package.json` file:
+
+```
+plugins/
+  my-plugin/
+    package.json          ← Plugin-specific dependencies
+    node_modules/         ← Automatically installed & gitignored
+    components/
+      MyComponent.vue
+    integration.yaml
+```
+
+### Creating a Plugin with Dependencies
+
+1. **Create your plugin directory:**
+   ```bash
+   mkdir plugins/my-plugin
+   cd plugins/my-plugin
+   ```
+
+2. **Create a `package.json`:**
+   ```json
+   {
+     "name": "@codex-plugin/my-plugin",
+     "version": "1.0.0",
+     "description": "My awesome plugin",
+     "type": "module",
+     "private": true,
+     "dependencies": {
+       "chart.js": "^4.4.1",
+       "date-fns": "^3.0.0"
+     },
+     "peerDependencies": {
+       "vue": "^3.5.0"
+     }
+   }
+   ```
+
+3. **Use the dependencies in your component:**
+   ```vue
+   <script setup lang="ts">
+   import { Chart } from 'chart.js'
+   import { format } from 'date-fns'
+   
+   // Your component code
+   </script>
+   ```
+
+4. **Build the plugin:**
+   ```bash
+   # From plugins directory
+   npm run build -- --plugin=my-plugin
+   
+   # Or from root
+   make build-plugin PLUGIN=my-plugin
+   ```
+
+The build system will:
+- Detect your plugin has its own `package.json`
+- Install dependencies in `my-plugin/node_modules/`
+- Build using those local dependencies
+- Keep dependencies isolated from other plugins
+
+### Example: Chart Plugin
+
+See `plugins/chart-example/` for a complete working example that uses Chart.js:
+
+```bash
+# Build the example
+make build-plugin PLUGIN=chart-example
+
+# Check the results
+ls plugins/chart-example/dist/
+ls plugins/chart-example/node_modules/
+```
+
+### Best Practices
+
+1. **Always specify peerDependencies:**
+   - List `vue` as a peer dependency (provided by the main app)
+   - List any other dependencies that should come from the parent
+
+2. **Use private: true:**
+   - Prevents accidental publishing to npm
+
+3. **Pin dependency versions:**
+   - Use specific versions or narrow ranges for stability
+   - Example: `"chart.js": "^4.4.1"` (allows patches and minors, not majors)
+   - Example: `"chart.js": "~4.4.1"` (allows patches only, not minors)
+   - Example: `"chart.js": "4.4.1"` (exact version, no updates)
+
+4. **Keep dependencies minimal:**
+   - Only add what you actually need
+   - Consider bundle size impact
+
+5. **Document dependencies:**
+   - Explain why each dependency is needed
+   - Note any special version requirements
+
+### Backward Compatibility
+
+Plugins **without** their own `package.json` continue to work normally:
+- They use the shared dependencies from `plugins/package.json`
+- No changes needed to existing plugins
+- Mix and match: some plugins with dependencies, some without
+
+### Troubleshooting
+
+**"Cannot find module" error:**
+- Make sure you ran the build with the plugin-specific flag
+- Check that `package.json` is in the plugin root directory
+- Verify dependencies are listed in `package.json`
+
+**Build fails for plugin with dependencies:**
+- Check that `npm install` succeeded (watch build output)
+- Verify node_modules exists in plugin directory
+- Try cleaning and rebuilding: `npm run clean && npm run build`
+
+**Dependency version conflicts:**
+- Each plugin has isolated node_modules - no conflicts!
+- If using shared dependencies, check `plugins/package.json`
+
+### Migration Guide
+
+For detailed guidance on migrating existing plugins or creating new plugins with dependencies, see:
+
+📖 **[Plugin Dependency Management - Migration Guide](./MIGRATION_GUIDE.md)**
+
+This guide covers:
+- Step-by-step migration process
+- Real-world examples
+- Best practices for version management
+- Troubleshooting common issues
+- Backward compatibility details
+
+---
+
+## Plugin Capabilities
+
 1. **Views** - Custom view components with query configurations
 2. **Templates** - File templates for creating new content
 3. **Themes** - Visual styling with CSS
@@ -29,17 +237,50 @@ While plugins are declared with a `type` field in their manifest (`view`, `theme
 
 ## Directory Structure
 
-Plugins are organized by their primary type for convenience:
+Plugins are organized in a **flat structure by plugin name**:
 
-1. **Views** (`plugins/views/`) - Primarily focused on custom views
-2. **Themes** (`plugins/themes/`) - Primarily focused on visual styling
-3. **Integrations** (`plugins/integrations/`) - Primarily focused on API connections
+```
+plugins/
+├── github/           # GitHub integration plugin
+│   ├── integration.yaml
+│   ├── templates/
+│   └── README.md
+├── weather-api/      # Weather API integration plugin
+│   ├── integration.yaml
+│   └── components/   # Vue components for this plugin
+│       └── WeatherBlock.vue
+├── opengraph/        # OpenGraph integration plugin
+│   ├── integration.yaml
+│   └── components/
+│       └── LinkPreviewBlock.vue
+├── blueprint/        # Blueprint theme plugin
+│   ├── theme.yaml
+│   └── styles/
+├── cream/            # Cream theme plugin
+│   ├── theme.yaml
+│   └── styles/
+├── core/             # Core views plugin
+│   ├── plugin.yaml
+│   └── templates/
+├── tasks/            # Tasks view plugin
+│   ├── plugin.yaml
+│   ├── templates/
+│   └── examples/
+└── ...
+```
+
+Each plugin is a self-contained directory that can include:
+- Manifest file (`plugin.yaml`, `theme.yaml`, or `integration.yaml`)
+- Vue components (`components/`)
+- Stylesheets (`styles/`)
+- Templates (`templates/`)
+- Examples (`examples/`)
 
 ## Built-in View Plugins
 
 Codex includes several built-in view plugins:
 
-### Task Management (`plugins/views/tasks/`)
+### Task Management (`plugins/tasks/`)
 
 Task management with Kanban boards and task lists.
 
@@ -48,7 +289,7 @@ Task management with Kanban boards and task lists.
 - **Examples**: Project task board, today's tasks
 - **Custom Properties**: status, priority, due_date, assignee, estimated_hours
 
-### Photo Gallery (`plugins/views/gallery/`)
+### Photo Gallery (`plugins/gallery/`)
 
 Image galleries with grid layouts and lightbox viewing.
 
@@ -57,7 +298,7 @@ Image galleries with grid layouts and lightbox viewing.
 - **Examples**: Workspace photo gallery
 - **Layouts**: Grid, masonry
 
-### Core Views (`plugins/views/core/`)
+### Core Views (`plugins/core/`)
 
 Essential note templates and dashboard views.
 
@@ -66,7 +307,7 @@ Essential note templates and dashboard views.
 - **Examples**: Home dashboard
 - **Features**: Date patterns, structured sections
 
-### Rollup Views (`plugins/views/rollup/`)
+### Rollup Views (`plugins/rollup/`)
 
 Time-based activity rollups and reports.
 
@@ -75,7 +316,7 @@ Time-based activity rollups and reports.
 - **Examples**: Weekly activity report
 - **Features**: Date grouping, statistics, categorized sections
 
-### Corkboard (`plugins/views/corkboard/`)
+### Corkboard (`plugins/corkboard/`)
 
 Visual canvas for creative writing and planning.
 
@@ -90,13 +331,13 @@ Codex includes four built-in themes:
 
 ### Light Themes
 
-- **Cream** (`themes/cream/`) - Classic notebook with cream pages (default)
-- **Manila** (`themes/manila/`) - Vintage manila folder aesthetic
-- **White** (`themes/white/`) - Clean white pages
+- **Cream** (`plugins/cream/`) - Classic notebook with cream pages (default)
+- **Manila** (`plugins/manila/`) - Vintage manila folder aesthetic
+- **White** (`plugins/white/`) - Clean white pages
 
 ### Dark Themes
 
-- **Blueprint** (`themes/blueprint/`) - Dark mode with blueprint styling
+- **Blueprint** (`plugins/blueprint/`) - Dark mode with blueprint styling
 
 ## Plugin Structure
 
@@ -196,23 +437,22 @@ theme:
 
 ### Standard Plugin Structures
 
-Each plugin type still has a recommended primary structure:
+Each plugin type has a recommended structure:
 
 ### View Plugin Structure
 
 ```
-views/
-  <plugin-id>/
-    plugin.yaml         # Plugin manifest
-    views/              # Vue components (optional)
-      ViewComponent.vue
-    templates/          # Template definitions
-      template1.yaml
-      template2.yaml
-    examples/           # Example files
-      example1.cdx
-      example2.cdx
-    README.md           # Plugin documentation
+<plugin-id>/
+  plugin.yaml         # Plugin manifest
+  components/         # Vue components
+    ViewComponent.vue
+  templates/          # Template definitions
+    template1.yaml
+    template2.yaml
+  examples/           # Example files
+    example1.cdx
+    example2.cdx
+  README.md           # Plugin documentation
 ```
 
 ### View Plugin Manifest (`plugin.yaml`)
@@ -261,12 +501,12 @@ examples:
 ### Theme Plugin Structure
 
 ```
-themes/
-  <theme-id>/
-    theme.yaml          # Theme manifest
-    styles/
-      main.css         # Main stylesheet
-    README.md          # Optional documentation
+<theme-id>/
+  theme.yaml          # Theme manifest
+  styles/
+    main.css         # Main stylesheet
+  components/        # Vue components (optional)
+  README.md          # Optional documentation
 ```
 
 ### Theme Manifest (`theme.yaml`)
@@ -327,7 +567,7 @@ themes = loader.get_plugins_by_type("theme")
 
 ## Creating Custom Themes
 
-1. Create a new directory in `plugins/themes/<your-theme-id>/`
+1. Create a new directory in `plugins/<your-theme-id>/`
 2. Create `theme.yaml` with required fields
 3. Create `styles/main.css` with your styles
 4. Use CSS class `.theme-<your-theme-id>` for theme-specific styling
@@ -390,14 +630,14 @@ Returns all available theme plugins with their metadata:
 
 The frontend theme store (`frontend/src/stores/theme.ts`) automatically loads themes from the API on initialization. This ensures that:
 
-- New themes are automatically available when added to `plugins/themes/`
+- New themes are automatically available when added to `plugins/<theme-id>/`
 - Theme metadata stays synchronized between backend and frontend
 - No frontend code changes needed to add new themes
 - Fallback to default themes if API is unavailable
 
 ### Adding New Themes
 
-1. Create theme directory in `plugins/themes/<theme-id>/`
+1. Create theme directory in `plugins/<theme-id>/`
 2. Add `theme.yaml` manifest with required fields
 3. Create `styles/main.css` with theme styles
 4. Theme automatically appears in User Settings
@@ -415,7 +655,7 @@ No frontend rebuild or code changes required!
 
 ### Template Migration
 
-Templates have been migrated from `backend/codex/templates/` to view plugins in `plugins/views/`. The system now supports both:
+Templates have been migrated from `backend/codex/templates/` to view plugins in `plugins/`. The system now supports both:
 
 1. **Legacy templates**: Still loaded from `backend/codex/templates/` for backward compatibility
 2. **Plugin templates**: Loaded from view plugin `templates/` directories
@@ -429,22 +669,22 @@ When the API returns templates, each template includes a `source` field:
 
 The following templates have been migrated to plugins:
 
-**Tasks Plugin** (`plugins/views/tasks/`):
+**Tasks Plugin** (`plugins/tasks/`):
 - `task-board.yaml` - Kanban board template
 - `task-list.yaml` - Task list template
 - `todo-item.yaml` - Individual todo item template
 
-**Gallery Plugin** (`plugins/views/gallery/`):
+**Gallery Plugin** (`plugins/gallery/`):
 - `photo-gallery.yaml` - Photo gallery template
 
-**Core Plugin** (`plugins/views/core/`):
+**Core Plugin** (`plugins/core/`):
 - `blank-note.yaml` - Blank note template
 - `daily-journal.yaml` - Daily journal template
 - `meeting-notes.yaml` - Meeting notes template
 - `project-doc.yaml` - Project documentation template
 - `data-file.yaml` - JSON data file template
 
-**Rollup Plugin** (`plugins/views/rollup/`):
+**Rollup Plugin** (`plugins/rollup/`):
 - `weekly-rollup.yaml` - Weekly activity rollup template
 
 Example CDX files have also been migrated from `examples/views/` to their respective plugin `examples/` directories.

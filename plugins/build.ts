@@ -318,7 +318,17 @@ async function main(): Promise<void> {
   
   // Check for plugin filter argument
   const pluginArg = args.find((arg) => arg.startsWith("--plugin="))
-  const pluginFilter = pluginArg ? pluginArg.split("=")[1] : undefined
+  let pluginFilter: string | undefined
+  
+  if (pluginArg) {
+    pluginFilter = pluginArg.split("=")[1]
+    // Validate that a plugin name was provided
+    if (!pluginFilter || pluginFilter.trim() === "") {
+      console.error("Error: --plugin flag requires a plugin name")
+      console.error("Usage: npm run build -- --plugin=weather-api")
+      process.exit(1)
+    }
+  }
 
   console.log("Codex Plugin Build")
   console.log("==================")

@@ -16,6 +16,7 @@ npm install
 npm run build
 
 # Build a specific plugin independently
+# Note: Use -- to pass arguments to the build script
 npm run build -- --plugin=weather-api
 npm run build -- --plugin=opengraph
 
@@ -37,7 +38,7 @@ You can also build plugins from the project root using Make:
 # Build all plugins
 make build-plugins
 
-# Build a specific plugin
+# Build a specific plugin independently
 make build-plugin PLUGIN=weather-api
 make build-plugin PLUGIN=opengraph
 ```
@@ -46,6 +47,7 @@ The build script:
 1. Discovers plugins with Vue components
 2. Compiles them to ES modules in `<plugin>/dist/`
 3. Generates `components.json` manifest for the frontend
+4. Supports building all plugins or a specific plugin independently
 
 **Note:** Theme CSS and YAML manifests don't require building - only Vue components do.
 

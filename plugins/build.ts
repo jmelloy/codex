@@ -98,10 +98,6 @@ function installPluginDependencies(pluginDir: string): void {
   console.log(`  Installing dependencies for ${pluginDir}...`)
   
   try {
-    // Check if node_modules exists and package-lock.json is present
-    const nodeModulesPath = path.join(pluginPath, "node_modules")
-    const packageLockPath = path.join(pluginPath, "package-lock.json")
-    
     // Run npm install in the plugin directory
     execSync("npm install", {
       cwd: pluginPath,
@@ -113,25 +109,6 @@ function installPluginDependencies(pluginDir: string): void {
     console.error(`  ✗ Failed to install dependencies for ${pluginDir}:`, err)
     throw err
   }
-}
-
-/**
- * Get the node_modules path to use for a plugin
- * Returns plugin-specific node_modules if it exists, otherwise falls back to shared
- */
-function getPluginNodeModulesPath(pluginDir: string): string | undefined {
-  const pluginNodeModules = path.join(PLUGINS_DIR, pluginDir, "node_modules")
-  const sharedNodeModules = path.join(PLUGINS_DIR, "node_modules")
-  
-  if (fs.existsSync(pluginNodeModules)) {
-    return pluginNodeModules
-  }
-  
-  if (fs.existsSync(sharedNodeModules)) {
-    return sharedNodeModules
-  }
-  
-  return undefined
 }
 
 /**
@@ -282,9 +259,6 @@ async function discoverComponents(): Promise<ComponentEntry[]> {
 async function buildComponent(entry: ComponentEntry): Promise<void> {
   const outputDir = path.join(PLUGINS_DIR, entry.pluginDir, "dist")
   const pluginPath = path.join(PLUGINS_DIR, entry.pluginDir)
-  
-  // Get the appropriate node_modules path for this plugin
-  const nodeModulesPath = getPluginNodeModulesPath(entry.pluginDir)
 
   const config: InlineConfig = {
     plugins: [vue()],

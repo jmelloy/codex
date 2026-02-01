@@ -158,7 +158,9 @@ ls plugins/chart-example/node_modules/
 
 3. **Pin dependency versions:**
    - Use specific versions or narrow ranges for stability
-   - Example: `"chart.js": "^4.4.1"` (allows patches, not minor)
+   - Example: `"chart.js": "^4.4.1"` (allows patches and minors, not majors)
+   - Example: `"chart.js": "~4.4.1"` (allows patches only, not minors)
+   - Example: `"chart.js": "4.4.1"` (exact version, no updates)
 
 4. **Keep dependencies minimal:**
    - Only add what you actually need

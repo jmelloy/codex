@@ -180,3 +180,25 @@ class PluginAPILog(SQLModel, table=True):
     timestamp: datetime = Field(default_factory=utc_now, index=True)
     status_code: int | None = None
     error: str | None = None
+
+
+class IntegrationArtifact(SQLModel, table=True):
+    """Cached API responses for integration blocks.
+
+    This table stores metadata for cached integration API responses. The actual
+    data is stored in the filesystem at the artifact_path location. This allows
+    for more scalable storage of large API responses.
+
+    Files are stored at: {workspace_path}/.codex/artifacts/{plugin_id}/{hash}.json
+    """
+
+    __tablename__ = "integration_artifacts"  # type: ignore[assignment]
+
+    id: int | None = Field(default=None, primary_key=True)
+    workspace_id: int = Field(foreign_key="workspaces.id", index=True)
+    plugin_id: str = Field(foreign_key="plugins.plugin_id", index=True)
+    block_type: str = Field(index=True)  # e.g., "weather", "github-issue"
+    parameters_hash: str = Field(index=True)  # Hash of request parameters for cache key
+    artifact_path: str  # Relative path to artifact file within workspace
+    fetched_at: datetime = Field(default_factory=utc_now)
+    expires_at: datetime | None = None  # Optional expiration time for cache

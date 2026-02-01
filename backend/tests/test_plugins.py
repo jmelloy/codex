@@ -31,6 +31,31 @@ def test_discover_plugins():
     assert "cream" in theme_names or any("cream" in str(p) for p in discovered)
 
 
+def test_load_integration_plugin_with_blocks():
+    """Test loading an integration plugin with custom blocks (chart-example)."""
+    loader = PluginLoader(PLUGINS_DIR)
+
+    # Load chart-example plugin
+    plugin_path = PLUGINS_DIR / "chart-example"
+    if plugin_path.exists():
+        plugin = loader.load_plugin(plugin_path)
+
+        assert plugin.id == "chart-example"
+        assert plugin.name == "Chart Example Plugin"
+        assert plugin.type == "integration"
+        assert plugin.version == "1.0.0"
+        
+        # Verify blocks are loaded
+        assert hasattr(plugin, 'blocks')
+        assert len(plugin.blocks) > 0
+        
+        # Check the chart block
+        chart_block = plugin.blocks[0]
+        assert chart_block['id'] == 'chart'
+        assert chart_block['name'] == 'Chart Block'
+        assert chart_block['icon'] == '📊'
+
+
 def test_load_theme_plugin():
     """Test loading a theme plugin."""
     loader = PluginLoader(PLUGINS_DIR)

@@ -8,6 +8,8 @@ import hashlib
 import json
 import logging
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import select
@@ -27,7 +29,7 @@ from codex.api.schemas import (
     RenderResponse,
 )
 from codex.db.database import get_system_session
-from codex.db.models import IntegrationArtifact, PluginConfig, User
+from codex.db.models import IntegrationArtifact, PluginConfig, User, Workspace
 from codex.plugins.executor import IntegrationExecutor
 from codex.plugins.registry import PluginRegistry
 
@@ -42,6 +44,39 @@ def _compute_parameters_hash(block_type: str, parameters: dict) -> str:
     """Compute a hash of block_type and parameters for cache key."""
     key_data = json.dumps({"block_type": block_type, "parameters": parameters}, sort_keys=True)
     return hashlib.sha256(key_data.encode()).hexdigest()[:32]
+
+
+def _get_artifact_path(workspace_path: str, plugin_id: str, params_hash: str) -> Path:
+    """Get the filesystem path for an artifact file."""
+    return Path(workspace_path) / ".codex" / "artifacts" / plugin_id / f"{params_hash}.json"
+
+
+def _get_artifact_relative_path(plugin_id: str, params_hash: str) -> str:
+    """Get the relative path for storing in the database."""
+    return f".codex/artifacts/{plugin_id}/{params_hash}.json"
+
+
+async def _read_artifact_data(artifact_path: Path) -> dict[str, Any] | None:
+    """Read artifact data from filesystem."""
+    try:
+        if artifact_path.exists():
+            with open(artifact_path, encoding="utf-8") as f:
+                return json.load(f)
+    except (OSError, json.JSONDecodeError) as e:
+        logger.warning(f"Failed to read artifact from {artifact_path}: {e}")
+    return None
+
+
+async def _write_artifact_data(artifact_path: Path, data: dict[str, Any]) -> bool:
+    """Write artifact data to filesystem."""
+    try:
+        artifact_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(artifact_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+        return True
+    except OSError as e:
+        logger.error(f"Failed to write artifact to {artifact_path}: {e}")
+        return False
 
 
 @router.get("", response_model=list[IntegrationResponse])
@@ -431,12 +466,15 @@ async def render_integration_block(
     This endpoint is the primary way for the frontend to request data for
     custom blocks (e.g., weather, github-issue, link-preview). The backend:
 
-    1. Checks cache for pre-fetched data
+    1. Checks cache for pre-fetched data (stored in filesystem)
     2. If cache miss or stale, executes the API call through the integration
     3. Returns raw data for the frontend to render
 
     The frontend is responsible for rendering the data - the backend does NOT
     render markdown or HTML. This keeps rendering logic in one place (frontend).
+
+    Artifacts are stored in the filesystem at:
+      {workspace_path}/.codex/artifacts/{plugin_id}/{hash}.json
 
     Args:
         integration_id: Integration plugin ID
@@ -451,6 +489,14 @@ async def render_integration_block(
 
     if not integration or not integration.has_integration():
         raise HTTPException(status_code=404, detail="Integration not found")
+
+    # Get workspace to determine artifact storage path
+    stmt = select(Workspace).where(Workspace.id == workspace_id)
+    result = await session.execute(stmt)
+    workspace = result.scalar_one_or_none()
+
+    if not workspace:
+        raise HTTPException(status_code=404, detail="Workspace not found")
 
     # Verify the block_type is supported by this integration
     block_config = None
@@ -467,6 +513,8 @@ async def render_integration_block(
 
     # Compute cache key
     params_hash = _compute_parameters_hash(request_data.block_type, request_data.parameters)
+    artifact_path = _get_artifact_path(workspace.path, integration_id, params_hash)
+    relative_path = _get_artifact_relative_path(integration_id, params_hash)
 
     # Check cache if requested
     if request_data.use_cache:
@@ -483,13 +531,19 @@ async def render_integration_block(
             # Check if cache is still valid (not expired)
             now = datetime.now(UTC)
             if cached_artifact.expires_at is None or cached_artifact.expires_at > now:
-                logger.debug(f"Cache hit for {integration_id}/{request_data.block_type}")
-                return RenderResponse(
-                    success=True,
-                    data=cached_artifact.data,
-                    cached=True,
-                    fetched_at=cached_artifact.fetched_at.isoformat(),
-                )
+                # Read data from filesystem
+                cached_data = await _read_artifact_data(artifact_path)
+                if cached_data is not None:
+                    logger.debug(f"Cache hit for {integration_id}/{request_data.block_type}")
+                    return RenderResponse(
+                        success=True,
+                        data=cached_data,
+                        cached=True,
+                        fetched_at=cached_artifact.fetched_at.isoformat(),
+                    )
+                else:
+                    # File missing, need to re-fetch
+                    logger.warning(f"Artifact file missing for {integration_id}/{request_data.block_type}")
 
     # Get workspace configuration for the integration
     stmt = select(PluginConfig).where(
@@ -524,7 +578,11 @@ async def render_integration_block(
             request_data.parameters,
         )
 
-        # Cache the result
+        # Write artifact to filesystem
+        if not await _write_artifact_data(artifact_path, data):
+            logger.warning(f"Failed to cache artifact for {integration_id}/{request_data.block_type}")
+
+        # Update database record
         now = datetime.now(UTC)
 
         # Check if artifact already exists (update) or create new one
@@ -537,27 +595,20 @@ async def render_integration_block(
         result = await session.execute(stmt)
         artifact = result.scalar_one_or_none()
 
-        if artifact:
-            artifact.data = data
-            artifact.fetched_at = now
-            # Reset expiration based on block config (if specified)
-            cache_ttl = block_config.get("cache_ttl")
-            if cache_ttl:
-                artifact.expires_at = now + timedelta(seconds=cache_ttl)
-            else:
-                artifact.expires_at = None
-        else:
-            cache_ttl = block_config.get("cache_ttl")
-            expires_at = None
-            if cache_ttl:
-                expires_at = now + timedelta(seconds=cache_ttl)
+        cache_ttl = block_config.get("cache_ttl")
+        expires_at = now + timedelta(seconds=cache_ttl) if cache_ttl else None
 
+        if artifact:
+            artifact.artifact_path = relative_path
+            artifact.fetched_at = now
+            artifact.expires_at = expires_at
+        else:
             artifact = IntegrationArtifact(
                 workspace_id=workspace_id,
                 plugin_id=integration_id,
                 block_type=request_data.block_type,
                 parameters_hash=params_hash,
-                data=data,
+                artifact_path=relative_path,
                 fetched_at=now,
                 expires_at=expires_at,
             )

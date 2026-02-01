@@ -7,6 +7,11 @@ Create Date: 2026-02-01
 This migration adds:
 - integration_artifacts table for caching integration API responses
   used by the /render endpoint for frontend-driven block rendering
+
+Artifacts are stored in the filesystem at:
+  {workspace_path}/.codex/artifacts/{plugin_id}/{hash}.json
+
+The database only stores metadata and the path to the artifact file.
 """
 
 from collections.abc import Sequence
@@ -40,7 +45,7 @@ def upgrade() -> None:
             sa.Column("plugin_id", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
             sa.Column("block_type", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
             sa.Column("parameters_hash", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
-            sa.Column("data", sa.JSON(), nullable=False),
+            sa.Column("artifact_path", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
             sa.Column("fetched_at", sa.DateTime(), nullable=False),
             sa.Column("expires_at", sa.DateTime(), nullable=True),
             sa.ForeignKeyConstraint(["workspace_id"], ["workspaces.id"]),

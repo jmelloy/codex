@@ -107,3 +107,15 @@ class IntegrationExecuteResponse(BaseModel):
     success: bool
     data: dict[str, Any] | None = None
     error: str | None = None
+
+
+class ViewResponse(BaseModel):
+    """Schema for view plugin information."""
+
+    id: str
+    name: str
+    description: str
+    icon: str
+    plugin_id: str
+    plugin_name: str
+    config_schema: dict[str, Any]

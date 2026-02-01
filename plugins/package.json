@@ -6,6 +6,7 @@
   "description": "Build system for Codex plugin Vue components",
   "scripts": {
     "build": "tsx build.ts",
+    "build:plugin": "tsx build.ts --plugin=",
     "build:watch": "tsx build.ts --watch",
     "clean": "tsx build.ts --clean",
     "typecheck": "vue-tsc --noEmit"

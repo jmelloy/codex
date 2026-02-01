@@ -6,9 +6,14 @@
  * dynamically loaded by the frontend.
  *
  * Usage:
- *   npm run build          - Build all plugin components
- *   npm run build:watch    - Watch mode for development
- *   npm run clean          - Remove all dist directories
+ *   npm run build                     - Build all plugin components
+ *   npm run build -- --plugin=PLUGIN  - Build a specific plugin only
+ *   npm run build:watch               - Watch mode for development
+ *   npm run clean                     - Remove all dist directories
+ *
+ * Examples:
+ *   npm run build -- --plugin=weather-api
+ *   npm run build -- --plugin=opengraph
  */
 
 import { build, type InlineConfig } from "vite"
@@ -310,15 +315,38 @@ async function main(): Promise<void> {
   }
 
   const watchMode = args.includes("--watch")
+  
+  // Check for plugin filter argument
+  const pluginArg = args.find((arg) => arg.startsWith("--plugin="))
+  const pluginFilter = pluginArg ? pluginArg.split("=")[1] : undefined
 
   console.log("Codex Plugin Build")
   console.log("==================")
   console.log(`Mode: ${watchMode ? "watch" : "build"}`)
+  if (pluginFilter) {
+    console.log(`Filter: ${pluginFilter}`)
+  }
   console.log("")
 
   // Discover components to build
   console.log("Discovering plugin components...")
-  const entries = await discoverComponents()
+  let entries = await discoverComponents()
+  
+  // Filter by plugin if specified
+  if (pluginFilter) {
+    entries = entries.filter(
+      (entry) =>
+        entry.pluginId === pluginFilter || entry.pluginDir === pluginFilter
+    )
+    if (entries.length === 0) {
+      console.error(`No components found for plugin: ${pluginFilter}`)
+      console.error(
+        "Available plugins:",
+        Array.from(new Set((await discoverComponents()).map((e) => e.pluginId)))
+      )
+      process.exit(1)
+    }
+  }
 
   if (entries.length === 0) {
     console.log("No Vue components found in plugins.")

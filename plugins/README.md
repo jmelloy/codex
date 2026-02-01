@@ -15,11 +15,31 @@ npm install
 # Build all plugin components
 npm run build
 
+# Build a specific plugin independently
+npm run build -- --plugin=weather-api
+npm run build -- --plugin=opengraph
+
 # Watch mode for development
 npm run build:watch
 
 # Clean build artifacts
 npm run clean
+
+# Type checking
+npm run typecheck
+```
+
+### Building Plugins from Root
+
+You can also build plugins from the project root using Make:
+
+```bash
+# Build all plugins
+make build-plugins
+
+# Build a specific plugin
+make build-plugin PLUGIN=weather-api
+make build-plugin PLUGIN=opengraph
 ```
 
 The build script:

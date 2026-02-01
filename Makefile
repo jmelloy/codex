@@ -12,7 +12,7 @@
 
 .PHONY: all install build dev test clean help
 .PHONY: install-backend install-frontend install-plugins
-.PHONY: build-plugins build-frontend
+.PHONY: build-plugins build-plugin build-frontend
 .PHONY: dev-backend dev-frontend dev-docker
 .PHONY: test-backend test-frontend
 .PHONY: lint lint-backend lint-frontend
@@ -127,6 +127,21 @@ build-plugins:
 	fi
 	@echo "Building plugins..."
 	cd plugins && npm run build
+
+# Build a specific plugin independently
+# Usage: make build-plugin PLUGIN=weather-api
+build-plugin:
+	@if [ -z "$(PLUGIN)" ]; then \
+		echo "Error: PLUGIN variable is required"; \
+		echo "Usage: make build-plugin PLUGIN=weather-api"; \
+		exit 1; \
+	fi
+	@if [ ! -d "plugins/node_modules" ]; then \
+		echo "Installing plugin dependencies..."; \
+		cd plugins && npm install; \
+	fi
+	@echo "Building plugin: $(PLUGIN)..."
+	cd plugins && npm run build -- --plugin=$(PLUGIN)
 
 build-frontend: build-plugins
 	@echo "Building frontend..."
@@ -282,7 +297,8 @@ help:
 	@echo ""
 	@echo "Build:"
 	@echo "  make build        Build plugins + frontend"
-	@echo "  make build-plugins  Build plugin Vue components only"
+	@echo "  make build-plugins  Build all plugin Vue components"
+	@echo "  make build-plugin PLUGIN=<name>  Build a specific plugin"
 	@echo "  make watch-plugins  Watch and rebuild plugins"
 	@echo ""
 	@echo "Local Development (no Docker):"

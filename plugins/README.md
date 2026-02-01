@@ -193,6 +193,19 @@ Plugins **without** their own `package.json` continue to work normally:
 - Each plugin has isolated node_modules - no conflicts!
 - If using shared dependencies, check `plugins/package.json`
 
+### Migration Guide
+
+For detailed guidance on migrating existing plugins or creating new plugins with dependencies, see:
+
+📖 **[Plugin Dependency Management - Migration Guide](./MIGRATION_GUIDE.md)**
+
+This guide covers:
+- Step-by-step migration process
+- Real-world examples
+- Best practices for version management
+- Troubleshooting common issues
+- Backward compatibility details
+
 ---
 
 ## Plugin Capabilities

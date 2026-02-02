@@ -137,12 +137,6 @@ async function fetchWeather() {
       country = "US"; // Default to US if only state is provided
     }
 
-    console.log("Fetching weather for:", {
-      city,
-      state,
-      country,
-    });
-
     // Step 1: Geocode the location to get coordinates
     const geoResponse = await fetch(
       `/api/v1/integrations/weather-api/execute?workspace_id=${props.workspaceId}`,

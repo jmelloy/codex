@@ -339,10 +339,10 @@ async function buildComponent(entry: ComponentEntry): Promise<void> {
           globals: {
             vue: "Vue",
           },
-          // Consolidate all CSS into a single plugins.css file
+          // Use component-specific CSS filenames to avoid overwriting
           assetFileNames: (assetInfo) => {
             if (assetInfo.name?.endsWith(".css")) {
-              return "plugins.css";
+              return `${entry.blockId}.css`;
             }
             return assetInfo.name || "assets/[name].[hash][extname]";
           },
@@ -357,6 +357,50 @@ async function buildComponent(entry: ComponentEntry): Promise<void> {
   };
 
   await build(config);
+}
+
+/**
+ * Concatenate all component CSS files into a single plugins.css for each plugin
+ */
+function consolidatePluginCSS(entries: ComponentEntry[]): void {
+  // Group entries by plugin directory
+  const entriesByPlugin = new Map<string, ComponentEntry[]>();
+  for (const entry of entries) {
+    const existing = entriesByPlugin.get(entry.pluginDir) || [];
+    existing.push(entry);
+    entriesByPlugin.set(entry.pluginDir, existing);
+  }
+
+  // For each plugin, concatenate all CSS files
+  for (const [pluginDir, pluginEntries] of entriesByPlugin) {
+    const distDir = path.join(PLUGINS_DIR, pluginDir, "dist");
+    const cssFiles: string[] = [];
+    let combinedCSS = "";
+
+    // Collect all CSS files
+    for (const entry of pluginEntries) {
+      const cssFile = path.join(distDir, `${entry.blockId}.css`);
+      if (fs.existsSync(cssFile)) {
+        cssFiles.push(cssFile);
+        const content = fs.readFileSync(cssFile, "utf-8");
+        combinedCSS += `/* ${entry.blockId} */\n${content}\n\n`;
+      }
+    }
+
+    // Write consolidated plugins.css if any CSS was found
+    if (combinedCSS) {
+      const pluginsCSS = path.join(distDir, "plugins.css");
+      fs.writeFileSync(pluginsCSS, combinedCSS);
+      console.log(
+        `  -> Consolidated ${cssFiles.length} CSS files into ${pluginDir}/dist/plugins.css`,
+      );
+
+      // Remove individual CSS files
+      for (const cssFile of cssFiles) {
+        fs.rmSync(cssFile);
+      }
+    }
+  }
 }
 
 /**
@@ -608,6 +652,11 @@ async function main(): Promise<void> {
       );
     }
   }
+  console.log("");
+
+  // Consolidate CSS files into plugins.css for each plugin
+  console.log("Consolidating CSS files...");
+  consolidatePluginCSS(entries);
   console.log("");
 
   // Generate unified plugins manifest (plugin registration + component mappings)

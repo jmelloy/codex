@@ -14,7 +14,9 @@
       <!-- Error state -->
       <div v-else-if="error" class="error">
         <div class="pr-link">
-          <a :href="config.url" target="_blank" rel="noopener noreferrer">{{ config.url }}</a>
+          <a :href="config.url" target="_blank" rel="noopener noreferrer">{{
+            config.url
+          }}</a>
         </div>
         <div class="error-message">{{ error }}</div>
       </div>
@@ -23,7 +25,12 @@
       <div v-else-if="pr" class="pr-data">
         <div class="pr-header">
           <span :class="['pr-state', prState]">{{ prStateLabel }}</span>
-          <a :href="pr.html_url" target="_blank" rel="noopener noreferrer" class="pr-number">
+          <a
+            :href="pr.html_url"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="pr-number"
+          >
             #{{ pr.number }}
           </a>
         </div>
@@ -37,18 +44,27 @@
             v-for="label in pr.labels"
             :key="label.id"
             class="label"
-            :style="{ backgroundColor: '#' + label.color, color: getContrastColor(label.color) }"
+            :style="{
+              backgroundColor: '#' + label.color,
+              color: getContrastColor(label.color),
+            }"
           >
             {{ label.name }}
           </span>
         </div>
         <div class="pr-meta">
           <span class="author">
-            <img v-if="pr.user?.avatar_url" :src="pr.user.avatar_url" class="avatar" />
+            <img
+              v-if="pr.user?.avatar_url"
+              :src="pr.user.avatar_url"
+              class="avatar"
+            />
             {{ pr.user?.login }}
           </span>
           <span class="date">opened {{ formatDate(pr.created_at) }}</span>
-          <span v-if="pr.comments > 0" class="comments">💬 {{ pr.comments }}</span>
+          <span v-if="pr.comments > 0" class="comments"
+            >💬 {{ pr.comments }}</span
+          >
         </div>
         <div class="pr-branches">
           <span class="branch">{{ pr.head?.label || pr.head?.ref }}</span>
@@ -64,16 +80,24 @@
 
       <!-- Not configured -->
       <div v-else-if="!config.url" class="error-message">
-        No URL provided. Usage: <code>```github-pr\nurl: https://github.com/owner/repo/pull/456\n```</code>
+        No URL provided. Usage:
+        <code
+          >```github-pr\nurl: https://github.com/owner/repo/pull/456\n```</code
+        >
       </div>
 
       <!-- Not connected -->
       <div v-else class="not-configured">
         <div class="pr-link">
-          <a :href="config.url" target="_blank" rel="noopener noreferrer">{{ config.url }}</a>
+          <a :href="config.url" target="_blank" rel="noopener noreferrer">{{
+            config.url
+          }}</a>
         </div>
         <div class="block-note">
-          <em>Configure the GitHub integration in workspace settings to see PR details.</em>
+          <em
+            >Configure the GitHub integration in workspace settings to see PR
+            details.</em
+          >
         </div>
       </div>
     </div>
@@ -152,10 +176,16 @@ const prStateLabel = computed(() => {
   return pr.value.state === "closed" ? "Closed" : "Open";
 });
 
-function parseGitHubUrl(url: string): { owner: string; repo: string; pull_number: number } | null {
+function parseGitHubUrl(
+  url: string,
+): { owner: string; repo: string; pull_number: number } | null {
   const match = url.match(/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)/);
   if (match) {
-    return { owner: match[1], repo: match[2], pull_number: parseInt(match[3], 10) };
+    return {
+      owner: match[1],
+      repo: match[2],
+      pull_number: parseInt(match[3], 10),
+    };
   }
   return null;
 }
@@ -214,7 +244,7 @@ async function fetchPR() {
           endpoint_id: "get_pr",
           parameters: parsed,
         }),
-      }
+      },
     );
 
     if (!response.ok) {
@@ -229,7 +259,8 @@ async function fetchPR() {
       throw new Error(result.error || "Failed to fetch pull request");
     }
   } catch (err) {
-    error.value = err instanceof Error ? err.message : "Failed to fetch pull request";
+    error.value =
+      err instanceof Error ? err.message : "Failed to fetch pull request";
   } finally {
     loading.value = false;
   }

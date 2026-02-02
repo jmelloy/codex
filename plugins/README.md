@@ -27,6 +27,17 @@ plugins:
 
 The `_directory` field is used internally to map the plugin configuration to its directory on disk and is automatically added when generating the combined manifest.
 
+### Regenerating the Combined Manifest
+
+After adding or modifying plugins, you can regenerate the combined manifest:
+
+```bash
+cd plugins
+python generate-manifest.py
+```
+
+This will scan all plugin directories and update `manifest.yml` with the latest plugin configurations.
+
 ## Quick Start - Building Plugins
 
 If plugins contain Vue components (like custom blocks), they need to be compiled before use:

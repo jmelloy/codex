@@ -24,7 +24,12 @@ import { marked } from "marked"
 import hljs from "highlight.js"
 import { useThemeStore } from "../stores/theme"
 import { createApp } from "vue"
-import { loadPluginComponent } from "../services/pluginLoader"
+import {
+  loadPluginComponent,
+  getAvailableBlockTypes,
+  isBlockTypeAvailable,
+  preloadPluginComponents,
+} from "../services/pluginLoader"
 
 const themeStore = useThemeStore()
 
@@ -60,6 +65,8 @@ const emit = defineEmits<{
 
 // State
 const isLoading = ref(false)
+const knownBlockTypes = ref<Set<string>>(new Set())
+const renderedHtml = ref('<p class="empty-content">No content to display</p>')
 
 // Extension system for custom rendering
 export interface MarkdownExtension {
@@ -169,38 +176,54 @@ const codeThemeClass = computed(() => {
 
 // Generate a unique key for the content to force Vue to replace the DOM
 // instead of patching it, which can cause "nextSibling" errors with v-html
-const contentKey = computed(() => {
-  // Simple hash based on content length and first/last characters
+const contentKey = ref<string>("")
+
+const updateContentKey = () => {
   const content = props.content || ""
-  return `${content.length}-${content.charCodeAt(0) || 0}-${content.charCodeAt(content.length - 1) || 0}`
-})
+  contentKey.value = `${content.length}-${content.charCodeAt(0) || 0}-${content.charCodeAt(content.length - 1) || 0}`
+}
 
 // Extract language from code block class (e.g., "language-javascript" -> "javascript")
 const extractLanguage = (className: string): string | null => {
-  const match = className.match(/language-(\w+)/)
+  const match = className.match(/language-([-\w]+)/)
   return match && match[1] ? match[1] : null
 }
 
-// Known block types that can be rendered by plugins
-// This list is used to identify code blocks that should be rendered as custom components
-const knownBlockTypes = new Set(["weather", "link-preview"])
+// Load available block types from plugin service
+const loadAvailableBlockTypes = async () => {
+  try {
+    // Preload all plugin components first
+    await preloadPluginComponents()
+
+    const blockTypes = await getAvailableBlockTypes()
+    knownBlockTypes.value = new Set(blockTypes.map((bt) => bt.blockType))
+  } catch (e) {
+    console.error("Failed to load available block types:", e)
+    // Fallback to empty set - blocks will be validated individually
+    knownBlockTypes.value = new Set()
+  }
+}
 
 // Parse custom blocks from code fences
-const parseCustomBlocks = (html: string): { html: string; blocks: any[] } => {
+const parseCustomBlocks = async (html: string): Promise<{ html: string; blocks: any[] }> => {
   const parser = new DOMParser()
   const doc = parser.parseFromString(html, "text/html")
   const blocks: any[] = []
 
   // Find code blocks that might be custom blocks
   const codeBlocks = doc.querySelectorAll("pre code")
-  codeBlocks.forEach((codeBlock, index) => {
+  for (let index = 0; index < codeBlocks.length; index++) {
+    const codeBlock = codeBlocks[index] as HTMLElement
+    if (!codeBlock) continue
+
     const className = codeBlock.className
     const language = extractLanguage(className)
-
-    if (language && knownBlockTypes.has(language)) {
+    console.log(`Checking code block for custom block type: ${language} (${className})`)
+    // Check if this is a custom block using the plugin service
+    if (language && (await isBlockTypeAvailable(language))) {
       // This is a custom block
       const content = codeBlock.textContent || ""
-      
+
       // Try to parse as YAML config
       let config: Record<string, any> = {}
       try {
@@ -235,8 +258,7 @@ const parseCustomBlocks = (html: string): { html: string; blocks: any[] } => {
         component: loadPluginComponent(language),
       })
     }
-  })
-
+  }
   return {
     html: doc.body.innerHTML,
     blocks,
@@ -261,17 +283,21 @@ const mountCustomBlocks = (blocks: any[]) => {
 }
 
 // Computed
-const renderedHtml = computed(() => {
+const renderMarkdown = async () => {
   if (!props.content) {
-    return '<p class="empty-content">No content to display</p>'
+    renderedHtml.value = '<p class="empty-content">No content to display</p>'
+    updateContentKey()
+    return
   }
 
   try {
+    isLoading.value = true
+    updateContentKey()
     const html = marked(props.content) as string
-    
+
     // Parse and handle custom blocks first
-    const { html: htmlWithPlaceholders, blocks } = parseCustomBlocks(html)
-    
+    const { html: htmlWithPlaceholders, blocks } = await parseCustomBlocks(html)
+
     // Apply syntax highlighting to remaining standard code blocks
     const parser = new DOMParser()
     const doc = parser.parseFromString(htmlWithPlaceholders, "text/html")
@@ -305,20 +331,21 @@ const renderedHtml = computed(() => {
       // Replace the code block
       block.parentNode?.replaceChild(highlightedElement, block)
     })
-    
+
     const finalHtml = doc.body.innerHTML
-    
+    renderedHtml.value = finalHtml
+
     // Mount custom blocks after HTML is rendered
     if (blocks.length > 0) {
       mountCustomBlocks(blocks)
     }
-    
-    return finalHtml
   } catch (e) {
     console.error("Markdown parsing error:", e)
-    return '<p class="error-content">Error rendering markdown</p>'
+    renderedHtml.value = '<p class="error-content">Error rendering markdown</p>'
+  } finally {
+    isLoading.value = false
   }
-})
+}
 
 // Methods
 const copyContent = async () => {
@@ -333,7 +360,17 @@ const copyContent = async () => {
 // Lifecycle
 onMounted(() => {
   configureMarked()
+  loadAvailableBlockTypes()
+  renderMarkdown()
 })
+
+// Watch for content changes
+watch(
+  () => props.content,
+  () => {
+    renderMarkdown()
+  },
+)
 
 // Watch for extension changes
 watch(
@@ -341,7 +378,7 @@ watch(
   () => {
     configureMarked()
   },
-  { deep: true }
+  { deep: true },
 )
 
 // Watch for context changes (workspace/notebook)
@@ -349,7 +386,7 @@ watch(
   () => [props.workspaceId, props.notebookId, props.currentFilePath],
   () => {
     configureMarked()
-  }
+  },
 )
 </script>
 

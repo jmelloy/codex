@@ -53,8 +53,45 @@ let manifestCache: PluginsManifest | null = null
 let manifestLoadPromise: Promise<PluginsManifest | null> | null = null
 let flatComponentsCache: Map<string, FlatComponentEntry> | null = null
 
+// Track which plugin CSS files have been loaded
+const loadedPluginStyles = new Set<string>()
+
 // Base path for plugins (served by Vite middleware in dev, or static files in prod)
 const PLUGINS_BASE = "/plugins"
+
+/**
+ * Load CSS for a plugin if not already loaded
+ */
+function loadPluginStyles(pluginId: string, filePath: string): void {
+  if (loadedPluginStyles.has(pluginId)) {
+    return
+  }
+
+  // Extract plugin directory from file path (e.g., "weather-api/dist/weather.js" -> "weather-api")
+  const pluginDir = filePath.split("/")[0]
+
+  // Try to load the plugin's CSS file
+  const cssUrl = `${PLUGINS_BASE}/${pluginDir}/dist/plugins.css`
+
+  // Create a link element
+  const link = document.createElement("link")
+  link.rel = "stylesheet"
+  link.href = cssUrl
+  link.setAttribute("data-plugin-styles", pluginId)
+
+  // Add error handler to silently fail if CSS doesn't exist
+  link.onerror = () => {
+    console.debug(`No CSS file found for plugin: ${pluginId}`)
+    loadedPluginStyles.add(pluginId) // Mark as attempted to avoid retrying
+  }
+
+  link.onload = () => {
+    console.debug(`Loaded CSS for plugin: ${pluginId}`)
+    loadedPluginStyles.add(pluginId)
+  }
+
+  document.head.appendChild(link)
+}
 
 /**
  * Load the plugins manifest via fetch (runtime loading)
@@ -124,14 +161,15 @@ function createFallbackComponent(blockType: string, error?: string): Component {
           ]),
           h("div", { class: "block-content" }, [
             h("div", { class: "block-note" }, [
-              h("em", {}, error || "Plugin component not available. Run 'npm run build' in the plugins directory."),
+              h(
+                "em",
+                {},
+                error ||
+                  "Plugin component not available. Run 'npm run build' in the plugins directory.",
+              ),
             ]),
             props.config &&
-              h(
-                "pre",
-                { class: "config-preview" },
-                JSON.stringify(props.config, null, 2)
-              ),
+              h("pre", { class: "config-preview" }, JSON.stringify(props.config, null, 2)),
           ]),
         ])
     },
@@ -143,8 +181,7 @@ function createFallbackComponent(blockType: string, error?: string): Component {
  */
 const LoadingComponent: Component = {
   setup() {
-    return () =>
-      h("div", { class: "custom-block loading-block" }, "Loading plugin...")
+    return () => h("div", { class: "custom-block loading-block" }, "Loading plugin...")
   },
 }
 
@@ -162,6 +199,9 @@ export function loadPluginComponent(blockType: string): Component {
       const entry = componentsMap.get(blockType)
 
       if (entry) {
+        // Load the plugin's CSS file
+        loadPluginStyles(entry.pluginId, entry.file)
+
         // Load the compiled component via dynamic import with full URL
         const moduleUrl = `${PLUGINS_BASE}/${entry.file}`
         try {
@@ -197,26 +237,6 @@ export async function getAvailableBlockTypes(): Promise<
 > {
   const componentsMap = await getComponentsMap()
 
-  if (componentsMap.size === 0) {
-    // Return built-in block types as fallback
-    return [
-      {
-        blockType: "weather",
-        pluginId: "weather-api",
-        pluginName: "Weather API Integration",
-        icon: "☀️",
-        description: "Display weather information",
-      },
-      {
-        blockType: "link-preview",
-        pluginId: "opengraph",
-        pluginName: "Open Graph Link Unfurling",
-        icon: "🔗",
-        description: "Rich link previews",
-      },
-    ]
-  }
-
   return Array.from(componentsMap.values()).map((entry) => ({
     blockType: entry.blockId,
     pluginId: entry.pluginId,
@@ -231,13 +251,7 @@ export async function getAvailableBlockTypes(): Promise<
  */
 export async function isBlockTypeAvailable(blockType: string): Promise<boolean> {
   const componentsMap = await getComponentsMap()
-
-  if (componentsMap.size > 0) {
-    return componentsMap.has(blockType)
-  }
-
-  // Check built-in types
-  return ["weather", "link-preview"].includes(blockType)
+  return componentsMap.has(blockType)
 }
 
 /**
@@ -250,16 +264,28 @@ export async function preloadPluginComponents(): Promise<void> {
     return
   }
 
-  const loadPromises = Array.from(componentsMap.values()).map(
-    async (entry) => {
-      const moduleUrl = `${PLUGINS_BASE}/${entry.file}`
-      try {
-        await import(/* @vite-ignore */ moduleUrl)
-      } catch {
-        // Ignore failures during preload
-      }
+  // Track unique plugins to load CSS for each plugin once
+  const uniquePlugins = new Map<string, string>() // pluginId -> file path
+  Array.from(componentsMap.values()).forEach((entry) => {
+    if (!uniquePlugins.has(entry.pluginId)) {
+      uniquePlugins.set(entry.pluginId, entry.file)
     }
-  )
+  })
+
+  // Preload CSS for all plugins
+  uniquePlugins.forEach((filePath, pluginId) => {
+    loadPluginStyles(pluginId, filePath)
+  })
+
+  // Preload component modules
+  const loadPromises = Array.from(componentsMap.values()).map(async (entry) => {
+    const moduleUrl = `${PLUGINS_BASE}/${entry.file}`
+    try {
+      await import(/* @vite-ignore */ moduleUrl)
+    } catch {
+      // Ignore failures during preload
+    }
+  })
 
   await Promise.allSettled(loadPromises)
 }
@@ -310,7 +336,7 @@ export async function getAvailableThemes(): Promise<PluginTheme[]> {
         id: plugin.id,
         name: plugin.id,
         label: themeConfig.display_name || plugin.name,
-        description: plugin.manifest.description as string || "",
+        description: (plugin.manifest.description as string) || "",
         className: themeConfig.className || `theme-${plugin.id}`,
         category: themeConfig.category || "light",
         version: plugin.version,
@@ -335,12 +361,14 @@ export async function getAvailableViews(): Promise<PluginView[]> {
   const views: PluginView[] = []
 
   for (const plugin of manifest.plugins) {
-    const manifestViews = plugin.manifest.views as Array<{
-      id: string
-      name: string
-      description?: string
-      icon?: string
-    }> | undefined
+    const manifestViews = plugin.manifest.views as
+      | Array<{
+          id: string
+          name: string
+          description?: string
+          icon?: string
+        }>
+      | undefined
 
     if (manifestViews && Array.isArray(manifestViews)) {
       for (const view of manifestViews) {

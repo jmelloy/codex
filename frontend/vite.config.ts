@@ -35,10 +35,10 @@ function servePluginsPlugin(): Plugin {
         if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
           const ext = path.extname(filePath)
           const contentTypes: Record<string, string> = {
-            ".js": "application/javascript",
-            ".json": "application/json",
-            ".css": "text/css",
-            ".vue": "text/plain",
+            ".js": "application/javascript; charset=utf-8",
+            ".json": "application/json; charset=utf-8",
+            ".css": "text/css; charset=utf-8",
+            ".vue": "text/plain; charset=utf-8",
           }
           res.setHeader("Content-Type", contentTypes[ext] || "application/octet-stream")
           res.end(fs.readFileSync(filePath))

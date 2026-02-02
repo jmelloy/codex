@@ -16,103 +16,103 @@
  *   npm run build -- --plugin=opengraph
  */
 
-import { build, type InlineConfig } from "vite"
-import vue from "@vitejs/plugin-vue"
-import * as fs from "fs"
-import * as path from "path"
-import { glob } from "glob"
-import * as yaml from "js-yaml"
-import { execSync } from "child_process"
+import { build, type InlineConfig } from "vite";
+import vue from "@vitejs/plugin-vue";
+import * as fs from "fs";
+import * as path from "path";
+import { glob } from "glob";
+import * as yaml from "js-yaml";
+import { execSync } from "child_process";
 
-const PLUGINS_DIR = path.dirname(new URL(import.meta.url).pathname)
+const PLUGINS_DIR = path.dirname(new URL(import.meta.url).pathname);
 
 interface PluginManifest {
-  id: string
-  name: string
-  version: string
-  type: "view" | "theme" | "integration"
-  description?: string
+  id: string;
+  name: string;
+  version: string;
+  type: "view" | "theme" | "integration";
+  description?: string;
   blocks?: Array<{
-    id: string
-    name: string
-    component?: string
-    description?: string
-    icon?: string
-  }>
+    id: string;
+    name: string;
+    component?: string;
+    description?: string;
+    icon?: string;
+  }>;
   views?: Array<{
-    id: string
-    name: string
-    description?: string
-    icon?: string
-    config_schema?: Record<string, unknown>
-  }>
+    id: string;
+    name: string;
+    description?: string;
+    icon?: string;
+    config_schema?: Record<string, unknown>;
+  }>;
   templates?: Array<{
-    id: string
-    name: string
-    description?: string
-    icon?: string
-    file?: string
-    default_name?: string
-    file_extension?: string
-  }>
+    id: string;
+    name: string;
+    description?: string;
+    icon?: string;
+    file?: string;
+    default_name?: string;
+    file_extension?: string;
+  }>;
   properties?: Array<{
-    name: string
-    type: string
-    description?: string
-    required?: boolean
-    secure?: boolean
-    enum?: string[]
-    default?: unknown
-  }>
+    name: string;
+    type: string;
+    description?: string;
+    required?: boolean;
+    secure?: boolean;
+    enum?: string[];
+    default?: unknown;
+  }>;
   theme?: {
-    display_name?: string
-    category?: string
-    className?: string
-    stylesheet?: string
-  }
+    display_name?: string;
+    category?: string;
+    className?: string;
+    stylesheet?: string;
+  };
   integration?: {
-    api_type?: string
-    base_url?: string
-    auth_method?: string
-    rate_limit?: Record<string, unknown>
-  }
+    api_type?: string;
+    base_url?: string;
+    auth_method?: string;
+    rate_limit?: Record<string, unknown>;
+  };
   endpoints?: Array<{
-    id: string
-    name: string
-    method?: string
-    path?: string
-    description?: string
-    parameters?: Array<Record<string, unknown>>
-  }>
+    id: string;
+    name: string;
+    method?: string;
+    path?: string;
+    description?: string;
+    parameters?: Array<Record<string, unknown>>;
+  }>;
 }
 
 interface DiscoveredPlugin {
-  manifest: PluginManifest
-  directory: string // The actual directory name (may differ from manifest.id)
+  manifest: PluginManifest;
+  directory: string; // The actual directory name (may differ from manifest.id)
 }
 
 interface ComponentEntry {
-  pluginId: string
-  pluginDir: string // Directory name for file paths
-  pluginName: string
-  pluginVersion: string
-  blockId: string
-  blockName: string
-  componentFile: string
-  outputFile: string
-  icon?: string
-  description?: string
+  pluginId: string;
+  pluginDir: string; // Directory name for file paths
+  pluginName: string;
+  pluginVersion: string;
+  blockId: string;
+  blockName: string;
+  componentFile: string;
+  outputFile: string;
+  icon?: string;
+  description?: string;
 }
 
 /**
  * Component entry in the unified plugins.json
  */
 interface ComponentInfo {
-  blockId: string
-  blockName: string
-  file: string
-  icon?: string
-  description?: string
+  blockId: string;
+  blockName: string;
+  file: string;
+  icon?: string;
+  description?: string;
 }
 
 /**
@@ -120,52 +120,52 @@ interface ComponentInfo {
  * Used for both backend registration and component loading
  */
 interface PluginEntry {
-  id: string
-  name: string
-  version: string
-  type: "view" | "theme" | "integration"
-  manifest: Record<string, unknown>
-  components: Record<string, ComponentInfo>
+  id: string;
+  name: string;
+  version: string;
+  type: "view" | "theme" | "integration";
+  manifest: Record<string, unknown>;
+  components: Record<string, ComponentInfo>;
 }
 
 interface PluginsManifest {
-  version: string
-  buildTime: string
-  plugins: PluginEntry[]
+  version: string;
+  buildTime: string;
+  plugins: PluginEntry[];
 }
 
 /**
  * Check if a plugin has its own package.json
  */
 function hasPluginPackageJson(pluginDir: string): boolean {
-  const packageJsonPath = path.join(PLUGINS_DIR, pluginDir, "package.json")
-  return fs.existsSync(packageJsonPath)
+  const packageJsonPath = path.join(PLUGINS_DIR, pluginDir, "package.json");
+  return fs.existsSync(packageJsonPath);
 }
 
 /**
  * Install plugin-specific dependencies
  */
 function installPluginDependencies(pluginDir: string): void {
-  const pluginPath = path.join(PLUGINS_DIR, pluginDir)
-  const packageJsonPath = path.join(pluginPath, "package.json")
-  
+  const pluginPath = path.join(PLUGINS_DIR, pluginDir);
+  const packageJsonPath = path.join(pluginPath, "package.json");
+
   if (!fs.existsSync(packageJsonPath)) {
-    return
+    return;
   }
-  
-  console.log(`  Installing dependencies for ${pluginDir}...`)
-  
+
+  console.log(`  Installing dependencies for ${pluginDir}...`);
+
   try {
     // Run npm install in the plugin directory
     execSync("npm install", {
       cwd: pluginPath,
       stdio: "inherit",
-    })
-    
-    console.log(`  ✓ Dependencies installed for ${pluginDir}`)
+    });
+
+    console.log(`  ✓ Dependencies installed for ${pluginDir}`);
   } catch (err) {
-    console.error(`  ✗ Failed to install dependencies for ${pluginDir}:`, err)
-    throw err
+    console.error(`  ✗ Failed to install dependencies for ${pluginDir}:`, err);
+    throw err;
   }
 }
 
@@ -173,105 +173,108 @@ function installPluginDependencies(pluginDir: string): void {
  * Find all plugin manifests
  */
 async function discoverPlugins(): Promise<Map<string, DiscoveredPlugin>> {
-  const plugins = new Map<string, DiscoveredPlugin>()
+  const plugins = new Map<string, DiscoveredPlugin>();
 
   // Look for manifest.yml (new standard) or legacy names in each plugin directory
   // Try manifest.yml/manifest.yaml first, then fall back to legacy names
-  const manifestFiles = await glob("*/+(manifest|plugin|theme|integration).{yml,yaml}", {
-    cwd: PLUGINS_DIR,
-    absolute: true,
-  })
+  const manifestFiles = await glob(
+    "*/+(manifest|plugin|theme|integration).{yml,yaml}",
+    {
+      cwd: PLUGINS_DIR,
+      absolute: true,
+    },
+  );
 
   for (const manifestPath of manifestFiles) {
     try {
-      const content = fs.readFileSync(manifestPath, "utf-8")
-      const manifest = yaml.load(content) as PluginManifest
+      const content = fs.readFileSync(manifestPath, "utf-8");
+      const manifest = yaml.load(content) as PluginManifest;
       if (manifest?.id) {
         // Get the actual directory name from the path
-        const directory = path.basename(path.dirname(manifestPath))
-        plugins.set(manifest.id, { manifest, directory })
+        const directory = path.basename(path.dirname(manifestPath));
+        plugins.set(manifest.id, { manifest, directory });
       }
     } catch (err) {
-      console.warn(`Warning: Could not parse ${manifestPath}:`, err)
+      console.warn(`Warning: Could not parse ${manifestPath}:`, err);
     }
   }
 
-  return plugins
+  return plugins;
 }
 
 /**
  * Find Vue components in a plugin directory
  */
 async function findPluginComponents(
-  pluginDir: string
+  pluginDir: string,
 ): Promise<Map<string, string>> {
-  const components = new Map<string, string>()
+  const components = new Map<string, string>();
 
   const vueFiles = await glob("**/*.vue", {
     cwd: pluginDir,
     absolute: true,
     ignore: ["**/dist/**", "**/node_modules/**"],
-  })
+  });
 
   for (const vuePath of vueFiles) {
-    const componentName = path.basename(vuePath, ".vue")
-    components.set(componentName, vuePath)
+    const componentName = path.basename(vuePath, ".vue");
+    components.set(componentName, vuePath);
   }
 
-  return components
+  return components;
 }
 
 /**
  * Discover all components that need to be built
  */
 async function discoverComponents(): Promise<ComponentEntry[]> {
-  const entries: ComponentEntry[] = []
-  const plugins = await discoverPlugins()
+  const entries: ComponentEntry[] = [];
+  const plugins = await discoverPlugins();
 
   for (const [pluginId, { manifest, directory }] of plugins) {
-    const pluginDir = path.join(PLUGINS_DIR, directory)
+    const pluginDir = path.join(PLUGINS_DIR, directory);
 
     if (!fs.existsSync(pluginDir)) {
-      continue
+      continue;
     }
 
     // Find all Vue components in the plugin
-    const components = await findPluginComponents(pluginDir)
+    const components = await findPluginComponents(pluginDir);
 
     if (components.size === 0) {
-      continue
+      continue;
     }
 
     // If plugin has blocks defined, map them to components
     if (manifest.blocks && manifest.blocks.length > 0) {
       for (const block of manifest.blocks) {
         // Try to find the component file
-        let componentFile: string | undefined
+        let componentFile: string | undefined;
 
         if (block.component) {
           // Explicit component path in manifest
-          const explicitPath = path.join(pluginDir, block.component)
+          const explicitPath = path.join(pluginDir, block.component);
           if (fs.existsSync(explicitPath)) {
-            componentFile = explicitPath
+            componentFile = explicitPath;
           }
         }
 
         if (!componentFile) {
           // Try common naming conventions
           // Convert kebab-case to PascalCase for component names
-          const pascalId = pascalCase(block.id)
+          const pascalId = pascalCase(block.id);
           const possibleNames = [
-            `${pascalId}Block`,         // e.g., "link-preview" -> "LinkPreviewBlock"
-            pascalId,                    // e.g., "link-preview" -> "LinkPreview"
+            `${pascalId}Block`, // e.g., "link-preview" -> "LinkPreviewBlock"
+            pascalId, // e.g., "link-preview" -> "LinkPreview"
             `${capitalize(block.id)}Block`, // e.g., "weather" -> "WeatherBlock"
-            capitalize(block.id),        // e.g., "weather" -> "Weather"
-            block.id,                    // exact match
-          ]
+            capitalize(block.id), // e.g., "weather" -> "Weather"
+            block.id, // exact match
+          ];
 
           for (const name of possibleNames) {
             if (components.has(name)) {
-              componentFile = components.get(name)
-              break
+              componentFile = components.get(name);
+              break;
             }
           }
         }
@@ -288,13 +291,13 @@ async function discoverComponents(): Promise<ComponentEntry[]> {
             outputFile: `${block.id}.js`,
             icon: block.icon,
             description: block.description,
-          })
+          });
         }
       }
     } else {
       // No blocks defined, build all Vue components found
       for (const [componentName, componentPath] of components) {
-        const blockId = kebabCase(componentName.replace(/Block$/, ""))
+        const blockId = kebabCase(componentName.replace(/Block$/, ""));
         entries.push({
           pluginId,
           pluginDir: directory,
@@ -304,20 +307,20 @@ async function discoverComponents(): Promise<ComponentEntry[]> {
           blockName: componentName,
           componentFile: componentPath,
           outputFile: `${blockId}.js`,
-        })
+        });
       }
     }
   }
 
-  return entries
+  return entries;
 }
 
 /**
  * Build a single component
  */
 async function buildComponent(entry: ComponentEntry): Promise<void> {
-  const outputDir = path.join(PLUGINS_DIR, entry.pluginDir, "dist")
-  const pluginPath = path.join(PLUGINS_DIR, entry.pluginDir)
+  const outputDir = path.join(PLUGINS_DIR, entry.pluginDir, "dist");
+  const pluginPath = path.join(PLUGINS_DIR, entry.pluginDir);
 
   const config: InlineConfig = {
     plugins: [vue()],
@@ -336,6 +339,13 @@ async function buildComponent(entry: ComponentEntry): Promise<void> {
           globals: {
             vue: "Vue",
           },
+          // Consolidate all CSS into a single plugins.css file
+          assetFileNames: (assetInfo) => {
+            if (assetInfo.name?.endsWith(".css")) {
+              return "plugins.css";
+            }
+            return assetInfo.name || "assets/[name].[hash][extname]";
+          },
         },
       },
       minify: false, // Keep readable for debugging
@@ -344,9 +354,9 @@ async function buildComponent(entry: ComponentEntry): Promise<void> {
     logLevel: "warn",
     // Use plugin-specific root if it has its own package.json
     root: hasPluginPackageJson(entry.pluginDir) ? pluginPath : PLUGINS_DIR,
-  }
+  };
 
-  await build(config)
+  await build(config);
 }
 
 /**
@@ -355,16 +365,16 @@ async function buildComponent(entry: ComponentEntry): Promise<void> {
  */
 function generatePluginsManifest(
   plugins: Map<string, DiscoveredPlugin>,
-  componentEntries: ComponentEntry[]
+  componentEntries: ComponentEntry[],
 ): PluginsManifest {
-  const pluginEntries: PluginEntry[] = []
+  const pluginEntries: PluginEntry[] = [];
 
   // Group component entries by plugin ID
-  const componentsByPlugin = new Map<string, ComponentEntry[]>()
+  const componentsByPlugin = new Map<string, ComponentEntry[]>();
   for (const entry of componentEntries) {
-    const existing = componentsByPlugin.get(entry.pluginId) || []
-    existing.push(entry)
-    componentsByPlugin.set(entry.pluginId, existing)
+    const existing = componentsByPlugin.get(entry.pluginId) || [];
+    existing.push(entry);
+    componentsByPlugin.set(entry.pluginId, existing);
   }
 
   for (const [pluginId, { manifest, directory }] of plugins) {
@@ -374,10 +384,10 @@ function generatePluginsManifest(
       name: manifest.name,
       version: manifest.version,
       type: manifest.type,
-    }
+    };
 
     if (manifest.description) {
-      pluginManifest.description = manifest.description
+      pluginManifest.description = manifest.description;
     }
 
     if (manifest.views && manifest.views.length > 0) {
@@ -386,7 +396,7 @@ function generatePluginsManifest(
         name: v.name,
         description: v.description,
         icon: v.icon,
-      }))
+      }));
     }
 
     if (manifest.templates && manifest.templates.length > 0) {
@@ -395,7 +405,7 @@ function generatePluginsManifest(
         name: t.name,
         description: t.description,
         icon: t.icon,
-      }))
+      }));
     }
 
     if (manifest.properties && manifest.properties.length > 0) {
@@ -407,15 +417,15 @@ function generatePluginsManifest(
         secure: p.secure,
         enum: p.enum,
         default: p.default,
-      }))
+      }));
     }
 
     if (manifest.theme) {
-      pluginManifest.theme = manifest.theme
+      pluginManifest.theme = manifest.theme;
     }
 
     if (manifest.integration) {
-      pluginManifest.integration = manifest.integration
+      pluginManifest.integration = manifest.integration;
     }
 
     if (manifest.endpoints && manifest.endpoints.length > 0) {
@@ -426,7 +436,7 @@ function generatePluginsManifest(
         path: e.path,
         description: e.description,
         parameters: e.parameters,
-      }))
+      }));
     }
 
     if (manifest.blocks && manifest.blocks.length > 0) {
@@ -435,12 +445,12 @@ function generatePluginsManifest(
         name: b.name,
         description: b.description,
         icon: b.icon,
-      }))
+      }));
     }
 
     // Build components map for this plugin
-    const components: Record<string, ComponentInfo> = {}
-    const pluginComponents = componentsByPlugin.get(pluginId) || []
+    const components: Record<string, ComponentInfo> = {};
+    const pluginComponents = componentsByPlugin.get(pluginId) || [];
     for (const comp of pluginComponents) {
       components[comp.blockId] = {
         blockId: comp.blockId,
@@ -448,7 +458,7 @@ function generatePluginsManifest(
         file: `${comp.pluginDir}/dist/${comp.outputFile}`,
         icon: comp.icon,
         description: comp.description,
-      }
+      };
     }
 
     pluginEntries.push({
@@ -458,198 +468,202 @@ function generatePluginsManifest(
       type: manifest.type,
       manifest: pluginManifest,
       components,
-    })
+    });
   }
 
   return {
     version: "1.0.0",
     buildTime: new Date().toISOString(),
     plugins: pluginEntries,
-  }
+  };
 }
 
 /**
  * Clean all dist directories
  */
 async function clean(): Promise<void> {
-  console.log("Cleaning plugin dist directories...")
+  console.log("Cleaning plugin dist directories...");
 
   const distDirs = await glob("*/dist", {
     cwd: PLUGINS_DIR,
     absolute: true,
-  })
+  });
 
   for (const distDir of distDirs) {
-    fs.rmSync(distDir, { recursive: true, force: true })
-    console.log(`  Removed: ${path.relative(PLUGINS_DIR, distDir)}`)
+    fs.rmSync(distDir, { recursive: true, force: true });
+    console.log(`  Removed: ${path.relative(PLUGINS_DIR, distDir)}`);
   }
 
-  const pluginsPath = path.join(PLUGINS_DIR, "plugins.json")
+  const pluginsPath = path.join(PLUGINS_DIR, "plugins.json");
   if (fs.existsSync(pluginsPath)) {
-    fs.rmSync(pluginsPath)
-    console.log("  Removed: plugins.json")
+    fs.rmSync(pluginsPath);
+    console.log("  Removed: plugins.json");
   }
 
   // Also clean up legacy components.json if it exists
-  const legacyManifestPath = path.join(PLUGINS_DIR, "components.json")
+  const legacyManifestPath = path.join(PLUGINS_DIR, "components.json");
   if (fs.existsSync(legacyManifestPath)) {
-    fs.rmSync(legacyManifestPath)
-    console.log("  Removed: components.json (legacy)")
+    fs.rmSync(legacyManifestPath);
+    console.log("  Removed: components.json (legacy)");
   }
 
-  console.log("Clean complete!")
+  console.log("Clean complete!");
 }
 
 /**
  * Main build function
  */
 async function main(): Promise<void> {
-  const args = process.argv.slice(2)
+  const args = process.argv.slice(2);
 
   if (args.includes("--clean")) {
-    await clean()
-    return
+    await clean();
+    return;
   }
 
-  const watchMode = args.includes("--watch")
-  
+  const watchMode = args.includes("--watch");
+
   // Check for plugin filter argument
-  const pluginArg = args.find((arg) => arg.startsWith("--plugin="))
-  let pluginFilter: string | undefined
-  
+  const pluginArg = args.find((arg) => arg.startsWith("--plugin="));
+  let pluginFilter: string | undefined;
+
   if (pluginArg) {
-    pluginFilter = pluginArg.split("=")[1]
+    pluginFilter = pluginArg.split("=")[1];
     // Validate that a plugin name was provided
     if (!pluginFilter || pluginFilter.trim() === "") {
-      console.error("Error: --plugin flag requires a plugin name")
-      console.error("Usage: npm run build -- --plugin=weather-api")
-      process.exit(1)
+      console.error("Error: --plugin flag requires a plugin name");
+      console.error("Usage: npm run build -- --plugin=weather-api");
+      process.exit(1);
     }
   }
 
-  console.log("Codex Plugin Build")
-  console.log("==================")
-  console.log(`Mode: ${watchMode ? "watch" : "build"}`)
+  console.log("Codex Plugin Build");
+  console.log("==================");
+  console.log(`Mode: ${watchMode ? "watch" : "build"}`);
   if (pluginFilter) {
-    console.log(`Filter: ${pluginFilter}`)
+    console.log(`Filter: ${pluginFilter}`);
   }
-  console.log("")
+  console.log("");
 
   // Discover components to build
-  console.log("Discovering plugin components...")
-  let entries = await discoverComponents()
-  
+  console.log("Discovering plugin components...");
+  let entries = await discoverComponents();
+
   // Filter by plugin if specified
   if (pluginFilter) {
     entries = entries.filter(
       (entry) =>
-        entry.pluginId === pluginFilter || entry.pluginDir === pluginFilter
-    )
+        entry.pluginId === pluginFilter || entry.pluginDir === pluginFilter,
+    );
     if (entries.length === 0) {
-      console.error(`No components found for plugin: ${pluginFilter}`)
+      console.error(`No components found for plugin: ${pluginFilter}`);
       console.error(
         "Available plugins:",
-        Array.from(new Set((await discoverComponents()).map((e) => e.pluginId)))
-      )
-      process.exit(1)
+        Array.from(
+          new Set((await discoverComponents()).map((e) => e.pluginId)),
+        ),
+      );
+      process.exit(1);
     }
   }
 
   if (entries.length === 0) {
-    console.log("No Vue components found in plugins.")
-    return
+    console.log("No Vue components found in plugins.");
+    return;
   }
 
-  console.log(`Found ${entries.length} component(s) to build:`)
+  console.log(`Found ${entries.length} component(s) to build:`);
   for (const entry of entries) {
-    console.log(`  - ${entry.pluginId}/${entry.blockId} (${entry.blockName})`)
+    console.log(`  - ${entry.pluginId}/${entry.blockId} (${entry.blockName})`);
   }
-  console.log("")
+  console.log("");
 
   // Install plugin-specific dependencies
-  const pluginsWithDeps = new Set<string>()
+  const pluginsWithDeps = new Set<string>();
   for (const entry of entries) {
     if (hasPluginPackageJson(entry.pluginDir)) {
-      pluginsWithDeps.add(entry.pluginDir)
+      pluginsWithDeps.add(entry.pluginDir);
     }
   }
-  
+
   if (pluginsWithDeps.size > 0) {
-    console.log("Installing plugin-specific dependencies...")
+    console.log("Installing plugin-specific dependencies...");
     for (const pluginDir of pluginsWithDeps) {
-      installPluginDependencies(pluginDir)
+      installPluginDependencies(pluginDir);
     }
-    console.log("")
+    console.log("");
   }
 
   // Build each component
-  console.log("Building components...")
+  console.log("Building components...");
   for (const entry of entries) {
-    console.log(`  Building: ${entry.pluginDir}/${entry.blockId}...`)
+    console.log(`  Building: ${entry.pluginDir}/${entry.blockId}...`);
     try {
-      await buildComponent(entry)
-      console.log(`    -> ${entry.pluginDir}/dist/${entry.outputFile}`)
+      await buildComponent(entry);
+      console.log(`    -> ${entry.pluginDir}/dist/${entry.outputFile}`);
     } catch (err) {
-      console.error(`    Error building ${entry.pluginDir}/${entry.blockId}:`, err)
+      console.error(
+        `    Error building ${entry.pluginDir}/${entry.blockId}:`,
+        err,
+      );
     }
   }
-  console.log("")
+  console.log("");
 
   // Generate unified plugins manifest (plugin registration + component mappings)
-  console.log("Generating plugins manifest...")
-  const allPlugins = await discoverPlugins()
-  const pluginsManifest = generatePluginsManifest(allPlugins, entries)
-  const pluginsPath = path.join(PLUGINS_DIR, "plugins.json")
-  fs.writeFileSync(pluginsPath, JSON.stringify(pluginsManifest, null, 2))
-  console.log(`  -> plugins.json (${pluginsManifest.plugins.length} plugins, ${entries.length} components)`)
-  console.log("")
+  console.log("Generating plugins manifest...");
+  const allPlugins = await discoverPlugins();
+  const pluginsManifest = generatePluginsManifest(allPlugins, entries);
+  const pluginsPath = path.join(PLUGINS_DIR, "plugins.json");
+  fs.writeFileSync(pluginsPath, JSON.stringify(pluginsManifest, null, 2));
+  console.log(
+    `  -> plugins.json (${pluginsManifest.plugins.length} plugins, ${entries.length} components)`,
+  );
+  console.log("");
 
-  console.log("Build complete!")
+  console.log("Build complete!");
 
   if (watchMode) {
-    console.log("")
-    console.log("Watching for changes... (Ctrl+C to stop)")
+    console.log("");
+    console.log("Watching for changes... (Ctrl+C to stop)");
     // For watch mode, we'd need to set up file watchers
     // This is a simplified version - full watch mode would use chokidar
-    const { watch } = await import("fs")
+    const { watch } = await import("fs");
     for (const entry of entries) {
-      const dir = path.dirname(entry.componentFile)
+      const dir = path.dirname(entry.componentFile);
       watch(dir, { recursive: true }, async (eventType, filename) => {
         if (filename?.endsWith(".vue")) {
-          console.log(`\nChange detected: ${filename}`)
+          console.log(`\nChange detected: ${filename}`);
           try {
-            await buildComponent(entry)
-            console.log(`  Rebuilt: ${entry.pluginId}/${entry.blockId}`)
+            await buildComponent(entry);
+            console.log(`  Rebuilt: ${entry.pluginId}/${entry.blockId}`);
           } catch (err) {
-            console.error(`  Error:`, err)
+            console.error(`  Error:`, err);
           }
         }
-      })
+      });
     }
   }
 }
 
 // Utility functions
 function capitalize(str: string): string {
-  return str.charAt(0).toUpperCase() + str.slice(1)
+  return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
 function pascalCase(str: string): string {
-  return str
-    .split(/[-_]/)
-    .map(capitalize)
-    .join("")
+  return str.split(/[-_]/).map(capitalize).join("");
 }
 
 function kebabCase(str: string): string {
   return str
     .replace(/([a-z])([A-Z])/g, "$1-$2")
     .replace(/[\s_]+/g, "-")
-    .toLowerCase()
+    .toLowerCase();
 }
 
 // Run the build
 main().catch((err) => {
-  console.error("Build failed:", err)
-  process.exit(1)
-})
+  console.error("Build failed:", err);
+  process.exit(1);
+});

@@ -20,6 +20,9 @@ integration:
   
   # Authentication method
   auth_method: none
+  
+  # Test endpoint - only one endpoint available
+  test_endpoint: fetch_metadata
 
 # Configuration Properties
 properties: []

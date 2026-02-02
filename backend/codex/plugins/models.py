@@ -140,6 +140,15 @@ class Plugin:
         return self.manifest.get("endpoints", [])
 
     @property
+    def test_endpoint(self) -> str | None:
+        """Get the endpoint ID to use for testing connection.
+        
+        Returns the endpoint ID specified in integration.test_endpoint,
+        or None to use the first endpoint.
+        """
+        return self.integration_config.get("test_endpoint")
+
+    @property
     def settings_component(self) -> str | None:
         """Get settings component path."""
         return self.manifest.get("settings_component")

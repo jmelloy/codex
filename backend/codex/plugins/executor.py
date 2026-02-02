@@ -35,6 +35,9 @@ class IntegrationPluginProtocol(Protocol):
     @property
     def auth_method(self) -> str | None: ...
 
+    @property
+    def test_endpoint(self) -> str | None: ...
+
 
 class IntegrationExecutor:
     """Execute integration API calls."""
@@ -127,13 +130,31 @@ class IntegrationExecutor:
                 "message": "Configuration validated (no endpoints to test)",
             }
 
-        # Try the first endpoint with minimal parameters
-        first_endpoint = integration.endpoints[0]
-        endpoint_id = first_endpoint.get("id")
+        # Find the test endpoint - use specified test_endpoint or first endpoint
+        test_endpoint = None
+        test_endpoint_id = getattr(integration, 'test_endpoint', None)
+        
+        if test_endpoint_id:
+            # Look for the specified test endpoint
+            for ep in integration.endpoints:
+                if ep.get("id") == test_endpoint_id:
+                    test_endpoint = ep
+                    break
+            
+            if not test_endpoint:
+                return {
+                    "success": False,
+                    "message": f"Specified test endpoint '{test_endpoint_id}' not found",
+                }
+        else:
+            # Use the first endpoint
+            test_endpoint = integration.endpoints[0]
+        
+        endpoint_id = test_endpoint.get("id")
 
         # Build minimal test parameters
         test_params = {}
-        for param in first_endpoint.get("parameters", []):
+        for param in test_endpoint.get("parameters", []):
             if param.get("required"):
                 param_name = param.get("name")
                 # Try to get from config if it has from_config

@@ -24,6 +24,9 @@ integration:
   # Authentication method
   auth_method: api_key
 
+  # Test endpoint - use geocode as it's simpler and doesn't require coordinates
+  test_endpoint: geocode
+
   # Rate limiting
   rate_limit:
     requests_per_minute: 60

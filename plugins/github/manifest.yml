@@ -24,6 +24,9 @@ integration:
   # Authentication method
   auth_method: token
   
+  # Test endpoint - use get_repo as it's the simplest endpoint with well-known test values
+  test_endpoint: get_repo
+  
   # Rate limiting
   rate_limit:
     requests_per_minute: 60

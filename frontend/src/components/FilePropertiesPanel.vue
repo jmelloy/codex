@@ -236,6 +236,7 @@
 import { ref, computed, watch } from "vue"
 import type { FileWithContent, FileHistoryEntry } from "../services/codex"
 import { fileService } from "../services/codex"
+import { useWorkspaceStore } from "../stores/workspace"
 
 interface Props {
   file: FileWithContent | null
@@ -244,6 +245,18 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+const workspaceStore = useWorkspaceStore()
+
+// Helper to get workspace slug
+function getWorkspaceSlug(): string {
+  return workspaceStore.currentWorkspace?.slug || ""
+}
+
+// Helper to get notebook slug by ID
+function getNotebookSlug(notebookId: number): string {
+  const notebook = workspaceStore.notebooks.find((nb) => nb.id === notebookId)
+  return notebook?.slug || notebook?.path || ""
+}
 
 const emit = defineEmits<{
   close: []
@@ -472,7 +485,9 @@ async function loadHistory() {
   commitContent.value = null
 
   try {
-    const result = await fileService.getHistory(props.file.id, props.workspaceId, props.notebookId)
+    const workspaceSlug = getWorkspaceSlug()
+    const notebookSlug = getNotebookSlug(props.notebookId)
+    const result = await fileService.getHistory(workspaceSlug, notebookSlug, props.file.path)
     history.value = result.history
   } catch (error: any) {
     historyError.value = error.response?.data?.detail || "Failed to load history"
@@ -500,10 +515,12 @@ async function selectCommit(commit: FileHistoryEntry) {
   commitContentLoading.value = true
 
   try {
+    const workspaceSlug = getWorkspaceSlug()
+    const notebookSlug = getNotebookSlug(props.notebookId)
     const result = await fileService.getAtCommit(
-      props.file!.id,
-      props.workspaceId,
-      props.notebookId,
+      workspaceSlug,
+      notebookSlug,
+      props.file!.path,
       commit.hash,
     )
     commitContent.value = result.content

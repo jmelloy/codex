@@ -26,7 +26,7 @@ const router = createRouter({
       redirect: { path: "/", query: { view: "settings" } },
     },
     {
-      path: "/page/:notebookId/:pagePath+",
+      path: "/page/:workspace/:notebook/:pagePath+",
       name: "page-detail",
       component: PageDetailView,
       meta: { requiresAuth: true },

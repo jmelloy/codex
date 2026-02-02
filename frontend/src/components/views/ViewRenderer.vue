@@ -34,6 +34,7 @@ import { parseViewDefinition, type ViewDefinition } from "@/services/viewParser"
 import { queryService, type QueryResult } from "@/services/queryService"
 import { fileService } from "@/services/codex"
 import { viewPluginService } from "@/services/viewPluginService"
+import { useWorkspaceStore } from "@/stores/workspace"
 
 const props = defineProps<{
   fileId: number
@@ -41,6 +42,26 @@ const props = defineProps<{
   notebookId: number
   compact?: boolean // For mini-views
 }>()
+
+const workspaceStore = useWorkspaceStore()
+
+// Helper to get workspace slug
+function getWorkspaceSlug(): string {
+  return workspaceStore.currentWorkspace?.slug || ""
+}
+
+// Helper to get notebook slug by ID
+function getNotebookSlug(notebookId: number): string {
+  const notebook = workspaceStore.notebooks.find((nb) => nb.id === notebookId)
+  return notebook?.slug || notebook?.path || ""
+}
+
+// Helper to find file path by ID in the store's file tree
+function getFilePathById(fileId: number, notebookId: number): string | null {
+  const files = workspaceStore.getFilesForNotebook(notebookId)
+  const file = files.find((f) => f.id === fileId)
+  return file?.path || null
+}
 
 const emit = defineEmits<{
   (e: "error", error: string): void
@@ -60,17 +81,21 @@ const loadView = async () => {
   error.value = null
 
   try {
+    const workspaceSlug = getWorkspaceSlug()
+    const notebookSlug = getNotebookSlug(props.notebookId)
+    const filePath = getFilePathById(props.fileId, props.notebookId)
+
+    if (!filePath) {
+      throw new Error("File not found in store")
+    }
+
     // Load file metadata first
-    const file = await fileService.get(props.fileId, props.workspaceId, props.notebookId)
+    const file = await fileService.get(workspaceSlug, notebookSlug, filePath)
 
     // Fetch content when not included in metadata
     let content = (file as { content?: string }).content
     if (content === undefined) {
-      const textContent = await fileService.getContent(
-        props.fileId,
-        props.workspaceId,
-        props.notebookId,
-      )
+      const textContent = await fileService.getContent(workspaceSlug, notebookSlug, filePath)
       content = textContent.content
     }
 
@@ -127,17 +152,21 @@ interface ViewUpdateEvent {
 
 const handleUpdate = async (event: ViewUpdateEvent) => {
   try {
+    const workspaceSlug = getWorkspaceSlug()
+    const notebookSlug = getNotebookSlug(props.notebookId)
+    const filePath = getFilePathById(event.fileId, props.notebookId)
+
+    if (!filePath) {
+      throw new Error("File not found in store")
+    }
+
     // Load current file metadata
-    const file = await fileService.get(event.fileId, props.workspaceId, props.notebookId)
+    const file = await fileService.get(workspaceSlug, notebookSlug, filePath)
 
     // Fetch content when not included in metadata
     let content = (file as { content?: string }).content
     if (content === undefined) {
-      const textContent = await fileService.getContent(
-        event.fileId,
-        props.workspaceId,
-        props.notebookId,
-      )
+      const textContent = await fileService.getContent(workspaceSlug, notebookSlug, filePath)
       content = textContent.content
     }
 
@@ -148,13 +177,7 @@ const handleUpdate = async (event: ViewUpdateEvent) => {
     }
 
     // Update file
-    await fileService.update(
-      event.fileId,
-      props.workspaceId,
-      file.notebook_id ?? props.notebookId,
-      content || "",
-      updatedProperties,
-    )
+    await fileService.update(workspaceSlug, notebookSlug, filePath, content || "", updatedProperties)
 
     // Refresh view
     await loadView()

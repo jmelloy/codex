@@ -130,12 +130,26 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from "vue"
 import { templateService, type Template } from "../services/codex"
+import { useWorkspaceStore } from "../stores/workspace"
 
 const props = defineProps<{
   notebookId: number
   workspaceId: number
   modelValue?: Template | null
 }>()
+
+const workspaceStore = useWorkspaceStore()
+
+// Helper to get workspace slug
+function getWorkspaceSlug(): string {
+  return workspaceStore.currentWorkspace?.slug || ""
+}
+
+// Helper to get notebook slug by ID
+function getNotebookSlug(notebookId: number): string {
+  const notebook = workspaceStore.notebooks.find((nb) => nb.id === notebookId)
+  return notebook?.slug || notebook?.path || ""
+}
 
 const emit = defineEmits<{
   (e: "update:modelValue", value: Template | null): void
@@ -178,7 +192,9 @@ async function fetchTemplates() {
   loading.value = true
   error.value = null
   try {
-    templates.value = await templateService.list(props.notebookId, props.workspaceId)
+    const workspaceSlug = getWorkspaceSlug()
+    const notebookSlug = getNotebookSlug(props.notebookId)
+    templates.value = await templateService.list(workspaceSlug, notebookSlug)
   } catch (e: any) {
     error.value = e.response?.data?.detail || "Failed to load templates"
   } finally {

@@ -23,6 +23,7 @@ from codex.api.routes import (
     search,
     tasks,
     users,
+    v2,
     workspaces,
 )
 from codex.core.watcher import NotebookWatcher
@@ -183,6 +184,9 @@ app.include_router(markdown.router, prefix="/api/v1/markdown", tags=["markdown"]
 app.include_router(query.router, prefix="/api/v1/query", tags=["query"])
 app.include_router(integrations.router, prefix="/api/v1/integrations", tags=["integrations"])
 app.include_router(plugins.router, prefix="/api/v1/plugins", tags=["plugins"])
+
+# V2 hierarchical slug-based routes - must be last to avoid conflicts with other routes
+app.include_router(v2.router, prefix="/api/v1", tags=["v2"])
 
 if __name__ == "__main__":
     import uvicorn

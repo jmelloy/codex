@@ -33,12 +33,20 @@
 import { ref, watch } from "vue"
 import ViewRenderer from "./ViewRenderer.vue"
 import { fileService, notebookService } from "@/services/codex"
+import { useWorkspaceStore } from "@/stores/workspace"
 
 const props = defineProps<{
   viewPath: string
   workspaceId: number
   span: number
 }>()
+
+const workspaceStore = useWorkspaceStore()
+
+// Helper to get workspace slug
+function getWorkspaceSlug(): string {
+  return workspaceStore.currentWorkspace?.slug || ""
+}
 
 const emit = defineEmits<{
   (e: "selectFile", file: any): void
@@ -60,13 +68,15 @@ const resolveViewPath = async () => {
   error.value = null
 
   try {
+    const workspaceSlug = getWorkspaceSlug()
     // Get all notebooks in workspace
-    const notebooks = await notebookService.list(props.workspaceId)
+    const notebooks = await notebookService.list(workspaceSlug)
 
     // Search through notebooks for the file
     for (const notebook of notebooks) {
       try {
-        const files = await fileService.list(notebook.id, props.workspaceId)
+        const notebookSlug = notebook.slug || notebook.path
+        const files = await fileService.list(workspaceSlug, notebookSlug)
 
         // Look for file matching the path
         const matchingFile = files.find((file) => {

@@ -849,6 +849,17 @@ const route = useRoute()
 const authStore = useAuthStore()
 const workspaceStore = useWorkspaceStore()
 
+// Helper to get workspace slug
+function getWorkspaceSlug(): string {
+  return workspaceStore.currentWorkspace?.slug || ""
+}
+
+// Helper to get notebook slug by ID
+function getNotebookSlug(notebookId: number): string {
+  const notebook = workspaceStore.notebooks.find((nb) => nb.id === notebookId)
+  return notebook?.slug || notebook?.path || ""
+}
+
 // Modal state
 const showCreateWorkspace = ref(false)
 const showCreateNotebook = ref(false)
@@ -1469,8 +1480,8 @@ async function handleCreateFile() {
         : undefined
 
       const newFile = await templateService.createFromTemplate(
-        createFileNotebook.value.id,
-        workspaceStore.currentWorkspace.id,
+        getWorkspaceSlug(),
+        getNotebookSlug(createFileNotebook.value.id),
         selectedTemplate.value.id,
         filename
       )
@@ -1613,7 +1624,7 @@ async function handleSearch() {
     // Also try API search (may return additional results from content search)
     try {
       const apiResults = await searchService.search(
-        workspaceStore.currentWorkspace.id,
+        getWorkspaceSlug(),
         searchQuery.value
       )
       // Merge API results if they contain file data

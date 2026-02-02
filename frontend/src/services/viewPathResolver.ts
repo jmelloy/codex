@@ -19,11 +19,11 @@ export const viewPathResolver = {
   /**
    * Resolve a view path to a file ID
    * @param viewPath - Path to the view file (e.g., "tasks/today.cdx")
-   * @param workspaceId - Workspace ID
+   * @param workspaceSlug - Workspace slug
    * @returns File ID or null if not found
    */
-  async resolve(viewPath: string, workspaceId: number): Promise<number | null> {
-    const cacheKey = `${workspaceId}:${viewPath}`
+  async resolve(viewPath: string, workspaceSlug: string): Promise<number | null> {
+    const cacheKey = `${workspaceSlug}:${viewPath}`
 
     // Check cache
     const cached = cache[cacheKey]
@@ -33,12 +33,13 @@ export const viewPathResolver = {
 
     try {
       // Get all notebooks in workspace
-      const notebooks = await notebookService.list(workspaceId)
+      const notebooks = await notebookService.list(workspaceSlug)
 
       // Search through notebooks for the file
       for (const notebook of notebooks) {
         try {
-          const files = await fileService.list(notebook.id, workspaceId)
+          const notebookSlug = notebook.slug || notebook.path
+          const files = await fileService.list(workspaceSlug, notebookSlug)
 
           // Look for file matching the path
           const matchingFile = files.find((file) => {
@@ -91,9 +92,9 @@ export const viewPathResolver = {
   /**
    * Clear cache for a specific path or all paths
    */
-  clearCache(viewPath?: string, workspaceId?: number) {
-    if (viewPath && workspaceId) {
-      const cacheKey = `${workspaceId}:${viewPath}`
+  clearCache(viewPath?: string, workspaceSlug?: string) {
+    if (viewPath && workspaceSlug) {
+      const cacheKey = `${workspaceSlug}:${viewPath}`
       delete cache[cacheKey]
     } else {
       // Clear all cache
@@ -106,8 +107,8 @@ export const viewPathResolver = {
   /**
    * Preload view paths for better performance
    */
-  async preload(viewPaths: string[], workspaceId: number) {
-    const promises = viewPaths.map((path) => this.resolve(path, workspaceId))
+  async preload(viewPaths: string[], workspaceSlug: string) {
+    const promises = viewPaths.map((path) => this.resolve(path, workspaceSlug))
     await Promise.all(promises)
   },
 }

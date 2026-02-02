@@ -51,6 +51,17 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     return flatMap
   })
 
+  // Helper function to get notebook slug by ID
+  function getNotebookSlug(notebookId: number): string {
+    const notebook = notebooks.value.find((nb) => nb.id === notebookId)
+    return notebook?.slug || notebook?.path || ""
+  }
+
+  // Helper function to get workspace slug
+  function getWorkspaceSlug(): string {
+    return currentWorkspace.value?.slug || ""
+  }
+
   async function fetchWorkspaces() {
     loading.value = true
     error.value = null
@@ -63,11 +74,20 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     }
   }
 
-  async function fetchNotebooks(workspaceId: number) {
+  async function fetchNotebooks(workspaceSlugOrId: string | number) {
     loading.value = true
     error.value = null
     try {
-      notebooks.value = await notebookService.list(workspaceId)
+      // Support both slug (string) and legacy ID (number)
+      let slug: string
+      if (typeof workspaceSlugOrId === "number") {
+        // Find workspace by ID to get its slug
+        const workspace = workspaces.value.find((ws) => ws.id === workspaceSlugOrId)
+        slug = workspace?.slug || ""
+      } else {
+        slug = workspaceSlugOrId
+      }
+      notebooks.value = await notebookService.list(slug)
     } catch (e: any) {
       error.value = e.response?.data?.detail || "Failed to fetch notebooks"
     } finally {
@@ -90,11 +110,19 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     }
   }
 
-  async function createNotebook(workspaceId: number, name: string) {
+  async function createNotebook(workspaceSlugOrId: string | number, name: string) {
     loading.value = true
     error.value = null
     try {
-      const notebook = await notebookService.create(workspaceId, name)
+      // Support both slug (string) and legacy ID (number)
+      let slug: string
+      if (typeof workspaceSlugOrId === "number") {
+        const workspace = workspaces.value.find((ws) => ws.id === workspaceSlugOrId)
+        slug = workspace?.slug || ""
+      } else {
+        slug = workspaceSlugOrId
+      }
+      const notebook = await notebookService.create(slug, name)
       notebooks.value.push(notebook)
       return notebook
     } catch (e: any) {
@@ -108,7 +136,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   function setCurrentWorkspace(workspace: Workspace | null) {
     currentWorkspace.value = workspace
     if (workspace) {
-      fetchNotebooks(workspace.id)
+      fetchNotebooks(workspace.slug)
     }
     // Clear file and folder state when switching workspaces
     currentNotebook.value = null
@@ -131,7 +159,9 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     fileLoading.value = true
     error.value = null
     try {
-      const fileList = await fileService.list(notebookId, currentWorkspace.value.id)
+      const workspaceSlug = getWorkspaceSlug()
+      const notebookSlug = getNotebookSlug(notebookId)
+      const fileList = await fileService.list(workspaceSlug, notebookSlug)
       // Build tree from flat file list
       const tree = buildFileTree(fileList)
       fileTrees.value.set(notebookId, tree)
@@ -155,7 +185,9 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     folderLoading.value = true
     error.value = null
     try {
-      const folder = await folderService.get(folderPath, notebookId, currentWorkspace.value.id)
+      const workspaceSlug = getWorkspaceSlug()
+      const notebookSlug = getNotebookSlug(notebookId)
+      const folder = await folderService.get(workspaceSlug, notebookSlug, folderPath)
 
       // Get or create the tree for this notebook
       if (!fileTrees.value.has(notebookId)) {
@@ -182,8 +214,11 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     error.value = null
     currentFolder.value = null // Clear folder selection when selecting a file
     try {
+      const workspaceSlug = getWorkspaceSlug()
+      const notebookSlug = getNotebookSlug(file.notebook_id)
+
       // First fetch file metadata (fast, no content)
-      const fileMeta = await fileService.get(file.id, currentWorkspace.value.id, file.notebook_id)
+      const fileMeta = await fileService.get(workspaceSlug, notebookSlug, file.path)
 
       // Set file with empty content initially so UI can render metadata immediately
       currentFile.value = { ...fileMeta, content: "" }
@@ -197,11 +232,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
         )
 
       if (isTextFile) {
-        const textContent = await fileService.getContent(
-          file.id,
-          currentWorkspace.value.id,
-          file.notebook_id,
-        )
+        const textContent = await fileService.getContent(workspaceSlug, notebookSlug, file.path)
         // Update with content and any refreshed properties
         currentFile.value = {
           ...fileMeta,
@@ -225,10 +256,13 @@ export const useWorkspaceStore = defineStore("workspace", () => {
       if (!currentFile.value.notebook_id) {
         throw new Error("File has no notebook_id")
       }
+      const workspaceSlug = getWorkspaceSlug()
+      const notebookSlug = getNotebookSlug(currentFile.value.notebook_id)
+
       const updated = await fileService.update(
-        currentFile.value.id,
-        currentWorkspace.value.id,
-        currentFile.value.notebook_id,
+        workspaceSlug,
+        notebookSlug,
+        currentFile.value.path,
         content,
         properties,
       )
@@ -255,7 +289,9 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     fileLoading.value = true
     error.value = null
     try {
-      const newFile = await fileService.create(notebookId, currentWorkspace.value.id, path, content)
+      const workspaceSlug = getWorkspaceSlug()
+      const notebookSlug = getNotebookSlug(notebookId)
+      const newFile = await fileService.create(workspaceSlug, notebookSlug, path, content)
 
       // Insert the new file into the tree (incremental update)
       if (!fileTrees.value.has(notebookId)) {
@@ -275,13 +311,15 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     }
   }
 
-  async function deleteFile(fileId: number) {
+  async function deleteFile(_fileId: number) {
     if (!currentWorkspace.value || !currentFile.value) return
 
     fileLoading.value = true
     error.value = null
     try {
-      await fileService.delete(fileId, currentWorkspace.value.id)
+      const workspaceSlug = getWorkspaceSlug()
+      const notebookSlug = getNotebookSlug(currentFile.value.notebook_id)
+      await fileService.delete(workspaceSlug, notebookSlug, currentFile.value.path)
       const notebookId = currentFile.value.notebook_id
       const filePath = currentFile.value.path
       currentFile.value = null
@@ -328,7 +366,9 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     fileLoading.value = true
     error.value = null
     try {
-      const newFile = await fileService.upload(notebookId, currentWorkspace.value.id, file, path)
+      const workspaceSlug = getWorkspaceSlug()
+      const notebookSlug = getNotebookSlug(notebookId)
+      const newFile = await fileService.upload(workspaceSlug, notebookSlug, file, path)
 
       // Insert the new file into the tree (incremental update)
       if (!fileTrees.value.has(notebookId)) {
@@ -363,12 +403,13 @@ export const useWorkspaceStore = defineStore("workspace", () => {
         }
       }
 
-      const movedFile = await fileService.move(
-        fileId,
-        currentWorkspace.value.id,
-        notebookId,
-        newPath,
-      )
+      if (!oldPath) {
+        throw new Error("File not found in tree")
+      }
+
+      const workspaceSlug = getWorkspaceSlug()
+      const notebookSlug = getNotebookSlug(notebookId)
+      const movedFile = await fileService.move(workspaceSlug, notebookSlug, oldPath, newPath)
 
       // Update the tree: move the node from old path to new path
       if (tree && oldPath) {
@@ -417,10 +458,12 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     folderLoading.value = true
     error.value = null
     try {
+      const workspaceSlug = getWorkspaceSlug()
+      const notebookSlug = getNotebookSlug(currentFolder.value.notebook_id)
       const updated = await folderService.updateProperties(
+        workspaceSlug,
+        notebookSlug,
         currentFolder.value.path,
-        currentFolder.value.notebook_id,
-        currentWorkspace.value.id,
         properties,
       )
       // Update currentFolder with new properties
@@ -453,11 +496,9 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     folderLoading.value = true
     error.value = null
     try {
-      await folderService.delete(
-        currentFolder.value.path,
-        currentFolder.value.notebook_id,
-        currentWorkspace.value.id,
-      )
+      const workspaceSlug = getWorkspaceSlug()
+      const notebookSlug = getNotebookSlug(currentFolder.value.notebook_id)
+      await folderService.delete(workspaceSlug, notebookSlug, currentFolder.value.path)
       const notebookId = currentFolder.value.notebook_id
       const folderPath = currentFolder.value.path
       currentFolder.value = null

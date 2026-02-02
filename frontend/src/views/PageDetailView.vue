@@ -129,12 +129,12 @@ const page = ref<PageWithBlocks | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
 
-// Get route parameters
-const notebookId = ref<number>(parseInt(route.params.notebookId as string))
-const workspaceId = ref<number>(parseInt(route.query.workspace_id as string))
+// Get route parameters (now using slugs instead of IDs)
+const workspaceSlug = ref<string>(route.params.workspace as string)
+const notebookSlug = ref<string>(route.params.notebook as string)
 // Handle pagePath which might be an array due to the + route pattern
 const pagePath = ref<string>(
-  Array.isArray(route.params.pagePath) 
+  Array.isArray(route.params.pagePath)
     ? route.params.pagePath.join("/")
     : route.params.pagePath as string
 )
@@ -172,9 +172,9 @@ const loadPage = async () => {
 
   try {
     page.value = await pageService.get(
-      pagePath.value,
-      notebookId.value,
-      workspaceId.value
+      workspaceSlug.value,
+      notebookSlug.value,
+      pagePath.value
     )
   } catch (err: any) {
     console.error("Failed to load page:", err)

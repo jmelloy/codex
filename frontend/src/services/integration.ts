@@ -1,7 +1,7 @@
 /**
  * Integration service for managing integration plugins
  */
-import apiClient from './api'
+import apiClient from "./api"
 
 export interface Integration {
   id: string
@@ -67,7 +67,7 @@ export interface IntegrationTestResult {
  * List all available integration plugins
  */
 export async function listIntegrations(): Promise<Integration[]> {
-  const response = await apiClient.get('/api/v1/integrations')
+  const response = await apiClient.get("/api/v1/integrations")
   return response.data
 }
 
@@ -84,10 +84,10 @@ export async function getIntegration(integrationId: string): Promise<Integration
  */
 export async function getIntegrationConfig(
   integrationId: string,
-  workspaceId: number
+  workspaceId: number,
 ): Promise<IntegrationConfig> {
   const response = await apiClient.get(
-    `/api/v1/integrations/${integrationId}/config?workspace_id=${workspaceId}`
+    `/api/v1/integrations/${integrationId}/config?workspace_id=${workspaceId}`,
   )
   return response.data
 }
@@ -98,11 +98,11 @@ export async function getIntegrationConfig(
 export async function updateIntegrationConfig(
   integrationId: string,
   workspaceId: number,
-  config: Record<string, any>
+  config: Record<string, any>,
 ): Promise<IntegrationConfig> {
   const response = await apiClient.put(
     `/api/v1/integrations/${integrationId}/config?workspace_id=${workspaceId}`,
-    { config }
+    { config },
   )
   return response.data
 }
@@ -112,20 +112,9 @@ export async function updateIntegrationConfig(
  */
 export async function testIntegrationConnection(
   integrationId: string,
-  config: Record<string, any>
+  config: Record<string, any>,
 ): Promise<IntegrationTestResult> {
-  const response = await apiClient.post(
-    `/api/v1/integrations/${integrationId}/test`,
-    { config }
-  )
-  return response.data
-}
-
-/**
- * Get available blocks for an integration
- */
-export async function getIntegrationBlocks(integrationId: string) {
-  const response = await apiClient.get(`/api/v1/integrations/${integrationId}/blocks`)
+  const response = await apiClient.post(`/api/v1/integrations/${integrationId}/test`, { config })
   return response.data
 }
 
@@ -136,14 +125,14 @@ export async function executeIntegrationEndpoint(
   integrationId: string,
   workspaceId: number,
   endpointId: string,
-  parameters?: Record<string, any>
+  parameters?: Record<string, any>,
 ) {
   const response = await apiClient.post(
     `/api/v1/integrations/${integrationId}/execute?workspace_id=${workspaceId}`,
     {
       endpoint_id: endpointId,
       parameters: parameters || {},
-    }
+    },
   )
   return response.data
 }

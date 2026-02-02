@@ -97,16 +97,21 @@ class IntegrationTestResponse(BaseModel):
 class IntegrationExecuteRequest(BaseModel):
     """Schema for executing integration endpoint."""
 
-    endpoint_id: str
-    parameters: dict[str, Any] | None = None
+    endpoint_id: str | None = None
+    block_type: str | None = None
+    parameters: dict[str, Any] = Field(default_factory=dict)
+    use_cache: bool = True
 
 
 class IntegrationExecuteResponse(BaseModel):
     """Schema for integration execution result."""
 
     success: bool
-    data: dict[str, Any] | None = None
+    data: Any | None = None
     error: str | None = None
+    content_type: str | None = None
+    cached: bool | None = None
+    fetched_at: str | None = None
 
 
 class ViewResponse(BaseModel):
@@ -121,34 +126,3 @@ class ViewResponse(BaseModel):
     config_schema: dict[str, Any]
 
 
-class RenderRequest(BaseModel):
-    """Schema for rendering an integration block.
-
-    The frontend sends this request to fetch data for a custom block.
-    The backend executes the integration API call and returns raw data
-    for the frontend to render (frontend-driven rendering).
-    """
-
-    block_type: str  # e.g., "weather", "github-issue", "link-preview"
-    parameters: dict[str, Any] = Field(default_factory=dict)
-    use_cache: bool = True  # Whether to use cached data if available
-
-
-class RenderResponse(BaseModel):
-    """Schema for render response.
-
-    Returns raw data from the integration API for the frontend to render.
-    The backend does NOT render HTML/markdown - that's the frontend's job.
-
-    Data can be:
-    - dict/list for JSON responses (content_type: application/json)
-    - str for HTML/text responses (content_type: text/html, text/plain)
-    - base64-encoded str for binary data (content_type: image/*, application/octet-stream)
-    """
-
-    success: bool
-    data: Any = None  # Can be dict, list, str, or base64-encoded binary
-    content_type: str = "application/json"  # MIME type of the data
-    error: str | None = None
-    cached: bool = False  # Whether data was served from cache
-    fetched_at: str | None = None  # ISO timestamp when data was fetched

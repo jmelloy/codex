@@ -117,7 +117,48 @@ function installPluginDependencies(pluginDir: string): void {
 async function discoverPlugins(): Promise<Map<string, DiscoveredPlugin>> {
   const plugins = new Map<string, DiscoveredPlugin>()
 
-  // Look for plugin.yaml, theme.yaml, or integration.yaml in each plugin directory
+  // First, check for combined manifest.yml
+  const combinedManifestPath = path.join(PLUGINS_DIR, "manifest.yml")
+  if (fs.existsSync(combinedManifestPath)) {
+    try {
+      const content = fs.readFileSync(combinedManifestPath, "utf-8")
+      const combinedManifest = yaml.load(content) as {
+        version: string
+        plugins: Array<PluginManifest & { _directory?: string }>
+      }
+      
+      if (combinedManifest?.plugins) {
+        console.log(`Found combined manifest with ${combinedManifest.plugins.length} plugins`)
+        
+        for (const pluginData of combinedManifest.plugins) {
+          if (pluginData?.id) {
+            // Use _directory if specified, otherwise use id
+            const directory = pluginData._directory || pluginData.id
+            
+            // Create a clean manifest without internal fields
+            const manifest: PluginManifest = {
+              id: pluginData.id,
+              name: pluginData.name,
+              version: pluginData.version,
+              type: pluginData.type,
+              blocks: pluginData.blocks,
+            }
+            
+            plugins.set(manifest.id, { manifest, directory })
+          }
+        }
+        
+        // If we found plugins in combined manifest, return them
+        if (plugins.size > 0) {
+          return plugins
+        }
+      }
+    } catch (err) {
+      console.warn("Warning: Could not load combined manifest, falling back to individual files:", err)
+    }
+  }
+
+  // Fall back to individual manifest files
   const manifestFiles = await glob("*/+(plugin|theme|integration).yaml", {
     cwd: PLUGINS_DIR,
     absolute: true,

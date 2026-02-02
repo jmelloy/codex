@@ -2,6 +2,31 @@
 
 This directory contains plugins for Codex. Plugins are flexible components that can provide any combination of:
 
+## Plugin Manifests
+
+Plugins are defined in two ways:
+
+1. **Combined Manifest (Recommended)**: All plugins are defined in a single `manifest.yml` file at the root of the plugins directory. This provides a centralized view of all plugins.
+
+2. **Individual Manifests (Legacy)**: Each plugin has its own manifest file (`plugin.yaml`, `theme.yaml`, or `integration.yaml`) in its directory.
+
+The plugin loader and build system support both approaches automatically, with combined manifest taking priority if present.
+
+### Combined Manifest Structure
+
+```yaml
+version: 1.0.0
+plugins:
+  - id: plugin-id
+    name: Plugin Name
+    type: view  # or 'theme', 'integration'
+    version: 1.0.0
+    _directory: plugin-directory-name  # Optional, defaults to id
+    # ... rest of plugin configuration
+```
+
+The `_directory` field is used internally to map the plugin configuration to its directory on disk and is automatically added when generating the combined manifest.
+
 ## Quick Start - Building Plugins
 
 If plugins contain Vue components (like custom blocks), they need to be compiled before use:

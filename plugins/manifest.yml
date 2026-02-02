@@ -1,0 +1,906 @@
+version: 1.0.0
+plugins:
+- id: blueprint
+  name: Blueprint
+  version: 1.0.0
+  author: Codex Team
+  description: Dark mode with blueprint styling
+  license: MIT
+  type: theme
+  codex_version: '>=1.0.0'
+  theme:
+    display_name: Blueprint
+    category: dark
+    className: theme-blueprint
+    stylesheet: styles/main.css
+  colors:
+    bg-primary: '#1e3a5f'
+    bg-secondary: '#1a2332'
+    bg-tertiary: '#0f1720'
+    text-primary: '#e0e7ff'
+    text-secondary: '#cbd5e0'
+    text-tertiary: '#a0aec0'
+    accent-primary: '#93c5fd'
+  _directory: blueprint
+- id: chart-example
+  name: Chart Example Plugin
+  version: 1.0.0
+  author: Codex Team
+  description: Example plugin demonstrating plugin-specific dependencies using Chart.js
+  license: MIT
+  type: integration
+  codex_version: '>=1.0.0'
+  api_version: 1
+  integration:
+    api_type: none
+  blocks:
+  - id: chart
+    name: Chart Block
+    description: Display charts using Chart.js
+    icon: 📊
+    component: components/ChartBlock.vue
+    syntax: '```chart
+
+      type: bar
+
+      data: ...
+
+      ```'
+    config_schema:
+      type:
+        type: string
+        enum:
+        - bar
+        - line
+        - pie
+        - doughnut
+        description: Chart type
+        required: true
+      data:
+        type: object
+        description: Chart data
+        required: true
+  permissions:
+  - render_blocks
+  _directory: chart-example
+- id: core
+  name: Core Views Plugin
+  version: 1.0.0
+  author: Codex Team
+  description: Essential note templates and dashboard views
+  license: MIT
+  type: view
+  codex_version: '>=1.0.0'
+  api_version: 1
+  views:
+  - id: dashboard
+    name: Dashboard
+    description: Composite dashboard with embedded mini-views
+    icon: 🏠
+    config_schema:
+      layout:
+        type: array
+        description: Dashboard layout rows
+        items:
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+              - row
+            components:
+              type: array
+              items:
+                type: object
+                properties:
+                  type:
+                    type: string
+                    enum:
+                    - mini-view
+                  span:
+                    type: integer
+                    minimum: 1
+                    maximum: 12
+                  view:
+                    type: string
+  templates:
+  - id: blank-note
+    name: Blank Note
+    file: templates/blank-note.yaml
+    description: A blank markdown note
+    icon: 📝
+    default_name: '{title}.md'
+    file_extension: .md
+  - id: daily-journal
+    name: Daily Journal
+    file: templates/daily-journal.yaml
+    description: A journal entry with today's date
+    icon: 📔
+    default_name: '{yyyy}-{mm}-{dd}-journal.md'
+    file_extension: .md
+  - id: meeting-notes
+    name: Meeting Notes
+    file: templates/meeting-notes.yaml
+    description: Template for meeting notes
+    icon: 🗓️
+    default_name: '{yyyy}-{mm}-{dd}-meeting.md'
+    file_extension: .md
+  - id: project-doc
+    name: Project Document
+    file: templates/project-doc.yaml
+    description: Documentation template for a project
+    icon: 📋
+    default_name: '{title}.md'
+    file_extension: .md
+  - id: data-file
+    name: Data File
+    file: templates/data-file.yaml
+    description: JSON data file
+    icon: 📦
+    default_name: '{title}.json'
+    file_extension: .json
+  examples:
+  - name: Home Dashboard
+    file: examples/home-dashboard.cdx
+    description: Daily overview with tasks and recent activity
+  permissions:
+  - read_files
+  - write_files
+  _directory: core
+- id: corkboard
+  name: Corkboard Plugin
+  version: 1.0.0
+  author: Codex Team
+  description: Visual corkboard views for creative writing and planning
+  license: MIT
+  type: view
+  codex_version: '>=1.0.0'
+  api_version: 1
+  views:
+  - id: corkboard
+    name: Corkboard
+    description: Visual canvas with notecard-style layout
+    icon: 📌
+    config_schema:
+      group_by:
+        type: string
+        description: Property to group by (creates swimlanes)
+      card_style:
+        type: string
+        enum:
+        - notecard
+        - minimal
+        - detailed
+        default: notecard
+      layout:
+        type: string
+        enum:
+        - freeform
+        - swimlanes
+        - grid
+        default: swimlanes
+      draggable:
+        type: boolean
+        description: Allow drag and drop
+        default: true
+      editable:
+        type: boolean
+        description: Allow inline editing
+        default: true
+      card_fields:
+        type: array
+        description: Fields to display on cards
+        items:
+          type: string
+  examples:
+  - name: Novel Outline
+    file: examples/novel-outline.cdx
+    description: Visual outline of novel chapters and scenes
+  permissions:
+  - read_files
+  - write_files
+  - modify_metadata
+  _directory: corkboard
+- id: cream
+  name: Cream
+  version: 1.0.0
+  author: Codex Team
+  description: Classic notebook with cream pages
+  license: MIT
+  type: theme
+  codex_version: '>=1.0.0'
+  theme:
+    display_name: Cream
+    category: light
+    className: theme-cream
+    stylesheet: styles/main.css
+  colors:
+    bg-primary: '#fef9f3'
+    bg-secondary: '#f7f5f0'
+    bg-tertiary: '#efeae3'
+    border-light: '#e8e3d8'
+    border-medium: '#d4cfc4'
+    text-primary: '#1a1a1a'
+    text-secondary: '#4a5568'
+    text-tertiary: '#718096'
+    accent-primary: '#667eea'
+  _directory: cream
+- id: gallery
+  name: Photo Gallery Plugin
+  version: 1.0.0
+  author: Codex Team
+  description: Image gallery views with grid layouts and lightbox
+  license: MIT
+  type: view
+  codex_version: '>=1.0.0'
+  api_version: 1
+  views:
+  - id: gallery
+    name: Photo Gallery
+    description: Display images in a grid layout with lightbox
+    icon: 🖼️
+    config_schema:
+      layout:
+        type: string
+        enum:
+        - grid
+        - masonry
+        default: grid
+      columns:
+        type: integer
+        description: Number of columns in grid
+        default: 4
+        minimum: 1
+        maximum: 8
+      thumbnail_size:
+        type: integer
+        description: Thumbnail size in pixels
+        default: 300
+      show_metadata:
+        type: boolean
+        description: Show image metadata
+        default: true
+      lightbox:
+        type: boolean
+        description: Enable lightbox viewer
+        default: true
+  templates:
+  - id: photo-gallery
+    name: Photo Gallery
+    file: templates/photo-gallery.yaml
+    description: Display images in a grid layout
+    icon: 🖼️
+    default_name: gallery.cdx
+  examples:
+  - name: Photo Gallery
+    file: examples/photo-gallery.cdx
+    description: Example photo gallery with all workspace images
+  permissions:
+  - read_files
+  _directory: gallery
+- id: github
+  name: GitHub Integration
+  version: 1.0.0
+  author: Codex Team
+  description: Embed GitHub issues, pull requests, and repositories in your notebooks
+  license: MIT
+  type: integration
+  codex_version: '>=1.0.0'
+  api_version: 1
+  integration:
+    api_type: rest
+    base_url: https://api.github.com
+    auth_method: token
+    rate_limit:
+      requests_per_minute: 60
+      requests_per_hour: 5000
+  properties:
+  - name: access_token
+    type: string
+    description: GitHub personal access token
+    required: true
+    secure: true
+    ui:
+      type: password
+      label: Access Token
+      help: Generate a token at https://github.com/settings/tokens
+  - name: default_org
+    type: string
+    description: Default GitHub organization
+    required: false
+    ui:
+      type: text
+      label: Default Organization
+      placeholder: your-org
+  blocks:
+  - id: github-issue
+    name: GitHub Issue
+    description: Display a GitHub issue with details
+    icon: 🐛
+    url_patterns:
+    - https://github.com/.*/issues/.*
+    syntax: '```github-issue
+
+      url: https://github.com/owner/repo/issues/123
+
+      ```'
+    config_schema:
+      url:
+        type: string
+        description: GitHub issue URL
+        required: true
+  - id: github-pr
+    name: GitHub Pull Request
+    description: Display a GitHub pull request
+    icon: 🔀
+    url_patterns:
+    - https://github.com/.*/pull/.*
+    syntax: '```github-pr
+
+      url: https://github.com/owner/repo/pull/456
+
+      ```'
+    config_schema:
+      url:
+        type: string
+        description: GitHub PR URL
+        required: true
+  - id: github-repo
+    name: GitHub Repository
+    description: Display GitHub repository information
+    icon: 📦
+    url_patterns:
+    - https://github.com/[^/]+/[^/]+
+    syntax: '```github-repo
+
+      url: https://github.com/owner/repo
+
+      ```'
+    config_schema:
+      url:
+        type: string
+        description: GitHub repository URL
+        required: true
+  endpoints:
+  - id: get_issue
+    name: Get Issue
+    method: GET
+    path: /repos/{owner}/{repo}/issues/{issue_number}
+    description: Get details of a GitHub issue
+    parameters:
+    - name: owner
+      type: string
+      description: Repository owner
+      required: true
+    - name: repo
+      type: string
+      description: Repository name
+      required: true
+    - name: issue_number
+      type: integer
+      description: Issue number
+      required: true
+    response_schema:
+      type: object
+      properties:
+        number:
+          type: integer
+        title:
+          type: string
+        body:
+          type: string
+        state:
+          type: string
+        user:
+          type: object
+        labels:
+          type: array
+  - id: get_pr
+    name: Get Pull Request
+    method: GET
+    path: /repos/{owner}/{repo}/pulls/{pull_number}
+    description: Get details of a GitHub pull request
+    parameters:
+    - name: owner
+      type: string
+      description: Repository owner
+      required: true
+    - name: repo
+      type: string
+      description: Repository name
+      required: true
+    - name: pull_number
+      type: integer
+      description: Pull request number
+      required: true
+    response_schema:
+      type: object
+      properties:
+        number:
+          type: integer
+        title:
+          type: string
+        body:
+          type: string
+        state:
+          type: string
+        user:
+          type: object
+  - id: get_repo
+    name: Get Repository
+    method: GET
+    path: /repos/{owner}/{repo}
+    description: Get details of a GitHub repository
+    parameters:
+    - name: owner
+      type: string
+      description: Repository owner
+      required: true
+    - name: repo
+      type: string
+      description: Repository name
+      required: true
+    response_schema:
+      type: object
+      properties:
+        name:
+          type: string
+        full_name:
+          type: string
+        description:
+          type: string
+        stargazers_count:
+          type: integer
+        forks_count:
+          type: integer
+        open_issues_count:
+          type: integer
+  permissions:
+  - network_request
+  - store_config
+  - render_blocks
+  templates:
+  - id: github-issue-tracker
+    name: GitHub Issue Tracker
+    file: templates/issue-tracker.yaml
+    description: Track GitHub issues with embedded issue blocks
+    icon: 🐛
+    default_name: github-issues.cdx
+  _directory: github
+- id: manila
+  name: Manila
+  version: 1.0.0
+  author: Codex Team
+  description: Vintage manila folder aesthetic
+  license: MIT
+  type: theme
+  codex_version: '>=1.0.0'
+  theme:
+    display_name: Manila
+    category: light
+    className: theme-manila
+    stylesheet: styles/main.css
+  colors:
+    bg-primary: '#f4e8d0'
+    bg-secondary: '#ede1c9'
+    bg-tertiary: '#e6dac2'
+    border-light: '#d8ccb4'
+    border-medium: '#c4b89f'
+    border-dark: '#a89775'
+    text-primary: '#1a1a1a'
+    text-secondary: '#4a5568'
+    text-tertiary: '#718096'
+    accent-primary: '#667eea'
+  templates:
+  - id: manila-note
+    name: Manila Note
+    file: templates/manila-note.yaml
+    description: A vintage-styled note template matching the Manila theme
+    icon: 📄
+    default_name: manila-note.cdx
+  _directory: manila
+- id: opengraph-unfurl
+  name: Open Graph Link Unfurling
+  version: 1.0.0
+  author: Codex Team
+  description: Rich preview of any URL with Open Graph metadata
+  license: MIT
+  type: integration
+  codex_version: '>=1.0.0'
+  api_version: 1
+  integration:
+    api_type: rest
+    auth_method: none
+  properties: []
+  blocks:
+  - id: link-preview
+    name: Link Preview
+    description: Rich preview of any URL with Open Graph metadata
+    icon: 🔗
+    auto_detect: true
+    url_patterns:
+    - https?://.*
+    syntax: '```link-preview
+
+      url: https://example.com
+
+      ```'
+    config_schema:
+      url:
+        type: string
+        description: URL to preview
+        required: true
+  endpoints:
+  - id: fetch_metadata
+    name: Fetch Open Graph Metadata
+    method: GET
+    description: Fetch Open Graph metadata for a URL
+    parameters:
+    - name: url
+      type: string
+      description: URL to fetch metadata for
+      required: true
+    response_schema:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        image:
+          type: string
+        url:
+          type: string
+        site_name:
+          type: string
+  permissions:
+  - network_request
+  - render_blocks
+  _directory: opengraph
+- id: rollup
+  name: Rollup Views Plugin
+  version: 1.0.0
+  author: Codex Team
+  description: Time-based rollup views for activity tracking and reporting
+  license: MIT
+  type: view
+  codex_version: '>=1.0.0'
+  api_version: 1
+  views:
+  - id: rollup
+    name: Rollup View
+    description: Activity report grouped by date with statistics
+    icon: 📈
+    config_schema:
+      group_by:
+        type: string
+        description: Field to group by (e.g., created_at, modified_at)
+        default: created_at
+      group_format:
+        type: string
+        enum:
+        - hour
+        - day
+        - week
+        - month
+        description: Grouping granularity
+        default: day
+      show_stats:
+        type: boolean
+        description: Show statistics for each group
+        default: true
+      sections:
+        type: array
+        description: Categorized sections with filters
+        items:
+          type: object
+          properties:
+            title:
+              type: string
+            filter:
+              type: object
+  templates:
+  - id: weekly-rollup
+    name: Weekly Rollup
+    file: templates/weekly-rollup.yaml
+    description: Summary of weekly activity grouped by date
+    icon: 📈
+    default_name: weekly-rollup.cdx
+  examples:
+  - name: Weekly Activity Report
+    file: examples/weekly-rollup.cdx
+    description: Rollup of all activity this week with categorized sections
+  permissions:
+  - read_files
+  _directory: rollup
+- id: tasks
+  name: Task Management Plugin
+  version: 1.0.0
+  author: Codex Team
+  description: Kanban boards, task lists, and todo management views
+  license: MIT
+  type: view
+  codex_version: '>=1.0.0'
+  api_version: 1
+  properties:
+  - name: status
+    type: string
+    description: Task status
+    enum:
+    - backlog
+    - todo
+    - in-progress
+    - review
+    - done
+    default: todo
+    required: false
+  - name: priority
+    type: string
+    description: Task priority level
+    enum:
+    - low
+    - medium
+    - high
+    - critical
+    default: medium
+    required: false
+  - name: due_date
+    type: date
+    description: Task due date
+    required: false
+  - name: assignee
+    type: string
+    description: Person assigned to task
+    required: false
+  - name: estimated_hours
+    type: number
+    description: Estimated hours to complete
+    required: false
+  views:
+  - id: kanban
+    name: Kanban Board
+    description: Visual board with draggable cards organized in columns
+    icon: 📊
+    config_schema:
+      columns:
+        type: array
+        description: Column definitions
+        items:
+          type: object
+          properties:
+            id:
+              type: string
+            title:
+              type: string
+            filter:
+              type: object
+      card_fields:
+        type: array
+        description: Fields to display on cards
+        items:
+          type: string
+      drag_drop:
+        type: boolean
+        description: Enable drag and drop
+        default: true
+      editable:
+        type: boolean
+        description: Allow inline editing
+        default: true
+  - id: task-list
+    name: Task List
+    description: Simple checklist view with task completion
+    icon: ✅
+    config_schema:
+      compact:
+        type: boolean
+        description: Compact display mode
+        default: false
+      show_details:
+        type: boolean
+        description: Show task details
+        default: true
+      editable:
+        type: boolean
+        description: Allow checkbox toggling
+        default: true
+      sort_by:
+        type: string
+        enum:
+        - priority
+        - due_date
+        - created_at
+        default: created_at
+  templates:
+  - id: task-board
+    name: Task Board
+    file: templates/task-board.yaml
+    description: Kanban board for managing tasks
+    icon: 📋
+    default_name: task-board.cdx
+  - id: task-list
+    name: Task List
+    file: templates/task-list.yaml
+    description: Simple task checklist
+    icon: ✅
+    default_name: tasks.cdx
+  - id: todo-item
+    name: Todo Item
+    file: templates/todo-item.yaml
+    description: Individual todo task
+    icon: ☑️
+    default_name: todo.md
+    file_extension: .md
+  examples:
+  - name: Kanban Board
+    file: examples/kanban-board.cdx
+    description: Example kanban board for project tasks
+  - name: Today's Tasks
+    file: examples/task-list-today.cdx
+    description: Example daily task list
+  permissions:
+  - read_files
+  - write_files
+  - modify_metadata
+  _directory: tasks
+- id: weather-api
+  name: Weather API Integration
+  version: 1.0.0
+  author: Codex Team
+  description: Display current weather and forecasts from OpenWeatherMap
+  license: MIT
+  type: integration
+  codex_version: '>=1.0.0'
+  api_version: 1
+  integration:
+    api_type: rest
+    base_url: https://api.openweathermap.org/data/2.5
+    auth_method: api_key
+    rate_limit:
+      requests_per_minute: 60
+      requests_per_day: 1000
+  properties:
+  - name: api_key
+    type: string
+    description: OpenWeatherMap API key
+    required: true
+    secure: true
+    ui:
+      type: password
+      label: API Key
+      help: Get your API key from openweathermap.org
+  - name: default_location
+    type: string
+    description: Default location for weather queries
+    required: false
+    default: San Francisco, US
+    ui:
+      type: text
+      label: Default Location
+      placeholder: City, Country
+  - name: units
+    type: string
+    description: Temperature units
+    required: false
+    default: imperial
+    enum:
+    - metric
+    - imperial
+    - kelvin
+    ui:
+      type: select
+      label: Temperature Units
+      options:
+      - value: metric
+        label: Celsius
+      - value: imperial
+        label: Fahrenheit
+      - value: kelvin
+        label: Kelvin
+  endpoints:
+  - id: current_weather
+    name: Get Current Weather
+    method: GET
+    path: /weather
+    description: Get current weather for a location
+    parameters:
+    - name: q
+      type: string
+      description: City name
+      required: true
+    - name: appid
+      type: string
+      description: API key
+      required: true
+      from_config: api_key
+    - name: units
+      type: string
+      description: Units of measurement
+      required: false
+      from_config: units
+    response_schema:
+      type: object
+      properties:
+        main:
+          type: object
+          properties:
+            temp:
+              type: number
+            feels_like:
+              type: number
+            humidity:
+              type: number
+        weather:
+          type: array
+          items:
+            type: object
+            properties:
+              description:
+                type: string
+              icon:
+                type: string
+  - id: forecast
+    name: Get 5-Day Forecast
+    method: GET
+    path: /forecast
+    description: Get 5-day weather forecast
+    parameters:
+    - name: q
+      type: string
+      description: City name
+      required: true
+    - name: appid
+      type: string
+      from_config: api_key
+    - name: units
+      type: string
+      from_config: units
+  blocks:
+  - id: weather
+    name: Weather Block
+    description: Display current weather for a location
+    icon: ☀️
+    syntax: '```weather
+
+      location: San Francisco
+
+      ```'
+    config_schema:
+      location:
+        type: string
+        description: Location to display weather for
+        required: false
+      units:
+        type: string
+        enum:
+        - metric
+        - imperial
+        - kelvin
+        required: false
+  permissions:
+  - network_request
+  - store_config
+  - render_blocks
+  _directory: weather-api
+- id: white
+  name: White
+  version: 1.0.0
+  author: Codex Team
+  description: Clean white pages
+  license: MIT
+  type: theme
+  codex_version: '>=1.0.0'
+  theme:
+    display_name: White
+    category: light
+    className: theme-white
+    stylesheet: styles/main.css
+  colors:
+    bg-primary: '#ffffff'
+    bg-secondary: '#f7fafc'
+    bg-tertiary: '#edf2f7'
+    text-primary: '#1a1a1a'
+    text-secondary: '#4a5568'
+    text-tertiary: '#718096'
+    accent-primary: '#667eea'
+  _directory: white

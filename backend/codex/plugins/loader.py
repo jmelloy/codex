@@ -20,13 +20,15 @@ class PluginLoader:
         """
         self.plugins_dir = Path(plugins_dir)
         self.plugins: dict[str, Plugin] = {}
+        self._combined_manifest: dict[str, Any] | None = None
 
     def discover_plugins(self) -> list[Path]:
         """Discover all available plugins.
 
-        Supports two directory structures:
-        1. Flat structure (new): plugins/{plugin-name}/{manifest}.yaml
-        2. Type-based structure (legacy): plugins/{type}/{plugin-name}/{manifest}.yaml
+        Supports three discovery methods:
+        1. Combined manifest.yml (new): plugins/manifest.yml with all plugins
+        2. Flat structure: plugins/{plugin-name}/{manifest}.yaml
+        3. Type-based structure (legacy): plugins/{type}/{plugin-name}/{manifest}.yaml
 
         Returns:
             List of plugin directory paths
@@ -35,6 +37,30 @@ class PluginLoader:
 
         if not self.plugins_dir.exists():
             return plugins
+
+        # Check for combined manifest.yml first
+        combined_manifest_path = self.plugins_dir / "manifest.yml"
+        if combined_manifest_path.exists():
+            try:
+                with open(combined_manifest_path) as f:
+                    self._combined_manifest = yaml.safe_load(f)
+                
+                # Get plugin directories from combined manifest
+                if self._combined_manifest and "plugins" in self._combined_manifest:
+                    for plugin_data in self._combined_manifest["plugins"]:
+                        # Use _directory if specified, otherwise use id
+                        dir_name = plugin_data.get("_directory", plugin_data.get("id"))
+                        if dir_name:
+                            plugin_dir = self.plugins_dir / dir_name
+                            if plugin_dir.exists():
+                                plugins.append(plugin_dir)
+                    
+                    # If we found plugins in the combined manifest, return them
+                    if plugins:
+                        return plugins
+            except Exception as e:
+                print(f"Warning: Could not load combined manifest: {e}")
+                # Fall through to individual file discovery
 
         # First, check for plugins in the flat structure (each subdirectory is a plugin)
         for item in self.plugins_dir.iterdir():
@@ -75,23 +101,38 @@ class PluginLoader:
         """
         plugin_dir = Path(plugin_path)
 
-        # Determine plugin type and load manifest
-        manifest_files = {
-            "plugin.yaml": "view",
-            "theme.yaml": "theme",
-            "integration.yaml": "integration",
-        }
-
-        plugin_type = None
+        # First, try to get plugin data from combined manifest
         manifest_data = None
+        plugin_type = None
+        
+        if self._combined_manifest and "plugins" in self._combined_manifest:
+            # Look for this plugin in the combined manifest
+            dir_name = plugin_dir.name
+            for plugin_info in self._combined_manifest["plugins"]:
+                plugin_dir_name = plugin_info.get("_directory", plugin_info.get("id"))
+                if plugin_dir_name == dir_name:
+                    manifest_data = plugin_info.copy()
+                    # Remove internal fields
+                    manifest_data.pop("_directory", None)
+                    plugin_type = manifest_data.get("type")
+                    break
+        
+        # If not found in combined manifest, load from individual file
+        if not manifest_data:
+            # Determine plugin type and load manifest
+            manifest_files = {
+                "plugin.yaml": "view",
+                "theme.yaml": "theme",
+                "integration.yaml": "integration",
+            }
 
-        for manifest_file, ptype in manifest_files.items():
-            manifest_path = plugin_dir / manifest_file
-            if manifest_path.exists():
-                with open(manifest_path) as f:
-                    manifest_data = yaml.safe_load(f)
-                plugin_type = ptype
-                break
+            for manifest_file, ptype in manifest_files.items():
+                manifest_path = plugin_dir / manifest_file
+                if manifest_path.exists():
+                    with open(manifest_path) as f:
+                        manifest_data = yaml.safe_load(f)
+                    plugin_type = ptype
+                    break
 
         if not manifest_data:
             raise ValueError(f"No valid manifest found in {plugin_dir}")

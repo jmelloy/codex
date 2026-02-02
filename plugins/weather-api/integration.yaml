@@ -17,13 +17,13 @@ api_version: 1
 integration:
   # API type
   api_type: rest
-  
+
   # Base URL (can use variables)
-  base_url: "https://api.openweathermap.org/data/2.5"
-  
+  base_url: "https://api.openweathermap.org"
+
   # Authentication method
   auth_method: api_key
-  
+
   # Rate limiting
   rate_limit:
     requests_per_minute: 60
@@ -36,12 +36,12 @@ properties:
     type: string
     description: OpenWeatherMap API key
     required: true
-    secure: true  # Encrypted in database
+    secure: true # Encrypted in database
     ui:
       type: password
       label: API Key
       help: Get your API key from openweathermap.org
-      
+
   - name: default_location
     type: string
     description: Default location for weather queries
@@ -51,7 +51,7 @@ properties:
       type: text
       label: Default Location
       placeholder: "City, Country"
-      
+
   - name: units
     type: string
     description: Temperature units
@@ -72,15 +72,50 @@ properties:
 # API Endpoints
 # Define available API operations
 endpoints:
-  - id: current_weather
-    name: Get Current Weather
+  - id: geocode
+    name: Geocode Location
     method: GET
-    path: "/weather"
-    description: Get current weather for a location
+    path: "/geo/1.0/direct"
+    description: Convert city name to coordinates
     parameters:
       - name: q
         type: string
-        description: City name
+        description: "City name, state code, country code (e.g., London,GB or San Francisco,CA,US)"
+        required: true
+      - name: limit
+        type: integer
+        description: Number of results to return
+        required: false
+        default: 1
+      - name: appid
+        type: string
+        description: API key
+        required: true
+        from_config: api_key
+    response_schema:
+      type: array
+      items:
+        type: object
+        properties:
+          name: { type: string }
+          lat: { type: number }
+          lon: { type: number }
+          country: { type: string }
+          state: { type: string }
+
+  - id: current_weather
+    name: Get Current Weather
+    method: GET
+    path: "/data/2.5/weather"
+    description: Get current weather for coordinates
+    parameters:
+      - name: lat
+        type: number
+        description: Latitude
+        required: true
+      - name: lon
+        type: number
+        description: Longitude
         required: true
       - name: appid
         type: string
@@ -108,16 +143,20 @@ endpoints:
             properties:
               description: { type: string }
               icon: { type: string }
-              
+
   - id: forecast
     name: Get 5-Day Forecast
     method: GET
-    path: "/forecast"
-    description: Get 5-day weather forecast
+    path: "/data/2.5/forecast"
+    description: Get 5-day weather forecast for coordinates
     parameters:
-      - name: q
-        type: string
-        description: City name
+      - name: lat
+        type: number
+        description: Latitude
+        required: true
+      - name: lon
+        type: number
+        description: Longitude
         required: true
       - name: appid
         type: string

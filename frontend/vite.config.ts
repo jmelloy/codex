@@ -1,5 +1,5 @@
 /// <reference types="vitest" />
-import { defineConfig } from "vite"
+import { defineConfig, type Plugin } from "vite"
 import vue from "@vitejs/plugin-vue"
 import path from "path"
 import fs from "fs"
@@ -25,9 +25,34 @@ const resolvePluginsDir = () => {
 
 const pluginsDir = resolvePluginsDir()
 
+// Plugin to serve the plugins directory as static files at /plugins/
+function servePluginsPlugin(): Plugin {
+  return {
+    name: "serve-plugins",
+    configureServer(server) {
+      server.middlewares.use("/plugins", (req, res, next) => {
+        const filePath = path.join(pluginsDir, req.url || "")
+        if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+          const ext = path.extname(filePath)
+          const contentTypes: Record<string, string> = {
+            ".js": "application/javascript",
+            ".json": "application/json",
+            ".css": "text/css",
+            ".vue": "text/plain",
+          }
+          res.setHeader("Content-Type", contentTypes[ext] || "application/octet-stream")
+          res.end(fs.readFileSync(filePath))
+        } else {
+          next()
+        }
+      })
+    },
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [vue(), servePluginsPlugin()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

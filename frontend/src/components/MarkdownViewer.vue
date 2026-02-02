@@ -215,11 +215,15 @@ const parseCustomBlocks = (html: string): { html: string; blocks: any[] } => {
         console.warn("Failed to parse custom block config:", e)
       }
 
-      // Create a placeholder div with a unique ID
+      // Create a placeholder div with a unique ID and loading state
       const blockId = `custom-block-${language}-${index}`
       const placeholder = doc.createElement("div")
       placeholder.id = blockId
-      placeholder.className = "custom-block-placeholder"
+      placeholder.className = "custom-block-placeholder loading-block"
+      placeholder.innerHTML = `
+        <div class="loading-spinner"></div>
+        <span>Loading ${language} block...</span>
+      `
 
       // Replace the pre element with our placeholder
       codeBlock.parentElement?.replaceWith(placeholder)
@@ -245,7 +249,11 @@ const mountCustomBlocks = (blocks: any[]) => {
     setTimeout(() => {
       const container = document.getElementById(block.id)
       if (container) {
-        const app = createApp(block.component, { config: block.config })
+        const app = createApp(block.component, {
+          config: block.config,
+          workspaceId: props.workspaceId,
+          notebookId: props.notebookId,
+        })
         app.mount(container)
       }
     }, 0)
@@ -690,5 +698,25 @@ watch(
   color: var(--color-text-secondary);
   text-align: center;
   font-style: italic;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  min-height: 80px;
+}
+
+.markdown-content :deep(.loading-spinner) {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--color-border-medium);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>

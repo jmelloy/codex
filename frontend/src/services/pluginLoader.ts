@@ -1,9 +1,11 @@
 /**
  * Plugin Component Loader
  *
- * Loads pre-built Vue components from the plugins directory.
+ * Loads pre-built Vue components from the plugins directory at runtime.
  * Components are built by the plugin build script (plugins/build.ts)
  * and output to plugins/{plugin}/dist/{component}.js
+ *
+ * Plugins are loaded dynamically without needing to be known at build time.
  */
 
 import { defineAsyncComponent, h, type Component } from "vue"
@@ -30,8 +32,11 @@ interface PluginComponentManifest {
 let manifestCache: PluginComponentManifest | null = null
 let manifestLoadPromise: Promise<PluginComponentManifest | null> | null = null
 
+// Base path for plugins (served by Vite middleware in dev, or static files in prod)
+const PLUGINS_BASE = "/plugins"
+
 /**
- * Load the component manifest
+ * Load the component manifest via fetch (runtime loading)
  */
 async function loadManifest(): Promise<PluginComponentManifest | null> {
   if (manifestCache) {
@@ -44,13 +49,11 @@ async function loadManifest(): Promise<PluginComponentManifest | null> {
 
   manifestLoadPromise = (async () => {
     try {
-      // Try to load the manifest from the plugins directory
-      // Use a dynamic expression to avoid Vite's static analysis during tests
-      const manifestPath = "@plugins/components.json"
-      const response = await import(
-        /* @vite-ignore */ manifestPath
-      )
-      manifestCache = response.default || response
+      const response = await fetch(`${PLUGINS_BASE}/components.json`)
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`)
+      }
+      manifestCache = await response.json()
       return manifestCache
     } catch (err) {
       console.warn("Plugin manifest not found. Run 'npm run build' in plugins directory.", err)
@@ -116,35 +119,16 @@ export function loadPluginComponent(blockType: string): Component {
         // Find the component in manifest
         for (const entry of Object.values(manifest.components)) {
           if (entry.blockId === blockType) {
-            // Load the compiled component
+            // Load the compiled component via dynamic import with full URL
+            const moduleUrl = `${PLUGINS_BASE}/${entry.file}`
             try {
-              const module = await import(
-                /* @vite-ignore */ `@plugins/${entry.file}`
-              )
+              const module = await import(/* @vite-ignore */ moduleUrl)
               return module.default || module
             } catch (err) {
               console.error(`Failed to load compiled component for ${blockType}:`, err)
-              // Fall through to try source file
+              // Fall through to fallback
             }
           }
-        }
-      }
-
-      // Fallback: try to load from well-known locations (for development without build)
-      const fallbackPaths: Record<string, string> = {
-        weather: "weather-api/components/WeatherBlock.vue",
-        "link-preview": "opengraph/components/LinkPreviewBlock.vue",
-      }
-
-      const fallbackPath = fallbackPaths[blockType]
-      if (fallbackPath) {
-        try {
-          const module = await import(
-            /* @vite-ignore */ `@plugins/${fallbackPath}`
-          )
-          return module.default || module
-        } catch (err) {
-          console.warn(`Failed to load fallback component for ${blockType}:`, err)
         }
       }
 
@@ -229,8 +213,9 @@ export async function preloadPluginComponents(): Promise<void> {
 
   const loadPromises = Object.values(manifest.components).map(
     async (entry) => {
+      const moduleUrl = `${PLUGINS_BASE}/${entry.file}`
       try {
-        await import(/* @vite-ignore */ `@plugins/${entry.file}`)
+        await import(/* @vite-ignore */ moduleUrl)
       } catch {
         // Ignore failures during preload
       }

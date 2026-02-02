@@ -2,6 +2,8 @@
 
 This directory contains plugins for Codex. Plugins are flexible components that can provide any combination of:
 
+> **📝 Note for Plugin Developers:** As of this version, all plugin manifests use a standardized filename `manifest.yml` instead of type-specific names (`plugin.yaml`, `theme.yaml`, `integration.yaml`). Legacy filenames are still supported for backward compatibility, but new plugins should use `manifest.yml`. See [Migration Guide](#migrating-from-legacy-manifest-names) below.
+
 ## Quick Start - Building Plugins
 
 If plugins contain Vue components (like custom blocks), they need to be compiled before use:
@@ -759,3 +761,53 @@ If you're using the plugin API:
 - **Recommended**: Use capability-based methods (`get_plugins_with_themes()`, etc.)
 - **Still supported**: Type-based methods (`get_plugins_by_type()`)
 - The capability-based methods are more flexible and future-proof
+
+## Migrating from Legacy Manifest Names
+
+All plugins in this repository now use the standardized `manifest.yml` filename. If you're maintaining a plugin with a legacy manifest name, migration is simple:
+
+### Quick Migration
+
+```bash
+# For view plugins
+mv plugin.yaml manifest.yml
+
+# For theme plugins  
+mv theme.yaml manifest.yml
+
+# For integration plugins
+mv integration.yaml manifest.yml
+```
+
+### What Changed
+
+**Before (Legacy):**
+- View plugins used `plugin.yaml`
+- Theme plugins used `theme.yaml`
+- Integration plugins used `integration.yaml`
+
+**Now (Standardized):**
+- All plugins use `manifest.yml`
+
+### Backward Compatibility
+
+The plugin loader still supports legacy filenames for backward compatibility:
+- Existing plugins with old names will continue to work
+- The loader tries `manifest.yml` first, then falls back to legacy names
+- You can migrate at your own pace
+
+### Why This Change?
+
+- **Consistency**: One standard name across all plugin types
+- **Simplicity**: Easier to document and remember
+- **Discovery**: Simpler glob patterns for plugin discovery
+- **Convention**: Aligns with common practices in package management
+
+### Priority Order
+
+When multiple manifest files exist in a plugin directory, the loader uses this priority:
+1. `manifest.yml` (highest priority)
+2. `manifest.yaml`
+3. `plugin.yaml` (legacy view plugins)
+4. `theme.yaml` (legacy theme plugins)
+5. `integration.yaml` (legacy integration plugins)

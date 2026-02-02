@@ -26,7 +26,10 @@ apiClient.interceptors.response.use(
       localStorage.removeItem("access_token")
       // Also clear the cookie
       document.cookie = "access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT"
-      window.location.href = "/login"
+      // Only redirect if not already on login page to avoid doom loop
+      if (!window.location.pathname.startsWith("/login")) {
+        window.location.href = "/login"
+      }
     }
     return Promise.reject(error)
   }

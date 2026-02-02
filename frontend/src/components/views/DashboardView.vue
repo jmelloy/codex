@@ -53,7 +53,7 @@ import MiniViewContainer from "./MiniViewContainer.vue"
 import type { ViewDefinition } from "@/services/viewParser"
 import type { QueryResult } from "@/services/queryService"
 
-const props = defineProps<{
+defineProps<{
   data: QueryResult | null
   config: Record<string, any>
   definition?: ViewDefinition

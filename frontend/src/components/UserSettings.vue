@@ -87,12 +87,47 @@
         <p class="mb-6 text-text-secondary">
           Connect Codex to external services and APIs to extend functionality.
         </p>
-        <button
-          @click="goToIntegrations"
-          class="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors"
-        >
-          Manage Integrations
-        </button>
+
+        <div v-if="integrationsLoading" class="text-text-secondary">
+          Loading integrations...
+        </div>
+
+        <div v-else-if="integrations.length === 0" class="text-text-secondary">
+          No integrations available.
+        </div>
+
+        <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div
+            v-for="integration in integrations"
+            :key="integration.id"
+            @click="configureIntegration(integration.id)"
+            class="p-4 rounded-lg border border-border-medium hover:border-primary/50 hover:shadow-sm transition-all cursor-pointer"
+          >
+            <div class="flex items-start justify-between mb-2">
+              <div class="font-semibold text-text-primary">{{ integration.name }}</div>
+              <span class="text-xs text-text-secondary bg-bg-secondary px-2 py-0.5 rounded">
+                v{{ integration.version }}
+              </span>
+            </div>
+            <p class="text-sm text-text-secondary mb-3">{{ integration.description }}</p>
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-text-secondary">
+                {{ integration.api_type || 'API' }}
+                <span v-if="integration.auth_method"> · {{ integration.auth_method }}</span>
+              </span>
+              <span
+                :class="[
+                  'px-2 py-0.5 rounded font-medium',
+                  integration.enabled
+                    ? 'bg-green-100 text-green-700'
+                    : 'bg-gray-100 text-gray-600'
+                ]"
+              >
+                {{ integration.enabled ? 'Enabled' : 'Disabled' }}
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Account Settings Section (Placeholder) -->
@@ -118,17 +153,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue"
+import { ref, computed } from "vue"
 import { useRouter } from "vue-router"
 import { useAuthStore } from "../stores/auth"
 import { useThemeStore, type ThemeName } from "../stores/theme"
+import { useIntegrationStore } from "../stores/integration"
 
 const router = useRouter()
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
+const integrationStore = useIntegrationStore()
 
 const themeSaved = ref(false)
 let themeSavedTimeout: number | null = null
+
+const integrations = computed(() => integrationStore.availableIntegrations)
+const integrationsLoading = computed(() => !integrationStore.integrationsLoaded)
 
 function selectTheme(themeName: ThemeName) {
   themeStore.setTheme(themeName)
@@ -143,8 +183,8 @@ function selectTheme(themeName: ThemeName) {
   }, 3000) as unknown as number
 }
 
-function goToIntegrations() {
-  router.push({ name: "integrations" })
+function configureIntegration(integrationId: string) {
+  router.push({ name: "integration-config", params: { integrationId } })
 }
 </script>
 

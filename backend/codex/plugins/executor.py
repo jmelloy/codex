@@ -341,9 +341,19 @@ class IntegrationExecutor:
         Returns:
             Test value
         """
+        param_name = param_def.get("name", "").lower()
         param_type = param_def.get("type", "string")
 
         if param_type == "string":
+            # Use sensible defaults for common parameter names
+            if param_name in ("q", "city", "location", "place"):
+                return "London"  # Well-known city for weather APIs
+            elif param_name in ("query", "search", "term"):
+                return "test"
+            elif param_name in ("owner", "user", "username"):
+                return "octocat"  # GitHub's test user
+            elif param_name in ("repo", "repository"):
+                return "hello-world"  # Common test repo
             return "test"
         elif param_type == "integer" or param_type == "number":
             return 1

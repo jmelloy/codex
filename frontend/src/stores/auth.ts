@@ -2,6 +2,8 @@ import { defineStore } from "pinia"
 import { ref } from "vue"
 import { authService, type User } from "../services/auth"
 import { useThemeStore } from "./theme"
+import { pluginRegistry } from "../services/pluginRegistry"
+import { viewPluginService } from "../services/viewPluginService"
 
 export const useAuthStore = defineStore("auth", () => {
   const user = ref<User | null>(null)
@@ -32,10 +34,20 @@ export const useAuthStore = defineStore("auth", () => {
       // Load theme from user settings
       const themeStore = useThemeStore()
       themeStore.loadFromUser(user.value.theme_setting)
-      // Load integrations
+      // Register plugins first so they exist in the backend
+      try {
+        await pluginRegistry.registerPlugins()
+      } catch (err) {
+        console.warn("Failed to register plugins:", err)
+      }
+      // Now load integrations (after plugins are registered)
       const { useIntegrationStore } = await import("./integration")
       const integrationStore = useIntegrationStore()
       await integrationStore.loadIntegrations()
+      // Initialize view plugin service (non-blocking)
+      viewPluginService.initialize().catch((err) => {
+        console.warn("Failed to initialize view plugin service:", err)
+      })
     } catch (e) {
       logout()
     }

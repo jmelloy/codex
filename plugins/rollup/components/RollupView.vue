@@ -130,9 +130,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue"
-import type { RollupConfig, ViewDefinition } from "@/services/viewParser"
-import type { QueryResult } from "@/services/queryService"
-import type { FileMetadata } from "@/services/codex"
+import type { RollupConfig, ViewDefinition, QueryResult, FileMetadata } from "@/shared/types"
 
 const props = defineProps<{
   data: QueryResult | null

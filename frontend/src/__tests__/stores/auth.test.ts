@@ -18,9 +18,28 @@ vi.mock("../../services/auth", () => ({
 // Mock the integration store
 vi.mock("../../stores/integration", () => ({
   useIntegrationStore: () => ({
-    loadIntegrations: vi.fn(),
+    loadIntegrations: vi.fn().mockResolvedValue(undefined),
     reset: vi.fn(),
   }),
+}))
+
+// Mock the plugin registry
+vi.mock("../../services/pluginRegistry", () => ({
+  pluginRegistry: {
+    registerPlugins: vi.fn().mockResolvedValue({
+      registered: 0,
+      updated: 0,
+      failed: 0,
+      results: [],
+    }),
+  },
+}))
+
+// Mock the view plugin service
+vi.mock("../../services/viewPluginService", () => ({
+  viewPluginService: {
+    initialize: vi.fn().mockResolvedValue(undefined),
+  },
 }))
 
 describe("Auth Store", () => {

@@ -194,9 +194,7 @@
 
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted } from "vue"
-import type { GalleryConfig, ViewDefinition } from "@/services/viewParser"
-import type { QueryResult } from "@/services/queryService"
-import type { FileMetadata } from "@/services/codex"
+import type { GalleryConfig, ViewDefinition, QueryResult, FileMetadata } from "@/shared/types"
 
 const props = defineProps<{
   data: QueryResult | null

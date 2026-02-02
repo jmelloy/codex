@@ -28,12 +28,10 @@ all: deploy
 # =============================================================================
 
 # Production: Build plugins and start containers
-deploy: build-plugins docker-up
+deploy: build-plugins docker-build docker-up
 	@echo ""
-	@echo "Production deployment complete!"
-	@echo "  Backend:  http://localhost:8765"
-	@echo "  Frontend: http://localhost:8065"
-
+	@echo "Deployment complete!"
+	
 # Development: Setup override file and start with hot-reload
 dev-docker: build-plugins
 	@if [ ! -f docker-compose.override.yml ]; then \
@@ -46,7 +44,7 @@ dev-docker: build-plugins
 		echo "Created .env from .env.example"; \
 	fi
 	@echo "Starting development containers..."
-	docker compose up -d
+	docker compose up -d --remove-orphans
 	@echo ""
 	@echo "Development environment ready!"
 	@echo "  Backend:  http://localhost:8765 (hot-reload enabled)"
@@ -62,11 +60,15 @@ docker-build: build-plugins
 # Start Docker containers
 docker-up:
 	@echo "Starting Docker containers..."
-	docker compose up -d
+	docker compose up -d --remove-orphans
 	@echo ""
 	@echo "Services starting..."
 	@echo "  Backend:  http://localhost:8765"
-	@echo "  Frontend: http://localhost:8065"
+	@if [ -f docker-compose.override.yml ]; then \
+		echo "  Frontend (dev server): http://localhost:5165"; \
+	else \
+		echo "  Frontend: http://localhost:8065"; \
+	fi
 	@echo ""
 	@echo "Run 'make docker-logs' to view logs"
 

@@ -12,7 +12,7 @@
     <div v-else-if="integration" class="config-container">
       <!-- Header -->
       <div class="config-header">
-        <button class="back-button" @click="goBack">← Back to Integrations</button>
+        <button class="back-button" @click="goBack">← Back to Settings</button>
         <h2>{{ integration.name }}</h2>
         <p class="description">{{ integration.description }}</p>
         <div class="meta-info">
@@ -38,50 +38,42 @@
             class="form-group"
           >
             <label :for="property.name">
-              {{ property.ui?.label || property.name }}
+              {{ property.ui?.label || formatLabel(property.name) }}
               <span v-if="property.required" class="required">*</span>
             </label>
 
-            <!-- Text/Password Input -->
-            <input
-              v-if="['text', 'password'].includes(property.ui?.type)"
+            <!-- Select/Dropdown (when enum is defined) -->
+            <select
+              v-if="property.enum && property.enum.length > 0"
               :id="property.name"
               v-model="config[property.name]"
-              :type="property.ui?.type || 'text'"
-              :placeholder="property.ui?.placeholder"
               :required="property.required"
-            />
+            >
+              <option value="" disabled>Select {{ formatLabel(property.name) }}</option>
+              <option
+                v-for="option in property.enum"
+                :key="option"
+                :value="option"
+              >
+                {{ option }}
+              </option>
+            </select>
 
             <!-- Number Input -->
             <input
-              v-else-if="property.ui?.type === 'number'"
+              v-else-if="property.type === 'number' || property.ui?.type === 'number'"
               :id="property.name"
               v-model.number="config[property.name]"
               type="number"
               :min="property.min"
               :max="property.max"
+              :placeholder="property.ui?.placeholder"
               :required="property.required"
             />
 
-            <!-- Select/Dropdown -->
-            <select
-              v-else-if="property.ui?.type === 'select'"
-              :id="property.name"
-              v-model="config[property.name]"
-              :required="property.required"
-            >
-              <option
-                v-for="option in property.ui?.options"
-                :key="option.value"
-                :value="option.value"
-              >
-                {{ option.label }}
-              </option>
-            </select>
-
-            <!-- Checkbox -->
+            <!-- Checkbox (for boolean type) -->
             <label
-              v-else-if="property.ui?.type === 'checkbox'"
+              v-else-if="property.type === 'boolean' || property.ui?.type === 'checkbox'"
               class="checkbox-label"
             >
               <input
@@ -89,12 +81,33 @@
                 v-model="config[property.name]"
                 type="checkbox"
               />
-              {{ property.ui?.label || property.name }}
+              {{ property.ui?.label || formatLabel(property.name) }}
             </label>
 
+            <!-- Password Input (for secure fields) -->
+            <input
+              v-else-if="property.secure"
+              :id="property.name"
+              v-model="config[property.name]"
+              type="password"
+              :placeholder="property.ui?.placeholder || 'Enter ' + formatLabel(property.name)"
+              :required="property.required"
+              autocomplete="off"
+            />
+
+            <!-- Default Text Input -->
+            <input
+              v-else
+              :id="property.name"
+              v-model="config[property.name]"
+              type="text"
+              :placeholder="property.ui?.placeholder || 'Enter ' + formatLabel(property.name)"
+              :required="property.required"
+            />
+
             <!-- Help text -->
-            <small v-if="property.ui?.help" class="help-text">
-              {{ property.ui.help }}
+            <small v-if="property.ui?.help || property.description" class="help-text">
+              {{ property.ui?.help || property.description }}
             </small>
           </div>
 
@@ -190,6 +203,14 @@ const testResult = ref<IntegrationTestResult | null>(null)
 const integrationId = computed(() => route.params.integrationId as string)
 const currentWorkspace = computed(() => workspaceStore.currentWorkspace)
 
+// Convert snake_case to Title Case
+function formatLabel(name: string): string {
+  return name
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
+}
+
 async function loadIntegration() {
   loading.value = true
   error.value = null
@@ -275,7 +296,7 @@ async function handleSave() {
 }
 
 function goBack() {
-  router.push({ name: 'integrations' })
+  router.push({ name: 'settings' })
 }
 
 onMounted(() => {

@@ -1,5 +1,8 @@
 """Tests for the implemented TODO endpoints."""
 
+import os
+from pathlib import Path
+
 from fastapi.testclient import TestClient
 
 from codex.main import app
@@ -23,6 +26,11 @@ def setup_test_user():
     return {"Authorization": f"Bearer {token}"}
 
 
+def get_workspace_slug_from_response(workspace_response: dict) -> str:
+    """Extract workspace slug from API response path."""
+    return Path(workspace_response["path"]).name
+
+
 def test_search_endpoints(temp_workspace_dir):
     """Test search endpoints."""
     headers = setup_test_user()
@@ -32,10 +40,10 @@ def test_search_endpoints(temp_workspace_dir):
         "/api/v1/workspaces/", json={"name": "Search Test", "path": temp_workspace_dir}, headers=headers
     )
     assert workspace_response.status_code == 200
-    workspace_id = workspace_response.json()["id"]
+    workspace_slug = get_workspace_slug_from_response(workspace_response.json())
 
     # Test search endpoint
-    response = client.get("/api/v1/search/", params={"q": "test query", "workspace_id": workspace_id}, headers=headers)
+    response = client.get(f"/api/v1/{workspace_slug}/search", params={"q": "test query"}, headers=headers)
     assert response.status_code == 200
     data = response.json()
     assert "query" in data
@@ -44,7 +52,7 @@ def test_search_endpoints(temp_workspace_dir):
 
     # Test tag search
     response = client.get(
-        "/api/v1/search/tags", params={"tags": "tag1,tag2", "workspace_id": workspace_id}, headers=headers
+        f"/api/v1/{workspace_slug}/search/tags", params={"tags": "tag1,tag2"}, headers=headers
     )
     assert response.status_code == 200
     data = response.json()
@@ -63,17 +71,17 @@ def test_notebook_endpoints(temp_workspace_dir):
         "/api/v1/workspaces/", json={"name": "Notebook Test", "path": temp_workspace_dir}, headers=headers
     )
     assert workspace_response.status_code == 200
-    workspace_id = workspace_response.json()["id"]
+    workspace_slug = get_workspace_slug_from_response(workspace_response.json())
 
     # List notebooks (should be empty)
-    response = client.get("/api/v1/notebooks/", params={"workspace_id": workspace_id}, headers=headers)
+    response = client.get(f"/api/v1/{workspace_slug}/notebooks", headers=headers)
     assert response.status_code == 200
     assert len(response.json()) == 0
 
     # Create a notebook
     response = client.post(
-        "/api/v1/notebooks/",
-        json={"workspace_id": workspace_id, "name": "Test Notebook", "description": "A test notebook"},
+        f"/api/v1/{workspace_slug}/notebooks",
+        json={"name": "Test Notebook", "description": "A test notebook"},
         headers=headers,
     )
     if response.status_code != 200:
@@ -82,19 +90,18 @@ def test_notebook_endpoints(temp_workspace_dir):
     notebook = response.json()
     assert notebook["name"] == "Test Notebook"
     assert notebook["path"] == "test-notebook"
-    notebook_id = notebook["id"]
+    notebook_slug = notebook["path"]
 
     # List notebooks (should have one)
-    response = client.get("/api/v1/notebooks/", params={"workspace_id": workspace_id}, headers=headers)
+    response = client.get(f"/api/v1/{workspace_slug}/notebooks", headers=headers)
     assert response.status_code == 200
     notebooks = response.json()
     assert len(notebooks) == 1
 
-    # Get notebook by ID
-    response = client.get(f"/api/v1/notebooks/{notebook_id}", params={"workspace_id": workspace_id}, headers=headers)
+    # Get notebook by slug
+    response = client.get(f"/api/v1/{workspace_slug}/{notebook_slug}", headers=headers)
     assert response.status_code == 200
     notebook_data = response.json()
-    assert notebook_data["id"] == notebook_id
     assert notebook_data["name"] == "Test Notebook"
 
     # Cleanup handled by fixture
@@ -108,26 +115,22 @@ def test_file_endpoints(temp_workspace_dir):
     workspace_response = client.post(
         "/api/v1/workspaces/", json={"name": "File Test", "path": temp_workspace_dir}, headers=headers
     )
-    workspace_id = workspace_response.json()["id"]
+    workspace_slug = get_workspace_slug_from_response(workspace_response.json())
 
     notebook_response = client.post(
-        "/api/v1/notebooks/", json={"workspace_id": workspace_id, "name": "File Notebook"}, headers=headers
+        f"/api/v1/{workspace_slug}/notebooks", json={"name": "File Notebook"}, headers=headers
     )
-    notebook_id = notebook_response.json()["id"]
+    notebook_slug = notebook_response.json()["path"]
 
     # List files (should be empty)
-    response = client.get(
-        "/api/v1/files/", params={"notebook_id": notebook_id, "workspace_id": workspace_id}, headers=headers
-    )
+    response = client.get(f"/api/v1/{workspace_slug}/{notebook_slug}/files", headers=headers)
     assert response.status_code == 200
     assert len(response.json()["files"]) == 0
 
     # Create a file
     response = client.post(
-        "/api/v1/files/",
+        f"/api/v1/{workspace_slug}/{notebook_slug}/files",
         json={
-            "notebook_id": notebook_id,
-            "workspace_id": workspace_id,
             "path": "test.md",
             "content": "# Test File\n\nThis is a test.",
         },
@@ -136,37 +139,32 @@ def test_file_endpoints(temp_workspace_dir):
     assert response.status_code == 200
     file_data = response.json()
     assert file_data["filename"] == "test.md"
-    file_id = file_data["id"]
+    file_path = file_data["path"]
 
     # List files (should have one)
-    response = client.get(
-        "/api/v1/files/", params={"notebook_id": notebook_id, "workspace_id": workspace_id}, headers=headers
-    )
+    response = client.get(f"/api/v1/{workspace_slug}/{notebook_slug}/files", headers=headers)
     assert response.status_code == 200
     files = response.json()["files"]
     assert len(files) == 1
 
-    # Get file by ID
-    response = client.get(
-        f"/api/v1/files/{file_id}", params={"workspace_id": workspace_id, "notebook_id": notebook_id}, headers=headers
-    )
+    # Get file by path
+    import urllib.parse
+    encoded_path = urllib.parse.quote(file_path, safe="")
+    response = client.get(f"/api/v1/{workspace_slug}/{notebook_slug}/files/{encoded_path}", headers=headers)
     assert response.status_code == 200
     file_content = response.json()
-    assert file_content["id"] == file_id
+    assert file_content["path"] == file_path
 
     # Update file
     response = client.put(
-        f"/api/v1/files/{file_id}",
-        params={"workspace_id": workspace_id, "notebook_id": notebook_id},
+        f"/api/v1/{workspace_slug}/{notebook_slug}/files/{encoded_path}",
         json={"content": "# Updated Test File\n\nThis is updated."},
         headers=headers,
     )
     assert response.status_code == 200
 
     # Verify update
-    response = client.get(
-        f"/api/v1/files/{file_id}/text", params={"workspace_id": workspace_id, "notebook_id": notebook_id}, headers=headers
-    )
+    response = client.get(f"/api/v1/{workspace_slug}/{notebook_slug}/files/{encoded_path}/text", headers=headers)
     assert response.status_code == 200
     updated_content = response.json()
     assert updated_content["content"] == "# Updated Test File\n\nThis is updated."

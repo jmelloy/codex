@@ -374,6 +374,135 @@ async def create_notebook(
         raise HTTPException(status_code=500, detail=f"Error creating notebook: {str(e)}")
 
 
+# =============================================================================
+# Search routes (must come before /{workspace}/{notebook} catch-all)
+# =============================================================================
+
+
+@router.get("/{workspace}/search")
+async def search(
+    workspace: str,
+    q: str,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Search files and content in a workspace."""
+    ws = await get_workspace_by_slug(workspace, current_user, session)
+
+    return {
+        "query": q,
+        "workspace_id": ws.id,
+        "results": [],
+        "message": "Full-text search requires search index population",
+    }
+
+
+@router.get("/{workspace}/search/tags")
+async def search_by_tags(
+    workspace: str,
+    tags: str,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Search files by tags."""
+    ws = await get_workspace_by_slug(workspace, current_user, session)
+
+    tag_list = [tag.strip() for tag in tags.split(",")]
+
+    return {
+        "tags": tag_list,
+        "workspace_id": ws.id,
+        "results": [],
+        "message": "Tag search requires notebook-level database queries",
+    }
+
+
+# =============================================================================
+# Task routes (must come before /{workspace}/{notebook} catch-all)
+# =============================================================================
+
+
+@router.get("/{workspace}/tasks")
+async def list_tasks(
+    workspace: str,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+) -> list[Task]:
+    """List all tasks for a workspace."""
+    ws = await get_workspace_by_slug(workspace, current_user, session)
+    result = await session.execute(select(Task).where(Task.workspace_id == ws.id))
+    return result.scalars().all()
+
+
+@router.get("/{workspace}/tasks/{task_id}")
+async def get_task(
+    workspace: str,
+    task_id: int,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+) -> Task:
+    """Get a specific task."""
+    ws = await get_workspace_by_slug(workspace, current_user, session)
+    result = await session.execute(select(Task).where(Task.id == task_id, Task.workspace_id == ws.id))
+    task = result.scalar_one_or_none()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return task
+
+
+@router.post("/{workspace}/tasks")
+async def create_task(
+    workspace: str,
+    title: str,
+    description: str = None,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+) -> Task:
+    """Create a new task."""
+    ws = await get_workspace_by_slug(workspace, current_user, session)
+    task = Task(workspace_id=ws.id, title=title, description=description)
+    session.add(task)
+    await session.commit()
+    await session.refresh(task)
+    return task
+
+
+@router.put("/{workspace}/tasks/{task_id}")
+async def update_task(
+    workspace: str,
+    task_id: int,
+    status: str = None,
+    assigned_to: str = None,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+) -> Task:
+    """Update a task."""
+    ws = await get_workspace_by_slug(workspace, current_user, session)
+    result = await session.execute(select(Task).where(Task.id == task_id, Task.workspace_id == ws.id))
+    task = result.scalar_one_or_none()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    if status:
+        task.status = status
+    if assigned_to:
+        task.assigned_to = assigned_to
+
+    task.updated_at = datetime.now(UTC)
+
+    if status == "completed":
+        task.completed_at = datetime.now(UTC)
+
+    await session.commit()
+    await session.refresh(task)
+    return task
+
+
+# =============================================================================
+# Notebook detail routes (/{workspace}/{notebook} catch-all comes after specific routes)
+# =============================================================================
+
+
 @router.get("/{workspace}/{notebook}")
 async def get_notebook(
     workspace: str,
@@ -1350,130 +1479,6 @@ async def delete_folder(
         raise HTTPException(status_code=500, detail=f"Error deleting folder: {str(e)}")
     finally:
         nb_session.close()
-
-
-# =============================================================================
-# Search routes
-# =============================================================================
-
-
-@router.get("/{workspace}/search")
-async def search(
-    workspace: str,
-    q: str,
-    current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_system_session),
-):
-    """Search files and content in a workspace."""
-    ws = await get_workspace_by_slug(workspace, current_user, session)
-
-    return {
-        "query": q,
-        "workspace_id": ws.id,
-        "results": [],
-        "message": "Full-text search requires search index population",
-    }
-
-
-@router.get("/{workspace}/search/tags")
-async def search_by_tags(
-    workspace: str,
-    tags: str,
-    current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_system_session),
-):
-    """Search files by tags."""
-    ws = await get_workspace_by_slug(workspace, current_user, session)
-
-    tag_list = [tag.strip() for tag in tags.split(",")]
-
-    return {
-        "tags": tag_list,
-        "workspace_id": ws.id,
-        "results": [],
-        "message": "Tag search requires notebook-level database queries",
-    }
-
-
-# =============================================================================
-# Task routes
-# =============================================================================
-
-
-@router.get("/{workspace}/tasks")
-async def list_tasks(
-    workspace: str,
-    current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_system_session),
-) -> list[Task]:
-    """List all tasks for a workspace."""
-    ws = await get_workspace_by_slug(workspace, current_user, session)
-    result = await session.execute(select(Task).where(Task.workspace_id == ws.id))
-    return result.scalars().all()
-
-
-@router.get("/{workspace}/tasks/{task_id}")
-async def get_task(
-    workspace: str,
-    task_id: int,
-    current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_system_session),
-) -> Task:
-    """Get a specific task."""
-    ws = await get_workspace_by_slug(workspace, current_user, session)
-    result = await session.execute(select(Task).where(Task.id == task_id, Task.workspace_id == ws.id))
-    task = result.scalar_one_or_none()
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
-    return task
-
-
-@router.post("/{workspace}/tasks")
-async def create_task(
-    workspace: str,
-    title: str,
-    description: str = None,
-    current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_system_session),
-) -> Task:
-    """Create a new task."""
-    ws = await get_workspace_by_slug(workspace, current_user, session)
-    task = Task(workspace_id=ws.id, title=title, description=description)
-    session.add(task)
-    await session.commit()
-    await session.refresh(task)
-    return task
-
-
-@router.put("/{workspace}/tasks/{task_id}")
-async def update_task(
-    workspace: str,
-    task_id: int,
-    status: str = None,
-    assigned_to: str = None,
-    current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_system_session),
-) -> Task:
-    """Update a task."""
-    ws = await get_workspace_by_slug(workspace, current_user, session)
-    result = await session.execute(select(Task).where(Task.id == task_id, Task.workspace_id == ws.id))
-    task = result.scalar_one_or_none()
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
-
-    if status:
-        task.status = status
-    if assigned_to:
-        task.assigned_to = assigned_to
-
-    task.updated_at = datetime.now(UTC)
-
-    if status == "completed":
-        task.completed_at = datetime.now(UTC)
-
-    await session.commit()
-    await session.refresh(task)
-    return task
 
 
 # =============================================================================

@@ -13,15 +13,10 @@ from sqlmodel import select
 from ulid import ULID
 
 from codex.api.routes import (
-    files,
-    folders,
     integrations,
     markdown,
-    notebooks,
     plugins,
     query,
-    search,
-    tasks,
     users,
     v2,
     workspaces,
@@ -175,17 +170,12 @@ async def health():
 # Include routers
 app.include_router(users.router, prefix="/api", tags=["users"])
 app.include_router(workspaces.router, prefix="/api/v1/workspaces", tags=["workspaces"])
-app.include_router(notebooks.router, prefix="/api/v1/notebooks", tags=["notebooks"])
-app.include_router(files.router, prefix="/api/v1/files", tags=["files"])
-app.include_router(folders.router, prefix="/api/v1/folders", tags=["folders"])
-app.include_router(search.router, prefix="/api/v1/search", tags=["search"])
-app.include_router(tasks.router, prefix="/api/v1/tasks", tags=["tasks"])
 app.include_router(markdown.router, prefix="/api/v1/markdown", tags=["markdown"])
 app.include_router(query.router, prefix="/api/v1/query", tags=["query"])
 app.include_router(integrations.router, prefix="/api/v1/integrations", tags=["integrations"])
 app.include_router(plugins.router, prefix="/api/v1/plugins", tags=["plugins"])
 
-# V2 hierarchical slug-based routes - must be last to avoid conflicts with other routes
+# V2 hierarchical slug-based routes for notebooks, files, folders, search, tasks
 app.include_router(v2.router, prefix="/api/v1", tags=["v2"])
 
 if __name__ == "__main__":

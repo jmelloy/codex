@@ -3,11 +3,16 @@
 from pathlib import Path
 
 
+def get_workspace_slug(workspace_path: str) -> str:
+    """Extract workspace slug from path."""
+    return Path(workspace_path).name
+
+
 def setup_test_user_and_notebook(test_client, temp_workspace_dir, username, email, workspace_name, notebook_name):
     """Helper function to set up a test user, workspace, and notebook.
-    
+
     Returns:
-        tuple: (headers, workspace_id, notebook_id, notebook_path)
+        tuple: (headers, workspace_slug, notebook_slug, notebook_path)
     """
     # Register and login
     test_client.post(
@@ -25,24 +30,24 @@ def setup_test_user_and_notebook(test_client, temp_workspace_dir, username, emai
     )
     assert workspace_response.status_code == 200
     workspace_data = workspace_response.json()
-    workspace_id = workspace_data["id"]
+    workspace_slug = get_workspace_slug(temp_workspace_dir)
     actual_workspace_path = Path(workspace_data["path"])
 
     # Create a notebook
     notebook_response = test_client.post(
-        "/api/v1/notebooks/", json={"name": notebook_name, "workspace_id": workspace_id}, headers=headers
+        f"/api/v1/{workspace_slug}/notebooks", json={"name": notebook_name}, headers=headers
     )
     assert notebook_response.status_code == 200
     notebook_data = notebook_response.json()
-    notebook_id = notebook_data["id"]
+    notebook_slug = notebook_data["path"]
     notebook_path = actual_workspace_path / notebook_data["path"]
 
-    return headers, workspace_id, notebook_id, notebook_path
+    return headers, workspace_slug, notebook_slug, notebook_path
 
 
 def test_create_file_with_folder_path(test_client, temp_workspace_dir):
     """Test creating a file with a folder path creates the folder structure."""
-    headers, workspace_id, notebook_id, notebook_path = setup_test_user_and_notebook(
+    headers, workspace_slug, notebook_slug, notebook_path = setup_test_user_and_notebook(
         test_client, temp_workspace_dir, "testuser_file", "testfile@example.com",
         "Test Workspace", "Test Notebook"
     )
@@ -52,10 +57,8 @@ def test_create_file_with_folder_path(test_client, temp_workspace_dir):
     file_content = "# Test File\n\nThis is a test file in nested folders."
 
     file_response = test_client.post(
-        "/api/v1/files/",
+        f"/api/v1/{workspace_slug}/{notebook_slug}/files",
         json={
-            "notebook_id": notebook_id,
-            "workspace_id": workspace_id,
             "path": file_path,
             "content": file_content,
         },
@@ -87,7 +90,7 @@ def test_create_file_with_folder_path(test_client, temp_workspace_dir):
 
 def test_create_file_with_single_folder(test_client, temp_workspace_dir):
     """Test creating a file with a single folder path."""
-    headers, workspace_id, notebook_id, notebook_path = setup_test_user_and_notebook(
+    headers, workspace_slug, notebook_slug, notebook_path = setup_test_user_and_notebook(
         test_client, temp_workspace_dir, "testuser_single", "testsingle@example.com",
         "Test Workspace 2", "Test Notebook 2"
     )
@@ -97,10 +100,8 @@ def test_create_file_with_single_folder(test_client, temp_workspace_dir):
     file_content = "# README\n\nDocumentation file."
 
     file_response = test_client.post(
-        "/api/v1/files/",
+        f"/api/v1/{workspace_slug}/{notebook_slug}/files",
         json={
-            "notebook_id": notebook_id,
-            "workspace_id": workspace_id,
             "path": file_path,
             "content": file_content,
         },
@@ -125,7 +126,7 @@ def test_create_file_with_single_folder(test_client, temp_workspace_dir):
 
 def test_create_file_without_folder(test_client, temp_workspace_dir):
     """Test creating a file without a folder path (in the root)."""
-    headers, workspace_id, notebook_id, notebook_path = setup_test_user_and_notebook(
+    headers, workspace_slug, notebook_slug, notebook_path = setup_test_user_and_notebook(
         test_client, temp_workspace_dir, "testuser_root", "testroot@example.com",
         "Test Workspace 3", "Test Notebook 3"
     )
@@ -135,10 +136,8 @@ def test_create_file_without_folder(test_client, temp_workspace_dir):
     file_content = "# Notes\n\nJust some notes."
 
     file_response = test_client.post(
-        "/api/v1/files/",
+        f"/api/v1/{workspace_slug}/{notebook_slug}/files",
         json={
-            "notebook_id": notebook_id,
-            "workspace_id": workspace_id,
             "path": file_path,
             "content": file_content,
         },

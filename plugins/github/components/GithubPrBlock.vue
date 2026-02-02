@@ -96,7 +96,7 @@ defineProps<Props>();
 .pr-title a {
   color: var(--color-primary);
   text-decoration: none;
-  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 
 .pr-title a:hover {

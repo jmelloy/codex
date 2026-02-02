@@ -95,7 +95,7 @@ defineProps<Props>();
 .issue-title a {
   color: var(--color-primary);
   text-decoration: none;
-  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 
 .issue-title a:hover {

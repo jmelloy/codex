@@ -95,7 +95,7 @@ defineProps<Props>();
 .repo-title a {
   color: var(--color-primary);
   text-decoration: none;
-  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 
 .repo-title a:hover {

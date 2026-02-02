@@ -80,7 +80,7 @@ def mixed_plugin_dir():
             "permissions": ["network_request"],
         }
         
-        manifest_path = plugin_dir / "integration.yaml"
+        manifest_path = plugin_dir / "manifest.yml"
         with open(manifest_path, "w") as f:
             yaml.dump(manifest, f)
         
@@ -262,7 +262,7 @@ def test_theme_plugin_can_have_templates():
             ],
         }
         
-        manifest_path = plugin_dir / "theme.yaml"
+        manifest_path = plugin_dir / "manifest.yml"
         with open(manifest_path, "w") as f:
             yaml.dump(manifest, f)
         
@@ -296,7 +296,7 @@ def test_view_plugin_can_have_theme():
             },
         }
         
-        manifest_path = plugin_dir / "plugin.yaml"
+        manifest_path = plugin_dir / "manifest.yml"
         with open(manifest_path, "w") as f:
             yaml.dump(manifest, f)
         

@@ -117,8 +117,9 @@ function installPluginDependencies(pluginDir: string): void {
 async function discoverPlugins(): Promise<Map<string, DiscoveredPlugin>> {
   const plugins = new Map<string, DiscoveredPlugin>()
 
-  // Look for plugin.yaml, theme.yaml, or integration.yaml in each plugin directory
-  const manifestFiles = await glob("*/+(plugin|theme|integration).yaml", {
+  // Look for manifest.yml (new standard) or legacy names in each plugin directory
+  // Try manifest.yml/manifest.yaml first, then fall back to legacy names
+  const manifestFiles = await glob("*/+(manifest|plugin|theme|integration).{yml,yaml}", {
     cwd: PLUGINS_DIR,
     absolute: true,
   })

@@ -130,7 +130,7 @@ plugins/chart-example/
 │   └── ChartBlock.vue    # Uses Chart.js
 ├── dist/                 # Built output (gitignored)
 │   └── chart.js
-├── integration.yaml      # Plugin manifest
+├── manifest.yml          # Plugin manifest
 └── README.md            # Documentation
 ```
 

@@ -106,10 +106,10 @@ url: https://github.com/jmelloy/codex
 
 ### 1. Define Block in Integration Plugin
 
-Create or edit an integration plugin manifest (`integration.yaml`):
+Create or edit an integration plugin manifest (`manifest.yml`):
 
 ```yaml
-# backend/plugins/integrations/my-integration/integration.yaml
+# backend/plugins/integrations/my-integration/manifest.yml
 id: my-integration
 name: My Integration
 type: integration

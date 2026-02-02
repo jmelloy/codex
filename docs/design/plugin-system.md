@@ -58,7 +58,7 @@ Custom views extend Codex's dynamic view system with new visualization and inter
 ```
 plugins/
   tasks/                          # Plugin directory
-    plugin.yaml                   # Plugin manifest
+    manifest.yml                   # Plugin manifest
     views/                        # Vue components
       KanbanView.vue
       TaskListView.vue
@@ -74,7 +74,7 @@ plugins/
     LICENSE                       # Plugin license
 ```
 
-### Plugin Manifest (`plugin.yaml`)
+### Plugin Manifest (`manifest.yml`)
 
 ```yaml
 # Plugin Metadata
@@ -412,7 +412,7 @@ Themes provide visual styling and customization for the Codex interface.
 plugins/
   themes/
     dark-mode/                    # Theme directory
-      theme.yaml                  # Theme manifest
+      manifest.yml                  # Theme manifest
       styles/
         main.css                  # Main theme styles
         components.css            # Component overrides
@@ -423,7 +423,7 @@ plugins/
       README.md
 ```
 
-### Theme Manifest (`theme.yaml`)
+### Theme Manifest (`manifest.yml`)
 
 ```yaml
 # Theme Metadata
@@ -670,7 +670,7 @@ Integrations connect Codex to external APIs and services, enabling data import, 
 plugins/
   integrations/
     weather-api/                  # Integration directory
-      integration.yaml            # Integration manifest
+      manifest.yml            # Integration manifest
       settings.vue                # Settings UI component
       blocks/                     # Block renderers
         WeatherBlock.vue
@@ -679,7 +679,7 @@ plugins/
       README.md
 ```
 
-### Integration Manifest (`integration.yaml`)
+### Integration Manifest (`manifest.yml`)
 
 ```yaml
 # Integration Metadata
@@ -1248,7 +1248,7 @@ onMounted(() => {
 #### Open Graph Unfurling
 
 ```yaml
-# integrations/opengraph/integration.yaml
+# integrations/opengraph/manifest.yml
 id: opengraph-unfurl
 name: Open Graph Link Unfurling
 version: 1.0.0
@@ -1284,7 +1284,7 @@ endpoints:
 #### GitHub Integration
 
 ```yaml
-# integrations/github/integration.yaml
+# integrations/github/manifest.yml
 id: github
 name: GitHub Integration
 version: 1.0.0
@@ -1346,7 +1346,7 @@ endpoints:
 #### GraphQL Playground
 
 ```yaml
-# integrations/graphql/integration.yaml
+# integrations/graphql/manifest.yml
 id: graphql-playground
 name: GraphQL Playground
 version: 1.0.0
@@ -1550,7 +1550,7 @@ cream_theme = loader.get_plugin("cream")
 
 ### Phase 2: View Plugins (v1.1) ✅ COMPLETED
 
-- [x] View plugin specification (plugin.yaml with properties, views, templates)
+- [x] View plugin specification (manifest.yml with properties, views, templates)
 - [x] Example plugin: Tasks (Kanban, TaskList, TodoList views)
 - [x] Example plugin: Gallery (Gallery view)
 - [x] Example plugin: Core (Timeline, FileList views)
@@ -1564,7 +1564,7 @@ cream_theme = loader.get_plugin("cream")
 
 ### Phase 3: Theme Plugins (v1.2) ✅ COMPLETED
 
-- [x] Theme plugin specification (theme.yaml with colors, styles)
+- [x] Theme plugin specification (manifest.yml with colors, styles)
 - [x] Theme API endpoint (GET /api/v1/themes)
 - [x] Theme preview and switching (ThemeResponse with metadata)
 - [x] Example theme: Cream (light theme)
@@ -1630,7 +1630,7 @@ cream_theme = loader.get_plugin("cream")
   plugins/
     views/
       tasks/
-        plugin.yaml
+        manifest.yml
         views/
           KanbanView.vue
           TaskListView.vue
@@ -1640,7 +1640,7 @@ cream_theme = loader.get_plugin("cream")
           project-tasks.cdx
         README.md
       calendar/
-        plugin.yaml
+        manifest.yml
         views/
           CalendarView.vue
         templates/
@@ -1648,25 +1648,25 @@ cream_theme = loader.get_plugin("cream")
         
     themes/
       dark-mode/
-        theme.yaml
+        manifest.yml
         styles/
           main.css
         preview.png
       solarized/
-        theme.yaml
+        manifest.yml
         styles/
           main.css
         
     integrations/
       weather-api/
-        integration.yaml
+        manifest.yml
         settings.vue
         blocks/
           WeatherBlock.vue
         transforms/
           weather.ts
       github/
-        integration.yaml
+        manifest.yml
         settings.vue
         blocks/
           GithubIssueBlock.vue

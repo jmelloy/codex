@@ -53,7 +53,15 @@ class PluginLoader:
                         plugins.append(plugin_dir)
             else:
                 # Flat structure: check for any manifest file directly in the directory
-                for manifest_file in ["plugin.yaml", "theme.yaml", "integration.yaml"]:
+                # Try new standard name first, then fall back to legacy names
+                manifest_files = [
+                    "manifest.yml",  # New standard name
+                    "manifest.yaml",  # Also support .yaml extension
+                    "plugin.yaml",  # Legacy view plugin
+                    "theme.yaml",  # Legacy theme plugin
+                    "integration.yaml",  # Legacy integration plugin
+                ]
+                for manifest_file in manifest_files:
                     manifest_path = item / manifest_file
                     if manifest_path.exists():
                         plugins.append(item)
@@ -76,21 +84,34 @@ class PluginLoader:
         plugin_dir = Path(plugin_path)
 
         # Determine plugin type and load manifest
-        manifest_files = {
-            "plugin.yaml": "view",
-            "theme.yaml": "theme",
-            "integration.yaml": "integration",
-        }
+        # Try new standard name first, then fall back to legacy names
+        manifest_candidates = [
+            "manifest.yml",  # New standard name
+            "manifest.yaml",  # Also support .yaml extension
+            "plugin.yaml",  # Legacy view plugin
+            "theme.yaml",  # Legacy theme plugin
+            "integration.yaml",  # Legacy integration plugin
+        ]
 
         plugin_type = None
         manifest_data = None
 
-        for manifest_file, ptype in manifest_files.items():
+        for manifest_file in manifest_candidates:
             manifest_path = plugin_dir / manifest_file
             if manifest_path.exists():
                 with open(manifest_path) as f:
                     manifest_data = yaml.safe_load(f)
-                plugin_type = ptype
+                # For new standard name, determine type from manifest data
+                if manifest_file in ["manifest.yml", "manifest.yaml"]:
+                    plugin_type = manifest_data.get("type")
+                else:
+                    # For legacy names, infer type from filename
+                    legacy_type_map = {
+                        "plugin.yaml": "view",
+                        "theme.yaml": "theme",
+                        "integration.yaml": "integration",
+                    }
+                    plugin_type = legacy_type_map.get(manifest_file)
                 break
 
         if not manifest_data:
@@ -236,6 +257,10 @@ class PluginLoader:
 
         Returns:
             Manifest filename
+        
+        Note:
+            This method is for legacy directory structure support only.
+            New plugins should use manifest.yml.
         """
         return {
             "views": "plugin.yaml",

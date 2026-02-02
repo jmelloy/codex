@@ -80,7 +80,7 @@ plugins/
     node_modules/         ← Automatically installed & gitignored
     components/
       MyComponent.vue
-    integration.yaml
+    manifest.yml
 ```
 
 ### Creating a Plugin with Dependencies
@@ -242,35 +242,35 @@ Plugins are organized in a **flat structure by plugin name**:
 ```
 plugins/
 ├── github/           # GitHub integration plugin
-│   ├── integration.yaml
+│   ├── manifest.yml
 │   ├── templates/
 │   └── README.md
 ├── weather-api/      # Weather API integration plugin
-│   ├── integration.yaml
+│   ├── manifest.yml
 │   └── components/   # Vue components for this plugin
 │       └── WeatherBlock.vue
 ├── opengraph/        # OpenGraph integration plugin
-│   ├── integration.yaml
+│   ├── manifest.yml
 │   └── components/
 │       └── LinkPreviewBlock.vue
 ├── blueprint/        # Blueprint theme plugin
-│   ├── theme.yaml
+│   ├── manifest.yml
 │   └── styles/
 ├── cream/            # Cream theme plugin
-│   ├── theme.yaml
+│   ├── manifest.yml
 │   └── styles/
 ├── core/             # Core views plugin
-│   ├── plugin.yaml
+│   ├── manifest.yml
 │   └── templates/
 ├── tasks/            # Tasks view plugin
-│   ├── plugin.yaml
+│   ├── manifest.yml
 │   ├── templates/
 │   └── examples/
 └── ...
 ```
 
 Each plugin is a self-contained directory that can include:
-- Manifest file (`plugin.yaml`, `theme.yaml`, or `integration.yaml`)
+- Manifest file (`manifest.yml`)
 - Vue components (`components/`)
 - Stylesheets (`styles/`)
 - Templates (`templates/`)
@@ -350,7 +350,7 @@ Any plugin can now include multiple capability sections in its manifest. Here ar
 A theme plugin can provide matching templates:
 
 ```yaml
-# theme.yaml
+# manifest.yml
 id: manila
 name: Manila
 type: theme
@@ -378,7 +378,7 @@ templates:
 An integration plugin can provide both templates and even a theme:
 
 ```yaml
-# integration.yaml
+# manifest.yml
 id: github
 name: GitHub Integration
 type: integration
@@ -411,7 +411,7 @@ theme:
 A view plugin could include a matching theme:
 
 ```yaml
-# plugin.yaml
+# manifest.yml
 id: kanban
 name: Kanban View
 type: view
@@ -443,7 +443,7 @@ Each plugin type has a recommended structure:
 
 ```
 <plugin-id>/
-  plugin.yaml         # Plugin manifest
+  manifest.yml        # Plugin manifest
   components/         # Vue components
     ViewComponent.vue
   templates/          # Template definitions
@@ -455,7 +455,7 @@ Each plugin type has a recommended structure:
   README.md           # Plugin documentation
 ```
 
-### View Plugin Manifest (`plugin.yaml`)
+### View Plugin Manifest (`manifest.yml`)
 
 ```yaml
 # Plugin Metadata
@@ -502,14 +502,14 @@ examples:
 
 ```
 <theme-id>/
-  theme.yaml          # Theme manifest
+  manifest.yml        # Theme manifest
   styles/
     main.css         # Main stylesheet
   components/        # Vue components (optional)
   README.md          # Optional documentation
 ```
 
-### Theme Manifest (`theme.yaml`)
+### Theme Manifest (`manifest.yml`)
 
 ```yaml
 # Theme Metadata
@@ -568,7 +568,7 @@ themes = loader.get_plugins_by_type("theme")
 ## Creating Custom Themes
 
 1. Create a new directory in `plugins/<your-theme-id>/`
-2. Create `theme.yaml` with required fields
+2. Create `manifest.yml` with required fields
 3. Create `styles/main.css` with your styles
 4. Use CSS class `.theme-<your-theme-id>` for theme-specific styling
 5. Test with the plugin loader
@@ -638,7 +638,7 @@ The frontend theme store (`frontend/src/stores/theme.ts`) automatically loads th
 ### Adding New Themes
 
 1. Create theme directory in `plugins/<theme-id>/`
-2. Add `theme.yaml` manifest with required fields
+2. Add `manifest.yml` manifest with required fields
 3. Create `styles/main.css` with theme styles
 4. Theme automatically appears in User Settings
 
@@ -740,7 +740,7 @@ If you have existing plugins, they will continue to work without changes. To add
 1. **Add templates to a theme**:
    - Create a `templates/` directory in your theme plugin
    - Add template YAML files
-   - Add a `templates` section to your `theme.yaml`
+   - Add a `templates` section to your `manifest.yml`
 
 2. **Add a theme to a view or integration**:
    - Create a `styles/` directory
@@ -750,7 +750,7 @@ If you have existing plugins, they will continue to work without changes. To add
 3. **Add templates to an integration**:
    - Create a `templates/` directory
    - Add template YAML files
-   - Add a `templates` section to your `integration.yaml`
+   - Add a `templates` section to your `manifest.yml`
 
 ### For API Consumers
 

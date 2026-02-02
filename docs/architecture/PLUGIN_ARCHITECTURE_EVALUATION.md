@@ -13,7 +13,7 @@ This document evaluates the proposal to simplify the plugin architecture by havi
 │                    Backend Plugin System                         │
 ├─────────────────────────────────────────────────────────────────┤
 │  1. Discovery (PluginLoader)                                     │
-│     - Scans filesystem for plugin.yaml, theme.yaml, etc.        │
+│     - Scans filesystem for manifest.yml, manifest.yml, etc.        │
 │     - Validates manifest (id format, semver, required fields)   │
 │     - Caches Plugin instances in memory                         │
 │                                                                  │
@@ -258,7 +258,7 @@ class IntegrationArtifact(SQLModel, table=True):
 Allow integrations to define refresh schedules:
 
 ```yaml
-# integration.yaml
+# manifest.yml
 blocks:
   - id: weather
     refresh_interval: 3600  # seconds

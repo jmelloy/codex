@@ -166,10 +166,10 @@ const validViewTypes = viewPluginService.getValidViewTypes()
 
 ## Plugin Manifest Example
 
-Views are defined in plugin manifests (`plugin.yaml`):
+Views are defined in plugin manifests (`manifest.yml`):
 
 ```yaml
-# plugins/tasks/plugin.yaml
+# plugins/tasks/manifest.yml
 id: tasks
 name: Task Management Plugin
 type: view
@@ -220,7 +220,7 @@ No changes needed - all existing views continue to work:
 
 ### For New Views
 1. Create a plugin directory (or use existing plugin)
-2. Add view definition to `plugin.yaml`
+2. Add view definition to `manifest.yml`
 3. Create Vue component in `frontend/src/components/views/`
 4. Register component in `viewPluginService` (temporary until full plugin build system)
 

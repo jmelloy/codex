@@ -13,7 +13,7 @@ This document evaluates the proposal to simplify the plugin architecture by havi
 │                    Backend Plugin System                         │
 ├─────────────────────────────────────────────────────────────────┤
 │  1. Discovery (PluginLoader)                                     │
-│     - Scans filesystem for manifest.yml, manifest.yml, etc.        │
+│     - Scans filesystem for manifest.yml, manifest.yaml, etc.        │
 │     - Validates manifest (id format, semver, required fields)   │
 │     - Caches Plugin instances in memory                         │
 │                                                                  │

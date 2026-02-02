@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "buildTime": "2026-02-02T18:48:58.076Z",
+  "buildTime": "2026-02-02T19:02:02.405Z",
   "plugins": [
     {
       "id": "white",
@@ -187,56 +187,6 @@
       }
     },
     {
-      "id": "opengraph-unfurl",
-      "name": "Open Graph Link Unfurling",
-      "version": "1.0.0",
-      "type": "integration",
-      "manifest": {
-        "id": "opengraph-unfurl",
-        "name": "Open Graph Link Unfurling",
-        "version": "1.0.0",
-        "type": "integration",
-        "description": "Rich preview of any URL with Open Graph metadata",
-        "integration": {
-          "api_type": "rest",
-          "auth_method": "none"
-        },
-        "endpoints": [
-          {
-            "id": "fetch_metadata",
-            "name": "Fetch Open Graph Metadata",
-            "method": "GET",
-            "description": "Fetch Open Graph metadata for a URL",
-            "parameters": [
-              {
-                "name": "url",
-                "type": "string",
-                "description": "URL to fetch metadata for",
-                "required": true
-              }
-            ]
-          }
-        ],
-        "blocks": [
-          {
-            "id": "link-preview",
-            "name": "Link Preview",
-            "description": "Rich preview of any URL with Open Graph metadata",
-            "icon": "🔗"
-          }
-        ]
-      },
-      "components": {
-        "link-preview": {
-          "blockId": "link-preview",
-          "blockName": "Link Preview",
-          "file": "opengraph/dist/link-preview.js",
-          "icon": "🔗",
-          "description": "Rich preview of any URL with Open Graph metadata"
-        }
-      }
-    },
-    {
       "id": "tasks",
       "name": "Task Management Plugin",
       "version": "1.0.0",
@@ -339,6 +289,56 @@
           "blockId": "kanban-view",
           "blockName": "KanbanView",
           "file": "tasks/dist/kanban-view.js"
+        }
+      }
+    },
+    {
+      "id": "opengraph-unfurl",
+      "name": "Open Graph Link Unfurling",
+      "version": "1.0.0",
+      "type": "integration",
+      "manifest": {
+        "id": "opengraph-unfurl",
+        "name": "Open Graph Link Unfurling",
+        "version": "1.0.0",
+        "type": "integration",
+        "description": "Rich preview of any URL with Open Graph metadata",
+        "integration": {
+          "api_type": "rest",
+          "auth_method": "none"
+        },
+        "endpoints": [
+          {
+            "id": "fetch_metadata",
+            "name": "Fetch Open Graph Metadata",
+            "method": "GET",
+            "description": "Fetch Open Graph metadata for a URL",
+            "parameters": [
+              {
+                "name": "url",
+                "type": "string",
+                "description": "URL to fetch metadata for",
+                "required": true
+              }
+            ]
+          }
+        ],
+        "blocks": [
+          {
+            "id": "link-preview",
+            "name": "Link Preview",
+            "description": "Rich preview of any URL with Open Graph metadata",
+            "icon": "🔗"
+          }
+        ]
+      },
+      "components": {
+        "link-preview": {
+          "blockId": "link-preview",
+          "blockName": "Link Preview",
+          "file": "opengraph/dist/link-preview.js",
+          "icon": "🔗",
+          "description": "Rich preview of any URL with Open Graph metadata"
         }
       }
     },
@@ -511,43 +511,49 @@
           }
         ]
       },
-      "components": {}
-    },
-    {
-      "id": "rollup",
-      "name": "Rollup Views Plugin",
-      "version": "1.0.0",
-      "type": "view",
-      "manifest": {
-        "id": "rollup",
-        "name": "Rollup Views Plugin",
-        "version": "1.0.0",
-        "type": "view",
-        "description": "Time-based rollup views for activity tracking and reporting",
-        "views": [
-          {
-            "id": "rollup",
-            "name": "Rollup View",
-            "description": "Activity report grouped by date with statistics",
-            "icon": "📈"
-          }
-        ],
-        "templates": [
-          {
-            "id": "weekly-rollup",
-            "name": "Weekly Rollup",
-            "description": "Summary of weekly activity grouped by date",
-            "icon": "📈"
-          }
-        ]
-      },
       "components": {
-        "rollup-view": {
-          "blockId": "rollup-view",
-          "blockName": "RollupView",
-          "file": "rollup/dist/rollup-view.js"
+        "github-issue": {
+          "blockId": "github-issue",
+          "blockName": "GitHub Issue",
+          "file": "github/dist/github-issue.js",
+          "icon": "🐛",
+          "description": "Display a GitHub issue with details"
+        },
+        "github-pr": {
+          "blockId": "github-pr",
+          "blockName": "GitHub Pull Request",
+          "file": "github/dist/github-pr.js",
+          "icon": "🔀",
+          "description": "Display a GitHub pull request"
+        },
+        "github-repo": {
+          "blockId": "github-repo",
+          "blockName": "GitHub Repository",
+          "file": "github/dist/github-repo.js",
+          "icon": "📦",
+          "description": "Display GitHub repository information"
         }
       }
+    },
+    {
+      "id": "cream",
+      "name": "Cream",
+      "version": "1.0.0",
+      "type": "theme",
+      "manifest": {
+        "id": "cream",
+        "name": "Cream",
+        "version": "1.0.0",
+        "type": "theme",
+        "description": "Classic notebook with cream pages",
+        "theme": {
+          "display_name": "Cream",
+          "category": "light",
+          "className": "theme-cream",
+          "stylesheet": "styles/main.css"
+        }
+      },
+      "components": {}
     },
     {
       "id": "gallery",
@@ -586,22 +592,56 @@
       }
     },
     {
-      "id": "cream",
-      "name": "Cream",
+      "id": "core",
+      "name": "Core Views Plugin",
       "version": "1.0.0",
-      "type": "theme",
+      "type": "view",
       "manifest": {
-        "id": "cream",
-        "name": "Cream",
+        "id": "core",
+        "name": "Core Views Plugin",
         "version": "1.0.0",
-        "type": "theme",
-        "description": "Classic notebook with cream pages",
-        "theme": {
-          "display_name": "Cream",
-          "category": "light",
-          "className": "theme-cream",
-          "stylesheet": "styles/main.css"
-        }
+        "type": "view",
+        "description": "Essential note templates and dashboard views",
+        "views": [
+          {
+            "id": "dashboard",
+            "name": "Dashboard",
+            "description": "Composite dashboard with embedded mini-views",
+            "icon": "🏠"
+          }
+        ],
+        "templates": [
+          {
+            "id": "blank-note",
+            "name": "Blank Note",
+            "description": "A blank markdown note",
+            "icon": "📝"
+          },
+          {
+            "id": "daily-journal",
+            "name": "Daily Journal",
+            "description": "A journal entry with today's date",
+            "icon": "📔"
+          },
+          {
+            "id": "meeting-notes",
+            "name": "Meeting Notes",
+            "description": "Template for meeting notes",
+            "icon": "🗓️"
+          },
+          {
+            "id": "project-doc",
+            "name": "Project Document",
+            "description": "Documentation template for a project",
+            "icon": "📋"
+          },
+          {
+            "id": "data-file",
+            "name": "Data File",
+            "description": "JSON data file",
+            "icon": "📦"
+          }
+        ]
       },
       "components": {}
     },
@@ -659,6 +699,42 @@
       "components": {}
     },
     {
+      "id": "rollup",
+      "name": "Rollup Views Plugin",
+      "version": "1.0.0",
+      "type": "view",
+      "manifest": {
+        "id": "rollup",
+        "name": "Rollup Views Plugin",
+        "version": "1.0.0",
+        "type": "view",
+        "description": "Time-based rollup views for activity tracking and reporting",
+        "views": [
+          {
+            "id": "rollup",
+            "name": "Rollup View",
+            "description": "Activity report grouped by date with statistics",
+            "icon": "📈"
+          }
+        ],
+        "templates": [
+          {
+            "id": "weekly-rollup",
+            "name": "Weekly Rollup",
+            "description": "Summary of weekly activity grouped by date",
+            "icon": "📈"
+          }
+        ]
+      },
+      "components": {
+        "rollup-view": {
+          "blockId": "rollup-view",
+          "blockName": "RollupView",
+          "file": "rollup/dist/rollup-view.js"
+        }
+      }
+    },
+    {
       "id": "chart-example",
       "name": "Chart Example Plugin",
       "version": "1.0.0",
@@ -690,60 +766,6 @@
           "description": "Display charts using Chart.js"
         }
       }
-    },
-    {
-      "id": "core",
-      "name": "Core Views Plugin",
-      "version": "1.0.0",
-      "type": "view",
-      "manifest": {
-        "id": "core",
-        "name": "Core Views Plugin",
-        "version": "1.0.0",
-        "type": "view",
-        "description": "Essential note templates and dashboard views",
-        "views": [
-          {
-            "id": "dashboard",
-            "name": "Dashboard",
-            "description": "Composite dashboard with embedded mini-views",
-            "icon": "🏠"
-          }
-        ],
-        "templates": [
-          {
-            "id": "blank-note",
-            "name": "Blank Note",
-            "description": "A blank markdown note",
-            "icon": "📝"
-          },
-          {
-            "id": "daily-journal",
-            "name": "Daily Journal",
-            "description": "A journal entry with today's date",
-            "icon": "📔"
-          },
-          {
-            "id": "meeting-notes",
-            "name": "Meeting Notes",
-            "description": "Template for meeting notes",
-            "icon": "🗓️"
-          },
-          {
-            "id": "project-doc",
-            "name": "Project Document",
-            "description": "Documentation template for a project",
-            "icon": "📋"
-          },
-          {
-            "id": "data-file",
-            "name": "Data File",
-            "description": "JSON data file",
-            "icon": "📦"
-          }
-        ]
-      },
-      "components": {}
     }
   ]
 }

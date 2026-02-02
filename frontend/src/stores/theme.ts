@@ -1,7 +1,7 @@
 import { defineStore } from "pinia"
 import { ref, computed } from "vue"
 import { authService } from "../services/auth"
-import { themeService, type Theme as ApiTheme } from "../services/codex"
+import { getAvailableThemes, getThemeStylesheetUrl, type PluginTheme } from "../services/pluginLoader"
 
 export type ThemeName = string
 
@@ -12,10 +12,10 @@ export interface Theme {
   className: string
   category?: string
   version?: string
-  author?: string
+  stylesheet?: string
 }
 
-// Default fallback themes if API fails
+// Default fallback themes if plugins fail to load
 const DEFAULT_THEMES: Theme[] = [
   {
     name: "cream",
@@ -65,23 +65,28 @@ export const useThemeStore = defineStore("theme", () => {
     if (themesLoaded.value && !themesLoadError.value) return
 
     try {
-      const apiThemes = await themeService.list()
-      
-      // Convert API themes to store format
-      themes.value = apiThemes.map((t: ApiTheme) => ({
-        name: t.name,
-        label: t.label,
-        description: t.description,
-        className: t.className,
-        category: t.category,
-        version: t.version,
-        author: t.author,
-      }))
-      
+      const pluginThemes = await getAvailableThemes()
+
+      if (pluginThemes.length > 0) {
+        // Convert plugin themes to store format
+        themes.value = pluginThemes.map((t: PluginTheme) => ({
+          name: t.name,
+          label: t.label,
+          description: t.description,
+          className: t.className,
+          category: t.category,
+          version: t.version,
+          stylesheet: t.stylesheet,
+        }))
+      } else {
+        // Keep using DEFAULT_THEMES as fallback
+        themes.value = DEFAULT_THEMES
+      }
+
       themesLoaded.value = true
       themesLoadError.value = false
     } catch (error) {
-      console.error("Failed to load themes from API:", error)
+      console.error("Failed to load themes from plugins:", error)
       // Keep using DEFAULT_THEMES as fallback
       themes.value = DEFAULT_THEMES
       themesLoadError.value = true
@@ -123,17 +128,21 @@ export const useThemeStore = defineStore("theme", () => {
     const existingLinks = document.querySelectorAll('link[data-theme-stylesheet]')
     existingLinks.forEach(link => link.remove())
 
+    // Find the theme to get its stylesheet path
+    const themeData = themes.value.find(t => t.name === themeName)
+    const stylesheetUrl = getThemeStylesheetUrl(themeName, themeData?.stylesheet)
+
     // Create and append new stylesheet link
     const link = document.createElement('link')
     link.rel = 'stylesheet'
-    link.href = `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/v1/themes/${themeName}/stylesheet`
+    link.href = stylesheetUrl
     link.setAttribute('data-theme-stylesheet', themeName)
-    
+
     // Add error handling
     link.onerror = () => {
       console.error(`Failed to load stylesheet for theme: ${themeName}`)
     }
-    
+
     document.head.appendChild(link)
   }
 
@@ -169,12 +178,12 @@ export const useThemeStore = defineStore("theme", () => {
   }
 
   async function initialize() {
-    // Load themes from API first
+    // Load themes from plugins first
     await loadThemes()
-    
+
     // Then set the current theme from localStorage
     currentTheme.value = loadFromLocalStorage()
-    
+
     // Load the theme stylesheet
     await loadThemeStylesheet(currentTheme.value)
   }

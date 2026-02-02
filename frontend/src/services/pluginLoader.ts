@@ -263,3 +263,108 @@ export async function preloadPluginComponents(): Promise<void> {
 
   await Promise.allSettled(loadPromises)
 }
+
+// Theme type exposed from plugins
+export interface PluginTheme {
+  id: string
+  name: string
+  label: string
+  description: string
+  className: string
+  category: string
+  version: string
+  stylesheet?: string
+}
+
+// View type exposed from plugins
+export interface PluginView {
+  id: string
+  name: string
+  description: string
+  icon?: string
+  pluginId: string
+  pluginName: string
+}
+
+/**
+ * Get all available themes from loaded plugins
+ */
+export async function getAvailableThemes(): Promise<PluginTheme[]> {
+  const manifest = await loadManifest()
+
+  if (!manifest) {
+    return []
+  }
+
+  const themes: PluginTheme[] = []
+
+  for (const plugin of manifest.plugins) {
+    if (plugin.type === "theme" && plugin.manifest.theme) {
+      const themeConfig = plugin.manifest.theme as {
+        display_name?: string
+        category?: string
+        className?: string
+        stylesheet?: string
+      }
+      themes.push({
+        id: plugin.id,
+        name: plugin.id,
+        label: themeConfig.display_name || plugin.name,
+        description: plugin.manifest.description as string || "",
+        className: themeConfig.className || `theme-${plugin.id}`,
+        category: themeConfig.category || "light",
+        version: plugin.version,
+        stylesheet: themeConfig.stylesheet,
+      })
+    }
+  }
+
+  return themes
+}
+
+/**
+ * Get all available views from loaded plugins
+ */
+export async function getAvailableViews(): Promise<PluginView[]> {
+  const manifest = await loadManifest()
+
+  if (!manifest) {
+    return []
+  }
+
+  const views: PluginView[] = []
+
+  for (const plugin of manifest.plugins) {
+    const manifestViews = plugin.manifest.views as Array<{
+      id: string
+      name: string
+      description?: string
+      icon?: string
+    }> | undefined
+
+    if (manifestViews && Array.isArray(manifestViews)) {
+      for (const view of manifestViews) {
+        views.push({
+          id: view.id,
+          name: view.name,
+          description: view.description || "",
+          icon: view.icon,
+          pluginId: plugin.id,
+          pluginName: plugin.name,
+        })
+      }
+    }
+  }
+
+  return views
+}
+
+/**
+ * Get the stylesheet URL for a theme
+ */
+export function getThemeStylesheetUrl(themeId: string, stylesheet?: string): string {
+  if (stylesheet) {
+    return `${PLUGINS_BASE}/${themeId}/${stylesheet}`
+  }
+  return `${PLUGINS_BASE}/${themeId}/styles/main.css`
+}

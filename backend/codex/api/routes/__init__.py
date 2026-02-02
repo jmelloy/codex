@@ -6,12 +6,11 @@ from . import (
     integrations,
     markdown,
     notebooks,
+    plugins,
     query,
     search,
     tasks,
-    themes,
     users,
-    views,
     workspaces,
 )
 
@@ -21,11 +20,10 @@ __all__ = [
     "integrations",
     "markdown",
     "notebooks",
+    "plugins",
     "query",
     "search",
     "tasks",
-    "themes",
     "users",
-    "views",
     "workspaces",
 ]

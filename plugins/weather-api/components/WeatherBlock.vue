@@ -129,6 +129,20 @@ async function fetchWeather() {
       return;
     }
 
+    var [city, state, country] = props.config.location
+      .split(",")
+      .map((part) => part.trim());
+
+    if (state && !country) {
+      country = "US"; // Default to US if only state is provided
+    }
+
+    console.log("Fetching weather for:", {
+      city,
+      state,
+      country,
+    });
+
     // Step 1: Geocode the location to get coordinates
     const geoResponse = await fetch(
       `/api/v1/integrations/weather-api/execute?workspace_id=${props.workspaceId}`,
@@ -141,7 +155,7 @@ async function fetchWeather() {
         body: JSON.stringify({
           endpoint_id: "geocode",
           parameters: {
-            q: props.config.location,
+            q: `${city}${state ? "," + state : ""}${country ? "," + country : ""}`,
             limit: 1,
           },
         }),
@@ -150,18 +164,19 @@ async function fetchWeather() {
 
     if (!geoResponse.ok) {
       const data = await geoResponse.json().catch(() => ({}));
-      throw new Error(data.detail || `Geocoding failed: HTTP ${geoResponse.status}`);
+      throw new Error(
+        data.detail || `Geocoding failed: HTTP ${geoResponse.status}`,
+      );
     }
 
     const geoResult = await geoResponse.json();
     const geoData = geoResult.data;
 
-    if (!geoData || geoData.length === 0) {
+    if (!geoData || geoData.content?.length === 0) {
       throw new Error(`Location not found: ${props.config.location}`);
     }
 
-    const { lat, lon } = geoData[0];
-
+    const { lat, lon } = geoData.content[0];
     // Step 2: Fetch weather using coordinates
     const weatherResponse = await fetch(
       `/api/v1/integrations/weather-api/execute?workspace_id=${props.workspaceId}`,
@@ -183,7 +198,9 @@ async function fetchWeather() {
 
     if (!weatherResponse.ok) {
       const data = await weatherResponse.json().catch(() => ({}));
-      throw new Error(data.detail || `Weather fetch failed: HTTP ${weatherResponse.status}`);
+      throw new Error(
+        data.detail || `Weather fetch failed: HTTP ${weatherResponse.status}`,
+      );
     }
 
     const result = await weatherResponse.json();

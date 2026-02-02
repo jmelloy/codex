@@ -31,12 +31,58 @@ interface PluginManifest {
   name: string
   version: string
   type: "view" | "theme" | "integration"
+  description?: string
   blocks?: Array<{
     id: string
     name: string
     component?: string
     description?: string
     icon?: string
+  }>
+  views?: Array<{
+    id: string
+    name: string
+    description?: string
+    icon?: string
+    config_schema?: Record<string, unknown>
+  }>
+  templates?: Array<{
+    id: string
+    name: string
+    description?: string
+    icon?: string
+    file?: string
+    default_name?: string
+    file_extension?: string
+  }>
+  properties?: Array<{
+    name: string
+    type: string
+    description?: string
+    required?: boolean
+    secure?: boolean
+    enum?: string[]
+    default?: unknown
+  }>
+  theme?: {
+    display_name?: string
+    category?: string
+    className?: string
+    stylesheet?: string
+  }
+  integration?: {
+    api_type?: string
+    base_url?: string
+    auth_method?: string
+    rate_limit?: Record<string, unknown>
+  }
+  endpoints?: Array<{
+    id: string
+    name: string
+    method?: string
+    path?: string
+    description?: string
+    parameters?: Array<Record<string, unknown>>
   }>
 }
 
@@ -58,22 +104,34 @@ interface ComponentEntry {
   description?: string
 }
 
-interface PluginComponentManifest {
+/**
+ * Component entry in the unified plugins.json
+ */
+interface ComponentInfo {
+  blockId: string
+  blockName: string
+  file: string
+  icon?: string
+  description?: string
+}
+
+/**
+ * Plugin entry in the unified plugins.json
+ * Used for both backend registration and component loading
+ */
+interface PluginEntry {
+  id: string
+  name: string
+  version: string
+  type: "view" | "theme" | "integration"
+  manifest: Record<string, unknown>
+  components: Record<string, ComponentInfo>
+}
+
+interface PluginsManifest {
   version: string
   buildTime: string
-  components: Record<
-    string,
-    {
-      pluginId: string
-      pluginName: string
-      pluginVersion: string
-      blockId: string
-      blockName: string
-      file: string
-      icon?: string
-      description?: string
-    }
-  >
+  plugins: PluginEntry[]
 }
 
 /**
@@ -292,30 +350,122 @@ async function buildComponent(entry: ComponentEntry): Promise<void> {
 }
 
 /**
- * Generate the component manifest
+ * Generate the unified plugins manifest (plugins.json)
+ * Contains both plugin registration data and component file mappings
  */
-function generateManifest(entries: ComponentEntry[]): PluginComponentManifest {
-  const manifest: PluginComponentManifest = {
+function generatePluginsManifest(
+  plugins: Map<string, DiscoveredPlugin>,
+  componentEntries: ComponentEntry[]
+): PluginsManifest {
+  const pluginEntries: PluginEntry[] = []
+
+  // Group component entries by plugin ID
+  const componentsByPlugin = new Map<string, ComponentEntry[]>()
+  for (const entry of componentEntries) {
+    const existing = componentsByPlugin.get(entry.pluginId) || []
+    existing.push(entry)
+    componentsByPlugin.set(entry.pluginId, existing)
+  }
+
+  for (const [pluginId, { manifest, directory }] of plugins) {
+    // Build the manifest object with all relevant fields
+    const pluginManifest: Record<string, unknown> = {
+      id: manifest.id,
+      name: manifest.name,
+      version: manifest.version,
+      type: manifest.type,
+    }
+
+    if (manifest.description) {
+      pluginManifest.description = manifest.description
+    }
+
+    if (manifest.views && manifest.views.length > 0) {
+      pluginManifest.views = manifest.views.map((v) => ({
+        id: v.id,
+        name: v.name,
+        description: v.description,
+        icon: v.icon,
+      }))
+    }
+
+    if (manifest.templates && manifest.templates.length > 0) {
+      pluginManifest.templates = manifest.templates.map((t) => ({
+        id: t.id,
+        name: t.name,
+        description: t.description,
+        icon: t.icon,
+      }))
+    }
+
+    if (manifest.properties && manifest.properties.length > 0) {
+      pluginManifest.properties = manifest.properties.map((p) => ({
+        name: p.name,
+        type: p.type,
+        description: p.description,
+        required: p.required,
+        secure: p.secure,
+        enum: p.enum,
+        default: p.default,
+      }))
+    }
+
+    if (manifest.theme) {
+      pluginManifest.theme = manifest.theme
+    }
+
+    if (manifest.integration) {
+      pluginManifest.integration = manifest.integration
+    }
+
+    if (manifest.endpoints && manifest.endpoints.length > 0) {
+      pluginManifest.endpoints = manifest.endpoints.map((e) => ({
+        id: e.id,
+        name: e.name,
+        method: e.method,
+        path: e.path,
+        description: e.description,
+        parameters: e.parameters,
+      }))
+    }
+
+    if (manifest.blocks && manifest.blocks.length > 0) {
+      pluginManifest.blocks = manifest.blocks.map((b) => ({
+        id: b.id,
+        name: b.name,
+        description: b.description,
+        icon: b.icon,
+      }))
+    }
+
+    // Build components map for this plugin
+    const components: Record<string, ComponentInfo> = {}
+    const pluginComponents = componentsByPlugin.get(pluginId) || []
+    for (const comp of pluginComponents) {
+      components[comp.blockId] = {
+        blockId: comp.blockId,
+        blockName: comp.blockName,
+        file: `${comp.pluginDir}/dist/${comp.outputFile}`,
+        icon: comp.icon,
+        description: comp.description,
+      }
+    }
+
+    pluginEntries.push({
+      id: manifest.id,
+      name: manifest.name,
+      version: manifest.version,
+      type: manifest.type,
+      manifest: pluginManifest,
+      components,
+    })
+  }
+
+  return {
     version: "1.0.0",
     buildTime: new Date().toISOString(),
-    components: {},
+    plugins: pluginEntries,
   }
-
-  for (const entry of entries) {
-    const key = `${entry.pluginDir}/${entry.blockId}`
-    manifest.components[key] = {
-      pluginId: entry.pluginId,
-      pluginName: entry.pluginName,
-      pluginVersion: entry.pluginVersion,
-      blockId: entry.blockId,
-      blockName: entry.blockName,
-      file: `${entry.pluginDir}/dist/${entry.outputFile}`,
-      icon: entry.icon,
-      description: entry.description,
-    }
-  }
-
-  return manifest
 }
 
 /**
@@ -334,10 +484,17 @@ async function clean(): Promise<void> {
     console.log(`  Removed: ${path.relative(PLUGINS_DIR, distDir)}`)
   }
 
-  const manifestPath = path.join(PLUGINS_DIR, "components.json")
-  if (fs.existsSync(manifestPath)) {
-    fs.rmSync(manifestPath)
-    console.log("  Removed: components.json")
+  const pluginsPath = path.join(PLUGINS_DIR, "plugins.json")
+  if (fs.existsSync(pluginsPath)) {
+    fs.rmSync(pluginsPath)
+    console.log("  Removed: plugins.json")
+  }
+
+  // Also clean up legacy components.json if it exists
+  const legacyManifestPath = path.join(PLUGINS_DIR, "components.json")
+  if (fs.existsSync(legacyManifestPath)) {
+    fs.rmSync(legacyManifestPath)
+    console.log("  Removed: components.json (legacy)")
   }
 
   console.log("Clean complete!")
@@ -438,12 +595,13 @@ async function main(): Promise<void> {
   }
   console.log("")
 
-  // Generate manifest
-  console.log("Generating component manifest...")
-  const manifest = generateManifest(entries)
-  const manifestPath = path.join(PLUGINS_DIR, "components.json")
-  fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2))
-  console.log(`  -> components.json`)
+  // Generate unified plugins manifest (plugin registration + component mappings)
+  console.log("Generating plugins manifest...")
+  const allPlugins = await discoverPlugins()
+  const pluginsManifest = generatePluginsManifest(allPlugins, entries)
+  const pluginsPath = path.join(PLUGINS_DIR, "plugins.json")
+  fs.writeFileSync(pluginsPath, JSON.stringify(pluginsManifest, null, 2))
+  console.log(`  -> plugins.json (${pluginsManifest.plugins.length} plugins, ${entries.length} components)`)
   console.log("")
 
   console.log("Build complete!")

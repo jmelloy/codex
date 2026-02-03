@@ -72,7 +72,11 @@ async def list_notebooks(
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_system_session),
 ):
-    """List all notebooks in a workspace."""
+    """List all notebooks in a workspace.
+    
+    **DEPRECATED**: Use GET /api/v1/workspaces/{workspace_slug}/notebooks/ instead.
+    This endpoint will be removed in a future version.
+    """
     # Verify workspace access
     result = await session.execute(
         select(Workspace).where(Workspace.id == workspace_id, Workspace.owner_id == current_user.id)
@@ -105,7 +109,11 @@ async def get_notebook(
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_system_session),
 ):
-    """Get a specific notebook."""
+    """Get a specific notebook.
+    
+    **DEPRECATED**: Use GET /api/v1/workspaces/{workspace_slug}/notebooks/{notebook_slug} instead.
+    This endpoint will be removed in a future version.
+    """
     # Verify workspace access
     result = await session.execute(
         select(Workspace).where(Workspace.id == workspace_id, Workspace.owner_id == current_user.id)
@@ -140,7 +148,11 @@ async def get_notebook_indexing_status(
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_system_session),
 ):
-    """Get the indexing status for a notebook."""
+    """Get the indexing status for a notebook.
+    
+    **DEPRECATED**: Use GET /api/v1/workspaces/{workspace_slug}/notebooks/{notebook_slug}/indexing-status instead.
+    This endpoint will be removed in a future version.
+    """
     # Verify workspace access
     result = await session.execute(
         select(Workspace).where(Workspace.id == workspace_id, Workspace.owner_id == current_user.id)

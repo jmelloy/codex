@@ -339,6 +339,9 @@ async def list_files(
     session: AsyncSession = Depends(get_system_session),
 ):
     """List files in a notebook with pagination.
+    
+    **DEPRECATED**: Use GET /api/v1/workspaces/{workspace_slug}/notebooks/{notebook_slug}/files/ instead.
+    This endpoint will be removed in a future version.
 
     Args:
         notebook_id: ID of the notebook
@@ -1002,7 +1005,11 @@ async def create_file(
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_system_session),
 ):
-    """Create a new file."""
+    """Create a new file.
+    
+    **DEPRECATED**: Use POST /api/v1/workspaces/{workspace_slug}/notebooks/{notebook_slug}/files/ instead.
+    This endpoint will be removed in a future version.
+    """
     notebook_id = request.notebook_id
     workspace_id = request.workspace_id
     path = request.path

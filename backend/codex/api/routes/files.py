@@ -1,9 +1,11 @@
 """File routes."""
 
+import hashlib
 import json
 import logging
 import mimetypes
 import os
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +18,7 @@ from sqlmodel import select
 from codex.api.auth import get_current_active_user
 from codex.api.routes.notebooks import get_notebook_by_slug_or_id
 from codex.api.routes.workspaces import get_workspace_by_slug_or_id
+from codex.core.git_manager import GitManager
 from codex.core.link_resolver import LinkResolver
 from codex.core.metadata import MetadataParser
 from codex.core.watcher import get_content_type
@@ -200,7 +203,7 @@ async def create_from_template(
     custom_filename = request.filename
 
     # Get notebook path
-    notebook_path, _ = await get_notebook_path(notebook_id, workspace_id, current_user, session)
+    notebook_path, notebook = await get_notebook_path(notebook_id, workspace_id, current_user, session)
 
     # Find the template
     template = None
@@ -228,10 +231,13 @@ async def create_from_template(
 
     # Fall back to default templates
     if not template:
-        for t in get_default_templates(req.app.state.plugin_loader):
-            if t["id"] == template_id:
-                template = t
-                break
+        # Get plugin_loader if available (may not be in test environment)
+        plugin_loader = getattr(req.app.state, 'plugin_loader', None)
+        if plugin_loader:
+            for t in get_default_templates(plugin_loader):
+                if t["id"] == template_id:
+                    template = t
+                    break
 
     if not template:
         raise HTTPException(status_code=404, detail=f"Template not found: {template_id}")
@@ -252,15 +258,91 @@ async def create_from_template(
     # Expand patterns in content
     content = expand_template_pattern(template["content"], title)
 
-    # Create the file using existing create_file logic
-    create_request = CreateFileRequest(
-        notebook_id=notebook_id,
-        workspace_id=workspace_id,
-        path=filename,
-        content=content,
-    )
+    # Create the file directly (same logic as create_file_nested)
+    nb_session = get_notebook_session(str(notebook_path))
+    try:
+        file_path = notebook_path / filename
 
-    return await create_file(create_request, current_user, session)
+        # Check if file already exists
+        if file_path.exists():
+            raise HTTPException(status_code=400, detail="File already exists")
+
+        # Create parent directories if needed
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Determine content type before creating file
+        content_type = get_content_type(str(file_path))
+
+        # Create metadata record BEFORE writing file to prevent race with watcher
+        file_meta = FileMetadata(
+            notebook_id=notebook.id,
+            path=filename,
+            filename=os.path.basename(filename),
+            content_type=content_type,
+            size=0,  # Placeholder, will be updated
+            hash=hashlib.sha256(content.encode()).hexdigest(),
+        )
+
+        # Add and commit the metadata record first
+        nb_session.add(file_meta)
+        try:
+            nb_session.commit()
+            nb_session.refresh(file_meta)
+        except Exception as commit_error:
+            # Handle race condition: watcher may have created the record
+            nb_session.rollback()
+            if "UNIQUE constraint failed" in str(commit_error):
+                # Query for the existing record created by the watcher
+                existing_result = nb_session.execute(
+                    select(FileMetadata).where(FileMetadata.notebook_id == notebook.id, FileMetadata.path == filename)
+                )
+                file_meta = existing_result.scalar_one_or_none()
+                if not file_meta:
+                    raise HTTPException(status_code=500, detail="Race condition: file metadata not found")
+            else:
+                raise
+
+        # Now write the file to disk
+        with open(file_path, "w") as f:
+            f.write(content)
+
+        # Refresh to get any updates the watcher may have made
+        nb_session.refresh(file_meta)
+
+        # Update metadata with actual file stats
+        file_stats = os.stat(file_path)
+        file_meta.size = file_stats.st_size
+        file_meta.file_created_at = datetime.fromtimestamp(file_stats.st_ctime)
+        file_meta.file_modified_at = datetime.fromtimestamp(file_stats.st_mtime)
+
+        # Commit file to git
+        git_manager = GitManager(str(notebook_path))
+        commit_hash = git_manager.commit(f"Create {os.path.basename(filename)}", [str(file_path)])
+        if commit_hash:
+            file_meta.last_commit_hash = commit_hash
+
+        # Commit the updates
+        nb_session.commit()
+        nb_session.refresh(file_meta)
+
+        result = {
+            "id": file_meta.id,
+            "notebook_id": file_meta.notebook_id,
+            "path": file_meta.path,
+            "filename": file_meta.filename,
+            "content_type": file_meta.content_type,
+            "size": file_meta.size,
+            "message": "File created successfully from template",
+        }
+
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating file from template in notebook {notebook_path}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error creating file from template: {str(e)}")
+    finally:
+        nb_session.close()
 
 
 @router.get("/by-path/content")

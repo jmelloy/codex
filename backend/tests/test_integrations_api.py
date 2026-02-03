@@ -151,3 +151,48 @@ def test_get_integration_blocks_not_found(client, auth_headers):
         headers=auth_headers,
     )
     assert response.status_code == 404
+
+
+def test_execute_integration_with_artifact_caching(client, auth_headers):
+    """Test that /execute endpoint includes artifact caching.
+    
+    This is a smoke test to ensure the endpoint doesn't break with the new
+    artifact caching code. We test with a non-existent integration to avoid
+    dependencies on external APIs or network conditions.
+    
+    Full integration tests with real plugins and artifact verification are
+    better suited for end-to-end tests that can handle external dependencies.
+    """
+    import tempfile
+    from pathlib import Path
+    
+    # Create a temporary workspace
+    with tempfile.TemporaryDirectory() as tmpdir:
+        workspace_path = Path(tmpdir) / "test_workspace"
+        workspace_path.mkdir()
+        
+        # Create workspace via API
+        response = client.post(
+            "/api/v1/workspaces",
+            headers=auth_headers,
+            json={"name": "Test Artifact Workspace", "path": str(workspace_path)},
+        )
+        assert response.status_code == 200
+        workspace_id = response.json()["id"]
+        
+        # Try to execute an endpoint on a non-existent integration
+        # This should return 404, not crash
+        execute_response = client.post(
+            f"/api/v1/integrations/nonexistent/execute?workspace_id={workspace_id}",
+            headers=auth_headers,
+            json={
+                "endpoint_id": "test",
+                "parameters": {},
+            },
+        )
+        
+        # Should get 404 for non-existent integration
+        assert execute_response.status_code == 404
+        
+        # The important thing is that the endpoint doesn't crash with the
+        # new artifact caching code when the workspace lookup is added

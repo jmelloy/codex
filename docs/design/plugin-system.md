@@ -1458,8 +1458,12 @@ PUT    /api/v1/plugins/{id}/config     - Update plugin configuration
 POST   /api/v1/plugins/{id}/test       - Test plugin connection
 
 # Plugin execution (for integrations)
-POST   /api/v1/plugins/{id}/execute    - Execute integration endpoint
+POST   /api/v1/plugins/{id}/execute    - Execute integration endpoint (with artifact caching)
 GET    /api/v1/plugins/{id}/blocks     - List available blocks
+
+**Note:** The `/execute` endpoint includes artifact caching. 
+Artifacts are saved to `{workspace}/.codex/artifacts/{plugin_id}/{hash}.{ext}` 
+and tracked in the database for future cache hits.
 ```
 
 ### Plugin Loader

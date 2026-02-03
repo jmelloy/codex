@@ -126,3 +126,32 @@ async def update_workspace_theme(
     await session.commit()
     await session.refresh(workspace)
     return workspace
+
+
+# Helper function to get workspace by slug
+async def get_workspace_by_slug_helper(
+    slug: str, current_user: User, session: AsyncSession
+) -> Workspace:
+    """Get a workspace by slug for the current user.
+    
+    Raises:
+        HTTPException if workspace not found
+    """
+    result = await session.execute(
+        select(Workspace).where(Workspace.slug == slug, Workspace.owner_id == current_user.id)
+    )
+    workspace = result.scalar_one_or_none()
+    if not workspace:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+    return workspace
+
+
+# Slug-based routes (v1 API)
+@router.get("/by-slug/{workspace_slug}")
+async def get_workspace_by_slug(
+    workspace_slug: str,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+) -> Workspace:
+    """Get a workspace by its slug."""
+    return await get_workspace_by_slug_helper(workspace_slug, current_user, session)

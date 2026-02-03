@@ -404,3 +404,58 @@ async def delete_notebook_plugin_config(
         await session.commit()
     
     return {"message": "Plugin configuration deleted successfully"}
+
+
+# Helper function to get notebook by slug within a workspace
+async def get_notebook_by_slug_helper(
+    workspace_slug: str, notebook_slug: str, current_user: User, session: AsyncSession
+) -> tuple[Notebook, Workspace]:
+    """Get a notebook by slug within a workspace.
+    
+    Returns:
+        Tuple of (notebook, workspace)
+        
+    Raises:
+        HTTPException if workspace or notebook not found
+    """
+    # First get the workspace
+    result = await session.execute(
+        select(Workspace).where(Workspace.slug == workspace_slug, Workspace.owner_id == current_user.id)
+    )
+    workspace = result.scalar_one_or_none()
+    if not workspace:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+    
+    # Then get the notebook within that workspace
+    result = await session.execute(
+        select(Notebook).where(Notebook.slug == notebook_slug, Notebook.workspace_id == workspace.id)
+    )
+    notebook = result.scalar_one_or_none()
+    if not notebook:
+        raise HTTPException(status_code=404, detail="Notebook not found")
+    
+    return notebook, workspace
+
+
+# Slug-based routes (v1 API)
+@router.get("/by-slug/{workspace_slug}/{notebook_slug}")
+async def get_notebook_by_slug(
+    workspace_slug: str,
+    notebook_slug: str,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Get a notebook by workspace and notebook slugs."""
+    notebook, workspace = await get_notebook_by_slug_helper(workspace_slug, notebook_slug, current_user, session)
+    
+    return {
+        "id": notebook.id,
+        "name": notebook.name,
+        "slug": notebook.slug,
+        "path": notebook.path,
+        "description": notebook.description,
+        "workspace_id": workspace.id,
+        "workspace_slug": workspace.slug,
+        "created_at": notebook.created_at.isoformat() if notebook.created_at else None,
+        "updated_at": notebook.updated_at.isoformat() if notebook.updated_at else None,
+    }

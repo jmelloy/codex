@@ -14,6 +14,7 @@ from ulid import ULID
 
 from codex.api.routes import (
     files,
+    files_slug,
     folders,
     integrations,
     markdown,
@@ -186,6 +187,8 @@ app.include_router(markdown.router, prefix="/api/v1/markdown", tags=["markdown"]
 app.include_router(query.router, prefix="/api/v1/query", tags=["query"])
 app.include_router(integrations.router, prefix="/api/v1/integrations", tags=["integrations"])
 app.include_router(plugins.router, prefix="/api/v1/plugins", tags=["plugins"])
+# Slug-based routes (v1 API)
+app.include_router(files_slug.router, prefix="/api/v1", tags=["files (slug-based)"])
 
 if __name__ == "__main__":
     import uvicorn

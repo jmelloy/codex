@@ -44,6 +44,7 @@ class Workspace(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     name: str = Field(index=True)
+    slug: str = Field(unique=True, index=True)  # URL-friendly slug for workspace
     path: str = Field(unique=True)  # Filesystem path
     owner_id: int = Field(foreign_key="users.id")
     theme_setting: str | None = Field(default="cream")  # User's preferred theme

@@ -2,6 +2,7 @@
 
 from . import (
     files,
+    files_slug,
     folders,
     integrations,
     markdown,
@@ -10,12 +11,14 @@ from . import (
     query,
     search,
     tasks,
+    themes,
     users,
     workspaces,
 )
 
 __all__ = [
     "files",
+    "files_slug",
     "folders",
     "integrations",
     "markdown",
@@ -24,6 +27,7 @@ __all__ = [
     "query",
     "search",
     "tasks",
+    "themes",
     "users",
     "workspaces",
 ]

@@ -42,10 +42,19 @@ async def test_user(session):
 async def test_workspace(session, test_user):
     """Create a test workspace."""
     import time
+    import re
+    
+    timestamp = int(time.time() * 1000)
+    name = "Test Workspace"
+    # Create slug from name
+    slug = re.sub(r'[^\w\s-]', '', name.lower())
+    slug = re.sub(r'[-\s]+', '-', slug).strip('-')
+    slug = f"{slug}-{timestamp}"  # Add timestamp to ensure uniqueness
     
     workspace = Workspace(
-        name="Test Workspace",
-        path=f"/tmp/test-workspace-{int(time.time() * 1000)}",
+        name=name,
+        slug=slug,
+        path=f"/tmp/test-workspace-{timestamp}",
         owner_id=test_user.id,
     )
     session.add(workspace)
@@ -60,6 +69,7 @@ async def test_notebook(session, test_workspace):
     notebook = Notebook(
         workspace_id=test_workspace.id,
         name="Test Notebook",
+        slug="test-notebook",
         path="test-notebook",
     )
     session.add(notebook)
@@ -269,11 +279,13 @@ async def test_multiple_notebook_plugin_configs(
     notebook1 = Notebook(
         workspace_id=test_workspace.id,
         name="Notebook 1",
+        slug="notebook-1",
         path="notebook-1",
     )
     notebook2 = Notebook(
         workspace_id=test_workspace.id,
         name="Notebook 2",
+        slug="notebook-2",
         path="notebook-2",
     )
     session.add(notebook1)

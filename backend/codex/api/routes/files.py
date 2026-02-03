@@ -403,237 +403,6 @@ async def list_files(
         nb_session.close()
 
 
-@router.get("/{file_id}")
-async def get_file(
-    file_id: int,
-    workspace_id: int,
-    notebook_id: int,
-    current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_system_session),
-):
-    """Get file metadata (without content).
-
-    Use GET /{file_id}/text to fetch text content separately.
-    Use GET /{file_id}/content to download binary files.
-    """
-    # Get notebook path from system database
-    notebook_path, _ = await get_notebook_path(notebook_id, workspace_id, current_user, session)
-
-    # Query file from notebook database
-    nb_session = get_notebook_session(str(notebook_path))
-    try:
-        file_result = nb_session.execute(select(FileMetadata).where(FileMetadata.id == file_id))
-        file_meta = file_result.scalar_one_or_none()
-
-        if not file_meta:
-            raise HTTPException(status_code=404, detail="File not found")
-
-        # Load cached properties from DB
-        properties = None
-        if file_meta.properties:
-            try:
-                properties = json.loads(file_meta.properties)
-            except json.JSONDecodeError:
-                properties = None
-
-        result = {
-            "id": file_meta.id,
-            "notebook_id": file_meta.notebook_id,
-            "path": file_meta.path,
-            "filename": file_meta.filename,
-            "content_type": file_meta.content_type,
-            "size": file_meta.size,
-            "hash": file_meta.hash,
-            "title": file_meta.title,
-            "description": file_meta.description,
-            "file_type": file_meta.file_type,
-            "properties": properties,
-            "created_at": file_meta.created_at.isoformat() if file_meta.created_at else None,
-            "updated_at": file_meta.updated_at.isoformat() if file_meta.updated_at else None,
-            "file_modified_at": (file_meta.file_modified_at.isoformat() if file_meta.file_modified_at else None),
-        }
-
-        return result
-    finally:
-        nb_session.close()
-
-
-@router.get("/{file_id}/text")
-async def get_file_text(
-    file_id: int,
-    workspace_id: int,
-    notebook_id: int,
-    current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_system_session),
-):
-    """Get text content for a file.
-
-    Returns the file content as JSON for text-based files (text/*, application/json,
-    application/xml, application/x-codex-view).
-
-    For markdown files, returns the body content without frontmatter.
-    For view files (.cdx), returns the raw content including frontmatter.
-    """
-    # Get notebook path from system database
-    notebook_path, _ = await get_notebook_path(notebook_id, workspace_id, current_user, session)
-
-    # Query file from notebook database
-    nb_session = get_notebook_session(str(notebook_path))
-    try:
-        file_result = nb_session.execute(select(FileMetadata).where(FileMetadata.id == file_id))
-        file_meta = file_result.scalar_one_or_none()
-
-        if not file_meta:
-            raise HTTPException(status_code=404, detail="File not found")
-
-        # Get file path
-        file_path = notebook_path / file_meta.path
-
-        if not file_path.exists():
-            raise HTTPException(status_code=404, detail="File not found on disk")
-
-        # Check if content type is text-based
-        if not (file_meta.content_type.startswith("text/") or
-                file_meta.content_type in ["application/json", "application/xml",
-                                           "application/x-codex-view"]):
-            raise HTTPException(
-                status_code=400,
-                detail="File is not a text file. Use /content endpoint for binary files."
-            )
-
-        # Read file content
-        try:
-            with open(file_path) as f:
-                raw_content = f.read()
-        except Exception as e:
-            logger.error(f"Error reading file content: {e}", exc_info=True)
-            raise HTTPException(status_code=500, detail="Error reading file content")
-
-        # Parse frontmatter from file content if it's a markdown or view file
-        content = raw_content
-        properties = None
-        if file_meta.content_type in ["text/markdown", "application/x-codex-view"]:
-            properties, body_content = MetadataParser.parse_frontmatter(raw_content)
-            # Sync properties to DB cache if they changed
-            properties_json = json.dumps(properties) if properties else None
-            if file_meta.properties != properties_json:
-                file_meta.properties = properties_json
-                # Extract title/description/type for indexed search
-                if properties:
-                    if "title" in properties:
-                        file_meta.title = properties["title"]
-                    if "description" in properties:
-                        file_meta.description = properties["description"]
-                    if "type" in properties:
-                        file_meta.file_type = properties["type"]
-                nb_session.commit()
-            # For view files, return raw content so frontend can parse the full view definition
-            # For markdown files, return body content without frontmatter
-            if file_meta.content_type == "application/x-codex-view":
-                content = raw_content
-            else:
-                content = body_content
-
-        return {
-            "id": file_meta.id,
-            "content": content,
-            "properties": properties,
-        }
-    finally:
-        nb_session.close()
-
-
-@router.get("/{file_id}/history")
-async def get_file_history(
-    file_id: int,
-    workspace_id: int,
-    notebook_id: int,
-    max_count: int = 20,
-    current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_system_session),
-):
-    """Get git history for a specific file.
-
-    Returns a list of commits that modified this file, with hash, author, date, and message.
-    """
-    # Get notebook path from system database
-    notebook_path, _ = await get_notebook_path(notebook_id, workspace_id, current_user, session)
-
-    # Query file from notebook database
-    nb_session = get_notebook_session(str(notebook_path))
-    try:
-        file_result = nb_session.execute(select(FileMetadata).where(FileMetadata.id == file_id))
-        file_meta = file_result.scalar_one_or_none()
-
-        if not file_meta:
-            raise HTTPException(status_code=404, detail="File not found")
-
-        # Get file path on disk
-        file_path = notebook_path / file_meta.path
-
-        # Get git history
-        from codex.core.git_manager import GitManager
-
-        git_manager = GitManager(str(notebook_path))
-        history = git_manager.get_file_history(str(file_path), max_count=max_count)
-
-        return {"file_id": file_id, "path": file_meta.path, "history": history}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error getting file history: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error getting file history: {str(e)}")
-    finally:
-        nb_session.close()
-
-
-@router.get("/{file_id}/history/{commit_hash}")
-async def get_file_at_commit(
-    file_id: int,
-    commit_hash: str,
-    workspace_id: int,
-    notebook_id: int,
-    current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_system_session),
-):
-    """Get file content at a specific commit.
-
-    Returns the file content as it was at the specified commit.
-    """
-    # Get notebook path from system database
-    notebook_path, _ = await get_notebook_path(notebook_id, workspace_id, current_user, session)
-
-    # Query file from notebook database
-    nb_session = get_notebook_session(str(notebook_path))
-    try:
-        file_result = nb_session.execute(select(FileMetadata).where(FileMetadata.id == file_id))
-        file_meta = file_result.scalar_one_or_none()
-
-        if not file_meta:
-            raise HTTPException(status_code=404, detail="File not found")
-
-        # Get file path on disk
-        file_path = notebook_path / file_meta.path
-
-        # Get file content at commit
-        from codex.core.git_manager import GitManager
-
-        git_manager = GitManager(str(notebook_path))
-        content = git_manager.get_file_at_commit(str(file_path), commit_hash)
-
-        if content is None:
-            raise HTTPException(status_code=404, detail="File not found at this commit")
-
-        return {"file_id": file_id, "path": file_meta.path, "commit_hash": commit_hash, "content": content}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error getting file at commit: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error getting file at commit: {str(e)}")
-    finally:
-        nb_session.close()
-
-
 @router.get("/by-path")
 async def get_file_by_path(
     path: str,
@@ -863,6 +632,237 @@ async def get_file_content_by_path(
 
         # Return the file
         return FileResponse(path=str(file_path), media_type=media_type, filename=file_meta.filename)
+    finally:
+        nb_session.close()
+
+
+@router.get("/{file_id}")
+async def get_file(
+    file_id: int,
+    workspace_id: int,
+    notebook_id: int,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Get file metadata (without content).
+
+    Use GET /{file_id}/text to fetch text content separately.
+    Use GET /{file_id}/content to download binary files.
+    """
+    # Get notebook path from system database
+    notebook_path, _ = await get_notebook_path(notebook_id, workspace_id, current_user, session)
+
+    # Query file from notebook database
+    nb_session = get_notebook_session(str(notebook_path))
+    try:
+        file_result = nb_session.execute(select(FileMetadata).where(FileMetadata.id == file_id))
+        file_meta = file_result.scalar_one_or_none()
+
+        if not file_meta:
+            raise HTTPException(status_code=404, detail="File not found")
+
+        # Load cached properties from DB
+        properties = None
+        if file_meta.properties:
+            try:
+                properties = json.loads(file_meta.properties)
+            except json.JSONDecodeError:
+                properties = None
+
+        result = {
+            "id": file_meta.id,
+            "notebook_id": file_meta.notebook_id,
+            "path": file_meta.path,
+            "filename": file_meta.filename,
+            "content_type": file_meta.content_type,
+            "size": file_meta.size,
+            "hash": file_meta.hash,
+            "title": file_meta.title,
+            "description": file_meta.description,
+            "file_type": file_meta.file_type,
+            "properties": properties,
+            "created_at": file_meta.created_at.isoformat() if file_meta.created_at else None,
+            "updated_at": file_meta.updated_at.isoformat() if file_meta.updated_at else None,
+            "file_modified_at": (file_meta.file_modified_at.isoformat() if file_meta.file_modified_at else None),
+        }
+
+        return result
+    finally:
+        nb_session.close()
+
+
+@router.get("/{file_id}/text")
+async def get_file_text(
+    file_id: int,
+    workspace_id: int,
+    notebook_id: int,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Get text content for a file.
+
+    Returns the file content as JSON for text-based files (text/*, application/json,
+    application/xml, application/x-codex-view).
+
+    For markdown files, returns the body content without frontmatter.
+    For view files (.cdx), returns the raw content including frontmatter.
+    """
+    # Get notebook path from system database
+    notebook_path, _ = await get_notebook_path(notebook_id, workspace_id, current_user, session)
+
+    # Query file from notebook database
+    nb_session = get_notebook_session(str(notebook_path))
+    try:
+        file_result = nb_session.execute(select(FileMetadata).where(FileMetadata.id == file_id))
+        file_meta = file_result.scalar_one_or_none()
+
+        if not file_meta:
+            raise HTTPException(status_code=404, detail="File not found")
+
+        # Get file path
+        file_path = notebook_path / file_meta.path
+
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="File not found on disk")
+
+        # Check if content type is text-based
+        if not (file_meta.content_type.startswith("text/") or
+                file_meta.content_type in ["application/json", "application/xml",
+                                           "application/x-codex-view"]):
+            raise HTTPException(
+                status_code=400,
+                detail="File is not a text file. Use /content endpoint for binary files."
+            )
+
+        # Read file content
+        try:
+            with open(file_path) as f:
+                raw_content = f.read()
+        except Exception as e:
+            logger.error(f"Error reading file content: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail="Error reading file content")
+
+        # Parse frontmatter from file content if it's a markdown or view file
+        content = raw_content
+        properties = None
+        if file_meta.content_type in ["text/markdown", "application/x-codex-view"]:
+            properties, body_content = MetadataParser.parse_frontmatter(raw_content)
+            # Sync properties to DB cache if they changed
+            properties_json = json.dumps(properties) if properties else None
+            if file_meta.properties != properties_json:
+                file_meta.properties = properties_json
+                # Extract title/description/type for indexed search
+                if properties:
+                    if "title" in properties:
+                        file_meta.title = properties["title"]
+                    if "description" in properties:
+                        file_meta.description = properties["description"]
+                    if "type" in properties:
+                        file_meta.file_type = properties["type"]
+                nb_session.commit()
+            # For view files, return raw content so frontend can parse the full view definition
+            # For markdown files, return body content without frontmatter
+            if file_meta.content_type == "application/x-codex-view":
+                content = raw_content
+            else:
+                content = body_content
+
+        return {
+            "id": file_meta.id,
+            "content": content,
+            "properties": properties,
+        }
+    finally:
+        nb_session.close()
+
+
+@router.get("/{file_id}/history")
+async def get_file_history(
+    file_id: int,
+    workspace_id: int,
+    notebook_id: int,
+    max_count: int = 20,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Get git history for a specific file.
+
+    Returns a list of commits that modified this file, with hash, author, date, and message.
+    """
+    # Get notebook path from system database
+    notebook_path, _ = await get_notebook_path(notebook_id, workspace_id, current_user, session)
+
+    # Query file from notebook database
+    nb_session = get_notebook_session(str(notebook_path))
+    try:
+        file_result = nb_session.execute(select(FileMetadata).where(FileMetadata.id == file_id))
+        file_meta = file_result.scalar_one_or_none()
+
+        if not file_meta:
+            raise HTTPException(status_code=404, detail="File not found")
+
+        # Get file path on disk
+        file_path = notebook_path / file_meta.path
+
+        # Get git history
+        from codex.core.git_manager import GitManager
+
+        git_manager = GitManager(str(notebook_path))
+        history = git_manager.get_file_history(str(file_path), max_count=max_count)
+
+        return {"file_id": file_id, "path": file_meta.path, "history": history}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting file history: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error getting file history: {str(e)}")
+    finally:
+        nb_session.close()
+
+
+@router.get("/{file_id}/history/{commit_hash}")
+async def get_file_at_commit(
+    file_id: int,
+    commit_hash: str,
+    workspace_id: int,
+    notebook_id: int,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Get file content at a specific commit.
+
+    Returns the file content as it was at the specified commit.
+    """
+    # Get notebook path from system database
+    notebook_path, _ = await get_notebook_path(notebook_id, workspace_id, current_user, session)
+
+    # Query file from notebook database
+    nb_session = get_notebook_session(str(notebook_path))
+    try:
+        file_result = nb_session.execute(select(FileMetadata).where(FileMetadata.id == file_id))
+        file_meta = file_result.scalar_one_or_none()
+
+        if not file_meta:
+            raise HTTPException(status_code=404, detail="File not found")
+
+        # Get file path on disk
+        file_path = notebook_path / file_meta.path
+
+        # Get file content at commit
+        from codex.core.git_manager import GitManager
+
+        git_manager = GitManager(str(notebook_path))
+        content = git_manager.get_file_at_commit(str(file_path), commit_hash)
+
+        if content is None:
+            raise HTTPException(status_code=404, detail="File not found at this commit")
+
+        return {"file_id": file_id, "path": file_meta.path, "commit_hash": commit_hash, "content": content}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting file at commit: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error getting file at commit: {str(e)}")
     finally:
         nb_session.close()
 

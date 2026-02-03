@@ -53,7 +53,7 @@ export const authService = {
     params.append("username", credentials.username)
     params.append("password", credentials.password)
 
-    const response = await apiClient.post<TokenResponse>("/api/token", params, {
+    const response = await apiClient.post<TokenResponse>("/api/v1/users/token", params, {
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
       },
@@ -62,12 +62,12 @@ export const authService = {
   },
 
   async getCurrentUser(): Promise<User> {
-    const response = await apiClient.get<User>("/api/users/me")
+    const response = await apiClient.get<User>("/api/v1/users/me")
     return response.data
   },
 
   async register(data: RegisterData): Promise<User> {
-    const response = await apiClient.post<User>("/api/register", data)
+    const response = await apiClient.post<User>("/api/v1/users/register", data)
     return response.data
   },
 
@@ -89,7 +89,7 @@ export const authService = {
   saveToken,
 
   async updateTheme(theme: string): Promise<User> {
-    const response = await apiClient.patch<User>("/api/users/me/theme", {
+    const response = await apiClient.patch<User>("/api/v1/users/me/theme", {
       theme,
     })
     return response.data

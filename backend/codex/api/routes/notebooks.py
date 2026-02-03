@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from codex.api.auth import get_current_active_user
+from codex.api.routes.workspaces import get_workspace_by_slug_or_id
 from codex.core.watcher import NotebookWatcher
 from codex.db.database import get_system_session, init_notebook_db
 from codex.db.models import Notebook, NotebookPluginConfig, User, Workspace
@@ -27,27 +28,6 @@ def slugify(name: str) -> str:
     slug = re.sub(r"[^\w\s-]", "", name.lower())
     slug = re.sub(r"[-\s]+", "-", slug).strip("-")
     return slug or "notebook"
-
-
-async def get_workspace_by_slug_or_id(
-    workspace_identifier: str, current_user: User, session: AsyncSession
-) -> Workspace:
-    """Get workspace by slug or ID."""
-    if workspace_identifier.isdigit():
-        result = await session.execute(
-            select(Workspace).where(
-                Workspace.id == int(workspace_identifier), Workspace.owner_id == current_user.id
-            )
-        )
-    else:
-        result = await session.execute(
-            select(Workspace).where(Workspace.slug == workspace_identifier, Workspace.owner_id == current_user.id)
-        )
-    
-    workspace = result.scalar_one_or_none()
-    if not workspace:
-        raise HTTPException(status_code=404, detail="Workspace not found")
-    return workspace
 
 
 async def get_notebook_by_slug_or_id(

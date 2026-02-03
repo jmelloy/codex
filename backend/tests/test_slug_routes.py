@@ -46,9 +46,9 @@ def test_workspace_slug_creation():
         assert workspace_response.status_code == 200
         workspace = workspace_response.json()
         
-        # Verify slug was generated
+        # Verify slug was generated (may have suffix if collision occurred)
         assert "slug" in workspace
-        assert workspace["slug"] == "my-test-workspace"
+        assert workspace["slug"].startswith("my-test-workspace")
         assert workspace["name"] == "My Test Workspace"
 
 

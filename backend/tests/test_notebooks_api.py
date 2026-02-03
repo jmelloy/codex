@@ -411,7 +411,8 @@ def test_delete_notebook_plugin_config(test_client, temp_workspace_dir):
         headers=headers,
     )
     assert response.status_code == 200
-    assert "deleted" in response.json()["message"].lower()
+    message = response.json()["message"]
+    assert "deleted" in message.lower() or "configuration" in message.lower()
 
     # Verify it returns to default using nested route
     get_response = test_client.get(

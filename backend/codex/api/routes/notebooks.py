@@ -360,7 +360,7 @@ async def create_notebook_nested(
     final_slug = base_slug
     
     # Generate path from name
-    workspace_path = Path(workspace.path)
+    workspace_path = Path(workspace.path).resolve()  # Convert to absolute path
     notebook_path = workspace_path / final_slug
     
     # Handle collisions by checking both filesystem and database slug

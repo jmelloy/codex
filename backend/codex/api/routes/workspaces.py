@@ -121,29 +121,36 @@ async def create_workspace(
     
     # Determine path and slug
     if body.path:
-        # Explicit path provided - use it directly
-        path = body.path
+        # Explicit path provided - use it as the workspace directory
+        workspace_path = Path(body.path).resolve()  # Convert to absolute path
         # Generate slug from the path's basename
-        base_slug = slugify(Path(path).name)
+        base_slug = slugify(workspace_path.name)
+        final_slug = base_slug
+        
+        # Handle slug collisions
+        while await slug_exists_in_db(session, final_slug, current_user.id):
+            counter = uuid4().hex[:8]
+            final_slug = f"{base_slug}-{counter}"
+        
+        path = str(workspace_path)
     else:
-        # No path provided - auto-generate from workspace name
+        # No path provided - auto-generate from workspace name in data directory
         base_slug = slugify(name)
+        base_path = Path(DATA_DIRECTORY) / "workspaces"
+        workspace_path = base_path / base_slug
+        final_slug = base_slug
 
-    base_path = Path(DATA_DIRECTORY) / "workspaces"
-    workspace_path = base_path / base_slug
-    final_slug = base_slug
+        # Handle collisions by checking both filesystem, database path, and slug
+        while (
+            workspace_path.exists()
+            or await path_exists_in_db(session, str(workspace_path))
+            or await slug_exists_in_db(session, final_slug, current_user.id)
+        ):
+            counter = uuid4().hex[:8]
+            final_slug = f"{base_slug}-{counter}"
+            workspace_path = base_path / final_slug
 
-    # Handle collisions by checking both filesystem, database path, and slug
-    while (
-        workspace_path.exists()
-        or await path_exists_in_db(session, str(workspace_path))
-        or await slug_exists_in_db(session, final_slug, current_user.id)
-    ):
-        counter = uuid4().hex[:8]
-        final_slug = f"{base_slug}-{counter}"
-        workspace_path = base_path / final_slug
-
-    path = str(workspace_path)
+        path = str(workspace_path)
 
     # Create the workspace directory
     workspace_dir = Path(path)

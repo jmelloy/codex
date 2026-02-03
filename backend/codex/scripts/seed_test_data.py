@@ -385,7 +385,11 @@ async def seed_data():
                     workspace_path.mkdir(parents=True, exist_ok=True)
 
                     workspace = Workspace(
-                        name=workspace_data["name"], path=str(workspace_path), owner_id=user.id, theme_setting="cream"
+                        name=workspace_data["name"],
+                        slug=workspace_slug,
+                        path=str(workspace_path),
+                        owner_id=user.id,
+                        theme_setting="cream"
                     )
                     session.add(workspace)
                     await session.commit()

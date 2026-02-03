@@ -45,6 +45,7 @@ async def test_workspace(session, test_user):
     
     workspace = Workspace(
         name="Test Workspace",
+        slug="test-workspace",
         path=f"/tmp/test-workspace-{int(time.time() * 1000)}",
         owner_id=test_user.id,
     )
@@ -60,6 +61,7 @@ async def test_notebook(session, test_workspace):
     notebook = Notebook(
         workspace_id=test_workspace.id,
         name="Test Notebook",
+        slug="test-notebook",
         path="test-notebook",
     )
     session.add(notebook)

@@ -66,14 +66,14 @@ def test_notebook_endpoints(temp_workspace_dir):
     workspace_id = workspace_response.json()["id"]
 
     # List notebooks (should be empty)
-    response = client.get("/api/v1/notebooks/", params={"workspace_id": workspace_id}, headers=headers)
+    response = client.get(f"/api/v1/workspaces/{workspace_id}/notebooks/", headers=headers)
     assert response.status_code == 200
     assert len(response.json()) == 0
 
-    # Create a notebook
+    # Create a notebook using nested route
     response = client.post(
-        "/api/v1/notebooks/",
-        json={"workspace_id": workspace_id, "name": "Test Notebook", "description": "A test notebook"},
+        f"/api/v1/workspaces/{workspace_id}/notebooks/",
+        json={"name": "Test Notebook", "description": "A test notebook"},
         headers=headers,
     )
     if response.status_code != 200:
@@ -85,13 +85,13 @@ def test_notebook_endpoints(temp_workspace_dir):
     notebook_id = notebook["id"]
 
     # List notebooks (should have one)
-    response = client.get("/api/v1/notebooks/", params={"workspace_id": workspace_id}, headers=headers)
+    response = client.get(f"/api/v1/workspaces/{workspace_id}/notebooks/", headers=headers)
     assert response.status_code == 200
     notebooks = response.json()
     assert len(notebooks) == 1
 
     # Get notebook by ID
-    response = client.get(f"/api/v1/notebooks/{notebook_id}", params={"workspace_id": workspace_id}, headers=headers)
+    response = client.get(f"/api/v1/workspaces/{workspace_id}/notebooks/{notebook_id}", headers=headers)
     assert response.status_code == 200
     notebook_data = response.json()
     assert notebook_data["id"] == notebook_id
@@ -111,7 +111,7 @@ def test_file_endpoints(temp_workspace_dir):
     workspace_id = workspace_response.json()["id"]
 
     notebook_response = client.post(
-        "/api/v1/notebooks/", json={"workspace_id": workspace_id, "name": "File Notebook"}, headers=headers
+        f"/api/v1/workspaces/{workspace_id}/notebooks/", json={"name": "File Notebook"}, headers=headers
     )
     notebook_id = notebook_response.json()["id"]
 

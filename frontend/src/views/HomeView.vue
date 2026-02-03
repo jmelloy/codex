@@ -902,7 +902,10 @@ const notebookFileTrees = computed(() => {
 // Get content URL for current file (for binary files like images, PDFs, audio, video)
 const currentContentUrl = computed(() => {
   if (!workspaceStore.currentFile || !workspaceStore.currentWorkspace) return ""
-  return `/api/v1/files/${workspaceStore.currentFile.id}/content?workspace_id=${workspaceStore.currentWorkspace.id}&notebook_id=${workspaceStore.currentFile.notebook_id}`
+  const workspaceId = workspaceStore.currentWorkspace.id || workspaceStore.currentWorkspace.slug
+  const notebook = workspaceStore.notebooks.find((n: any) => n.id === workspaceStore.currentFile?.notebook_id)
+  const notebookId = notebook?.id || notebook?.slug
+  return `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/${workspaceStore.currentFile.id}/content`
 })
 
 // Get display type for current file

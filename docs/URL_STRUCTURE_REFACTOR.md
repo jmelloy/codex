@@ -4,6 +4,27 @@
 
 This document outlines the refactoring of the Codex backend API URL structure to use path-based routing with slugs instead of query parameters.
 
+## Status: IN PROGRESS
+
+**Completed:**
+- ✅ Database models updated with slug fields
+- ✅ Migration created and tested
+- ✅ Workspace routes support slug-based access
+- ✅ Notebook routes support nested slug-based access
+- ✅ Comprehensive test suite for new routes
+- ✅ Both slug and ID access supported for backward compatibility
+
+**In Progress:**
+- 🔄 File routes refactoring
+- 🔄 Search routes refactoring
+- 🔄 Folder routes refactoring
+
+**Remaining:**
+- ⏳ Update frontend API client
+- ⏳ Update all existing tests
+- ⏳ Plugin routes refactoring (if needed)
+- ⏳ Documentation updates
+
 ## Goals
 
 1. **RESTful Design**: Use hierarchical URL paths that reflect resource relationships
@@ -188,6 +209,118 @@ CREATE INDEX idx_workspaces_slug ON workspaces(slug);
 ALTER TABLE notebooks ADD COLUMN slug VARCHAR(100);
 CREATE UNIQUE INDEX idx_notebooks_slug_workspace ON notebooks(workspace_id, slug);
 ```
+
+## Implementation Details
+
+### What Has Been Implemented
+
+#### 1. Database Models (✅ Complete)
+- Added `slug` field to `Workspace` model (unique, indexed)
+- Added `slug` field to `Notebook` model (unique per workspace, indexed)
+- Created Alembic migration `20260203_000000_007_add_slug_fields.py`
+- Migration handles SQLite constraints properly using batch operations
+- Automatically populates slugs for existing records from path/name
+
+#### 2. Workspace Routes (✅ Complete)
+**New/Updated Endpoints:**
+- `GET /api/v1/workspaces/` - List workspaces (now includes slug in response)
+- `GET /api/v1/workspaces/{workspace_slug}` - Get workspace by slug OR ID
+- `POST /api/v1/workspaces/` - Create workspace (auto-generates slug)
+- `PATCH /api/v1/workspaces/{workspace_slug}/theme` - Update theme by slug OR ID
+
+**Implementation Details:**
+- Added `slugify()` function to convert names to URL-safe slugs
+- Added `slug_exists_in_db()` to check for slug collisions
+- Added `get_workspace_by_slug_or_id()` helper for flexible lookup
+- Slug collision handling with UUID suffix
+- Backward compatible: accepts both slug and numeric ID
+
+#### 3. Notebook Routes (✅ Complete)
+**New Nested Endpoints:**
+- `GET /api/v1/workspaces/{workspace_slug}/notebooks` - List notebooks in workspace
+- `POST /api/v1/workspaces/{workspace_slug}/notebooks` - Create notebook in workspace
+- `GET /api/v1/workspaces/{workspace_slug}/notebooks/{notebook_slug}` - Get notebook
+- `GET /api/v1/workspaces/{workspace_slug}/notebooks/{notebook_slug}/indexing-status` - Get indexing status
+
+**Implementation Details:**
+- Created separate `nested_router` for workspace-nested routes
+- Added `get_notebook_by_slug_or_id()` helper for flexible lookup
+- Added `slug_exists_for_workspace()` to check notebook slug collisions
+- Slug collision handling with UUID suffix
+- Backward compatible: old flat routes still work (marked as deprecated)
+- Both slug and numeric ID accepted in nested routes
+
+#### 4. Tests (✅ Complete)
+Created comprehensive test suite in `backend/tests/test_slug_routes.py`:
+- ✅ Workspace slug generation on creation
+- ✅ Get workspace by slug and by ID
+- ✅ Nested notebook creation with slug generation
+- ✅ Get notebook by slug and by ID
+- ✅ List notebooks using nested route
+
+All 5 tests passing.
+
+### What Needs to Be Done
+
+#### 1. File Routes (⏳ TODO)
+Files currently use query parameters. Need to create nested router:
+
+**Current:**
+```
+GET /api/v1/files/?notebook_id={id}&workspace_id={id}
+GET /api/v1/files/{file_id}?notebook_id={id}&workspace_id={id}
+```
+
+**Proposed:**
+```
+GET /api/v1/workspaces/{workspace_slug}/notebooks/{notebook_slug}/files
+GET /api/v1/workspaces/{workspace_slug}/notebooks/{notebook_slug}/files/{file_path:path}
+```
+
+**Considerations:**
+- Files have paths within notebooks (can be nested in folders)
+- Need to handle path parameter properly (use FastAPI's `path` type)
+- Many file operations: list, get, create, update, delete, upload, move, history
+- File access by ID vs by path - may need both approaches
+
+#### 2. Search Routes (⏳ TODO)
+**Current:**
+```
+GET /api/v1/search/?workspace_id={id}&notebook_id={id}&query={q}
+```
+
+**Proposed:**
+```
+GET /api/v1/workspaces/{workspace_slug}/search?query={q}
+GET /api/v1/workspaces/{workspace_slug}/notebooks/{notebook_slug}/search?query={q}
+```
+
+#### 3. Folder Routes (⏳ TODO)
+**Current:**
+```
+GET /api/v1/folders/?notebook_id={id}&workspace_id={id}&path={path}
+POST /api/v1/folders/
+```
+
+**Proposed:**
+```
+GET /api/v1/workspaces/{workspace_slug}/notebooks/{notebook_slug}/folders/{folder_path:path}
+POST /api/v1/workspaces/{workspace_slug}/notebooks/{notebook_slug}/folders
+```
+
+#### 4. Frontend Updates (⏳ TODO)
+Update `frontend/src/services/codex.ts` to use new URL patterns:
+- Update all workspace API calls to use slugs
+- Update all notebook API calls to use nested routes
+- Update file, search, and folder calls once backend is updated
+- Keep backward compatibility during transition
+
+#### 5. Existing Test Updates (⏳ TODO)
+Many existing tests use the old URL patterns with query parameters. Need to update:
+- `tests/test_files_api.py` - File operation tests
+- `tests/test_file_creation.py` - File creation tests  
+- `tests/test_search_api.py` - Search tests
+- Any other tests that create workspaces/notebooks/files
 
 ## Note on Terminology
 

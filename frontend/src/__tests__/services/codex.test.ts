@@ -80,7 +80,7 @@ describe("Codex Services", () => {
 
       const result = await notebookService.list(1)
 
-      expect(apiClient.get).toHaveBeenCalledWith("/api/v1/notebooks/?workspace_id=1")
+      expect(apiClient.get).toHaveBeenCalledWith("/api/v1/workspaces/1/notebooks/")
       expect(result).toEqual(mockNotebooks)
     })
 
@@ -88,9 +88,9 @@ describe("Codex Services", () => {
       const mockNotebook = { id: 1, name: "Notebook 1" }
       ;(apiClient.get as Mock).mockResolvedValue({ data: mockNotebook })
 
-      const result = await notebookService.get(1)
+      const result = await notebookService.get(1, 1)
 
-      expect(apiClient.get).toHaveBeenCalledWith("/api/v1/notebooks/1")
+      expect(apiClient.get).toHaveBeenCalledWith("/api/v1/workspaces/1/notebooks/1")
       expect(result).toEqual(mockNotebook)
     })
 
@@ -100,8 +100,7 @@ describe("Codex Services", () => {
 
       const result = await notebookService.create(1, "New Notebook")
 
-      expect(apiClient.post).toHaveBeenCalledWith("/api/v1/notebooks/", {
-        workspace_id: 1,
+      expect(apiClient.post).toHaveBeenCalledWith("/api/v1/workspaces/1/notebooks/", {
         name: "New Notebook",
       })
       expect(result).toEqual(mockNotebook)

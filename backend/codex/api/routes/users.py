@@ -21,6 +21,9 @@ from codex.db.models import User
 
 router = APIRouter()
 
+# V1 router with updated paths
+v1_router = APIRouter()
+
 
 @router.post("/token")
 async def login(
@@ -104,3 +107,36 @@ async def update_user_theme(
     await session.commit()
     await session.refresh(current_user)
     return UserResponse.model_validate(current_user)
+
+
+# V1 endpoints with updated paths
+@v1_router.post("/token")
+async def login_v1(
+    response: Response,
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Login endpoint to get access token (v1)."""
+    return await login(response, form_data, session)
+
+
+@v1_router.get("/me")
+async def read_users_me_v1(current_user: User = Depends(get_current_active_user)) -> UserResponse:
+    """Get current user information (v1)."""
+    return UserResponse.model_validate(current_user)
+
+
+@v1_router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+async def register_v1(user_data: UserCreate, session: AsyncSession = Depends(get_system_session)) -> UserResponse:
+    """Register a new user (v1)."""
+    return await register(user_data, session)
+
+
+@v1_router.patch("/me/theme")
+async def update_user_theme_v1(
+    body: ThemeUpdate,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+) -> UserResponse:
+    """Update the theme setting for the current user (v1)."""
+    return await update_user_theme(body, current_user, session)

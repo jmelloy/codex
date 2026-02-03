@@ -172,7 +172,10 @@ async def health():
 
 
 # Include routers
-app.include_router(users.router, prefix="/api", tags=["users"])
+# Legacy user routes (backward compatibility)
+app.include_router(users.router, prefix="/api", tags=["users (legacy)"])
+# V1 user routes
+app.include_router(users.v1_router, prefix="/api/v1/users", tags=["users"])
 app.include_router(workspaces.router, prefix="/api/v1/workspaces", tags=["workspaces"])
 app.include_router(notebooks.router, prefix="/api/v1/notebooks", tags=["notebooks"])
 app.include_router(files.router, prefix="/api/v1/files", tags=["files"])

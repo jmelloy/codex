@@ -101,10 +101,10 @@ def test_enable_disable_integration_workspace(client, auth_headers, workspace_an
 
 def test_list_notebook_plugins_empty(client, auth_headers, workspace_and_notebook):
     """Test listing plugins for a notebook with no configs."""
-    _, notebook_id = workspace_and_notebook
+    workspace_id, notebook_id = workspace_and_notebook
     
     response = client.get(
-        f"/api/v1/notebooks/{notebook_id}/plugins",
+        f"/api/v1/workspaces/{workspace_id}/notebooks/{notebook_id}/plugins",
         headers=auth_headers,
     )
     assert response.status_code == 200
@@ -116,11 +116,11 @@ def test_list_notebook_plugins_empty(client, auth_headers, workspace_and_noteboo
 
 def test_get_notebook_plugin_config_default(client, auth_headers, workspace_and_notebook):
     """Test getting plugin config for notebook with no config (should return defaults)."""
-    _, notebook_id = workspace_and_notebook
+    workspace_id, notebook_id = workspace_and_notebook
     plugin_id = "test-plugin"
     
     response = client.get(
-        f"/api/v1/notebooks/{notebook_id}/plugins/{plugin_id}",
+        f"/api/v1/workspaces/{workspace_id}/notebooks/{notebook_id}/plugins/{plugin_id}",
         headers=auth_headers,
     )
     assert response.status_code == 200
@@ -132,12 +132,12 @@ def test_get_notebook_plugin_config_default(client, auth_headers, workspace_and_
 
 def test_update_notebook_plugin_config(client, auth_headers, workspace_and_notebook):
     """Test updating plugin config for notebook."""
-    _, notebook_id = workspace_and_notebook
+    workspace_id, notebook_id = workspace_and_notebook
     plugin_id = "test-plugin"
     
     # Update config
     response = client.put(
-        f"/api/v1/notebooks/{notebook_id}/plugins/{plugin_id}",
+        f"/api/v1/workspaces/{workspace_id}/notebooks/{notebook_id}/plugins/{plugin_id}",
         json={"enabled": False, "config": {"key": "value"}},
         headers=auth_headers,
     )
@@ -149,7 +149,7 @@ def test_update_notebook_plugin_config(client, auth_headers, workspace_and_noteb
     
     # Verify we can retrieve it
     response = client.get(
-        f"/api/v1/notebooks/{notebook_id}/plugins/{plugin_id}",
+        f"/api/v1/workspaces/{workspace_id}/notebooks/{notebook_id}/plugins/{plugin_id}",
         headers=auth_headers,
     )
     assert response.status_code == 200
@@ -160,12 +160,12 @@ def test_update_notebook_plugin_config(client, auth_headers, workspace_and_noteb
 
 def test_update_notebook_plugin_config_partial(client, auth_headers, workspace_and_notebook):
     """Test partially updating plugin config (only enabled or only config)."""
-    _, notebook_id = workspace_and_notebook
+    workspace_id, notebook_id = workspace_and_notebook
     plugin_id = "test-plugin-partial"
     
     # Update only enabled
     response = client.put(
-        f"/api/v1/notebooks/{notebook_id}/plugins/{plugin_id}",
+        f"/api/v1/workspaces/{workspace_id}/notebooks/{notebook_id}/plugins/{plugin_id}",
         json={"enabled": False},
         headers=auth_headers,
     )
@@ -176,7 +176,7 @@ def test_update_notebook_plugin_config_partial(client, auth_headers, workspace_a
     
     # Update only config
     response = client.put(
-        f"/api/v1/notebooks/{notebook_id}/plugins/{plugin_id}",
+        f"/api/v1/workspaces/{workspace_id}/notebooks/{notebook_id}/plugins/{plugin_id}",
         json={"config": {"api_key": "test123"}},
         headers=auth_headers,
     )
@@ -188,12 +188,12 @@ def test_update_notebook_plugin_config_partial(client, auth_headers, workspace_a
 
 def test_delete_notebook_plugin_config(client, auth_headers, workspace_and_notebook):
     """Test deleting plugin config for notebook."""
-    _, notebook_id = workspace_and_notebook
+    workspace_id, notebook_id = workspace_and_notebook
     plugin_id = "test-plugin-delete"
     
     # Create config
     response = client.put(
-        f"/api/v1/notebooks/{notebook_id}/plugins/{plugin_id}",
+        f"/api/v1/workspaces/{workspace_id}/notebooks/{notebook_id}/plugins/{plugin_id}",
         json={"enabled": False, "config": {"key": "value"}},
         headers=auth_headers,
     )
@@ -201,14 +201,14 @@ def test_delete_notebook_plugin_config(client, auth_headers, workspace_and_noteb
     
     # Delete config
     response = client.delete(
-        f"/api/v1/notebooks/{notebook_id}/plugins/{plugin_id}",
+        f"/api/v1/workspaces/{workspace_id}/notebooks/{notebook_id}/plugins/{plugin_id}",
         headers=auth_headers,
     )
     assert response.status_code == 200
     
     # Verify it returns to defaults
     response = client.get(
-        f"/api/v1/notebooks/{notebook_id}/plugins/{plugin_id}",
+        f"/api/v1/workspaces/{workspace_id}/notebooks/{notebook_id}/plugins/{plugin_id}",
         headers=auth_headers,
     )
     assert response.status_code == 200
@@ -237,14 +237,14 @@ def test_multiple_notebooks_different_configs(client, auth_headers, workspace_an
     
     # Configure plugin differently for each notebook
     response1 = client.put(
-        f"/api/v1/notebooks/{notebook1_id}/plugins/{plugin_id}",
+        f"/api/v1/workspaces/{workspace_id}/notebooks/{notebook1_id}/plugins/{plugin_id}",
         json={"enabled": True, "config": {"mode": "notebook1"}},
         headers=auth_headers,
     )
     assert response1.status_code == 200
     
     response2 = client.put(
-        f"/api/v1/notebooks/{notebook2_id}/plugins/{plugin_id}",
+        f"/api/v1/workspaces/{workspace_id}/notebooks/{notebook2_id}/plugins/{plugin_id}",
         json={"enabled": False, "config": {"mode": "notebook2"}},
         headers=auth_headers,
     )
@@ -252,11 +252,11 @@ def test_multiple_notebooks_different_configs(client, auth_headers, workspace_an
     
     # Verify each notebook has its own config
     config1 = client.get(
-        f"/api/v1/notebooks/{notebook1_id}/plugins/{plugin_id}",
+        f"/api/v1/workspaces/{workspace_id}/notebooks/{notebook1_id}/plugins/{plugin_id}",
         headers=auth_headers,
     ).json()
     config2 = client.get(
-        f"/api/v1/notebooks/{notebook2_id}/plugins/{plugin_id}",
+        f"/api/v1/workspaces/{workspace_id}/notebooks/{notebook2_id}/plugins/{plugin_id}",
         headers=auth_headers,
     ).json()
     
@@ -268,13 +268,13 @@ def test_multiple_notebooks_different_configs(client, auth_headers, workspace_an
 
 def test_notebook_plugin_list_after_updates(client, auth_headers, workspace_and_notebook):
     """Test listing all plugins for a notebook after adding configs."""
-    _, notebook_id = workspace_and_notebook
+    workspace_id, notebook_id = workspace_and_notebook
     
     # Add configs for multiple plugins
     plugins = ["plugin1", "plugin2", "plugin3"]
     for plugin_id in plugins:
         response = client.put(
-            f"/api/v1/notebooks/{notebook_id}/plugins/{plugin_id}",
+            f"/api/v1/workspaces/{workspace_id}/notebooks/{notebook_id}/plugins/{plugin_id}",
             json={"enabled": True, "config": {"id": plugin_id}},
             headers=auth_headers,
         )
@@ -282,7 +282,7 @@ def test_notebook_plugin_list_after_updates(client, auth_headers, workspace_and_
     
     # List all plugins
     response = client.get(
-        f"/api/v1/notebooks/{notebook_id}/plugins",
+        f"/api/v1/workspaces/{workspace_id}/notebooks/{notebook_id}/plugins",
         headers=auth_headers,
     )
     assert response.status_code == 200
@@ -295,20 +295,22 @@ def test_notebook_plugin_list_after_updates(client, auth_headers, workspace_and_
 
 def test_unauthorized_access_notebook_plugins(client):
     """Test that unauthorized access is denied."""
-    # Use a fake notebook_id - it shouldn't matter since auth should fail first
+    # Use fake workspace and notebook IDs - it shouldn't matter since auth should fail first
+    workspace_id = 999
     notebook_id = 999
     
     # Try without auth headers
-    response = client.get(f"/api/v1/notebooks/{notebook_id}/plugins")
+    response = client.get(f"/api/v1/workspaces/{workspace_id}/notebooks/{notebook_id}/plugins")
     assert response.status_code == 401
 
 
-def test_invalid_notebook_id(client, auth_headers):
+def test_invalid_notebook_id(client, auth_headers, workspace_and_notebook):
     """Test accessing plugins for non-existent notebook."""
+    workspace_id, _ = workspace_and_notebook
     invalid_notebook_id = 999999
     
     response = client.get(
-        f"/api/v1/notebooks/{invalid_notebook_id}/plugins",
+        f"/api/v1/workspaces/{workspace_id}/notebooks/{invalid_notebook_id}/plugins",
         headers=auth_headers,
     )
     assert response.status_code == 404

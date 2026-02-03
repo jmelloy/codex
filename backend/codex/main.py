@@ -205,6 +205,12 @@ app.include_router(
     prefix="/api/v1/workspaces/{workspace_identifier}/notebooks/{notebook_identifier}/search",
     tags=["search"]
 )
+# New nested integration routes under workspaces/notebooks
+app.include_router(
+    integrations.nested_router,
+    prefix="/api/v1/workspaces/{workspace_identifier}/notebooks/{notebook_identifier}/integrations",
+    tags=["integrations"]
+)
 app.include_router(tasks.router, prefix="/api/v1/tasks", tags=["tasks"])
 app.include_router(query.router, prefix="/api/v1/query", tags=["query"])
 app.include_router(integrations.router, prefix="/api/v1/plugins/integrations", tags=["integrations"])

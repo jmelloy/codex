@@ -3,6 +3,7 @@ import apiClient from "./api"
 export interface Workspace {
   id: number
   name: string
+  slug: string
   path: string
   owner_id: number
   theme_setting?: string
@@ -13,6 +14,7 @@ export interface Workspace {
 export interface Notebook {
   id: number
   name: string
+  slug: string
   path: string
   description?: string
   created_at: string
@@ -135,6 +137,11 @@ export const workspaceService = {
     return response.data
   },
 
+  async getBySlug(slug: string): Promise<Workspace> {
+    const response = await apiClient.get<Workspace>(`/api/v1/workspaces/by-slug/${slug}`)
+    return response.data
+  },
+
   async create(name: string): Promise<Workspace> {
     const response = await apiClient.post<Workspace>("/api/v1/workspaces/", {
       name,
@@ -158,6 +165,13 @@ export const notebookService = {
 
   async get(id: number): Promise<Notebook> {
     const response = await apiClient.get<Notebook>(`/api/v1/notebooks/${id}`)
+    return response.data
+  },
+
+  async getBySlug(workspaceSlug: string, notebookSlug: string): Promise<Notebook> {
+    const response = await apiClient.get<Notebook>(
+      `/api/v1/notebooks/by-slug/${workspaceSlug}/${notebookSlug}`
+    )
     return response.data
   },
 
@@ -631,6 +645,60 @@ export const fileService = {
       `/api/v1/files/${id}/history/${commitHash}?workspace_id=${workspaceId}&notebook_id=${notebookId}`
     )
     return response.data
+  },
+
+  /**
+   * List files using workspace and notebook slugs instead of IDs.
+   */
+  async listBySlug(workspaceSlug: string, notebookSlug: string): Promise<FileMetadata[]> {
+    const response = await apiClient.get<FileMetadata[]>(
+      `/api/v1/${workspaceSlug}/${notebookSlug}/files/`
+    )
+    return response.data
+  },
+
+  /**
+   * Get file metadata by ID using workspace and notebook slugs.
+   */
+  async getBySlug(
+    workspaceSlug: string,
+    notebookSlug: string,
+    fileId: number
+  ): Promise<FileMetadata> {
+    const response = await apiClient.get<FileMetadata>(
+      `/api/v1/${workspaceSlug}/${notebookSlug}/files/${fileId}`
+    )
+    return response.data
+  },
+
+  /**
+   * Get file metadata by path using workspace and notebook slugs.
+   */
+  async getByPathAndSlug(
+    workspaceSlug: string,
+    notebookSlug: string,
+    path: string
+  ): Promise<FileMetadata> {
+    const encodedPath = encodeURIComponent(path)
+    const response = await apiClient.get<FileMetadata>(
+      `/api/v1/${workspaceSlug}/${notebookSlug}/files/by-path?path=${encodedPath}`
+    )
+    return response.data
+  },
+
+  /**
+   * Get the content URL for a file by path using slugs (for binary files like images).
+   */
+  getContentUrlByPathAndSlug(workspaceSlug: string, notebookSlug: string, path: string): string {
+    const encodedPath = encodeURIComponent(path)
+    return `/api/v1/${workspaceSlug}/${notebookSlug}/files/by-path/content?path=${encodedPath}`
+  },
+
+  /**
+   * Get the content URL for a file by ID using slugs (for binary files like images).
+   */
+  getContentUrlBySlug(workspaceSlug: string, notebookSlug: string, fileId: number): string {
+    return `/api/v1/${workspaceSlug}/${notebookSlug}/files/${fileId}/content`
   },
 }
 

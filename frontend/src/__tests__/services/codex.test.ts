@@ -68,6 +68,16 @@ describe("Codex Services", () => {
       expect(apiClient.patch).toHaveBeenCalledWith("/api/v1/workspaces/1/theme", { theme: "dark" })
       expect(result).toEqual(mockWorkspace)
     })
+
+    it("gets a workspace by slug", async () => {
+      const mockWorkspace = { id: 1, name: "Test Workspace", slug: "test-workspace", path: "/path", owner_id: 1 }
+      ;(apiClient.get as Mock).mockResolvedValue({ data: mockWorkspace })
+
+      const result = await workspaceService.getBySlug("test-workspace")
+
+      expect(apiClient.get).toHaveBeenCalledWith("/api/v1/workspaces/by-slug/test-workspace")
+      expect(result).toEqual(mockWorkspace)
+    })
   })
 
   describe("notebookService", () => {
@@ -91,6 +101,16 @@ describe("Codex Services", () => {
       const result = await notebookService.get(1)
 
       expect(apiClient.get).toHaveBeenCalledWith("/api/v1/notebooks/1")
+      expect(result).toEqual(mockNotebook)
+    })
+
+    it("gets a notebook by slug", async () => {
+      const mockNotebook = { id: 1, name: "Test Notebook", slug: "test-notebook" }
+      ;(apiClient.get as Mock).mockResolvedValue({ data: mockNotebook })
+
+      const result = await notebookService.getBySlug("test-workspace", "test-notebook")
+
+      expect(apiClient.get).toHaveBeenCalledWith("/api/v1/notebooks/by-slug/test-workspace/test-notebook")
       expect(result).toEqual(mockNotebook)
     })
 
@@ -342,6 +362,47 @@ describe("Codex Services", () => {
         "/api/v1/files/1/history/abc123?workspace_id=1&notebook_id=1"
       )
       expect(result).toEqual(mockFileAtCommit)
+    })
+
+    it("lists files using slugs", async () => {
+      ;(apiClient.get as Mock).mockResolvedValue({ data: [mockFile] })
+
+      const result = await fileService.listBySlug("test-workspace", "test-notebook")
+
+      expect(apiClient.get).toHaveBeenCalledWith("/api/v1/test-workspace/test-notebook/files/")
+      expect(result).toEqual([mockFile])
+    })
+
+    it("gets file by ID using slugs", async () => {
+      ;(apiClient.get as Mock).mockResolvedValue({ data: mockFile })
+
+      const result = await fileService.getBySlug("test-workspace", "test-notebook", 1)
+
+      expect(apiClient.get).toHaveBeenCalledWith("/api/v1/test-workspace/test-notebook/files/1")
+      expect(result).toEqual(mockFile)
+    })
+
+    it("gets file by path using slugs", async () => {
+      ;(apiClient.get as Mock).mockResolvedValue({ data: mockFile })
+
+      const result = await fileService.getByPathAndSlug("test-workspace", "test-notebook", "folder/test.md")
+
+      expect(apiClient.get).toHaveBeenCalledWith(
+        "/api/v1/test-workspace/test-notebook/files/by-path?path=folder%2Ftest.md"
+      )
+      expect(result).toEqual(mockFile)
+    })
+
+    it("returns content URL by path using slugs", () => {
+      const url = fileService.getContentUrlByPathAndSlug("test-workspace", "test-notebook", "folder/test.png")
+
+      expect(url).toBe("/api/v1/test-workspace/test-notebook/files/by-path/content?path=folder%2Ftest.png")
+    })
+
+    it("returns content URL by ID using slugs", () => {
+      const url = fileService.getContentUrlBySlug("test-workspace", "test-notebook", 1)
+
+      expect(url).toBe("/api/v1/test-workspace/test-notebook/files/1/content")
     })
   })
 

@@ -188,7 +188,25 @@ app.include_router(
     tags=["files"]
 )
 app.include_router(folders.router, prefix="/api/v1/folders", tags=["folders"])
+# New nested folder routes under workspaces/notebooks
+app.include_router(
+    folders.nested_router,
+    prefix="/api/v1/workspaces/{workspace_identifier}/notebooks/{notebook_identifier}/folders",
+    tags=["folders"]
+)
 app.include_router(search.router, prefix="/api/v1/search", tags=["search"])
+# New nested search routes under workspaces
+app.include_router(
+    search.nested_router,
+    prefix="/api/v1/workspaces/{workspace_identifier}/search",
+    tags=["search"]
+)
+# New nested search routes under workspaces/notebooks
+app.include_router(
+    search.notebook_nested_router,
+    prefix="/api/v1/workspaces/{workspace_identifier}/notebooks/{notebook_identifier}/search",
+    tags=["search"]
+)
 app.include_router(tasks.router, prefix="/api/v1/tasks", tags=["tasks"])
 app.include_router(query.router, prefix="/api/v1/query", tags=["query"])
 app.include_router(integrations.router, prefix="/api/v1/plugins/integrations", tags=["integrations"])

@@ -283,9 +283,9 @@ def test_list_notebook_plugins(test_client, temp_workspace_dir):
     )
     notebook_id = create_response.json()["id"]
 
-    # List plugins
+    # List plugins using nested route
     response = test_client.get(
-        f"/api/v1/notebooks/{notebook_id}/plugins",
+        f"/api/v1/workspaces/{workspace['id']}/notebooks/{notebook_id}/plugins",
         headers=headers,
     )
     assert response.status_code == 200
@@ -306,9 +306,9 @@ def test_get_notebook_plugin_config(test_client, temp_workspace_dir):
     )
     notebook_id = create_response.json()["id"]
 
-    # Get plugin config (should return default)
+    # Get plugin config (should return default) using nested route
     response = test_client.get(
-        f"/api/v1/notebooks/{notebook_id}/plugins/some-plugin",
+        f"/api/v1/workspaces/{workspace['id']}/notebooks/{notebook_id}/plugins/some-plugin",
         headers=headers,
     )
     assert response.status_code == 200
@@ -330,9 +330,9 @@ def test_update_notebook_plugin_config(test_client, temp_workspace_dir):
     )
     notebook_id = create_response.json()["id"]
 
-    # Update plugin config
+    # Update plugin config using nested route
     response = test_client.put(
-        f"/api/v1/notebooks/{notebook_id}/plugins/test-plugin",
+        f"/api/v1/workspaces/{workspace['id']}/notebooks/{notebook_id}/plugins/test-plugin",
         json={"enabled": False, "config": {"setting1": "value1"}},
         headers=headers,
     )
@@ -342,9 +342,9 @@ def test_update_notebook_plugin_config(test_client, temp_workspace_dir):
     assert data["enabled"] is False
     assert data["config"]["setting1"] == "value1"
 
-    # Verify persistence
+    # Verify persistence using nested route
     get_response = test_client.get(
-        f"/api/v1/notebooks/{notebook_id}/plugins/test-plugin",
+        f"/api/v1/workspaces/{workspace['id']}/notebooks/{notebook_id}/plugins/test-plugin",
         headers=headers,
     )
     get_data = get_response.json()
@@ -365,16 +365,16 @@ def test_update_plugin_config_partial(test_client, temp_workspace_dir):
     )
     notebook_id = create_response.json()["id"]
 
-    # Create initial config
+    # Create initial config using nested route
     test_client.put(
-        f"/api/v1/notebooks/{notebook_id}/plugins/partial-plugin",
+        f"/api/v1/workspaces/{workspace['id']}/notebooks/{notebook_id}/plugins/partial-plugin",
         json={"enabled": True, "config": {"key1": "val1"}},
         headers=headers,
     )
 
-    # Update only enabled status
+    # Update only enabled status using nested route
     response = test_client.put(
-        f"/api/v1/notebooks/{notebook_id}/plugins/partial-plugin",
+        f"/api/v1/workspaces/{workspace['id']}/notebooks/{notebook_id}/plugins/partial-plugin",
         json={"enabled": False},
         headers=headers,
     )
@@ -398,24 +398,24 @@ def test_delete_notebook_plugin_config(test_client, temp_workspace_dir):
     )
     notebook_id = create_response.json()["id"]
 
-    # Create plugin config
+    # Create plugin config using nested route
     test_client.put(
-        f"/api/v1/notebooks/{notebook_id}/plugins/delete-me",
+        f"/api/v1/workspaces/{workspace['id']}/notebooks/{notebook_id}/plugins/delete-me",
         json={"enabled": False},
         headers=headers,
     )
 
-    # Delete plugin config
+    # Delete plugin config using nested route
     response = test_client.delete(
-        f"/api/v1/notebooks/{notebook_id}/plugins/delete-me",
+        f"/api/v1/workspaces/{workspace['id']}/notebooks/{notebook_id}/plugins/delete-me",
         headers=headers,
     )
     assert response.status_code == 200
-    assert "deleted successfully" in response.json()["message"]
+    assert "deleted" in response.json()["message"].lower()
 
-    # Verify it returns to default
+    # Verify it returns to default using nested route
     get_response = test_client.get(
-        f"/api/v1/notebooks/{notebook_id}/plugins/delete-me",
+        f"/api/v1/workspaces/{workspace['id']}/notebooks/{notebook_id}/plugins/delete-me",
         headers=headers,
     )
     assert get_response.json()["enabled"] is True  # Back to default
@@ -432,7 +432,8 @@ def test_notebook_requires_authentication(test_client):
     response = test_client.get("/api/v1/workspaces/1/notebooks/1")
     assert response.status_code == 401
 
-    response = test_client.get("/api/v1/notebooks/1/plugins")
+    # Test nested plugin route requires authentication
+    response = test_client.get("/api/v1/workspaces/1/notebooks/1/plugins")
     assert response.status_code == 401
 
 

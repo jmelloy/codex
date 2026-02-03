@@ -5,7 +5,7 @@ The `/execute` and `/render` endpoints in the integrations API had different cap
 - `/execute`: Simple endpoint execution without caching
 - `/render`: Complete implementation with artifact caching to filesystem and database
 
-The task was to combine these methods, using `/render` as the base since it was more complete, and verify that artifacts are being saved to the log.
+The task was to combine these methods, using `/render` as the base since it was more complete, and verify that artifacts are being saved to storage (both filesystem and database).
 
 ## Solution
 

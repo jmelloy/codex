@@ -157,8 +157,11 @@ def test_execute_integration_with_artifact_caching(client, auth_headers):
     """Test that /execute endpoint now includes artifact caching like /render.
     
     This is a smoke test to ensure the endpoint doesn't break with the new
-    artifact caching code. The actual artifact creation is tested in integration
-    tests with real plugins.
+    artifact caching code. We test with a non-existent integration to avoid
+    dependencies on external APIs or network conditions.
+    
+    Full integration tests with real plugins and artifact verification are
+    better suited for end-to-end tests that can handle external dependencies.
     """
     import tempfile
     from pathlib import Path

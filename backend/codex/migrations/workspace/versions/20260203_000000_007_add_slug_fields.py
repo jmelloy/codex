@@ -72,6 +72,8 @@ def upgrade() -> None:
         # For SQLite, we need to use batch operations to alter column constraints
         with op.batch_alter_table("workspaces") as batch_op:
             batch_op.alter_column("slug", nullable=False)
+            # Note: old constraint name was uq_workspaces_slug, but we now use composite constraint
+            # The try/except handles cases where the migration is re-run or database already has the new constraint
             batch_op.create_unique_constraint("uq_workspaces_owner_slug", ["owner_id", "slug"])
             batch_op.create_index("ix_workspaces_slug", ["slug"])
     

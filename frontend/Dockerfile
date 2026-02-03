@@ -6,13 +6,13 @@ WORKDIR /app
 ARG VITE_API_BASE_URL=/api
 ARG PLUGINS_DIR=/plugins
 
-# Install pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# Install pnpm via npm
+RUN npm install -g pnpm
 
 # Copy lockfile and package.json
 COPY pnpm-lock.yaml package.json ./
 
-# Install dependencies (uses lockfile for reproducibility)
+# Install dependencies
 RUN pnpm install --frozen-lockfile
 
 # Copy source code

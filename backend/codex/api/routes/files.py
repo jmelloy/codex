@@ -1872,21 +1872,18 @@ async def move_file_nested(
         # Create parent directories if needed
         new_file_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Move the file
+        # Move the file on disk first
         import shutil
         shutil.move(str(old_path), str(new_file_path))
 
-        # Update metadata
+        # Update metadata to match the new file location
         file_meta.path = new_path
         file_meta.filename = os.path.basename(new_path)
+        if file_meta.sidecar_path:
+            new_sidecar_path = new_file_path.parent / Path(file_meta.sidecar_path).name
+            shutil.move(file_meta.sidecar_path, str(new_sidecar_path))
+            file_meta.sidecar_path = str(new_sidecar_path)
 
-        # Commit to git
-        from codex.core.git_manager import GitManager
-        git_manager = GitManager(str(notebook_path))
-        git_manager.commit(f"Move {os.path.basename(file_meta.path)} to {new_path}", [])
-
-        nb_session.commit()
-        nb_session.refresh(file_meta)
 
         return {
             "id": file_meta.id,
@@ -1894,6 +1891,7 @@ async def move_file_nested(
             "filename": file_meta.filename,
             "message": "File moved successfully",
         }
+
     except HTTPException:
         raise
     except Exception as e:
@@ -1928,6 +1926,7 @@ async def delete_file_nested(
             raise HTTPException(status_code=404, detail="File not found")
 
         file_path = notebook_path / file_meta.path
+        filename = file_meta.filename
 
         # Delete the file from disk
         if file_path.exists():
@@ -1939,15 +1938,20 @@ async def delete_file_nested(
             os.remove(sidecar)
             logger.debug(f"Deleted sidecar file: {sidecar}")
 
-        # Delete from database
-        nb_session.delete(file_meta)
-
-        # Commit deletion to git
+        # Commit deletion to git first (before deleting from DB)
         from codex.core.git_manager import GitManager
         git_manager = GitManager(str(notebook_path))
-        git_manager.commit(f"Delete {file_meta.filename}", [])
+        git_manager.commit(f"Delete {filename}", [])
 
-        nb_session.commit()
+        # Delete from database (watcher may have already deleted it due to race condition)
+        from sqlalchemy.orm.exc import StaleDataError
+        nb_session.delete(file_meta)
+        
+        try:
+            nb_session.commit()
+        except StaleDataError:
+            # Watcher deleted the record before us - this is fine
+            nb_session.rollback()
 
         return {"message": "File deleted successfully"}
     except HTTPException:

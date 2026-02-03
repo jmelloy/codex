@@ -14,6 +14,7 @@ These models are stored in the system database (codex_system.db):
 
 from datetime import datetime
 
+from sqlalchemy import UniqueConstraint
 from sqlmodel import JSON, Column, Field, Relationship, SQLModel
 
 from .base import utc_now
@@ -41,10 +42,11 @@ class Workspace(SQLModel, table=True):
     """Workspace for organizing notebooks and files."""
 
     __tablename__ = "workspaces"  # type: ignore[assignment]
+    __table_args__ = (UniqueConstraint("owner_id", "slug", name="uq_workspaces_owner_slug"),)
 
     id: int | None = Field(default=None, primary_key=True)
     name: str = Field(index=True)
-    slug: str = Field(unique=True, index=True)  # URL-safe identifier
+    slug: str = Field(index=True)  # URL-safe identifier (unique per owner)
     path: str = Field(unique=True)  # Filesystem path
     owner_id: int = Field(foreign_key="users.id")
     theme_setting: str | None = Field(default="cream")  # User's preferred theme

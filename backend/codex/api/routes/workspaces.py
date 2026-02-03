@@ -128,29 +128,22 @@ async def create_workspace(
     else:
         # No path provided - auto-generate from workspace name
         base_slug = slugify(name)
-        base_path = Path(DATA_DIRECTORY) / "workspaces"
-        workspace_path = base_path / base_slug
-        path = str(workspace_path)
-    
+
+    base_path = Path(DATA_DIRECTORY) / "workspaces"
+    workspace_path = base_path / base_slug
     final_slug = base_slug
 
-    # Handle slug collisions by checking database
-    while await slug_exists_in_db(session, final_slug, current_user.id):
+    # Handle collisions by checking both filesystem, database path, and slug
+    while (
+        workspace_path.exists()
+        or await path_exists_in_db(session, str(workspace_path))
+        or await slug_exists_in_db(session, final_slug, current_user.id)
+    ):
         counter = uuid4().hex[:8]
         final_slug = f"{base_slug}-{counter}"
-    
-    # For auto-generated paths, also handle path collisions
-    if not body.path:
-        base_path = Path(DATA_DIRECTORY) / "workspaces"
         workspace_path = base_path / final_slug
-        path = str(workspace_path)
-        
-        # Handle filesystem and database path collisions
-        while workspace_path.exists() or await path_exists_in_db(session, path):
-            counter = uuid4().hex[:8]
-            final_slug = f"{base_slug}-{counter}"
-            workspace_path = base_path / final_slug
-            path = str(workspace_path)
+
+    path = str(workspace_path)
 
     # Create the workspace directory
     workspace_dir = Path(path)

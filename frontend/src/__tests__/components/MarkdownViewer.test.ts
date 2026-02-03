@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest"
-import { mount } from "@vue/test-utils"
+import { mount, flushPromises } from "@vue/test-utils"
 import { setActivePinia, createPinia } from "pinia"
 import MarkdownViewer from "../../components/MarkdownViewer.vue"
 
@@ -9,7 +9,7 @@ describe("MarkdownViewer", () => {
     setActivePinia(createPinia())
   })
 
-  it("renders markdown content properly", () => {
+  it("renders markdown content properly", async () => {
     const markdownContent = "# Hello World\n\nThis is a **test**."
     const wrapper = mount(MarkdownViewer, {
       props: {
@@ -17,6 +17,8 @@ describe("MarkdownViewer", () => {
         showToolbar: false,
       },
     })
+
+    await flushPromises()
 
     const html = wrapper.find(".markdown-content").html()
     expect(html).toContain("<h1")
@@ -36,7 +38,7 @@ describe("MarkdownViewer", () => {
     expect(wrapper.find(".markdown-content").text()).toContain("No content to display")
   })
 
-  it("renders code blocks with syntax highlighting", () => {
+  it("renders code blocks with syntax highlighting", async () => {
     const markdownWithCode = "```javascript\nconst x = 42;\n```"
     const wrapper = mount(MarkdownViewer, {
       props: {
@@ -44,6 +46,10 @@ describe("MarkdownViewer", () => {
         showToolbar: false,
       },
     })
+
+    await flushPromises()
+    // Wait for any remaining async operations (like plugin loading)
+    await flushPromises()
 
     const html = wrapper.find(".markdown-content").html()
     expect(html).toContain("<pre>")
@@ -100,7 +106,7 @@ describe("MarkdownViewer", () => {
     expect(wrapper.emitted("copy")).toBeTruthy()
   })
 
-  it("resolves image URLs by filename when workspace and notebook context provided", () => {
+  it("resolves image URLs by filename when workspace and notebook context provided", async () => {
     const markdownWithImage = "![Test Image](test-image.png)"
     const wrapper = mount(MarkdownViewer, {
       props: {
@@ -110,6 +116,8 @@ describe("MarkdownViewer", () => {
         notebookId: 2,
       },
     })
+
+    await flushPromises()
 
     const html = wrapper.find(".markdown-content").html()
     expect(html).toContain("<img")
@@ -120,7 +128,7 @@ describe("MarkdownViewer", () => {
     expect(html).toContain('alt="Test Image"')
   })
 
-  it("resolves link URLs by filename when workspace and notebook context provided", () => {
+  it("resolves link URLs by filename when workspace and notebook context provided", async () => {
     const markdownWithLink = "[Read More](document.md)"
     const wrapper = mount(MarkdownViewer, {
       props: {
@@ -131,6 +139,8 @@ describe("MarkdownViewer", () => {
       },
     })
 
+    await flushPromises()
+
     const html = wrapper.find(".markdown-content").html()
     expect(html).toContain("<a")
     // HTML entities are escaped in the output
@@ -140,7 +150,7 @@ describe("MarkdownViewer", () => {
     expect(html).toContain("Read More")
   })
 
-  it("does not modify absolute URLs in images", () => {
+  it("does not modify absolute URLs in images", async () => {
     const markdownWithAbsoluteImage = "![External](https://example.com/image.png)"
     const wrapper = mount(MarkdownViewer, {
       props: {
@@ -151,11 +161,13 @@ describe("MarkdownViewer", () => {
       },
     })
 
+    await flushPromises()
+
     const html = wrapper.find(".markdown-content").html()
     expect(html).toContain('src="https://example.com/image.png"')
   })
 
-  it("does not modify external URLs in links", () => {
+  it("does not modify external URLs in links", async () => {
     const markdownWithExternalLink = "[External Link](https://example.com)"
     const wrapper = mount(MarkdownViewer, {
       props: {
@@ -166,11 +178,13 @@ describe("MarkdownViewer", () => {
       },
     })
 
+    await flushPromises()
+
     const html = wrapper.find(".markdown-content").html()
     expect(html).toContain('href="https://example.com"')
   })
 
-  it("leaves images unchanged when no workspace/notebook context provided", () => {
+  it("leaves images unchanged when no workspace/notebook context provided", async () => {
     const markdownWithImage = "![Test Image](test-image.png)"
     const wrapper = mount(MarkdownViewer, {
       props: {
@@ -179,12 +193,14 @@ describe("MarkdownViewer", () => {
       },
     })
 
+    await flushPromises()
+
     const html = wrapper.find(".markdown-content").html()
     expect(html).toContain("<img")
     expect(html).toContain('src="test-image.png"')
   })
 
-  it("handles images with relative paths", () => {
+  it("handles images with relative paths", async () => {
     const markdownWithRelativeImage = "![Test Image](./images/test.png)"
     const wrapper = mount(MarkdownViewer, {
       props: {
@@ -195,6 +211,8 @@ describe("MarkdownViewer", () => {
       },
     })
 
+    await flushPromises()
+
     const html = wrapper.find(".markdown-content").html()
     expect(html).toContain("<img")
     // The path is URL-encoded and HTML entities are escaped
@@ -203,7 +221,7 @@ describe("MarkdownViewer", () => {
     )
   })
 
-  it("handles multiple images in the same markdown", () => {
+  it("handles multiple images in the same markdown", async () => {
     const markdownWithMultipleImages = "![Image 1](img1.png)\n\n![Image 2](img2.jpg)"
     const wrapper = mount(MarkdownViewer, {
       props: {
@@ -213,6 +231,8 @@ describe("MarkdownViewer", () => {
         notebookId: 2,
       },
     })
+
+    await flushPromises()
 
     const html = wrapper.find(".markdown-content").html()
     // HTML entities are escaped in the output

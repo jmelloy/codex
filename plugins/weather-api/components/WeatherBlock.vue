@@ -139,7 +139,7 @@ async function fetchWeather() {
 
     // Step 1: Geocode the location to get coordinates
     const geoResponse = await fetch(
-      `/api/v1/integrations/weather-api/execute?workspace_id=${props.workspaceId}`,
+      `/api/v1/plugins/integrations/weather-api/execute?workspace_id=${props.workspaceId}`,
       {
         method: "POST",
         headers: {
@@ -173,7 +173,7 @@ async function fetchWeather() {
     const { lat, lon } = geoData.content[0];
     // Step 2: Fetch weather using coordinates
     const weatherResponse = await fetch(
-      `/api/v1/integrations/weather-api/execute?workspace_id=${props.workspaceId}`,
+      `/api/v1/plugins/integrations/weather-api/execute?workspace_id=${props.workspaceId}`,
       {
         method: "POST",
         headers: {

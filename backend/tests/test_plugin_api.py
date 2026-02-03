@@ -70,7 +70,7 @@ def test_list_integrations_with_workspace_id(client, auth_headers, workspace_and
     workspace_id, _ = workspace_and_notebook
     
     response = client.get(
-        f"/api/v1/integrations?workspace_id={workspace_id}",
+        f"/api/v1/plugins/integrations?workspace_id={workspace_id}",
         headers=auth_headers,
     )
     assert response.status_code == 200
@@ -92,7 +92,7 @@ def test_enable_disable_integration_workspace(client, auth_headers, workspace_an
     
     # Try to disable a non-existent integration (should fail gracefully)
     response = client.put(
-        f"/api/v1/integrations/{plugin_id}/enable?workspace_id={workspace_id}",
+        f"/api/v1/plugins/integrations/{plugin_id}/enable?workspace_id={workspace_id}",
         json={"enabled": False},
         headers=auth_headers,
     )

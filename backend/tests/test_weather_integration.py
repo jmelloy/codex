@@ -37,7 +37,7 @@ def test_weather_integration_is_loaded(client):
     headers = {"Authorization": f"Bearer {token}"}
 
     # List integrations
-    response = client.get("/api/v1/integrations", headers=headers)
+    response = client.get("/api/v1/plugins/integrations", headers=headers)
     assert response.status_code == 200
     integrations = response.json()
     
@@ -74,7 +74,7 @@ def test_weather_integration_details(client):
     headers = {"Authorization": f"Bearer {token}"}
 
     # Get integration details
-    response = client.get("/api/v1/integrations/weather-api", headers=headers)
+    response = client.get("/api/v1/plugins/integrations/weather-api", headers=headers)
     assert response.status_code == 200
     
     weather = response.json()
@@ -108,7 +108,7 @@ def test_weather_integration_blocks(client):
     headers = {"Authorization": f"Bearer {token}"}
 
     # Get blocks
-    response = client.get("/api/v1/integrations/weather-api/blocks", headers=headers)
+    response = client.get("/api/v1/plugins/integrations/weather-api/blocks", headers=headers)
     assert response.status_code == 200
     
     data = response.json()

@@ -175,6 +175,12 @@ async def health():
 app.include_router(users.router, prefix="/api", tags=["users"])
 app.include_router(workspaces.router, prefix="/api/v1/workspaces", tags=["workspaces"])
 app.include_router(notebooks.router, prefix="/api/v1/notebooks", tags=["notebooks"])
+# New nested notebook routes under workspaces
+app.include_router(
+    notebooks.nested_router,
+    prefix="/api/v1/workspaces/{workspace_identifier}/notebooks",
+    tags=["notebooks"]
+)
 app.include_router(files.router, prefix="/api/v1/files", tags=["files"])
 app.include_router(folders.router, prefix="/api/v1/folders", tags=["folders"])
 app.include_router(search.router, prefix="/api/v1/search", tags=["search"])

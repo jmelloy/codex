@@ -2,6 +2,7 @@
 
 import re
 from pathlib import Path
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -9,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from codex.api.auth import get_current_active_user
+from codex.api.routes.workspaces import get_workspace_by_slug_or_id
 from codex.core.watcher import NotebookWatcher
 from codex.db.database import get_system_session, init_notebook_db
 from codex.db.models import Notebook, NotebookPluginConfig, User, Workspace
@@ -17,7 +19,6 @@ from codex.db.models import Notebook, NotebookPluginConfig, User, Workspace
 class NotebookCreate(BaseModel):
     """Request body for creating a notebook."""
 
-    workspace_id: int
     name: str
     description: str | None = None
 
@@ -27,6 +28,39 @@ def slugify(name: str) -> str:
     slug = re.sub(r"[^\w\s-]", "", name.lower())
     slug = re.sub(r"[-\s]+", "-", slug).strip("-")
     return slug or "notebook"
+
+
+async def get_notebook_by_slug_or_id(
+    notebook_identifier: str, workspace: Workspace, session: AsyncSession
+) -> Notebook:
+    """Get notebook by slug or ID within a workspace."""
+    if notebook_identifier.isdigit():
+        result = await session.execute(
+            select(Notebook).where(
+                Notebook.id == int(notebook_identifier),
+                Notebook.workspace_id == workspace.id
+            )
+        )
+    else:
+        result = await session.execute(
+            select(Notebook).where(
+                Notebook.slug == notebook_identifier,
+                Notebook.workspace_id == workspace.id
+            )
+        )
+    
+    notebook = result.scalar_one_or_none()
+    if not notebook:
+        raise HTTPException(status_code=404, detail="Notebook not found")
+    return notebook
+
+
+async def slug_exists_for_workspace(session: AsyncSession, slug: str, workspace_id: int) -> bool:
+    """Check if a notebook slug already exists within a workspace."""
+    result = await session.execute(
+        select(Notebook).where(Notebook.slug == slug, Notebook.workspace_id == workspace_id)
+    )
+    return result.scalar_one_or_none() is not None
 
 
 router = APIRouter()
@@ -140,63 +174,13 @@ async def create_notebook(
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_system_session),
 ):
-    """Create a new notebook."""
-    # Verify workspace access
-    result = await session.execute(
-        select(Workspace).where(Workspace.id == body.workspace_id, Workspace.owner_id == current_user.id)
+    """Create a new notebook (legacy endpoint with workspace_id in body)."""
+    # This endpoint is kept for backward compatibility
+    # New code should use POST /workspaces/{workspace_slug}/notebooks
+    raise HTTPException(
+        status_code=410,
+        detail="This endpoint is deprecated. Use POST /api/v1/workspaces/{workspace_slug}/notebooks instead"
     )
-    workspace = result.scalar_one_or_none()
-    if not workspace:
-        raise HTTPException(status_code=404, detail="Workspace not found")
-
-    # Generate path from name
-    workspace_path = Path(workspace.path)
-    slug = slugify(body.name)
-    notebook_path = workspace_path / slug
-
-    # Handle name collisions by appending a number
-    counter = 1
-    original_slug = slug
-    while notebook_path.exists():
-        slug = f"{original_slug}-{counter}"
-        notebook_path = workspace_path / slug
-        counter += 1
-
-    try:
-        notebook_path.mkdir(parents=True, exist_ok=False)
-
-        # Initialize notebook database (still needed for files, tags, search index)
-        init_notebook_db(str(notebook_path))
-
-        # Initialize Git repository for the notebook
-        from codex.core.git_manager import GitManager
-
-        git_manager = GitManager(str(notebook_path))
-
-        # Create notebook record in the system database
-        notebook = Notebook(workspace_id=body.workspace_id, name=body.name, path=slug, description=body.description)
-        session.add(notebook)
-        await session.commit()
-        await session.refresh(notebook)
-
-        NotebookWatcher(str(notebook_path), notebook.id).start()
-
-        return {
-            "id": notebook.id,
-            "name": notebook.name,
-            "path": notebook.path,
-            "description": notebook.description,
-            "created_at": notebook.created_at.isoformat() if notebook.created_at else None,
-            "updated_at": notebook.updated_at.isoformat() if notebook.updated_at else None,
-        }
-
-    except Exception as e:
-        # Clean up on error
-        if notebook_path.exists():
-            import shutil
-
-            shutil.rmtree(notebook_path)
-        raise HTTPException(status_code=500, detail=f"Error creating notebook: {str(e)}")
 
 
 @router.get("/{notebook_id}/plugins")
@@ -404,3 +388,145 @@ async def delete_notebook_plugin_config(
         await session.commit()
     
     return {"message": "Plugin configuration deleted successfully"}
+
+
+# New nested router for workspace-based notebook routes
+# These routes follow the pattern: /workspaces/{workspace_slug}/notebooks/...
+nested_router = APIRouter()
+
+
+@nested_router.get("/")
+async def list_notebooks_nested(
+    workspace_identifier: str,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """List all notebooks in a workspace (nested under workspace route)."""
+    workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
+    
+    # Query notebooks from system database
+    result = await session.execute(select(Notebook).where(Notebook.workspace_id == workspace.id))
+    notebooks = result.scalars().all()
+    
+    return [
+        {
+            "id": nb.id,
+            "slug": nb.slug,
+            "name": nb.name,
+            "path": nb.path,
+            "description": nb.description,
+            "created_at": nb.created_at.isoformat() if nb.created_at else None,
+            "updated_at": nb.updated_at.isoformat() if nb.updated_at else None,
+        }
+        for nb in notebooks
+    ]
+
+
+@nested_router.post("/")
+async def create_notebook_nested(
+    workspace_identifier: str,
+    body: NotebookCreate,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Create a new notebook (nested under workspace route)."""
+    workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
+    
+    # Generate slug from name
+    base_slug = slugify(body.name)
+    final_slug = base_slug
+    
+    # Generate path from name
+    workspace_path = Path(workspace.path)
+    notebook_path = workspace_path / final_slug
+    
+    # Handle collisions by checking both filesystem and database slug
+    while notebook_path.exists() or await slug_exists_for_workspace(session, final_slug, workspace.id):
+        counter = uuid4().hex[:8]
+        final_slug = f"{base_slug}-{counter}"
+        notebook_path = workspace_path / final_slug
+    
+    try:
+        notebook_path.mkdir(parents=True, exist_ok=False)
+        
+        # Initialize notebook database
+        init_notebook_db(str(notebook_path))
+        
+        # Initialize Git repository
+        from codex.core.git_manager import GitManager
+        git_manager = GitManager(str(notebook_path))
+        
+        # Create notebook record with slug
+        notebook = Notebook(
+            workspace_id=workspace.id,
+            name=body.name,
+            slug=final_slug,
+            path=final_slug,  # path is same as slug for new notebooks
+            description=body.description
+        )
+        session.add(notebook)
+        await session.commit()
+        await session.refresh(notebook)
+        
+        NotebookWatcher(str(notebook_path), notebook.id).start()
+        
+        return {
+            "id": notebook.id,
+            "slug": notebook.slug,
+            "name": notebook.name,
+            "path": notebook.path,
+            "description": notebook.description,
+            "created_at": notebook.created_at.isoformat() if notebook.created_at else None,
+            "updated_at": notebook.updated_at.isoformat() if notebook.updated_at else None,
+        }
+    
+    except Exception as e:
+        # Clean up on error
+        if notebook_path.exists():
+            import shutil
+            shutil.rmtree(notebook_path)
+        raise HTTPException(status_code=500, detail=f"Error creating notebook: {str(e)}")
+
+
+@nested_router.get("/{notebook_identifier}")
+async def get_notebook_nested(
+    workspace_identifier: str,
+    notebook_identifier: str,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Get a specific notebook by slug or ID (nested under workspace route)."""
+    workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
+    notebook = await get_notebook_by_slug_or_id(notebook_identifier, workspace, session)
+    
+    return {
+        "id": notebook.id,
+        "slug": notebook.slug,
+        "name": notebook.name,
+        "path": notebook.path,
+        "description": notebook.description,
+        "created_at": notebook.created_at.isoformat() if notebook.created_at else None,
+        "updated_at": notebook.updated_at.isoformat() if notebook.updated_at else None,
+    }
+
+
+@nested_router.get("/{notebook_identifier}/indexing-status")
+async def get_notebook_indexing_status_nested(
+    workspace_identifier: str,
+    notebook_identifier: str,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Get the indexing status for a notebook (nested under workspace route)."""
+    workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
+    notebook = await get_notebook_by_slug_or_id(notebook_identifier, workspace, session)
+    
+    # Find the watcher for this notebook
+    from codex.main import get_active_watchers
+    
+    for watcher in get_active_watchers():
+        if watcher.notebook_id == notebook.id:
+            return watcher.get_indexing_status()
+    
+    # If no watcher found, indexing hasn't started
+    return {"notebook_id": notebook.id, "status": "not_started", "is_alive": False}

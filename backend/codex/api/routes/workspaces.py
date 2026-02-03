@@ -47,26 +47,63 @@ async def list_workspaces(
     return result.scalars().all()
 
 
-@router.get("/{workspace_id}")
+@router.get("/{workspace_identifier}")
 async def get_workspace(
-    workspace_id: int,
+    workspace_identifier: str,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_system_session),
 ) -> Workspace:
-    """Get a specific workspace."""
-    result = await session.execute(
-        select(Workspace).where(Workspace.id == workspace_id, Workspace.owner_id == current_user.id)
-    )
-    workspace = result.scalar_one_or_none()
-    if not workspace:
-        raise HTTPException(status_code=404, detail="Workspace not found")
-    return workspace
+    """Get a specific workspace by slug or ID."""
+    return await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
 
 
 async def path_exists_in_db(session: AsyncSession, path: str) -> bool:
     """Check if a workspace path already exists in the database."""
     result = await session.execute(select(Workspace).where(Workspace.path == path))
     return result.scalar_one_or_none() is not None
+
+
+async def slug_exists_in_db(session: AsyncSession, slug: str, owner_id: int) -> bool:
+    """Check if a workspace slug already exists for this owner."""
+    result = await session.execute(
+        select(Workspace).where(Workspace.slug == slug, Workspace.owner_id == owner_id)
+    )
+    return result.scalar_one_or_none() is not None
+
+
+async def get_workspace_by_slug_or_id(
+    workspace_identifier: str, current_user: User, session: AsyncSession
+) -> Workspace:
+    """Get workspace by slug or ID.
+    
+    Args:
+        workspace_identifier: Either a slug or numeric ID
+        current_user: Current authenticated user
+        session: Database session
+        
+    Returns:
+        Workspace object
+        
+    Raises:
+        HTTPException if workspace not found
+    """
+    # Try to parse as integer ID first
+    if workspace_identifier.isdigit():
+        result = await session.execute(
+            select(Workspace).where(
+                Workspace.id == int(workspace_identifier), Workspace.owner_id == current_user.id
+            )
+        )
+    else:
+        # Treat as slug
+        result = await session.execute(
+            select(Workspace).where(Workspace.slug == workspace_identifier, Workspace.owner_id == current_user.id)
+        )
+    
+    workspace = result.scalar_one_or_none()
+    if not workspace:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+    return workspace
 
 
 @router.post("/")
@@ -81,45 +118,59 @@ async def create_workspace(
     based on the workspace name.
     """
     name = body.name
-    base_slug = body.path or slugify(name)
-
-    base_path = Path(DATA_DIRECTORY) / "workspaces"
-    workspace_path = base_path / base_slug
-
-    # Handle collisions by checking both filesystem and database
-    while workspace_path.exists() or await path_exists_in_db(session, str(workspace_path)):
-        counter = uuid4().hex[:8]
-        slug = f"{base_slug}-{counter}"
-        workspace_path = base_path / slug
-
-    path = str(workspace_path)
+    
+    # If explicit path provided, use it directly; otherwise generate from name
+    if body.path:
+        # Use provided path as-is
+        path = body.path
+        # Generate slug from the workspace name
+        base_slug = slugify(name)
+        final_slug = base_slug
+        
+        # Check for slug collisions only
+        while await slug_exists_in_db(session, final_slug, current_user.id):
+            counter = uuid4().hex[:8]
+            final_slug = f"{base_slug}-{counter}"
+    else:
+        # Auto-generate path from name
+        base_slug = slugify(name)
+        base_path = Path(DATA_DIRECTORY) / "workspaces"
+        workspace_path = base_path / base_slug
+        final_slug = base_slug
+        
+        # Handle collisions by checking both filesystem, database path, and slug
+        while (
+            workspace_path.exists()
+            or await path_exists_in_db(session, str(workspace_path))
+            or await slug_exists_in_db(session, final_slug, current_user.id)
+        ):
+            counter = uuid4().hex[:8]
+            final_slug = f"{base_slug}-{counter}"
+            workspace_path = base_path / final_slug
+        
+        path = str(workspace_path)
 
     # Create the workspace directory
     workspace_dir = Path(path)
     workspace_dir.mkdir(parents=True, exist_ok=True)
 
-    workspace = Workspace(name=name, path=path, owner_id=current_user.id)
+    workspace = Workspace(name=name, slug=final_slug, path=path, owner_id=current_user.id)
     session.add(workspace)
     await session.commit()
     await session.refresh(workspace)
     return workspace
 
 
-@router.patch("/{workspace_id}/theme")
+@router.patch("/{workspace_identifier}/theme")
 async def update_workspace_theme(
-    workspace_id: int,
+    workspace_identifier: str,
     body: ThemeUpdate,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_system_session),
 ) -> Workspace:
-    """Update the theme setting for a workspace."""
-    result = await session.execute(
-        select(Workspace).where(Workspace.id == workspace_id, Workspace.owner_id == current_user.id)
-    )
-    workspace = result.scalar_one_or_none()
-    if not workspace:
-        raise HTTPException(status_code=404, detail="Workspace not found")
-
+    """Update the theme setting for a workspace by slug or ID."""
+    workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
+    
     workspace.theme_setting = body.theme
     session.add(workspace)
     await session.commit()

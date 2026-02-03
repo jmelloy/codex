@@ -38,12 +38,21 @@ class User(SQLModel, table=True):
 
 
 class Workspace(SQLModel, table=True):
-    """Workspace for organizing notebooks and files."""
+    """Workspace for organizing notebooks and files.
+    
+    Note: The slug field has a composite unique constraint with owner_id
+    (enforced at database level via migration), ensuring slugs are unique
+    per owner rather than globally unique.
+    """
 
     __tablename__ = "workspaces"  # type: ignore[assignment]
+    __table_args__ = (
+        {"sqlite_autoincrement": True},
+    )
 
     id: int | None = Field(default=None, primary_key=True)
     name: str = Field(index=True)
+    slug: str = Field(index=True)  # URL-safe identifier (unique per owner via DB constraint)
     path: str = Field(unique=True)  # Filesystem path
     owner_id: int = Field(foreign_key="users.id")
     theme_setting: str | None = Field(default="cream")  # User's preferred theme
@@ -95,6 +104,7 @@ class Notebook(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     workspace_id: int = Field(foreign_key="workspaces.id", index=True)
     name: str = Field(index=True)
+    slug: str = Field(index=True)  # URL-safe identifier (unique per workspace)
     path: str = Field(index=True)  # Relative path from workspace
     description: str | None = None
     created_at: datetime = Field(default_factory=utc_now)

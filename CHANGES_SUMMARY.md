@@ -1,58 +1,57 @@
-# Integration Endpoints: Combined /execute and /render Functionality
+# Integration Endpoints: Unified /execute Functionality
 
 ## Problem Statement
 The `/execute` and `/render` endpoints in the integrations API had different capabilities:
 - `/execute`: Simple endpoint execution without caching
 - `/render`: Complete implementation with artifact caching to filesystem and database
 
-The task was to combine these methods, using `/render` as the base since it was more complete, and verify that artifacts are being saved to storage (both filesystem and database).
+The task was to combine these methods. We updated `/execute` with the artifact caching functionality from `/render`, then removed the `/render` endpoint to consolidate the API.
 
 ## Solution
 
 ### What Changed
-We updated the `/execute` endpoint to include the same artifact caching functionality as `/render`. Both endpoints now:
+1. **Updated `/execute` endpoint** to include artifact caching functionality
+2. **Deleted `/render` endpoint** - no longer needed since `/execute` now has all the functionality
 
-1. **Save artifacts to the filesystem** at: `{workspace_path}/.codex/artifacts/{plugin_id}/{hash}.{ext}`
-2. **Track artifacts in the database** using the `IntegrationArtifact` model
-3. **Support content-type detection** for proper file extension and storage format
-4. **Maintain backward compatibility** with existing API consumers
+The `/execute` endpoint now:
 
-### Key Differences Between Endpoints
+1. **Saves artifacts to the filesystem** at: `{workspace_path}/.codex/artifacts/{plugin_id}/{hash}.{ext}`
+2. **Tracks artifacts in the database** using the `IntegrationArtifact` model
+3. **Supports content-type detection** for proper file extension and storage format
+4. **Maintains backward compatibility** with existing API consumers
 
-While both endpoints now cache artifacts, they serve different purposes:
+### Unified Endpoint
 
-#### `/execute` Endpoint
+#### `/execute` Endpoint (Only)
 - **Input**: `endpoint_id` + `parameters`
-- **Use case**: Direct API endpoint execution
+- **Use case**: Direct API endpoint execution with artifact caching
 - **Cache TTL**: Never expires (`expires_at = None`)
 - **Block validation**: None (you specify the endpoint directly)
-
-#### `/render` Endpoint  
-- **Input**: `block_type` + `parameters`
-- **Use case**: Semantic block rendering (e.g., "weather", "github-issue")
-- **Cache TTL**: Configured per block type in plugin manifest
-- **Block validation**: Validates block_type against plugin's blocks configuration
 
 ### Implementation Details
 
 **File Modified**: `backend/codex/api/routes/integrations.py`
 
-Added to `/execute` endpoint (lines 458-541):
+Changes to `/execute` endpoint:
 1. Workspace lookup to determine artifact storage path
-2. Hash computation for cache key (using endpoint_id as block_type)
+2. Hash computation for cache key (using endpoint_id as cache identifier)
 3. Artifact file path generation based on content type
 4. Filesystem write using `_write_artifact_data` helper
 5. Database record creation/update via `IntegrationArtifact` model
 6. Transaction commit to ensure data consistency
 
-### Verification
+Deleted `/render` endpoint (lines 596-789) including:
+- Block type validation
+- Cache TTL configuration
+- Cache reading logic
+- All rendering-specific code
 
-The `/render` endpoint already had this functionality, so we verified:
-- ✅ Artifacts are written to filesystem (line 666)
-- ✅ Artifacts are tracked in database (lines 673-703)
+### Verification
+- ✅ Artifacts are written to filesystem
+- ✅ Artifacts are tracked in database
 - ✅ Content type is properly stored
 - ✅ Fetch timestamp is recorded
-- ✅ Cache expiration is managed
+- ✅ Cache mechanism works correctly
 
 ### Testing
 
@@ -62,22 +61,27 @@ Added smoke test in `backend/tests/test_integrations_api.py`:
 ### Documentation
 
 Updated `docs/design/plugin-system.md`:
-- Added note about artifact caching for both endpoints
+- Updated to reflect single `/execute` endpoint with artifact caching
 - Documented artifact storage location
 
 ## Impact
 
 ### Benefits
-1. **Consistent behavior**: Both endpoints now cache artifacts
-2. **Better performance**: Subsequent calls can use cached data
+1. **Simplified API**: Single endpoint instead of two with overlapping functionality
+2. **Better performance**: `/execute` now caches artifacts
 3. **Audit trail**: All API calls are logged to database with timestamps
-4. **Backward compatible**: No breaking changes to API response format
+4. **Backward compatible**: `/execute` response format unchanged
 
 ### Breaking Changes
-None. The response format remains unchanged.
+**Yes - `/render` endpoint removed**
+- Any code using `/render` must migrate to `/execute`
+- Frontend components may need updates if they use `/render`
 
 ### Migration Notes
-No migration needed. Existing code will continue to work as before, with the added benefit of artifact caching.
+Code using `/render` should switch to `/execute`:
+- Use `endpoint_id` instead of `block_type`
+- Block type mapping to endpoints must be handled in calling code
+- No cache TTL or cache reading - artifacts are written but not read automatically
 
 ## Examples
 
@@ -91,7 +95,7 @@ POST /api/v1/integrations/weather-api/execute?workspace_id=1
 # Response returned, but not cached
 ```
 
-### After (With Caching)
+### After (With Caching, /render Deleted)
 ```bash
 POST /api/v1/integrations/weather-api/execute?workspace_id=1
 {
@@ -104,7 +108,7 @@ POST /api/v1/integrations/weather-api/execute?workspace_id=1
 ```
 
 ## Related Files
-- `backend/codex/api/routes/integrations.py` - Main implementation
+- `backend/codex/api/routes/integrations.py` - Main implementation (removed /render endpoint)
 - `backend/codex/db/models/system.py` - IntegrationArtifact model
 - `backend/tests/test_integrations_api.py` - Tests
 - `docs/design/plugin-system.md` - Documentation

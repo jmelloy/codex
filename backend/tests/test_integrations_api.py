@@ -154,7 +154,7 @@ def test_get_integration_blocks_not_found(client, auth_headers):
 
 
 def test_execute_integration_with_artifact_caching(client, auth_headers):
-    """Test that /execute endpoint now includes artifact caching like /render.
+    """Test that /execute endpoint includes artifact caching.
     
     This is a smoke test to ensure the endpoint doesn't break with the new
     artifact caching code. We test with a non-existent integration to avoid

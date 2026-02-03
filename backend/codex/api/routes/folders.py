@@ -14,11 +14,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from codex.api.auth import get_current_active_user
+from codex.api.routes.notebooks import get_notebook_by_slug_or_id
+from codex.api.routes.workspaces import get_workspace_by_slug_or_id
 from codex.core.metadata import MetadataParser
 from codex.db.database import get_notebook_session, get_system_session
 from codex.db.models import FileMetadata, Notebook, User, Workspace
 
-router = APIRouter()
 logger = logging.getLogger(__name__)
 
 # The metadata file name stored in each folder
@@ -31,7 +32,7 @@ DEFAULT_FOLDER_PAGINATION_LIMIT = 100
 async def get_notebook_path(
     notebook_id: int, workspace_id: int, current_user: User, session: AsyncSession
 ) -> tuple[Path, Notebook]:
-    """Helper to get and verify notebook path."""
+    """Helper to get and verify notebook path (deprecated - use get_notebook_path_nested)."""
     # Verify workspace access
     result = await session.execute(
         select(Workspace).where(Workspace.id == workspace_id, Workspace.owner_id == current_user.id)
@@ -56,6 +57,36 @@ async def get_notebook_path(
         raise HTTPException(status_code=404, detail="Notebook path not found")
 
     return notebook_path, notebook
+
+
+async def get_notebook_path_nested(
+    workspace_identifier: str,
+    notebook_identifier: str,
+    current_user: User,
+    session: AsyncSession,
+) -> tuple[Path, Notebook, Workspace]:
+    """Helper to get and verify notebook path using workspace and notebook identifiers.
+
+    Returns:
+        Tuple of (notebook_path, notebook_model, workspace_model)
+
+    Raises:
+        HTTPException if workspace or notebook not found
+    """
+    # Get workspace by slug or ID
+    workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
+
+    # Get notebook by slug or ID
+    notebook = await get_notebook_by_slug_or_id(notebook_identifier, workspace, session)
+
+    # Get notebook path
+    workspace_path = Path(workspace.path)
+    notebook_path = workspace_path / notebook.path
+
+    if not notebook_path.exists():
+        raise HTTPException(status_code=404, detail="Notebook path not found")
+
+    return notebook_path, notebook, workspace
 
 
 class UpdateFolderPropertiesRequest(BaseModel):
@@ -236,11 +267,15 @@ def get_subfolders(folder_path: str, notebook_path: Path) -> list[dict]:
     return subfolders
 
 
-@router.get("/{folder_path:path}")
+# New nested router for workspace/notebook-based folder routes
+nested_router = APIRouter()
+
+
+@nested_router.get("/{folder_path:path}")
 async def get_folder(
+    workspace_identifier: str,
+    notebook_identifier: str,
     folder_path: str,
-    notebook_id: int,
-    workspace_id: int,
     skip: int = 0,
     limit: int = DEFAULT_FOLDER_PAGINATION_LIMIT,
     current_user: User = Depends(get_current_active_user),
@@ -251,13 +286,15 @@ async def get_folder(
     The folder properties are stored in a .file within the folder.
 
     Args:
+        workspace_identifier: Workspace slug or ID
+        notebook_identifier: Notebook slug or ID
         folder_path: Path to the folder
-        notebook_id: ID of the notebook
-        workspace_id: ID of the workspace
         skip: Number of files to skip (for pagination)
         limit: Maximum number of files to return (for pagination)
     """
-    notebook_path, _ = await get_notebook_path(notebook_id, workspace_id, current_user, session)
+    notebook_path, notebook, workspace = await get_notebook_path_nested(
+        workspace_identifier, notebook_identifier, current_user, session
+    )
 
     # Validate folder path
     full_folder_path = notebook_path / folder_path
@@ -287,7 +324,7 @@ async def get_folder(
     # Count files in folder (excluding .file)
     nb_session = get_notebook_session(str(notebook_path))
     try:
-        files, total_file_count = get_folder_files(folder_path, notebook_id, notebook_path, nb_session, skip, limit)
+        files, total_file_count = get_folder_files(folder_path, notebook.id, notebook_path, nb_session, skip, limit)
 
         # Get subfolders
         subfolders = get_subfolders(folder_path, notebook_path)
@@ -298,7 +335,10 @@ async def get_folder(
         result = {
             "path": folder_path,
             "name": folder_name,
-            "notebook_id": notebook_id,
+            "notebook_id": notebook.id,
+            "notebook_slug": notebook.slug,
+            "workspace_id": workspace.id,
+            "workspace_slug": workspace.slug,
             "title": properties.get("title") if properties else None,
             "description": properties.get("description") if properties else None,
             "properties": properties,
@@ -320,11 +360,11 @@ async def get_folder(
         nb_session.close()
 
 
-@router.put("/{folder_path:path}")
+@nested_router.put("/{folder_path:path}")
 async def update_folder_properties(
+    workspace_identifier: str,
+    notebook_identifier: str,
     folder_path: str,
-    notebook_id: int,
-    workspace_id: int,
     request: UpdateFolderPropertiesRequest,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_system_session),
@@ -333,7 +373,9 @@ async def update_folder_properties(
 
     This updates the .file within the folder.
     """
-    notebook_path, _ = await get_notebook_path(notebook_id, workspace_id, current_user, session)
+    notebook_path, notebook, workspace = await get_notebook_path_nested(
+        workspace_identifier, notebook_identifier, current_user, session
+    )
 
     # Validate folder path
     full_folder_path = notebook_path / folder_path
@@ -373,7 +415,7 @@ async def update_folder_properties(
         nb_session = get_notebook_session(str(notebook_path))
         try:
             files, file_count = get_folder_files(
-                folder_path, notebook_id, notebook_path, nb_session, skip=0, limit=DEFAULT_FOLDER_PAGINATION_LIMIT
+                folder_path, notebook.id, notebook_path, nb_session, skip=0, limit=DEFAULT_FOLDER_PAGINATION_LIMIT
             )
         finally:
             nb_session.close()
@@ -381,7 +423,10 @@ async def update_folder_properties(
         result = {
             "path": folder_path,
             "name": folder_name,
-            "notebook_id": notebook_id,
+            "notebook_id": notebook.id,
+            "notebook_slug": notebook.slug,
+            "workspace_id": workspace.id,
+            "workspace_slug": workspace.slug,
             "title": request.properties.get("title"),
             "description": request.properties.get("description"),
             "properties": request.properties,
@@ -398,16 +443,18 @@ async def update_folder_properties(
         raise HTTPException(status_code=500, detail=f"Error updating folder properties: {str(e)}")
 
 
-@router.delete("/{folder_path:path}")
+@nested_router.delete("/{folder_path:path}")
 async def delete_folder(
+    workspace_identifier: str,
+    notebook_identifier: str,
     folder_path: str,
-    notebook_id: int,
-    workspace_id: int,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_system_session),
 ):
     """Delete a folder and all its contents."""
-    notebook_path, _ = await get_notebook_path(notebook_id, workspace_id, current_user, session)
+    notebook_path, notebook, workspace = await get_notebook_path_nested(
+        workspace_identifier, notebook_identifier, current_user, session
+    )
 
     # Validate folder path
     full_folder_path = notebook_path / folder_path
@@ -436,7 +483,7 @@ async def delete_folder(
     try:
         # Delete all files in folder from database
         prefix = f"{folder_path}/"
-        files_result = nb_session.execute(select(FileMetadata).where(FileMetadata.notebook_id == notebook_id))
+        files_result = nb_session.execute(select(FileMetadata).where(FileMetadata.notebook_id == notebook.id))
         all_files = files_result.scalars().all()
 
         for f in all_files:

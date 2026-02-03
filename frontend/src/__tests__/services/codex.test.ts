@@ -441,7 +441,7 @@ describe("Codex Services", () => {
       const result = await folderService.get("folder with spaces", 1, 1)
 
       expect(apiClient.get).toHaveBeenCalledWith(
-        "/api/v1/folders/folder%20with%20spaces?notebook_id=1&workspace_id=1"
+        "/api/v1/workspaces/1/notebooks/1/folders/folder%20with%20spaces"
       )
       expect(result).toEqual(mockFolder)
     })
@@ -455,7 +455,7 @@ describe("Codex Services", () => {
       })
 
       expect(apiClient.put).toHaveBeenCalledWith(
-        "/api/v1/folders/test-folder?notebook_id=1&workspace_id=1",
+        "/api/v1/workspaces/1/notebooks/1/folders/test-folder",
         { properties: { title: "Updated Title" } }
       )
       expect(result).toEqual(updatedFolder)
@@ -467,7 +467,7 @@ describe("Codex Services", () => {
       await folderService.delete("test-folder", 1, 1)
 
       expect(apiClient.delete).toHaveBeenCalledWith(
-        "/api/v1/folders/test-folder?notebook_id=1&workspace_id=1"
+        "/api/v1/workspaces/1/notebooks/1/folders/test-folder"
       )
     })
   })
@@ -479,7 +479,7 @@ describe("Codex Services", () => {
 
       const result = await searchService.search(1, "test query")
 
-      expect(apiClient.get).toHaveBeenCalledWith("/api/v1/search/?workspace_id=1&q=test query")
+      expect(apiClient.get).toHaveBeenCalledWith("/api/v1/workspaces/1/search/?q=test query")
       expect(result).toEqual(mockResults)
     })
 
@@ -490,7 +490,7 @@ describe("Codex Services", () => {
       const result = await searchService.searchByTags(1, ["tag1", "tag2"])
 
       expect(apiClient.get).toHaveBeenCalledWith(
-        "/api/v1/search/tags?workspace_id=1&tags=tag1,tag2"
+        "/api/v1/workspaces/1/search/tags?tags=tag1,tag2"
       )
       expect(result).toEqual(mockResults)
     })

@@ -714,20 +714,19 @@ export const templateService = {
 export const folderService = {
   /**
    * Get folder metadata and contents.
-   * The folder metadata is stored in a .file within the folder.
+   * The folder metadata is stored in a .metadata file within the folder.
    */
   async get(path: string, notebookId: number | string, workspaceId: number | string): Promise<FolderWithFiles> {
     const encodedPath = encodeURIComponent(path)
-    // Note: This still uses old route since nested route not implemented yet
     const response = await apiClient.get<FolderWithFiles>(
-      `/api/v1/folders/${encodedPath}?notebook_id=${notebookId}&workspace_id=${workspaceId}`
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/folders/${encodedPath}`
     )
     return response.data
   },
 
   /**
    * Update folder properties.
-   * This updates the .file within the folder.
+   * This updates the .metadata file within the folder.
    */
   async updateProperties(
     path: string,
@@ -736,9 +735,8 @@ export const folderService = {
     properties: Record<string, any>
   ): Promise<FolderMetadata> {
     const encodedPath = encodeURIComponent(path)
-    // Note: This still uses old route since nested route not implemented yet
     const response = await apiClient.put<FolderMetadata>(
-      `/api/v1/folders/${encodedPath}?notebook_id=${notebookId}&workspace_id=${workspaceId}`,
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/folders/${encodedPath}`,
       { properties }
     )
     return response.data
@@ -749,24 +747,51 @@ export const folderService = {
    */
   async delete(path: string, notebookId: number | string, workspaceId: number | string): Promise<void> {
     const encodedPath = encodeURIComponent(path)
-    // Note: This still uses old route since nested route not implemented yet
     await apiClient.delete(
-      `/api/v1/folders/${encodedPath}?notebook_id=${notebookId}&workspace_id=${workspaceId}`
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/folders/${encodedPath}`
     )
   },
 }
 
 export const searchService = {
+  /**
+   * Search files and content across all notebooks in a workspace.
+   */
   async search(workspaceId: number | string, query: string): Promise<any> {
-    // Note: This still uses old route since nested route not implemented yet
-    const response = await apiClient.get(`/api/v1/search/?workspace_id=${workspaceId}&q=${query}`)
+    const response = await apiClient.get(`/api/v1/workspaces/${workspaceId}/search/?q=${query}`)
     return response.data
   },
 
-  async searchByTags(workspaceId: number | string, tags: string[]): Promise<any> {
-    // Note: This still uses old route since nested route not implemented yet
+  /**
+   * Search files and content in a specific notebook.
+   */
+  async searchInNotebook(workspaceId: number | string, notebookId: number | string, query: string): Promise<any> {
     const response = await apiClient.get(
-      `/api/v1/search/tags?workspace_id=${workspaceId}&tags=${tags.join(",")}`
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/search/?q=${query}`
+    )
+    return response.data
+  },
+
+  /**
+   * Search by tags across all notebooks in a workspace.
+   */
+  async searchByTags(workspaceId: number | string, tags: string[]): Promise<any> {
+    const response = await apiClient.get(
+      `/api/v1/workspaces/${workspaceId}/search/tags?tags=${tags.join(",")}`
+    )
+    return response.data
+  },
+
+  /**
+   * Search by tags in a specific notebook.
+   */
+  async searchByTagsInNotebook(
+    workspaceId: number | string,
+    notebookId: number | string,
+    tags: string[]
+  ): Promise<any> {
+    const response = await apiClient.get(
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/search/tags?tags=${tags.join(",")}`
     )
     return response.data
   },

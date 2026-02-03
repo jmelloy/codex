@@ -8,6 +8,8 @@ This document provides a comprehensive reference of all backend API endpoints in
 
 **Authentication**: Most endpoints require JWT Bearer token authentication (obtained via `/api/token`)
 
+**Note**: As of 2026-02-03, unused endpoints (not called by frontend) have been removed to streamline the codebase.
+
 ---
 
 ## Table of Contents
@@ -18,12 +20,9 @@ This document provides a comprehensive reference of all backend API endpoints in
 4. [Files](#files)
 5. [Folders](#folders)
 6. [Search](#search)
-7. [Tasks](#tasks)
-8. [Markdown](#markdown)
-9. [Query](#query)
-10. [Integrations](#integrations)
-11. [Plugins](#plugins)
-12. [Test Coverage Summary](#test-coverage-summary)
+7. [Query](#query)
+8. [Integrations](#integrations)
+9. [Test Coverage Summary](#test-coverage-summary)
 
 ---
 
@@ -101,7 +100,7 @@ This document provides a comprehensive reference of all backend API endpoints in
 **Request Body**: `{ name, path, description? }`  
 **Response**: Created workspace object
 
-**Tested**: ✅ `test_workspaces.py`, `test_plugin_api.py`, `test_integrations_api.py`  
+**Tested**: ✅ `test_workspaces.py`  
 **Frontend Usage**: ✅ `codex.ts::workspaceService.create()`
 
 ---
@@ -143,17 +142,6 @@ This document provides a comprehensive reference of all backend API endpoints in
 
 ---
 
-### GET `/api/v1/notebooks/{notebook_id}/indexing-status`
-**Description**: Get indexing status for notebook  
-**Authentication**: Required  
-**Path Parameters**: `notebook_id` (string)  
-**Response**: `{ is_indexing: boolean, indexed_files: number, total_files: number }`
-
-**Tested**: ❌ Not specifically tested  
-**Frontend Usage**: ❌ Not currently used
-
----
-
 ### POST `/api/v1/notebooks/`
 **Description**: Create a new notebook  
 **Authentication**: Required  
@@ -162,54 +150,6 @@ This document provides a comprehensive reference of all backend API endpoints in
 
 **Tested**: ✅ `test_plugin_api.py`  
 **Frontend Usage**: ✅ `codex.ts::notebookService.create()`
-
----
-
-### GET `/api/v1/notebooks/{notebook_id}/plugins`
-**Description**: List plugin configurations for notebook  
-**Authentication**: Required  
-**Path Parameters**: `notebook_id` (string)  
-**Query Parameters**: `workspace_id` (required)  
-**Response**: Array of plugin config objects
-
-**Tested**: ✅ `test_plugin_api.py`  
-**Frontend Usage**: ❌ Not currently used
-
----
-
-### GET `/api/v1/notebooks/{notebook_id}/plugins/{plugin_id}`
-**Description**: Get specific plugin configuration for notebook  
-**Authentication**: Required  
-**Path Parameters**: `notebook_id`, `plugin_id` (strings)  
-**Query Parameters**: `workspace_id` (required)  
-**Response**: Plugin config object
-
-**Tested**: ✅ `test_plugin_api.py`  
-**Frontend Usage**: ❌ Not currently used
-
----
-
-### PUT `/api/v1/notebooks/{notebook_id}/plugins/{plugin_id}`
-**Description**: Update plugin configuration for notebook  
-**Authentication**: Required  
-**Path Parameters**: `notebook_id`, `plugin_id` (strings)  
-**Request Body**: `{ config: object }`  
-**Response**: Updated plugin config object
-
-**Tested**: ✅ `test_plugin_api.py`  
-**Frontend Usage**: ❌ Not currently used
-
----
-
-### DELETE `/api/v1/notebooks/{notebook_id}/plugins/{plugin_id}`
-**Description**: Delete plugin configuration for notebook  
-**Authentication**: Required  
-**Path Parameters**: `notebook_id`, `plugin_id` (strings)  
-**Query Parameters**: `workspace_id` (required)  
-**Response**: 204 No Content
-
-**Tested**: ✅ `test_plugin_api.py`  
-**Frontend Usage**: ❌ Not currently used
 
 ---
 
@@ -472,125 +412,6 @@ This document provides a comprehensive reference of all backend API endpoints in
 
 ---
 
-## Tasks
-
-### GET `/api/v1/tasks/`
-**Description**: List tasks for workspace  
-**Authentication**: Required  
-**Query Parameters**: `workspace_id` (required)  
-**Response**: Array of task objects
-
-**Tested**: ✅ `test_tasks.py`  
-**Frontend Usage**: ❌ Not currently used
-
----
-
-### GET `/api/v1/tasks/{task_id}`
-**Description**: Get specific task by ID  
-**Authentication**: Required  
-**Path Parameters**: `task_id` (string)  
-**Response**: Task object
-
-**Tested**: ✅ `test_tasks.py`  
-**Frontend Usage**: ❌ Not currently used
-
----
-
-### POST `/api/v1/tasks/`
-**Description**: Create new task  
-**Authentication**: Required  
-**Request Body**: `{ workspace_id, title, description?, status?, assigned_to? }`  
-**Response**: Created task object
-
-**Tested**: ✅ `test_tasks.py`  
-**Frontend Usage**: ❌ Not currently used
-
----
-
-### PUT `/api/v1/tasks/{task_id}`
-**Description**: Update task  
-**Authentication**: Required  
-**Path Parameters**: `task_id` (string)  
-**Request Body**: `{ status?, assigned_to?, ... }`  
-**Response**: Updated task object
-
-**Tested**: ✅ `test_tasks.py`  
-**Frontend Usage**: ❌ Not currently used
-
----
-
-## Markdown
-
-### POST `/api/v1/markdown/render`
-**Description**: Render markdown to HTML and detect custom blocks  
-**Authentication**: Required  
-**Request Body**: `{ content, workspace_id?, notebook_id? }`  
-**Response**: `{ html, custom_blocks: [...] }`
-
-**Tested**: ✅ `test_markdown_api.py`  
-**Frontend Usage**: ❌ Not currently used
-
----
-
-### GET `/api/v1/markdown/{workspace_id}/files`
-**Description**: List markdown files in workspace  
-**Authentication**: Required  
-**Path Parameters**: `workspace_id` (string)  
-**Response**: Array of markdown file paths
-
-**Tested**: ✅ `test_markdown_api.py`  
-**Frontend Usage**: ❌ Not currently used
-
----
-
-### GET `/api/v1/markdown/{workspace_id}/file`
-**Description**: Get markdown file content with frontmatter  
-**Authentication**: Required  
-**Path Parameters**: `workspace_id` (string)  
-**Query Parameters**: `file_path` (required)  
-**Response**: `{ content, frontmatter: {...} }`
-
-**Tested**: ❌ Not specifically tested  
-**Frontend Usage**: ❌ Not currently used
-
----
-
-### POST `/api/v1/markdown/{workspace_id}/file`
-**Description**: Create markdown file  
-**Authentication**: Required  
-**Path Parameters**: `workspace_id` (string)  
-**Request Body**: `{ file_path, content, frontmatter? }`  
-**Response**: Created file object
-
-**Tested**: ❌ Not specifically tested  
-**Frontend Usage**: ❌ Not currently used
-
----
-
-### PUT `/api/v1/markdown/{workspace_id}/file`
-**Description**: Update markdown file  
-**Authentication**: Required  
-**Path Parameters**: `workspace_id` (string)  
-**Request Body**: `{ file_path, content?, frontmatter? }`  
-**Response**: Updated file object
-
-**Tested**: ❌ Not specifically tested  
-**Frontend Usage**: ❌ Not currently used
-
----
-
-### DELETE `/api/v1/markdown/{workspace_id}/file`
-**Description**: Delete markdown file  
-**Authentication**: Required  
-**Path Parameters**: `workspace_id` (string)  
-**Query Parameters**: `file_path` (required)  
-**Response**: 204 No Content
-
-**Tested**: ❌ Not specifically tested  
-**Frontend Usage**: ❌ Not currently used
-
----
-
 ## Query
 
 ### POST `/api/v1/query/`
@@ -613,7 +434,7 @@ This document provides a comprehensive reference of all backend API endpoints in
 **Query Parameters**: `workspace_id?` (optional)  
 **Response**: Array of integration plugin objects
 
-**Tested**: ✅ `test_integrations_api.py`, `test_plugin_api.py`  
+**Tested**: ✅ `test_integrations_api.py`  
 **Frontend Usage**: ✅ `integration.ts::listIntegrations()`
 
 ---
@@ -626,18 +447,6 @@ This document provides a comprehensive reference of all backend API endpoints in
 
 **Tested**: ❌ Not specifically tested  
 **Frontend Usage**: ✅ `integration.ts::getIntegration()`
-
----
-
-### PUT `/api/v1/integrations/{integration_id}/enable`
-**Description**: Enable or disable integration for workspace  
-**Authentication**: Required  
-**Path Parameters**: `integration_id` (string)  
-**Request Body**: `{ workspace_id, enabled: boolean }`  
-**Response**: Updated integration status
-
-**Tested**: ✅ `test_plugin_api.py`  
-**Frontend Usage**: ❌ Not currently used
 
 ---
 
@@ -701,82 +510,13 @@ This document provides a comprehensive reference of all backend API endpoints in
 
 ---
 
-### POST `/api/v1/integrations/{integration_id}/render`
-**Description**: Render integration block with caching  
-**Authentication**: Required  
-**Path Parameters**: `integration_id` (string)  
-**Query Parameters**: `workspace_id` (required)  
-**Request Body**: `{ block_type, parameters: {...} }`  
-**Response**: `{ html: string, cache_key?: string }`
-
-**Tested**: ❌ Not specifically tested  
-**Frontend Usage**: ❌ Not currently used
-
----
-
-## Plugins
-
-### POST `/api/v1/plugins/register`
-**Description**: Register a plugin from frontend  
-**Authentication**: Required  
-**Request Body**: `{ plugin_id, name, version, type, manifest: {...} }`  
-**Response**: Registered plugin object
-
-**Tested**: ❌ Not specifically tested  
-**Frontend Usage**: ❌ Not currently used
-
----
-
-### POST `/api/v1/plugins/register-batch`
-**Description**: Register multiple plugins at once  
-**Authentication**: Required  
-**Request Body**: `{ plugins: [...] }`  
-**Response**: Array of registered plugin objects
-
-**Tested**: ❌ Not specifically tested  
-**Frontend Usage**: ❌ Not currently used
-
----
-
-### GET `/api/v1/plugins`
-**Description**: List all registered plugins  
-**Authentication**: Required  
-**Query Parameters**: `plugin_type?` (optional filter)  
-**Response**: Array of plugin objects
-
-**Tested**: ❌ Not specifically tested  
-**Frontend Usage**: ❌ Not currently used
-
----
-
-### GET `/api/v1/plugins/{plugin_id}`
-**Description**: Get specific plugin details  
-**Authentication**: Required  
-**Path Parameters**: `plugin_id` (string)  
-**Response**: Plugin object
-
-**Tested**: ❌ Not specifically tested  
-**Frontend Usage**: ❌ Not currently used
-
----
-
-### DELETE `/api/v1/plugins/{plugin_id}`
-**Description**: Unregister a plugin  
-**Authentication**: Required  
-**Path Parameters**: `plugin_id` (string)  
-**Response**: 204 No Content
-
-**Tested**: ❌ Not specifically tested  
-**Frontend Usage**: ❌ Not currently used
-
----
-
 ## Test Coverage Summary
 
 ### Overall Statistics
-- **Total API Endpoints**: 65+
-- **Endpoints with Tests**: ~20 (31%)
-- **Endpoints without Tests**: ~45 (69%)
+- **Total API Endpoints**: 43 (after cleanup)
+- **Endpoints with Tests**: ~18 (42%)
+- **Endpoints without Tests**: ~25 (58%)
+- **Removed Endpoints**: 22 (unused by frontend)
 
 ### Coverage by Category
 
@@ -784,15 +524,48 @@ This document provides a comprehensive reference of all backend API endpoints in
 |----------|----------------|--------|-----------|
 | Users & Auth | 4 | 3 | 75% |
 | Workspaces | 4 | 4 | 100% |
-| Notebooks | 8 | 4 | 50% |
+| Notebooks | 3 | 1 | 33% |
 | Files | 17 | 0 | 0% |
 | Folders | 3 | 0 | 0% |
 | Search | 2 | 0 | 0% |
-| Tasks | 4 | 4 | 100% |
-| Markdown | 6 | 2 | 33% |
 | Query | 1 | 1 | 100% |
-| Integrations | 9 | 6 | 67% |
-| Plugins | 5 | 0 | 0% |
+| Integrations | 7 | 6 | 86% |
+
+### Removed Endpoints (Not Used by Frontend)
+
+The following 22 endpoints were removed to streamline the codebase:
+
+**Notebooks** (5 endpoints):
+- GET `/api/v1/notebooks/{notebook_id}/indexing-status`
+- GET `/api/v1/notebooks/{notebook_id}/plugins`
+- GET `/api/v1/notebooks/{notebook_id}/plugins/{plugin_id}`
+- PUT `/api/v1/notebooks/{notebook_id}/plugins/{plugin_id}`
+- DELETE `/api/v1/notebooks/{notebook_id}/plugins/{plugin_id}`
+
+**Tasks** (4 endpoints - entire module):
+- GET `/api/v1/tasks/`
+- GET `/api/v1/tasks/{task_id}`
+- POST `/api/v1/tasks/`
+- PUT `/api/v1/tasks/{task_id}`
+
+**Markdown** (6 endpoints - entire module):
+- POST `/api/v1/markdown/render`
+- GET `/api/v1/markdown/{workspace_id}/files`
+- GET `/api/v1/markdown/{workspace_id}/file`
+- POST `/api/v1/markdown/{workspace_id}/file`
+- PUT `/api/v1/markdown/{workspace_id}/file`
+- DELETE `/api/v1/markdown/{workspace_id}/file`
+
+**Integrations** (2 endpoints):
+- PUT `/api/v1/integrations/{integration_id}/enable`
+- POST `/api/v1/integrations/{integration_id}/render`
+
+**Plugins** (5 endpoints - entire module):
+- POST `/api/v1/plugins/register`
+- POST `/api/v1/plugins/register-batch`
+- GET `/api/v1/plugins`
+- GET `/api/v1/plugins/{plugin_id}`
+- DELETE `/api/v1/plugins/{plugin_id}`
 
 ### High Priority Endpoints for Testing
 Based on frontend usage, these endpoints should have tests added:
@@ -801,19 +574,11 @@ Based on frontend usage, these endpoints should have tests added:
 2. **Folders endpoints** (3 endpoints, 0 tests) - Used by frontend
 3. **Search endpoints** (2 endpoints, 0 tests) - Used by frontend
 4. **Notebook list/get** (2 endpoints, 0 tests) - Core functionality
-5. **Plugin registration** (5 endpoints, 0 tests) - New feature
 
 ### Frontend Usage Statistics
 
-- **Actively Used in Frontend**: ~35 endpoints (54%)
-- **Backend Only/Not Used**: ~30 endpoints (46%)
-
-### Notable Gaps
-
-1. **File operations**: No test coverage despite extensive frontend usage
-2. **Search functionality**: Critical feature but no tests
-3. **Plugin system**: New feature area needs comprehensive testing
-4. **Markdown CRUD**: Some endpoints not used by frontend or tested
+- **Actively Used in Frontend**: 43 endpoints (100%)
+- **Removed (Unused)**: 22 endpoints
 
 ---
 
@@ -827,4 +592,5 @@ Based on frontend usage, these endpoints should have tests added:
 ---
 
 *Last Updated*: 2026-02-03  
-*Generated from*: Backend route definitions, test files, and frontend service layer analysis
+*Generated from*: Backend route definitions, test files, and frontend service layer analysis  
+*Cleanup Date*: 2026-02-03 - Removed 22 unused endpoints

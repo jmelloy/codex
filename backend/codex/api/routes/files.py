@@ -809,6 +809,73 @@ async def get_file_by_path_nested(
         nb_session.close()
 
 
+@nested_router.get("/by-path/content")
+async def get_file_content_by_path_nested(
+    workspace_identifier: str,
+    notebook_identifier: str,
+    path: str,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Get file content by path (serves binary files like images).
+    
+    Nested under workspace/notebook route.
+    Supports:
+    - Exact path match: "path/to/image.png"
+    - Filename only: "image.png" (searches for filename in notebook)
+    """
+    notebook_path, notebook, workspace = await get_notebook_path_nested(
+        workspace_identifier, notebook_identifier, current_user, session
+    )
+
+    # Query file from notebook database
+    nb_session = get_notebook_session(str(notebook_path))
+    try:
+        # First try exact path match
+        file_result = nb_session.execute(
+            select(FileMetadata).where(FileMetadata.notebook_id == notebook.id, FileMetadata.path == path)
+        )
+        file_meta = file_result.scalar_one_or_none()
+
+        # If not found and path doesn't contain directory separator, try filename match
+        if not file_meta and "/" not in path:
+            file_result = nb_session.execute(
+                select(FileMetadata).where(FileMetadata.notebook_id == notebook.id, FileMetadata.filename == path)
+            )
+            # Get first match if multiple files have same name
+            file_meta = file_result.scalars().first()
+
+        if not file_meta:
+            raise HTTPException(status_code=404, detail=f"File not found: {path}")
+
+        # Get file path
+        file_path = notebook_path / file_meta.path
+
+        # Validate path to prevent directory traversal attacks
+        try:
+            resolved_path = file_path.resolve()
+            resolved_notebook = notebook_path.resolve()
+            # Ensure the file is within the notebook directory
+            if not str(resolved_path).startswith(str(resolved_notebook)):
+                raise HTTPException(status_code=403, detail="Access denied: Invalid file path")
+        except (OSError, ValueError) as e:
+            logger.error(f"Path validation error: {e}")
+            raise HTTPException(status_code=400, detail="Invalid file path")
+
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="File not found on disk")
+
+        # Determine media type based on file extension
+        media_type, _ = mimetypes.guess_type(str(file_path))
+        if media_type is None:
+            media_type = "application/octet-stream"
+
+        # Return the file
+        return FileResponse(path=str(file_path), media_type=media_type, filename=file_meta.filename)
+    finally:
+        nb_session.close()
+
+
 @nested_router.get("/by-path/text")
 async def get_file_text_by_path_nested(
     workspace_identifier: str,
@@ -817,7 +884,10 @@ async def get_file_text_by_path_nested(
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_system_session),
 ):
-    """Get file text content by path (nested under workspace/notebook route)."""
+    """Get file text content by path (nested under workspace/notebook route).
+    
+    For markdown files, strips frontmatter and returns only the content body.
+    """
     notebook_path, notebook, workspace = await get_notebook_path_nested(
         workspace_identifier, notebook_identifier, current_user, session
     )
@@ -830,6 +900,11 @@ async def get_file_text_by_path_nested(
     try:
         with open(file_path, "r") as f:
             content = f.read()
+        
+        # Strip frontmatter from markdown files
+        if path.endswith(".md"):
+            _, content = MetadataParser.parse_frontmatter(content)
+        
         return {"content": content}
     except Exception as e:
         logger.error(f"Error reading file {file_path}: {e}", exc_info=True)
@@ -995,6 +1070,61 @@ async def get_file_nested(
         nb_session.close()
 
 
+@nested_router.get("/{file_id}/content")
+async def get_file_content_nested(
+    workspace_identifier: str,
+    notebook_identifier: str,
+    file_id: int,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Get file content (serves binary files like images).
+    
+    Nested under workspace/notebook route.
+    """
+    notebook_path, notebook, workspace = await get_notebook_path_nested(
+        workspace_identifier, notebook_identifier, current_user, session
+    )
+
+    # Query file from notebook database
+    nb_session = get_notebook_session(str(notebook_path))
+    try:
+        file_result = nb_session.execute(
+            select(FileMetadata).where(FileMetadata.id == file_id, FileMetadata.notebook_id == notebook.id)
+        )
+        file_meta = file_result.scalar_one_or_none()
+
+        if not file_meta:
+            raise HTTPException(status_code=404, detail="File not found")
+
+        # Get file path
+        file_path = notebook_path / file_meta.path
+
+        # Validate path to prevent directory traversal attacks
+        try:
+            resolved_path = file_path.resolve()
+            resolved_notebook = notebook_path.resolve()
+            # Ensure the file is within the notebook directory
+            if not str(resolved_path).startswith(str(resolved_notebook)):
+                raise HTTPException(status_code=403, detail="Access denied: Invalid file path")
+        except (OSError, ValueError) as e:
+            logger.error(f"Path validation error: {e}")
+            raise HTTPException(status_code=400, detail="Invalid file path")
+
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="File not found on disk")
+
+        # Determine media type based on file extension
+        media_type, _ = mimetypes.guess_type(str(file_path))
+        if media_type is None:
+            media_type = "application/octet-stream"
+
+        # Return the file
+        return FileResponse(path=str(file_path), media_type=media_type, filename=file_meta.filename)
+    finally:
+        nb_session.close()
+
+
 @nested_router.get("/{file_id}/text")
 async def get_file_text_nested(
     workspace_identifier: str,
@@ -1003,7 +1133,10 @@ async def get_file_text_nested(
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_system_session),
 ):
-    """Get file text content by ID (nested under workspace/notebook route)."""
+    """Get file text content by ID (nested under workspace/notebook route).
+    
+    For markdown files, strips frontmatter and returns only the content body.
+    """
     notebook_path, notebook, workspace = await get_notebook_path_nested(
         workspace_identifier, notebook_identifier, current_user, session
     )
@@ -1027,6 +1160,11 @@ async def get_file_text_nested(
         try:
             with open(file_path, "r") as f:
                 content = f.read()
+            
+            # Strip frontmatter from markdown files
+            if file_meta.path.endswith(".md"):
+                _, content = MetadataParser.parse_frontmatter(content)
+            
             return {"content": content}
         except Exception as e:
             logger.error(f"Error reading file {file_path}: {e}", exc_info=True)

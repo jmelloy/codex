@@ -15,6 +15,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from codex.api.auth import get_current_active_user
+from codex.api.routes.notebooks import get_notebook_by_slug_or_id
+from codex.api.routes.workspaces import get_workspace_by_slug_or_id
 from codex.core.link_resolver import LinkResolver
 from codex.core.metadata import MetadataParser
 from codex.core.watcher import get_content_type
@@ -1473,5 +1475,710 @@ async def delete_file(
     except Exception as e:
         logger.error(f"Error deleting file: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error deleting file: {str(e)}")
+    finally:
+        nb_session.close()
+
+
+# New nested router for workspace/notebook-based file routes
+# These routes follow the pattern: /workspaces/{workspace_slug}/notebooks/{notebook_slug}/files/...
+nested_router = APIRouter()
+
+
+async def get_notebook_path_nested(
+    workspace_identifier: str,
+    notebook_identifier: str,
+    current_user: User,
+    session: AsyncSession,
+) -> tuple[Path, Notebook, Workspace]:
+    """Helper to get and verify notebook path using workspace and notebook identifiers.
+
+    Returns:
+        Tuple of (notebook_path, notebook_model, workspace_model)
+
+    Raises:
+        HTTPException if workspace or notebook not found
+    """
+    # Get workspace by slug or ID
+    workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
+    
+    # Get notebook by slug or ID
+    notebook = await get_notebook_by_slug_or_id(notebook_identifier, workspace, session)
+    
+    # Get notebook path
+    workspace_path = Path(workspace.path)
+    notebook_path = workspace_path / notebook.path
+    
+    if not notebook_path.exists():
+        raise HTTPException(status_code=404, detail="Notebook path not found")
+    
+    return notebook_path, notebook, workspace
+
+
+class CreateFileRequestNested(BaseModel):
+    """Request model for creating a file (nested routes)."""
+    
+    path: str
+    content: str
+
+
+class UpdateFileRequestNested(BaseModel):
+    """Request model for updating a file (nested routes)."""
+    
+    content: str | None = None
+    properties: dict[str, Any] | None = None
+
+
+@nested_router.get("/templates")
+async def list_templates_nested(
+    workspace_identifier: str,
+    notebook_identifier: str,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """List available file templates (nested under workspace/notebook route)."""
+    notebook_path, notebook, workspace = await get_notebook_path_nested(
+        workspace_identifier, notebook_identifier, current_user, session
+    )
+    
+    from codex.core.plugin_loader import PluginLoader
+    loader = PluginLoader()
+    templates = load_default_templates(loader)
+    
+    return {"templates": templates}
+
+
+@nested_router.get("/")
+async def list_files_nested(
+    workspace_identifier: str,
+    notebook_identifier: str,
+    skip: int = 0,
+    limit: int = 1000,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """List files in a notebook with pagination (nested under workspace/notebook route)."""
+    notebook_path, notebook, workspace = await get_notebook_path_nested(
+        workspace_identifier, notebook_identifier, current_user, session
+    )
+    
+    # Query files from notebook database
+    nb_session = get_notebook_session(str(notebook_path))
+    try:
+        # Get total count efficiently
+        from sqlmodel import func
+        
+        count_statement = select(func.count(FileMetadata.id)).where(FileMetadata.notebook_id == notebook.id)
+        count_result = nb_session.execute(count_statement)
+        total_count = count_result.scalar_one()
+        
+        # Get paginated files
+        statement = select(FileMetadata).where(FileMetadata.notebook_id == notebook.id).offset(skip).limit(limit)
+        files_result = nb_session.execute(statement)
+        files = files_result.scalars().all()
+        
+        file_list = []
+        for f in files:
+            # Parse properties JSON if available
+            properties = None
+            if f.properties:
+                try:
+                    properties = json.loads(f.properties)
+                except json.JSONDecodeError:
+                    properties = None
+            
+            file_list.append(
+                {
+                    "id": f.id,
+                    "notebook_id": f.notebook_id,
+                    "path": f.path,
+                    "filename": f.filename,
+                    "content_type": f.content_type,
+                    "size": f.size,
+                    "hash": f.hash,
+                    "title": f.title,
+                    "description": f.description,
+                    "file_type": f.file_type,
+                    "properties": properties,
+                    "created_at": f.created_at.isoformat() if f.created_at else None,
+                    "updated_at": f.updated_at.isoformat() if f.updated_at else None,
+                    "file_modified_at": f.file_modified_at.isoformat() if f.file_modified_at else None,
+                }
+            )
+        
+        return {
+            "files": file_list,
+            "pagination": {
+                "skip": skip,
+                "limit": limit,
+                "total": total_count,
+                "has_more": skip + len(file_list) < total_count,
+            },
+        }
+    finally:
+        nb_session.close()
+
+
+@nested_router.get("/by-path")
+async def get_file_by_path_nested(
+    workspace_identifier: str,
+    notebook_identifier: str,
+    path: str,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Get file metadata by path (nested under workspace/notebook route)."""
+    notebook_path, notebook, workspace = await get_notebook_path_nested(
+        workspace_identifier, notebook_identifier, current_user, session
+    )
+    
+    nb_session = get_notebook_session(str(notebook_path))
+    try:
+        result = nb_session.execute(
+            select(FileMetadata).where(FileMetadata.notebook_id == notebook.id, FileMetadata.path == path)
+        )
+        file_meta = result.scalar_one_or_none()
+        
+        if not file_meta:
+            raise HTTPException(status_code=404, detail="File not found")
+        
+        # Parse properties JSON if available
+        properties = None
+        if file_meta.properties:
+            try:
+                properties = json.loads(file_meta.properties)
+            except json.JSONDecodeError:
+                properties = None
+        
+        return {
+            "id": file_meta.id,
+            "notebook_id": file_meta.notebook_id,
+            "path": file_meta.path,
+            "filename": file_meta.filename,
+            "content_type": file_meta.content_type,
+            "size": file_meta.size,
+            "hash": file_meta.hash,
+            "title": file_meta.title,
+            "description": file_meta.description,
+            "file_type": file_meta.file_type,
+            "properties": properties,
+            "created_at": file_meta.created_at.isoformat() if file_meta.created_at else None,
+            "updated_at": file_meta.updated_at.isoformat() if file_meta.updated_at else None,
+            "file_modified_at": file_meta.file_modified_at.isoformat() if file_meta.file_modified_at else None,
+        }
+    finally:
+        nb_session.close()
+
+
+@nested_router.get("/by-path/text")
+async def get_file_text_by_path_nested(
+    workspace_identifier: str,
+    notebook_identifier: str,
+    path: str,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Get file text content by path (nested under workspace/notebook route)."""
+    notebook_path, notebook, workspace = await get_notebook_path_nested(
+        workspace_identifier, notebook_identifier, current_user, session
+    )
+    
+    file_path = notebook_path / path
+    
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    try:
+        with open(file_path, "r") as f:
+            content = f.read()
+        return {"content": content}
+    except Exception as e:
+        logger.error(f"Error reading file {file_path}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}")
+
+
+@nested_router.post("/")
+async def create_file_nested(
+    workspace_identifier: str,
+    notebook_identifier: str,
+    request: CreateFileRequestNested,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Create a new file (nested under workspace/notebook route)."""
+    notebook_path, notebook, workspace = await get_notebook_path_nested(
+        workspace_identifier, notebook_identifier, current_user, session
+    )
+    
+    path = request.path
+    content = request.content
+    
+    # Create the file
+    nb_session = get_notebook_session(str(notebook_path))
+    try:
+        file_path = notebook_path / path
+        
+        # Check if file already exists
+        if file_path.exists():
+            raise HTTPException(status_code=400, detail="File already exists")
+        
+        # Create parent directories if needed
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Determine content type before creating file
+        content_type = get_content_type(str(file_path))
+        
+        import hashlib
+        from datetime import datetime
+        
+        # Create metadata record BEFORE writing file to prevent race with watcher
+        file_meta = FileMetadata(
+            notebook_id=notebook.id,
+            path=path,
+            filename=os.path.basename(path),
+            content_type=content_type,
+            size=0,  # Placeholder, will be updated
+            hash=hashlib.sha256(content.encode()).hexdigest(),
+        )
+        
+        # Add and commit the metadata record first
+        nb_session.add(file_meta)
+        try:
+            nb_session.commit()
+            nb_session.refresh(file_meta)
+        except Exception as commit_error:
+            # Handle race condition: watcher may have created the record
+            nb_session.rollback()
+            if "UNIQUE constraint failed" in str(commit_error):
+                # Query for the existing record created by the watcher
+                existing_result = nb_session.execute(
+                    select(FileMetadata).where(FileMetadata.notebook_id == notebook.id, FileMetadata.path == path)
+                )
+                file_meta = existing_result.scalar_one_or_none()
+                if not file_meta:
+                    raise HTTPException(status_code=500, detail="Race condition: file metadata not found")
+            else:
+                raise
+        
+        # Now write the file to disk
+        with open(file_path, "w") as f:
+            f.write(content)
+        
+        # Refresh to get any updates the watcher may have made
+        nb_session.refresh(file_meta)
+        
+        # Update metadata with actual file stats
+        file_stats = os.stat(file_path)
+        file_meta.size = file_stats.st_size
+        file_meta.file_created_at = datetime.fromtimestamp(file_stats.st_ctime)
+        file_meta.file_modified_at = datetime.fromtimestamp(file_stats.st_mtime)
+        
+        # Commit file to git
+        from codex.core.git_manager import GitManager
+        
+        git_manager = GitManager(str(notebook_path))
+        commit_hash = git_manager.commit(f"Create {os.path.basename(path)}", [str(file_path)])
+        if commit_hash:
+            file_meta.last_commit_hash = commit_hash
+        
+        # Commit the updates
+        nb_session.commit()
+        nb_session.refresh(file_meta)
+        
+        result = {
+            "id": file_meta.id,
+            "notebook_id": file_meta.notebook_id,
+            "path": file_meta.path,
+            "filename": file_meta.filename,
+            "content_type": file_meta.content_type,
+            "size": file_meta.size,
+            "message": "File created successfully",
+        }
+        
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating file in notebook {notebook_path}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error creating file: {str(e)}")
+    finally:
+        nb_session.close()
+
+
+@nested_router.get("/{file_id}")
+async def get_file_nested(
+    workspace_identifier: str,
+    notebook_identifier: str,
+    file_id: int,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Get file metadata by ID (nested under workspace/notebook route)."""
+    notebook_path, notebook, workspace = await get_notebook_path_nested(
+        workspace_identifier, notebook_identifier, current_user, session
+    )
+    
+    nb_session = get_notebook_session(str(notebook_path))
+    try:
+        result = nb_session.execute(
+            select(FileMetadata).where(FileMetadata.id == file_id, FileMetadata.notebook_id == notebook.id)
+        )
+        file_meta = result.scalar_one_or_none()
+        
+        if not file_meta:
+            raise HTTPException(status_code=404, detail="File not found")
+        
+        # Parse properties JSON if available
+        properties = None
+        if file_meta.properties:
+            try:
+                properties = json.loads(file_meta.properties)
+            except json.JSONDecodeError:
+                properties = None
+        
+        return {
+            "id": file_meta.id,
+            "notebook_id": file_meta.notebook_id,
+            "path": file_meta.path,
+            "filename": file_meta.filename,
+            "content_type": file_meta.content_type,
+            "size": file_meta.size,
+            "hash": file_meta.hash,
+            "title": file_meta.title,
+            "description": file_meta.description,
+            "file_type": file_meta.file_type,
+            "properties": properties,
+            "created_at": file_meta.created_at.isoformat() if file_meta.created_at else None,
+            "updated_at": file_meta.updated_at.isoformat() if file_meta.updated_at else None,
+            "file_modified_at": file_meta.file_modified_at.isoformat() if file_meta.file_modified_at else None,
+        }
+    finally:
+        nb_session.close()
+
+
+@nested_router.get("/{file_id}/text")
+async def get_file_text_nested(
+    workspace_identifier: str,
+    notebook_identifier: str,
+    file_id: int,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Get file text content by ID (nested under workspace/notebook route)."""
+    notebook_path, notebook, workspace = await get_notebook_path_nested(
+        workspace_identifier, notebook_identifier, current_user, session
+    )
+    
+    # Get file metadata
+    nb_session = get_notebook_session(str(notebook_path))
+    try:
+        result = nb_session.execute(
+            select(FileMetadata).where(FileMetadata.id == file_id, FileMetadata.notebook_id == notebook.id)
+        )
+        file_meta = result.scalar_one_or_none()
+        
+        if not file_meta:
+            raise HTTPException(status_code=404, detail="File not found")
+        
+        file_path = notebook_path / file_meta.path
+        
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="File not found on disk")
+        
+        try:
+            with open(file_path, "r") as f:
+                content = f.read()
+            return {"content": content}
+        except Exception as e:
+            logger.error(f"Error reading file {file_path}: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}")
+    finally:
+        nb_session.close()
+
+
+@nested_router.put("/{file_id}")
+async def update_file_nested(
+    workspace_identifier: str,
+    notebook_identifier: str,
+    file_id: int,
+    request: UpdateFileRequestNested,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Update file content and/or properties (nested under workspace/notebook route)."""
+    notebook_path, notebook, workspace = await get_notebook_path_nested(
+        workspace_identifier, notebook_identifier, current_user, session
+    )
+    
+    nb_session = get_notebook_session(str(notebook_path))
+    try:
+        # Get file metadata
+        result = nb_session.execute(
+            select(FileMetadata).where(FileMetadata.id == file_id, FileMetadata.notebook_id == notebook.id)
+        )
+        file_meta = result.scalar_one_or_none()
+        
+        if not file_meta:
+            raise HTTPException(status_code=404, detail="File not found")
+        
+        file_path = notebook_path / file_meta.path
+        
+        # Update content if provided
+        if request.content is not None:
+            with open(file_path, "w") as f:
+                f.write(request.content)
+            
+            # Update hash
+            import hashlib
+            file_meta.hash = hashlib.sha256(request.content.encode()).hexdigest()
+        
+        # Update properties if provided
+        if request.properties is not None:
+            # Read existing content
+            with open(file_path, "r") as f:
+                content = f.read()
+            
+            # Update frontmatter
+            from codex.core.markdown import update_frontmatter
+            updated_content = update_frontmatter(content, request.properties)
+            
+            # Write back
+            with open(file_path, "w") as f:
+                f.write(updated_content)
+            
+            # Update hash
+            import hashlib
+            file_meta.hash = hashlib.sha256(updated_content.encode()).hexdigest()
+        
+        # Update file stats
+        from datetime import datetime
+        file_stats = os.stat(file_path)
+        file_meta.size = file_stats.st_size
+        file_meta.file_modified_at = datetime.fromtimestamp(file_stats.st_mtime)
+        
+        # Commit to git
+        from codex.core.git_manager import GitManager
+        git_manager = GitManager(str(notebook_path))
+        commit_hash = git_manager.commit(f"Update {file_meta.filename}", [str(file_path)])
+        if commit_hash:
+            file_meta.last_commit_hash = commit_hash
+        
+        nb_session.commit()
+        
+        return {"message": "File updated successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating file: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error updating file: {str(e)}")
+    finally:
+        nb_session.close()
+
+
+@nested_router.patch("/{file_id}/move")
+async def move_file_nested(
+    workspace_identifier: str,
+    notebook_identifier: str,
+    file_id: int,
+    new_path: str = Form(...),
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Move/rename a file (nested under workspace/notebook route)."""
+    notebook_path, notebook, workspace = await get_notebook_path_nested(
+        workspace_identifier, notebook_identifier, current_user, session
+    )
+    
+    nb_session = get_notebook_session(str(notebook_path))
+    try:
+        # Get file metadata
+        result = nb_session.execute(
+            select(FileMetadata).where(FileMetadata.id == file_id, FileMetadata.notebook_id == notebook.id)
+        )
+        file_meta = result.scalar_one_or_none()
+        
+        if not file_meta:
+            raise HTTPException(status_code=404, detail="File not found")
+        
+        old_path = notebook_path / file_meta.path
+        new_file_path = notebook_path / new_path
+        
+        # Check if target already exists
+        if new_file_path.exists():
+            raise HTTPException(status_code=400, detail="Target path already exists")
+        
+        # Create parent directories if needed
+        new_file_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Move the file
+        import shutil
+        shutil.move(str(old_path), str(new_file_path))
+        
+        # Update metadata
+        file_meta.path = new_path
+        file_meta.filename = os.path.basename(new_path)
+        
+        # Commit to git
+        from codex.core.git_manager import GitManager
+        git_manager = GitManager(str(notebook_path))
+        git_manager.commit(f"Move {os.path.basename(file_meta.path)} to {new_path}", [])
+        
+        nb_session.commit()
+        nb_session.refresh(file_meta)
+        
+        return {
+            "id": file_meta.id,
+            "path": file_meta.path,
+            "filename": file_meta.filename,
+            "message": "File moved successfully",
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error moving file: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error moving file: {str(e)}")
+    finally:
+        nb_session.close()
+
+
+@nested_router.delete("/{file_id}")
+async def delete_file_nested(
+    workspace_identifier: str,
+    notebook_identifier: str,
+    file_id: int,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Delete a file (nested under workspace/notebook route)."""
+    notebook_path, notebook, workspace = await get_notebook_path_nested(
+        workspace_identifier, notebook_identifier, current_user, session
+    )
+    
+    nb_session = get_notebook_session(str(notebook_path))
+    try:
+        # Get file metadata
+        result = nb_session.execute(
+            select(FileMetadata).where(FileMetadata.id == file_id, FileMetadata.notebook_id == notebook.id)
+        )
+        file_meta = result.scalar_one_or_none()
+        
+        if not file_meta:
+            raise HTTPException(status_code=404, detail="File not found")
+        
+        file_path = notebook_path / file_meta.path
+        
+        # Delete the file from disk
+        if file_path.exists():
+            os.remove(file_path)
+        
+        # Delete sidecar file if it exists
+        _, sidecar = MetadataParser.resolve_sidecar(str(file_path))
+        if sidecar and Path(sidecar).exists():
+            os.remove(sidecar)
+            logger.debug(f"Deleted sidecar file: {sidecar}")
+        
+        # Delete from database
+        nb_session.delete(file_meta)
+        
+        # Commit deletion to git
+        from codex.core.git_manager import GitManager
+        git_manager = GitManager(str(notebook_path))
+        git_manager.commit(f"Delete {file_meta.filename}", [])
+        
+        nb_session.commit()
+        
+        return {"message": "File deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting file: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error deleting file: {str(e)}")
+    finally:
+        nb_session.close()
+
+
+@nested_router.post("/resolve-link")
+async def resolve_link_nested(
+    workspace_identifier: str,
+    notebook_identifier: str,
+    request: ResolveLinkRequest,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Resolve a link to a file (nested under workspace/notebook route)."""
+    notebook_path, notebook, workspace = await get_notebook_path_nested(
+        workspace_identifier, notebook_identifier, current_user, session
+    )
+    
+    nb_session = get_notebook_session(str(notebook_path))
+    try:
+        resolver = LinkResolver(str(notebook_path))
+        resolved_path = resolver.resolve_link(request.link, request.current_file_path)
+        
+        if not resolved_path:
+            raise HTTPException(status_code=404, detail="Link could not be resolved")
+        
+        # Convert absolute path to relative path
+        relative_path = str(Path(resolved_path).relative_to(notebook_path))
+        
+        # Get file metadata
+        result = nb_session.execute(
+            select(FileMetadata).where(FileMetadata.notebook_id == notebook.id, FileMetadata.path == relative_path)
+        )
+        file_meta = result.scalar_one_or_none()
+        
+        if not file_meta:
+            raise HTTPException(status_code=404, detail="File not found")
+        
+        return {
+            "id": file_meta.id,
+            "path": file_meta.path,
+            "filename": file_meta.filename,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error resolving link: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error resolving link: {str(e)}")
+    finally:
+        nb_session.close()
+
+
+@nested_router.get("/{file_id}/history")
+async def get_file_history_nested(
+    workspace_identifier: str,
+    notebook_identifier: str,
+    file_id: int,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Get git history for a file (nested under workspace/notebook route)."""
+    notebook_path, notebook, workspace = await get_notebook_path_nested(
+        workspace_identifier, notebook_identifier, current_user, session
+    )
+    
+    nb_session = get_notebook_session(str(notebook_path))
+    try:
+        # Get file metadata
+        result = nb_session.execute(
+            select(FileMetadata).where(FileMetadata.id == file_id, FileMetadata.notebook_id == notebook.id)
+        )
+        file_meta = result.scalar_one_or_none()
+        
+        if not file_meta:
+            raise HTTPException(status_code=404, detail="File not found")
+        
+        file_path = notebook_path / file_meta.path
+        
+        # Get git history
+        from codex.core.git_manager import GitManager
+        git_manager = GitManager(str(notebook_path))
+        history = git_manager.get_file_history(str(file_path))
+        
+        return {"history": history}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting file history: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error getting file history: {str(e)}")
     finally:
         nb_session.close()

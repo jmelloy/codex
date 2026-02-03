@@ -182,6 +182,12 @@ app.include_router(
     tags=["notebooks"]
 )
 app.include_router(files.router, prefix="/api/v1/files", tags=["files"])
+# New nested file routes under workspaces/notebooks
+app.include_router(
+    files.nested_router,
+    prefix="/api/v1/workspaces/{workspace_identifier}/notebooks/{notebook_identifier}/files",
+    tags=["files"]
+)
 app.include_router(folders.router, prefix="/api/v1/folders", tags=["folders"])
 app.include_router(search.router, prefix="/api/v1/search", tags=["search"])
 app.include_router(tasks.router, prefix="/api/v1/tasks", tags=["tasks"])

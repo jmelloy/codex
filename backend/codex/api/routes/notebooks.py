@@ -66,46 +66,6 @@ async def slug_exists_for_workspace(session: AsyncSession, slug: str, workspace_
 router = APIRouter()
 
 
-@router.post("/")
-async def create_notebook(
-    body: NotebookCreate,
-    current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_system_session),
-):
-    """Create a new notebook (REMOVED - use nested route instead)."""
-    raise HTTPException(
-        status_code=410,
-        detail="This endpoint has been removed. Use POST /api/v1/workspaces/{workspace_slug}/notebooks instead"
-    )
-
-
-@router.get("/")
-async def list_notebooks_deprecated():
-    """List notebooks (REMOVED - use nested route instead)."""
-    raise HTTPException(
-        status_code=410,
-        detail="This endpoint has been removed. Use GET /api/v1/workspaces/{workspace_slug}/notebooks instead"
-    )
-
-
-@router.get("/{notebook_id}")
-async def get_notebook_deprecated(notebook_id: int):
-    """Get notebook (REMOVED - use nested route instead)."""
-    raise HTTPException(
-        status_code=410,
-        detail="This endpoint has been removed. Use GET /api/v1/workspaces/{workspace_slug}/notebooks/{notebook_slug} instead"
-    )
-
-
-@router.get("/{notebook_id}/indexing-status")
-async def get_notebook_indexing_status_deprecated(notebook_id: int):
-    """Get indexing status (REMOVED - use nested route instead)."""
-    raise HTTPException(
-        status_code=410,
-        detail="This endpoint has been removed. Use GET /api/v1/workspaces/{workspace_slug}/notebooks/{notebook_slug}/indexing-status instead"
-    )
-
-
 @router.get("/{notebook_id}/plugins")
 async def list_notebook_plugins(
     notebook_id: int,

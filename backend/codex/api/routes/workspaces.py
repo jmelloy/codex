@@ -1,5 +1,6 @@
 """Workspace routes."""
 
+import os
 import re
 from pathlib import Path
 from uuid import uuid4
@@ -123,6 +124,26 @@ async def create_workspace(
     if body.path:
         # Explicit path provided - use it as the workspace directory
         workspace_path = Path(body.path).resolve()  # Convert to absolute path
+        
+        # Validate the path
+        if workspace_path.exists():
+            # Path already exists - check if it's in use
+            if await path_exists_in_db(session, str(workspace_path)):
+                raise HTTPException(status_code=400, detail="Path already in use by another workspace")
+        else:
+            # Path doesn't exist - verify parent directory exists and is writable
+            parent = workspace_path.parent
+            if not parent.exists():
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Parent directory does not exist: {parent}"
+                )
+            if not os.access(parent, os.W_OK):
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Parent directory is not writable: {parent}"
+                )
+        
         # Generate slug from the path's basename
         base_slug = slugify(workspace_path.name)
         final_slug = base_slug

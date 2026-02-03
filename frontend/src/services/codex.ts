@@ -480,7 +480,7 @@ export const fileService = {
   async getByPath(path: string, workspaceId: number | string, notebookId: number | string): Promise<FileMetadata> {
     const encodedPath = encodeURIComponent(path)
     const response = await apiClient.get<FileMetadata>(
-      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/${encodedPath}`
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/path/${encodedPath}`
     )
     return response.data
   },
@@ -495,7 +495,7 @@ export const fileService = {
   ): Promise<FileTextContent> {
     const encodedPath = encodeURIComponent(path)
     const response = await apiClient.get<FileTextContent>(
-      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/${encodedPath}/text`
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/path/${encodedPath}/text`
     )
     return response.data
   },
@@ -505,7 +505,7 @@ export const fileService = {
    */
   getContentUrlByPath(path: string, workspaceId: number | string, notebookId: number | string): string {
     const encodedPath = encodeURIComponent(path)
-    return `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/${encodedPath}/content`
+    return `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/path/${encodedPath}/content`
   },
 
   /**

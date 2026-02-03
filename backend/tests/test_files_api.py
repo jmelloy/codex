@@ -265,7 +265,7 @@ def test_get_file_by_path(test_client, temp_workspace_dir):
 
     # Get by path
     response = test_client.get(
-        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/files/by_path_test.md",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/files/path/by_path_test.md",
         headers=headers,
     )
     assert response.status_code == 200
@@ -290,7 +290,7 @@ def test_get_file_text_by_path(test_client, temp_workspace_dir):
 
     # Get text by path
     response = test_client.get(
-        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/files/text_by_path.md/text",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/files/path/text_by_path.md/text",
         headers=headers,
     )
     assert response.status_code == 200

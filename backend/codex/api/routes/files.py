@@ -1337,7 +1337,7 @@ async def get_file_history_nested(
         nb_session.close()
 
 
-@nested_router.get("/{filepath:path}")
+@nested_router.get("/path/{filepath:path}")
 async def get_file_by_path_nested(
     workspace_identifier: str,
     notebook_identifier: str,
@@ -1388,7 +1388,7 @@ async def get_file_by_path_nested(
         nb_session.close()
 
 
-@nested_router.get("/{filepath:path}/content")
+@nested_router.get("/path/{filepath:path}/content")
 async def get_file_content_by_path_nested(
     workspace_identifier: str,
     notebook_identifier: str,
@@ -1455,7 +1455,7 @@ async def get_file_content_by_path_nested(
         nb_session.close()
 
 
-@nested_router.get("/{filepath:path}/text")
+@nested_router.get("/path/{filepath:path}/text")
 async def get_file_text_by_path_nested(
     workspace_identifier: str,
     notebook_identifier: str,

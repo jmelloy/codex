@@ -1,9 +1,11 @@
 """File routes."""
 
+import hashlib
 import json
 import logging
 import mimetypes
 import os
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +18,7 @@ from sqlmodel import select
 from codex.api.auth import get_current_active_user
 from codex.api.routes.notebooks import get_notebook_by_slug_or_id
 from codex.api.routes.workspaces import get_workspace_by_slug_or_id
+from codex.core.git_manager import GitManager
 from codex.core.link_resolver import LinkResolver
 from codex.core.metadata import MetadataParser
 from codex.core.watcher import get_content_type
@@ -270,9 +273,6 @@ async def create_from_template(
         # Determine content type before creating file
         content_type = get_content_type(str(file_path))
 
-        import hashlib
-        from datetime import datetime
-
         # Create metadata record BEFORE writing file to prevent race with watcher
         file_meta = FileMetadata(
             notebook_id=notebook.id,
@@ -316,8 +316,6 @@ async def create_from_template(
         file_meta.file_modified_at = datetime.fromtimestamp(file_stats.st_mtime)
 
         # Commit file to git
-        from codex.core.git_manager import GitManager
-
         git_manager = GitManager(str(notebook_path))
         commit_hash = git_manager.commit(f"Create {os.path.basename(filename)}", [str(file_path)])
         if commit_hash:

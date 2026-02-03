@@ -14,10 +14,10 @@ def setup_test_user():
     password = "testpass123"
 
     # Try to register (may already exist from previous test runs)
-    client.post("/api/register", json={"username": username, "email": email, "password": password})
+    client.post("/api/v1/users/register", json={"username": username, "email": email, "password": password})
 
     # Login
-    login_response = client.post("/api/token", data={"username": username, "password": password})
+    login_response = client.post("/api/v1/users/token", data={"username": username, "password": password})
     assert login_response.status_code == 200
     token = login_response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}

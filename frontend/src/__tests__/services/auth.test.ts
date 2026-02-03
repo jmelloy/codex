@@ -27,7 +27,7 @@ describe("Auth Service", () => {
       const result = await authService.login({ username: "testuser", password: "testpass" })
 
       expect(apiClient.post).toHaveBeenCalledWith(
-        "/api/token",
+        "/api/v1/users/token",
         expect.any(URLSearchParams),
         expect.objectContaining({
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -49,7 +49,7 @@ describe("Auth Service", () => {
 
       const result = await authService.getCurrentUser()
 
-      expect(apiClient.get).toHaveBeenCalledWith("/api/users/me")
+      expect(apiClient.get).toHaveBeenCalledWith("/api/v1/users/me")
       expect(result).toEqual(mockUser)
     })
   })
@@ -65,7 +65,7 @@ describe("Auth Service", () => {
         password: "password123",
       })
 
-      expect(apiClient.post).toHaveBeenCalledWith("/api/register", {
+      expect(apiClient.post).toHaveBeenCalledWith("/api/v1/users/register", {
         username: "newuser",
         email: "new@example.com",
         password: "password123",
@@ -140,7 +140,7 @@ describe("Auth Service", () => {
 
       const result = await authService.updateTheme("blueprint")
 
-      expect(apiClient.patch).toHaveBeenCalledWith("/api/users/me/theme", { theme: "blueprint" })
+      expect(apiClient.patch).toHaveBeenCalledWith("/api/v1/users/me/theme", { theme: "blueprint" })
       expect(result).toEqual(mockUser)
     })
   })

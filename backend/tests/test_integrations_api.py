@@ -32,7 +32,7 @@ def auth_headers(client):
     assert response.status_code == 201
 
     response = client.post(
-        "/api/token", data={"username": username, "password": "testpass123"}
+        "/api/v1/users/token", data={"username": username, "password": "testpass123"}
     )
     assert response.status_code == 200
     token = response.json()["access_token"]

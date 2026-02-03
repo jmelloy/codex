@@ -18,13 +18,13 @@ def create_test_user(client: TestClient):
     
     # Register
     client.post(
-        "/api/register",
+        "/api/v1/users/register",
         json={"username": username, "email": email, "password": "testpass123"}
     )
     
     # Login
     login_response = client.post(
-        "/api/token",
+        "/api/v1/users/token",
         data={"username": username, "password": "testpass123"}
     )
     assert login_response.status_code == 200

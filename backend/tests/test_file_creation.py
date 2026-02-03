@@ -11,7 +11,7 @@ def setup_test_user_and_notebook(test_client, temp_workspace_dir, username, emai
     """
     # Register and login
     test_client.post(
-        "/api/register",
+        "/api/v1/users/register",
         json={"username": username, "email": email, "password": "testpass123"},
     )
 

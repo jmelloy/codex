@@ -3,7 +3,7 @@
 import pytest
 from sqlmodel import select
 
-from codex.db.database import get_system_session
+from codex.db.database import async_session_maker
 from codex.db.models import (
     Notebook,
     NotebookPluginConfig,
@@ -17,7 +17,7 @@ from codex.db.models import (
 @pytest.fixture
 async def session():
     """Create a database session for tests."""
-    async for sess in get_system_session():
+    async with async_session_maker() as sess:
         yield sess
 
 

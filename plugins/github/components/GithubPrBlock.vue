@@ -233,7 +233,7 @@ async function fetchPR() {
     }
 
     const response = await fetch(
-      `/api/v1/integrations/github/execute?workspace_id=${props.workspaceId}`,
+      `/api/v1/plugins/integrations/github/execute?workspace_id=${props.workspaceId}`,
       {
         method: "POST",
         headers: {

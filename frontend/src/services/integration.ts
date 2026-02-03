@@ -68,8 +68,8 @@ export interface IntegrationTestResult {
  */
 export async function listIntegrations(workspaceId?: number): Promise<Integration[]> {
   const url = workspaceId 
-    ? `/api/v1/integrations?workspace_id=${workspaceId}`
-    : '/api/v1/integrations'
+    ? `/api/v1/plugins/integrations?workspace_id=${workspaceId}`
+    : '/api/v1/plugins/integrations'
   const response = await apiClient.get(url)
   return response.data
 }
@@ -78,7 +78,7 @@ export async function listIntegrations(workspaceId?: number): Promise<Integratio
  * Get details of a specific integration
  */
 export async function getIntegration(integrationId: string): Promise<IntegrationDetails> {
-  const response = await apiClient.get(`/api/v1/integrations/${integrationId}`)
+  const response = await apiClient.get(`/api/v1/plugins/integrations/${integrationId}`)
   return response.data
 }
 
@@ -90,7 +90,7 @@ export async function getIntegrationConfig(
   workspaceId: number
 ): Promise<IntegrationConfig> {
   const response = await apiClient.get(
-    `/api/v1/integrations/${integrationId}/config?workspace_id=${workspaceId}`
+    `/api/v1/plugins/integrations/${integrationId}/config?workspace_id=${workspaceId}`
   )
   return response.data
 }
@@ -104,7 +104,7 @@ export async function updateIntegrationConfig(
   config: Record<string, any>
 ): Promise<IntegrationConfig> {
   const response = await apiClient.put(
-    `/api/v1/integrations/${integrationId}/config?workspace_id=${workspaceId}`,
+    `/api/v1/plugins/integrations/${integrationId}/config?workspace_id=${workspaceId}`,
     { config }
   )
   return response.data
@@ -118,7 +118,7 @@ export async function testIntegrationConnection(
   config: Record<string, any>
 ): Promise<IntegrationTestResult> {
   const response = await apiClient.post(
-    `/api/v1/integrations/${integrationId}/test`,
+    `/api/v1/plugins/integrations/${integrationId}/test`,
     { config }
   )
   return response.data
@@ -128,7 +128,7 @@ export async function testIntegrationConnection(
  * Get available blocks for an integration
  */
 export async function getIntegrationBlocks(integrationId: string) {
-  const response = await apiClient.get(`/api/v1/integrations/${integrationId}/blocks`)
+  const response = await apiClient.get(`/api/v1/plugins/integrations/${integrationId}/blocks`)
   return response.data
 }
 
@@ -142,7 +142,7 @@ export async function executeIntegrationEndpoint(
   parameters?: Record<string, any>
 ) {
   const response = await apiClient.post(
-    `/api/v1/integrations/${integrationId}/execute?workspace_id=${workspaceId}`,
+    `/api/v1/plugins/integrations/${integrationId}/execute?workspace_id=${workspaceId}`,
     {
       endpoint_id: endpointId,
       parameters: parameters || {},
@@ -160,7 +160,7 @@ export async function setIntegrationEnabled(
   enabled: boolean
 ): Promise<Integration> {
   const response = await apiClient.put(
-    `/api/v1/integrations/${integrationId}/enable?workspace_id=${workspaceId}`,
+    `/api/v1/plugins/integrations/${integrationId}/enable?workspace_id=${workspaceId}`,
     { enabled }
   )
   return response.data

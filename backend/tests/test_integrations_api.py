@@ -41,7 +41,7 @@ def auth_headers(client):
 
 def test_list_integrations(client, auth_headers):
     """Test listing all integrations."""
-    response = client.get("/api/v1/integrations", headers=auth_headers)
+    response = client.get("/api/v1/plugins/integrations", headers=auth_headers)
     assert response.status_code == 200
     integrations = response.json()
     assert isinstance(integrations, list)
@@ -51,14 +51,14 @@ def test_list_integrations(client, auth_headers):
 
 def test_list_integrations_unauthorized(client):
     """Test listing integrations without auth."""
-    response = client.get("/api/v1/integrations")
+    response = client.get("/api/v1/plugins/integrations")
     assert response.status_code == 401
 
 
 def test_get_integration_config_not_found(client, auth_headers):
     """Test getting config for non-existent integration."""
     response = client.get(
-        "/api/v1/integrations/nonexistent/config?workspace_id=1",
+        "/api/v1/plugins/integrations/nonexistent/config?workspace_id=1",
         headers=auth_headers,
     )
     # Should return empty config, not error
@@ -87,7 +87,7 @@ def test_update_integration_config(client, auth_headers):
         }
     }
     response = client.put(
-        f"/api/v1/integrations/test-integration/config?workspace_id={workspace_id}",
+        f"/api/v1/plugins/integrations/test-integration/config?workspace_id={workspace_id}",
         headers=auth_headers,
         json=config_data,
     )
@@ -98,7 +98,7 @@ def test_update_integration_config(client, auth_headers):
 
     # Verify we can retrieve it
     response = client.get(
-        f"/api/v1/integrations/test-integration/config?workspace_id={workspace_id}",
+        f"/api/v1/plugins/integrations/test-integration/config?workspace_id={workspace_id}",
         headers=auth_headers,
     )
     assert response.status_code == 200
@@ -109,7 +109,7 @@ def test_update_integration_config(client, auth_headers):
 def test_test_integration_not_found(client, auth_headers):
     """Test testing a non-existent integration."""
     response = client.post(
-        "/api/v1/integrations/nonexistent/test",
+        "/api/v1/plugins/integrations/nonexistent/test",
         headers=auth_headers,
         json={"config": {}},
     )
@@ -120,7 +120,7 @@ def test_test_integration_exists(client, auth_headers):
     """Test testing an existing integration (should not return 404)."""
     # Test with weather-api integration which exists in the test environment
     response = client.post(
-        "/api/v1/integrations/weather-api/test",
+        "/api/v1/plugins/integrations/weather-api/test",
         headers=auth_headers,
         json={"config": {"api_key": "test_key_123"}},
     )
@@ -137,7 +137,7 @@ def test_test_integration_exists(client, auth_headers):
 def test_execute_integration_not_found(client, auth_headers):
     """Test executing endpoint on non-existent integration."""
     response = client.post(
-        "/api/v1/integrations/nonexistent/execute?workspace_id=1",
+        "/api/v1/plugins/integrations/nonexistent/execute?workspace_id=1",
         headers=auth_headers,
         json={"endpoint_id": "test", "parameters": {}},
     )
@@ -147,7 +147,7 @@ def test_execute_integration_not_found(client, auth_headers):
 def test_get_integration_blocks_not_found(client, auth_headers):
     """Test getting blocks for non-existent integration."""
     response = client.get(
-        "/api/v1/integrations/nonexistent/blocks",
+        "/api/v1/plugins/integrations/nonexistent/blocks",
         headers=auth_headers,
     )
     assert response.status_code == 404
@@ -183,7 +183,7 @@ def test_execute_integration_with_artifact_caching(client, auth_headers):
         # Try to execute an endpoint on a non-existent integration
         # This should return 404, not crash
         execute_response = client.post(
-            f"/api/v1/integrations/nonexistent/execute?workspace_id={workspace_id}",
+            f"/api/v1/plugins/integrations/nonexistent/execute?workspace_id={workspace_id}",
             headers=auth_headers,
             json={
                 "endpoint_id": "test",

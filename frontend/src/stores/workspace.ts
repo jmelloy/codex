@@ -293,7 +293,6 @@ export const useWorkspaceStore = defineStore("workspace", () => {
         if (tree) {
           removeNode(tree, filePath)
         }
-        }
       }
     } catch (e: any) {
       error.value = e.response?.data?.detail || "Failed to delete file"

@@ -436,20 +436,32 @@ async def execute_integration_endpoint(
     session: AsyncSession = Depends(get_system_session),
     current_user: User = Depends(get_current_user),
 ):
-    """Execute an integration endpoint.
+    """Execute an integration endpoint with artifact caching.
+
+    This endpoint now includes the same artifact caching functionality as the
+    /render endpoint. Artifacts are saved to the filesystem and tracked in the
+    database for future cache hits.
 
     Args:
         integration_id: Integration plugin ID
         workspace_id: Workspace ID
-        request_data: Execution parameters
+        request_data: Execution parameters (endpoint_id and parameters)
 
     Returns:
-        Execution result
+        Execution result with data
     """
     integration = await PluginRegistry.get_plugin(session, integration_id)
 
     if not integration or not integration.has_integration():
         raise HTTPException(status_code=404, detail="Integration not found")
+
+    # Get workspace to determine artifact storage path
+    stmt = select(Workspace).where(Workspace.id == workspace_id)
+    result = await session.execute(stmt)
+    workspace = result.scalar_one_or_none()
+
+    if not workspace:
+        raise HTTPException(status_code=404, detail="Workspace not found")
 
     # Get workspace configuration
     stmt = select(PluginConfig).where(
@@ -476,6 +488,58 @@ async def execute_integration_endpoint(
             config.config,
             request_data.parameters or {},
         )
+
+        # Compute cache key for artifact storage
+        # Use endpoint_id as block_type for execute endpoint
+        params_hash = _compute_parameters_hash(request_data.endpoint_id, request_data.parameters or {})
+
+        # Get artifact path based on content type
+        artifact_path = _get_artifact_path(
+            workspace.path, integration_id, params_hash, execution_result.content_type
+        )
+        relative_path = _get_artifact_relative_path(
+            integration_id, params_hash, execution_result.content_type
+        )
+
+        # Write artifact to filesystem
+        if not await _write_artifact_data(artifact_path, execution_result.data, execution_result.content_type):
+            logger.warning(f"Failed to cache artifact for {integration_id}/{request_data.endpoint_id}")
+
+        # Update database record
+        now = datetime.now(UTC)
+
+        # Check if artifact already exists (update) or create new one
+        stmt = select(IntegrationArtifact).where(
+            IntegrationArtifact.workspace_id == workspace_id,
+            IntegrationArtifact.plugin_id == integration_id,
+            IntegrationArtifact.block_type == request_data.endpoint_id,
+            IntegrationArtifact.parameters_hash == params_hash,
+        )
+        result = await session.execute(stmt)
+        artifact = result.scalar_one_or_none()
+
+        # For execute endpoint, we don't have a block config with cache_ttl
+        # so we set expires_at to None (never expires unless manually cleared)
+        if artifact:
+            artifact.artifact_path = relative_path
+            artifact.content_type = execution_result.content_type
+            artifact.fetched_at = now
+            artifact.expires_at = None
+        else:
+            artifact = IntegrationArtifact(
+                workspace_id=workspace_id,
+                plugin_id=integration_id,
+                block_type=request_data.endpoint_id,
+                parameters_hash=params_hash,
+                artifact_path=relative_path,
+                content_type=execution_result.content_type,
+                fetched_at=now,
+                expires_at=None,
+            )
+
+        session.add(artifact)
+        await session.commit()
+
         # For execute endpoint, we return data directly
         # Non-JSON data will be returned as string (text) or base64 (binary)
         data = execution_result.data

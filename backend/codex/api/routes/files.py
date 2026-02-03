@@ -1530,6 +1530,7 @@ class UpdateFileRequestNested(BaseModel):
 
 @nested_router.get("/templates")
 async def list_templates_nested(
+    request: Request,
     workspace_identifier: str,
     notebook_identifier: str,
     current_user: User = Depends(get_current_active_user),
@@ -1540,11 +1541,45 @@ async def list_templates_nested(
         workspace_identifier, notebook_identifier, current_user, session
     )
     
-    from codex.core.plugin_loader import PluginLoader
-    loader = PluginLoader()
-    templates = load_default_templates(loader)
+    defaults = get_default_templates(request.app.state.plugin_loader)
+    defaults_with_source = add_template_source(defaults)
     
-    return {"templates": templates}
+    templates_dir = notebook_path / ".templates"
+    # Check if notebook has a .templates folder
+    templates = []
+    if templates_dir.exists() and templates_dir.is_dir():
+        # Load templates from the .templates folder
+        for template_file in templates_dir.iterdir():
+            if template_file.is_file() and not template_file.name.startswith("."):
+                try:
+                    with open(template_file) as f:
+                        content = f.read()
+                    
+                    # Parse frontmatter to get template metadata
+                    properties, body = MetadataParser.parse_frontmatter(content)
+                    
+                    # Template must have type: template in frontmatter
+                    if properties and properties.get("type") == "template":
+                        template_id = template_file.stem
+                        ext = properties.get("template_for", template_file.suffix)
+                        
+                        templates.append(
+                            {
+                                "id": template_id,
+                                "name": properties.get("name", template_id),
+                                "description": properties.get("description", ""),
+                                "icon": properties.get("icon", "📄"),
+                                "file_extension": ext,
+                                "default_name": properties.get("default_name", f"{{title}}{ext}"),
+                                "content": properties.get("template_content", body),
+                                "source": "notebook",
+                            }
+                        )
+                except Exception as e:
+                    logger.warning(f"Failed to parse template {template_file}: {e}")
+                    continue
+    
+    return {"templates": defaults_with_source + templates}
 
 
 @nested_router.get("/")
@@ -1909,6 +1944,9 @@ async def update_file_nested(
         workspace_identifier, notebook_identifier, current_user, session
     )
     
+    content = request.content
+    properties = request.properties
+    
     nb_session = get_notebook_session(str(notebook_path))
     try:
         # Get file metadata
@@ -1922,49 +1960,38 @@ async def update_file_nested(
         
         file_path = notebook_path / file_meta.path
         
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="File not found on disk")
+        
+        # Handle properties update
+        if properties is not None:
+            if content and file_meta.content_type in ["text/markdown", "application/x-codex-view"]:
+                # Write frontmatter to file
+                content = MetadataParser.write_frontmatter(content, properties)
+            else:
+                MetadataParser.write_sidecar(str(file_path), properties)
+        
         # Update content if provided
-        if request.content is not None:
+        if content is not None:
             with open(file_path, "w") as f:
-                f.write(request.content)
-            
-            # Update hash
-            import hashlib
-            file_meta.hash = hashlib.sha256(request.content.encode()).hexdigest()
+                f.write(content)
         
-        # Update properties if provided
-        if request.properties is not None:
-            # Read existing content
-            with open(file_path, "r") as f:
-                content = f.read()
-            
-            # Update frontmatter
-            from codex.core.markdown import update_frontmatter
-            updated_content = update_frontmatter(content, request.properties)
-            
-            # Write back
-            with open(file_path, "w") as f:
-                f.write(updated_content)
-            
-            # Update hash
-            import hashlib
-            file_meta.hash = hashlib.sha256(updated_content.encode()).hexdigest()
+        result = {
+            "id": file_meta.id,
+            "notebook_id": file_meta.notebook_id,
+            "path": file_meta.path,
+            "filename": file_meta.filename,
+            "content_type": file_meta.content_type,
+            "size": file_meta.size,
+            "hash": file_meta.hash,
+            "title": file_meta.title,
+            "description": file_meta.description,
+            "properties": properties,
+            "updated_at": file_meta.updated_at.isoformat() if file_meta.updated_at else None,
+            "message": "File updated successfully",
+        }
         
-        # Update file stats
-        from datetime import datetime
-        file_stats = os.stat(file_path)
-        file_meta.size = file_stats.st_size
-        file_meta.file_modified_at = datetime.fromtimestamp(file_stats.st_mtime)
-        
-        # Commit to git
-        from codex.core.git_manager import GitManager
-        git_manager = GitManager(str(notebook_path))
-        commit_hash = git_manager.commit(f"Update {file_meta.filename}", [str(file_path)])
-        if commit_hash:
-            file_meta.last_commit_hash = commit_hash
-        
-        nb_session.commit()
-        
-        return {"message": "File updated successfully"}
+        return result
     except HTTPException:
         raise
     except Exception as e:
@@ -2111,31 +2138,60 @@ async def resolve_link_nested(
         workspace_identifier, notebook_identifier, current_user, session
     )
     
+    # Resolve the link
+    try:
+        resolved_path = LinkResolver.resolve_link(request.link, request.current_file_path, notebook_path)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+    # Query the resolved file from notebook database
     nb_session = get_notebook_session(str(notebook_path))
     try:
-        resolver = LinkResolver(str(notebook_path))
-        resolved_path = resolver.resolve_link(request.link, request.current_file_path)
-        
-        if not resolved_path:
-            raise HTTPException(status_code=404, detail="Link could not be resolved")
-        
-        # Convert absolute path to relative path
-        relative_path = str(Path(resolved_path).relative_to(notebook_path))
-        
-        # Get file metadata
-        result = nb_session.execute(
-            select(FileMetadata).where(FileMetadata.notebook_id == notebook.id, FileMetadata.path == relative_path)
+        # First try exact path match
+        file_result = nb_session.execute(
+            select(FileMetadata).where(FileMetadata.notebook_id == notebook.id, FileMetadata.path == resolved_path)
         )
-        file_meta = result.scalar_one_or_none()
+        file_meta = file_result.scalar_one_or_none()
+        
+        # If not found and path doesn't contain directory separator, try filename match
+        if not file_meta and "/" not in resolved_path:
+            file_result = nb_session.execute(
+                select(FileMetadata).where(
+                    FileMetadata.notebook_id == notebook.id, FileMetadata.filename == resolved_path
+                )
+            )
+            # Get first match if multiple files have same name
+            file_meta = file_result.scalars().first()
         
         if not file_meta:
-            raise HTTPException(status_code=404, detail="File not found")
+            raise HTTPException(status_code=404, detail=f"File not found: {resolved_path}")
         
-        return {
+        # Parse properties if available
+        properties = None
+        if file_meta.properties:
+            try:
+                properties = json.loads(file_meta.properties)
+            except json.JSONDecodeError:
+                properties = None
+        
+        result = {
             "id": file_meta.id,
+            "notebook_id": file_meta.notebook_id,
             "path": file_meta.path,
             "filename": file_meta.filename,
+            "content_type": file_meta.content_type,
+            "size": file_meta.size,
+            "hash": file_meta.hash,
+            "title": file_meta.title,
+            "description": file_meta.description,
+            "file_type": file_meta.file_type,
+            "properties": properties,
+            "resolved_path": resolved_path,
+            "created_at": file_meta.created_at.isoformat() if file_meta.created_at else None,
+            "updated_at": file_meta.updated_at.isoformat() if file_meta.updated_at else None,
         }
+        
+        return result
     except HTTPException:
         raise
     except Exception as e:

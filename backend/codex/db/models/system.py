@@ -44,6 +44,7 @@ class Workspace(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     name: str = Field(index=True)
+    slug: str = Field(unique=True, index=True)  # URL-safe identifier
     path: str = Field(unique=True)  # Filesystem path
     owner_id: int = Field(foreign_key="users.id")
     theme_setting: str | None = Field(default="cream")  # User's preferred theme
@@ -95,6 +96,7 @@ class Notebook(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     workspace_id: int = Field(foreign_key="workspaces.id", index=True)
     name: str = Field(index=True)
+    slug: str = Field(index=True)  # URL-safe identifier (unique per workspace)
     path: str = Field(index=True)  # Relative path from workspace
     description: str | None = None
     created_at: datetime = Field(default_factory=utc_now)

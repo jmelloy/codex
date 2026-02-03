@@ -28,9 +28,9 @@ def setup_test_user_and_notebook(test_client, temp_workspace_dir, username, emai
     workspace_id = workspace_data["id"]
     actual_workspace_path = Path(workspace_data["path"])
 
-    # Create a notebook
+    # Create a notebook using nested route
     notebook_response = test_client.post(
-        "/api/v1/notebooks/", json={"name": notebook_name, "workspace_id": workspace_id}, headers=headers
+        f"/api/v1/workspaces/{workspace_id}/notebooks/", json={"name": notebook_name}, headers=headers
     )
     assert notebook_response.status_code == 200
     notebook_data = notebook_response.json()

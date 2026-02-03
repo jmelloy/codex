@@ -2,6 +2,7 @@ import apiClient from "./api"
 
 export interface Workspace {
   id: number
+  slug?: string
   name: string
   path: string
   owner_id: number
@@ -12,6 +13,7 @@ export interface Workspace {
 
 export interface Notebook {
   id: number
+  slug?: string
   name: string
   path: string
   description?: string
@@ -130,8 +132,8 @@ export const workspaceService = {
     return response.data
   },
 
-  async get(id: number): Promise<Workspace> {
-    const response = await apiClient.get<Workspace>(`/api/v1/workspaces/${id}`)
+  async get(identifier: number | string): Promise<Workspace> {
+    const response = await apiClient.get<Workspace>(`/api/v1/workspaces/${identifier}`)
     return response.data
   },
 
@@ -142,30 +144,35 @@ export const workspaceService = {
     return response.data
   },
 
-  async updateTheme(id: number, theme: string): Promise<Workspace> {
-    const response = await apiClient.patch<Workspace>(`/api/v1/workspaces/${id}/theme`, { theme })
+  async updateTheme(identifier: number | string, theme: string): Promise<Workspace> {
+    const response = await apiClient.patch<Workspace>(`/api/v1/workspaces/${identifier}/theme`, { theme })
     return response.data
   },
 }
 
 export const notebookService = {
-  async list(workspaceId: number): Promise<Notebook[]> {
+  async list(workspaceIdentifier: number | string): Promise<Notebook[]> {
     const response = await apiClient.get<Notebook[]>(
-      `/api/v1/notebooks/?workspace_id=${workspaceId}`
+      `/api/v1/workspaces/${workspaceIdentifier}/notebooks/`
     )
     return response.data
   },
 
-  async get(id: number): Promise<Notebook> {
-    const response = await apiClient.get<Notebook>(`/api/v1/notebooks/${id}`)
+  async get(workspaceIdentifier: number | string, notebookIdentifier: number | string): Promise<Notebook> {
+    const response = await apiClient.get<Notebook>(
+      `/api/v1/workspaces/${workspaceIdentifier}/notebooks/${notebookIdentifier}`
+    )
     return response.data
   },
 
-  async create(workspaceId: number, name: string): Promise<Notebook> {
-    const response = await apiClient.post<Notebook>("/api/v1/notebooks/", {
-      workspace_id: workspaceId,
-      name,
-    })
+  async create(workspaceIdentifier: number | string, name: string, description?: string): Promise<Notebook> {
+    const response = await apiClient.post<Notebook>(
+      `/api/v1/workspaces/${workspaceIdentifier}/notebooks/`,
+      {
+        name,
+        description,
+      }
+    )
     return response.data
   },
 }

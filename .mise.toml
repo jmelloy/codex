@@ -1,7 +1,7 @@
 [tools]
 python = "3.14"
 pnpm = "latest"
-npm = "latest"
+node = "latest"
 
 [env]
 _.python.venv = { path = "backend/.venv", create = true }

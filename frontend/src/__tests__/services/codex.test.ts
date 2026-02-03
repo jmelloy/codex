@@ -161,7 +161,7 @@ describe("Codex Services", () => {
       await fileService.getByPath("folder/test file.md", 1, 1)
 
       expect(apiClient.get).toHaveBeenCalledWith(
-        "/api/v1/workspaces/1/notebooks/1/files/by-path?path=folder%2Ftest%20file.md"
+        "/api/v1/workspaces/1/notebooks/1/files/path/folder%2Ftest%20file.md"
       )
     })
 
@@ -172,7 +172,7 @@ describe("Codex Services", () => {
       await fileService.getContentByPath("folder/test.md", 1, 1)
 
       expect(apiClient.get).toHaveBeenCalledWith(
-        "/api/v1/workspaces/1/notebooks/1/files/by-path/text?path=folder%2Ftest.md"
+        "/api/v1/workspaces/1/notebooks/1/files/path/folder%2Ftest.md/text"
       )
     })
 
@@ -180,7 +180,7 @@ describe("Codex Services", () => {
       const url = fileService.getContentUrlByPath("folder/test.png", 1, 1)
 
       expect(url).toBe(
-        "/api/v1/workspaces/1/notebooks/1/files/by-path/content?path=folder%2Ftest.png"
+        "/api/v1/workspaces/1/notebooks/1/files/path/folder%2Ftest.png/content"
       )
     })
 

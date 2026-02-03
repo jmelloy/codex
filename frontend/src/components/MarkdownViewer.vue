@@ -93,9 +93,9 @@ const resolveFileUrl = (href: string): string => {
       return href
     }
 
-    // For relative or filename-only references, use the by-path/content endpoint with nested routes
+    // For relative or filename-only references, use the path/ endpoint with nested routes
     const encodedPath = encodeURIComponent(href)
-    return `/api/v1/workspaces/${props.workspaceId}/notebooks/${props.notebookId}/files/by-path/content?path=${encodedPath}`
+    return `/api/v1/workspaces/${props.workspaceId}/notebooks/${props.notebookId}/files/path/${encodedPath}/content`
   }
 
   // Fallback to original href if no context

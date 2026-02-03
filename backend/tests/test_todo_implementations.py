@@ -108,26 +108,26 @@ def test_file_endpoints(temp_workspace_dir):
     workspace_response = client.post(
         "/api/v1/workspaces/", json={"name": "File Test", "path": temp_workspace_dir}, headers=headers
     )
-    workspace_id = workspace_response.json()["id"]
+    workspace = workspace_response.json()
+    workspace_slug = workspace["slug"]
 
     notebook_response = client.post(
-        f"/api/v1/workspaces/{workspace_id}/notebooks/", json={"name": "File Notebook"}, headers=headers
+        f"/api/v1/workspaces/{workspace_slug}/notebooks/", json={"name": "File Notebook"}, headers=headers
     )
-    notebook_id = notebook_response.json()["id"]
+    notebook = notebook_response.json()
+    notebook_slug = notebook["slug"]
 
     # List files (should be empty)
     response = client.get(
-        "/api/v1/files/", params={"notebook_id": notebook_id, "workspace_id": workspace_id}, headers=headers
+        f"/api/v1/workspaces/{workspace_slug}/notebooks/{notebook_slug}/files/", headers=headers
     )
     assert response.status_code == 200
     assert len(response.json()["files"]) == 0
 
     # Create a file
     response = client.post(
-        "/api/v1/files/",
+        f"/api/v1/workspaces/{workspace_slug}/notebooks/{notebook_slug}/files/",
         json={
-            "notebook_id": notebook_id,
-            "workspace_id": workspace_id,
             "path": "test.md",
             "content": "# Test File\n\nThis is a test.",
         },
@@ -140,7 +140,7 @@ def test_file_endpoints(temp_workspace_dir):
 
     # List files (should have one)
     response = client.get(
-        "/api/v1/files/", params={"notebook_id": notebook_id, "workspace_id": workspace_id}, headers=headers
+        f"/api/v1/workspaces/{workspace_slug}/notebooks/{notebook_slug}/files/", headers=headers
     )
     assert response.status_code == 200
     files = response.json()["files"]
@@ -148,7 +148,7 @@ def test_file_endpoints(temp_workspace_dir):
 
     # Get file by ID
     response = client.get(
-        f"/api/v1/files/{file_id}", params={"workspace_id": workspace_id, "notebook_id": notebook_id}, headers=headers
+        f"/api/v1/workspaces/{workspace_slug}/notebooks/{notebook_slug}/files/{file_id}", headers=headers
     )
     assert response.status_code == 200
     file_content = response.json()
@@ -156,8 +156,7 @@ def test_file_endpoints(temp_workspace_dir):
 
     # Update file
     response = client.put(
-        f"/api/v1/files/{file_id}",
-        params={"workspace_id": workspace_id, "notebook_id": notebook_id},
+        f"/api/v1/workspaces/{workspace_slug}/notebooks/{notebook_slug}/files/{file_id}",
         json={"content": "# Updated Test File\n\nThis is updated."},
         headers=headers,
     )
@@ -165,14 +164,11 @@ def test_file_endpoints(temp_workspace_dir):
 
     # Verify update
     response = client.get(
-        f"/api/v1/files/{file_id}/text", params={"workspace_id": workspace_id, "notebook_id": notebook_id}, headers=headers
+        f"/api/v1/workspaces/{workspace_slug}/notebooks/{notebook_slug}/files/{file_id}/text", headers=headers
     )
     assert response.status_code == 200
     updated_content = response.json()
     assert updated_content["content"] == "# Updated Test File\n\nThis is updated."
-
-    # Cleanup handled by fixture
-
 
     # Cleanup handled by fixture
 

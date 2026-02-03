@@ -330,82 +330,21 @@ async def create_from_template(
 
 
 @router.get("/")
-async def list_files(
-    notebook_id: int,
-    workspace_id: int,
-    skip: int = 0,
-    limit: int = 1000,
-    current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_system_session),
-):
-    """List files in a notebook with pagination.
-    
-    **DEPRECATED**: Use GET /api/v1/workspaces/{workspace_slug}/notebooks/{notebook_slug}/files/ instead.
-    This endpoint will be removed in a future version.
+async def list_files_deprecated():
+    """List files (REMOVED - use nested route instead)."""
+    raise HTTPException(
+        status_code=410,
+        detail="This endpoint has been removed. Use GET /api/v1/workspaces/{workspace_slug}/notebooks/{notebook_slug}/files/ instead"
+    )
 
-    Args:
-        notebook_id: ID of the notebook
-        workspace_id: ID of the workspace
-        skip: Number of files to skip (for pagination)
-        limit: Maximum number of files to return (for pagination, default 1000)
-    """
-    notebook_path, _ = await get_notebook_path(notebook_id, workspace_id, current_user, session)
 
-    # Query files from notebook database
-    nb_session = get_notebook_session(str(notebook_path))
-    try:
-        # Get total count efficiently
-        from sqlmodel import func
-
-        count_statement = select(func.count(FileMetadata.id)).where(FileMetadata.notebook_id == notebook_id)
-        count_result = nb_session.execute(count_statement)
-        total_count = count_result.scalar_one()
-
-        # Get paginated files
-        statement = select(FileMetadata).where(FileMetadata.notebook_id == notebook_id).offset(skip).limit(limit)
-        files_result = nb_session.execute(statement)
-        files = files_result.scalars().all()
-
-        file_list = []
-        for f in files:
-            # Parse properties JSON if available
-            properties = None
-            if f.properties:
-                try:
-                    properties = json.loads(f.properties)
-                except json.JSONDecodeError:
-                    properties = None
-
-            file_list.append(
-                {
-                    "id": f.id,
-                    "notebook_id": f.notebook_id,
-                    "path": f.path,
-                    "filename": f.filename,
-                    "content_type": f.content_type,
-                    "size": f.size,
-                    "hash": f.hash,
-                    "title": f.title,
-                    "description": f.description,
-                    "file_type": f.file_type,
-                    "properties": properties,
-                    "created_at": f.created_at.isoformat() if f.created_at else None,
-                    "updated_at": f.updated_at.isoformat() if f.updated_at else None,
-                    "file_modified_at": f.file_modified_at.isoformat() if f.file_modified_at else None,
-                }
-            )
-
-        return {
-            "files": file_list,
-            "pagination": {
-                "skip": skip,
-                "limit": limit,
-                "total": total_count,
-                "has_more": skip + len(file_list) < total_count,
-            },
-        }
-    finally:
-        nb_session.close()
+@router.post("/")
+async def create_file_deprecated():
+    """Create file (REMOVED - use nested route instead)."""
+    raise HTTPException(
+        status_code=410,
+        detail="This endpoint has been removed. Use POST /api/v1/workspaces/{workspace_slug}/notebooks/{notebook_slug}/files/ instead"
+    )
 
 
 @router.get("/by-path")
@@ -995,118 +934,6 @@ async def resolve_link(
         }
 
         return result
-    finally:
-        nb_session.close()
-
-
-@router.post("/")
-async def create_file(
-    request: CreateFileRequest,
-    current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_system_session),
-):
-    """Create a new file.
-    
-    **DEPRECATED**: Use POST /api/v1/workspaces/{workspace_slug}/notebooks/{notebook_slug}/files/ instead.
-    This endpoint will be removed in a future version.
-    """
-    notebook_id = request.notebook_id
-    workspace_id = request.workspace_id
-    path = request.path
-    content = request.content
-
-    # Get notebook path from system database
-    notebook_path, _ = await get_notebook_path(notebook_id, workspace_id, current_user, session)
-
-    # Create the file
-    nb_session = get_notebook_session(str(notebook_path))
-    try:
-        file_path = notebook_path / path
-
-        # Check if file already exists
-        if file_path.exists():
-            raise HTTPException(status_code=400, detail="File already exists")
-
-        # Create parent directories if needed
-        file_path.parent.mkdir(parents=True, exist_ok=True)
-
-        # Determine content type before creating file
-        content_type = get_content_type(str(file_path))
-
-        import hashlib
-        from datetime import datetime
-
-        # Create metadata record BEFORE writing file to prevent race with watcher
-        # Use placeholder values that will be updated after file is written
-        file_meta = FileMetadata(
-            notebook_id=notebook_id,
-            path=path,
-            filename=os.path.basename(path),
-            content_type=content_type,
-            size=0,  # Placeholder, will be updated
-            hash=hashlib.sha256(content.encode()).hexdigest(),
-        )
-
-        # Add and commit the metadata record first
-        nb_session.add(file_meta)
-        try:
-            nb_session.commit()
-            nb_session.refresh(file_meta)
-        except Exception as commit_error:
-            # Handle race condition: watcher may have created the record
-            nb_session.rollback()
-            if "UNIQUE constraint failed" in str(commit_error):
-                # Query for the existing record created by the watcher
-                existing_result = nb_session.execute(
-                    select(FileMetadata).where(FileMetadata.notebook_id == notebook_id, FileMetadata.path == path)
-                )
-                file_meta = existing_result.scalar_one_or_none()
-                if not file_meta:
-                    raise HTTPException(status_code=500, detail="Race condition: file metadata not found")
-            else:
-                raise
-
-        # Now write the file to disk (watcher will update the existing record if needed)
-        with open(file_path, "w") as f:
-            f.write(content)
-
-        # Refresh to get any updates the watcher may have made
-        nb_session.refresh(file_meta)
-
-        # Update metadata with actual file stats (watcher may have already set these)
-        file_stats = os.stat(file_path)
-        file_meta.size = file_stats.st_size
-        file_meta.file_created_at = datetime.fromtimestamp(file_stats.st_ctime)
-        file_meta.file_modified_at = datetime.fromtimestamp(file_stats.st_mtime)
-
-        # Commit file to git
-        from codex.core.git_manager import GitManager
-
-        git_manager = GitManager(str(notebook_path))
-        commit_hash = git_manager.commit(f"Create {os.path.basename(path)}", [str(file_path)])
-        if commit_hash:
-            file_meta.last_commit_hash = commit_hash
-
-        # Commit the updates
-        nb_session.commit()
-        nb_session.refresh(file_meta)
-
-        result = {
-            "id": file_meta.id,
-            "notebook_id": file_meta.notebook_id,
-            "path": file_meta.path,
-            "filename": file_meta.filename,
-            "content_type": file_meta.content_type,
-            "size": file_meta.size,
-            "message": "File created successfully",
-        }
-
-        return result
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error creating file in notebook {notebook_path}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error creating file: {str(e)}")
     finally:
         nb_session.close()
 

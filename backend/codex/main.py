@@ -97,7 +97,7 @@ def _start_notebook_watchers_sync():
                     logger.warning(f"Notebook {nb.name} (id={nb.id}) has no associated workspace, skipping")
                     continue
                 # Compute full notebook path
-                notebook_path = Path(workspace.path) / nb.path
+                notebook_path = (Path(workspace.path) / nb.path).resolve()  # Convert to absolute path
                 codex_db_path = notebook_path / ".codex" / "notebook.db"
 
                 logger.debug(f"Checking notebook: {nb.name} at {notebook_path}")

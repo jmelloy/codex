@@ -69,10 +69,11 @@ def upgrade() -> None:
                 {"slug": slug, "id": workspace_id}
             )
         
-        # Make column non-nullable and add unique constraint
-        op.alter_column("workspaces", "slug", nullable=False)
-        op.create_unique_constraint("uq_workspaces_slug", "workspaces", ["slug"])
-        op.create_index("ix_workspaces_slug", "workspaces", ["slug"])
+        # For SQLite, we need to use batch operations to alter column constraints
+        with op.batch_alter_table("workspaces") as batch_op:
+            batch_op.alter_column("slug", nullable=False)
+            batch_op.create_unique_constraint("uq_workspaces_slug", ["slug"])
+            batch_op.create_index("ix_workspaces_slug", ["slug"])
     
     # Add slug column to notebooks table
     if not column_exists("notebooks", "slug"):
@@ -96,14 +97,14 @@ def upgrade() -> None:
                 {"slug": slug, "id": notebook_id}
             )
         
-        # Make column non-nullable and add unique constraint per workspace
-        op.alter_column("notebooks", "slug", nullable=False)
-        op.create_unique_constraint(
-            "uq_notebooks_workspace_slug",
-            "notebooks",
-            ["workspace_id", "slug"]
-        )
-        op.create_index("ix_notebooks_slug", "notebooks", ["slug"])
+        # For SQLite, we need to use batch operations to alter column constraints
+        with op.batch_alter_table("notebooks") as batch_op:
+            batch_op.alter_column("slug", nullable=False)
+            batch_op.create_unique_constraint(
+                "uq_notebooks_workspace_slug",
+                ["workspace_id", "slug"]
+            )
+            batch_op.create_index("ix_notebooks_slug", ["slug"])
 
 
 def downgrade() -> None:

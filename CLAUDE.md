@@ -104,9 +104,11 @@ Both migration paths are configured in a single unified `backend/alembic.ini` fi
 
 ### API Routes Pattern
 
-All API routes are prefixed with `/api/v1/` except users (`/api`):
+All API routes are prefixed with `/api/v1/`:
 
-- `/api/token` - Authentication
+- `/api/v1/users/token` - Authentication
+- `/api/v1/users/register` - User registration
+- `/api/v1/users/me` - Current user profile
 - `/api/v1/workspaces/` - Workspace CRUD
 - `/api/v1/notebooks/` - Notebook CRUD
 - `/api/v1/files/` - File operations

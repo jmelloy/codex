@@ -118,7 +118,16 @@ async def create_workspace(
     based on the workspace name.
     """
     name = body.name
-    base_slug = body.path or slugify(name)
+    
+    # Determine path and slug
+    if body.path:
+        # Explicit path provided - use it directly
+        path = body.path
+        # Generate slug from the path's basename
+        base_slug = slugify(Path(path).name)
+    else:
+        # No path provided - auto-generate from workspace name
+        base_slug = slugify(name)
 
     base_path = Path(DATA_DIRECTORY) / "workspaces"
     workspace_path = base_path / base_slug

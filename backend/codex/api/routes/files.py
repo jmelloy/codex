@@ -1979,7 +1979,7 @@ async def move_file_nested(
     workspace_identifier: str,
     notebook_identifier: str,
     file_id: int,
-    new_path: str = Form(...),
+    request: MoveFileRequest,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_system_session),
 ):
@@ -1987,6 +1987,8 @@ async def move_file_nested(
     notebook_path, notebook, workspace = await get_notebook_path_nested(
         workspace_identifier, notebook_identifier, current_user, session
     )
+    
+    new_path = request.new_path
     
     nb_session = get_notebook_session(str(notebook_path))
     try:

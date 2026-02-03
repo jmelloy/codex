@@ -1,6 +1,6 @@
 import { defineStore } from "pinia"
 import { ref, computed } from "vue"
-import { listIntegrations, type Integration } from "../services/integration"
+import { listIntegrations, setIntegrationEnabled, type Integration } from "../services/integration"
 
 export const useIntegrationStore = defineStore("integration", () => {
   const integrations = ref<Integration[]>([])
@@ -9,18 +9,35 @@ export const useIntegrationStore = defineStore("integration", () => {
 
   const availableIntegrations = computed(() => integrations.value)
 
-  async function loadIntegrations() {
+  async function loadIntegrations(workspaceId?: number) {
     // Only load once unless there was an error
     if (integrationsLoaded.value && !integrationsLoadError.value) return
 
     try {
-      integrations.value = await listIntegrations()
+      integrations.value = await listIntegrations(workspaceId)
       integrationsLoaded.value = true
       integrationsLoadError.value = false
     } catch (error) {
       console.error("Failed to load integrations from API:", error)
       integrations.value = []
       integrationsLoadError.value = true
+    }
+  }
+
+  async function toggleIntegrationEnabled(integrationId: string, workspaceId: number, enabled: boolean) {
+    try {
+      const updatedIntegration = await setIntegrationEnabled(integrationId, workspaceId, enabled)
+      
+      // Update the integration in the local state
+      const index = integrations.value.findIndex(i => i.id === integrationId)
+      if (index !== -1) {
+        integrations.value[index] = updatedIntegration
+      }
+      
+      return updatedIntegration
+    } catch (error) {
+      console.error("Failed to toggle integration enabled state:", error)
+      throw error
     }
   }
 
@@ -36,6 +53,7 @@ export const useIntegrationStore = defineStore("integration", () => {
     integrationsLoaded,
     integrationsLoadError,
     loadIntegrations,
+    toggleIntegrationEnabled,
     reset,
   }
 })

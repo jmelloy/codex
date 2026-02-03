@@ -49,11 +49,10 @@ def workspace_and_notebook(client, auth_headers):
     assert workspace_response.status_code == 200
     workspace_id = workspace_response.json()["id"]
 
-    # Create notebook
+    # Create notebook using nested route
     notebook_response = client.post(
-        "/api/v1/notebooks",
+        f"/api/v1/workspaces/{workspace_id}/notebooks/",
         json={
-            "workspace_id": workspace_id,
             "name": f"Test Notebook {int(time.time() * 1000)}",
             "description": "Test notebook for plugin config",
         },
@@ -222,11 +221,10 @@ def test_multiple_notebooks_different_configs(client, auth_headers, workspace_an
     """Test that different notebooks can have different plugin configs."""
     workspace_id, notebook1_id = workspace_and_notebook
     
-    # Create second notebook
+    # Create second notebook using nested route
     notebook_response = client.post(
-        "/api/v1/notebooks",
+        f"/api/v1/workspaces/{workspace_id}/notebooks/",
         json={
-            "workspace_id": workspace_id,
             "name": f"Test Notebook 2 {int(time.time() * 1000)}",
             "description": "Second test notebook",
         },

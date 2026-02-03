@@ -171,6 +171,39 @@ async def health():
     return {"status": "healthy", "version": "0.1.0"}
 
 
+@app.get("/api/v1/themes")
+async def get_themes():
+    """Get available theme plugins.
+
+    Returns a list of theme plugins with their metadata formatted
+    for the frontend theme selector.
+    """
+    try:
+        plugin_loader = app.state.plugin_loader
+        themes = []
+
+        # Get all plugins and filter for themes
+        for plugin_id, plugin in plugin_loader.plugins.items():
+            if plugin.manifest.get("type") == "theme":
+                theme_config = plugin.manifest.get("theme", {})
+                themes.append({
+                    "id": plugin.manifest.get("id", plugin_id),
+                    "name": plugin.manifest.get("name", plugin_id),
+                    "label": theme_config.get("display_name", plugin.manifest.get("name", plugin_id)),
+                    "description": plugin.manifest.get("description", ""),
+                    "className": theme_config.get("className", f"theme-{plugin_id}"),
+                    "category": theme_config.get("category", "light"),
+                    "version": plugin.manifest.get("version", "1.0.0"),
+                    "author": plugin.manifest.get("author", "Unknown"),
+                })
+
+        return themes
+    except Exception as e:
+        logger.error(f"Error fetching themes: {e}", exc_info=True)
+        # Return empty list if plugin loader not available
+        return []
+
+
 # Include routers
 app.include_router(users.router, prefix="/api", tags=["users"])
 app.include_router(workspaces.router, prefix="/api/v1/workspaces", tags=["workspaces"])

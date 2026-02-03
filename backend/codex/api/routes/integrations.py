@@ -8,7 +8,7 @@ import base64
 import hashlib
 import json
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -479,6 +479,44 @@ async def execute_integration_endpoint(
         f"Executing endpoint {request_data.endpoint_id} for integration {integration_id}"
     )
 
+    # Compute cache key early to check for existing artifact
+    params_hash = _compute_parameters_hash(request_data.endpoint_id, request_data.parameters or {})
+
+    # Check for existing cached artifact
+    stmt = select(IntegrationArtifact).where(
+        IntegrationArtifact.workspace_id == workspace_id,
+        IntegrationArtifact.plugin_id == integration_id,
+        IntegrationArtifact.block_type == request_data.endpoint_id,
+        IntegrationArtifact.parameters_hash == params_hash,
+    )
+    result = await session.execute(stmt)
+    existing_artifact = result.scalar_one_or_none()
+
+    now = datetime.now(UTC)
+
+    # Check if artifact exists, file is present, and not expired
+    if existing_artifact:
+        artifact_path = Path(workspace.path) / existing_artifact.artifact_path
+
+        # Check TTL - if expires_at is None, artifact never expires
+        is_expired = existing_artifact.expires_at is not None and existing_artifact.expires_at < now
+
+        if not is_expired and artifact_path.exists():
+            # Read cached artifact data
+            cached_data = await _read_artifact_data(artifact_path, existing_artifact.content_type)
+            if cached_data is not None:
+                logger.info(
+                    f"Returning cached artifact for {integration_id}/{request_data.endpoint_id}"
+                )
+                # Return cached data in the same format as fresh execution
+                if not isinstance(cached_data, dict):
+                    cached_data = {"content": cached_data, "content_type": existing_artifact.content_type}
+                return IntegrationExecuteResponse(
+                    success=True,
+                    data=cached_data,
+                    error=None,
+                )
+
     try:
         execution_result = await executor.execute_endpoint(
             integration,
@@ -487,10 +525,7 @@ async def execute_integration_endpoint(
             request_data.parameters or {},
         )
 
-        # Compute cache key for artifact storage
-        # For /execute, we use endpoint_id in place of block_type to maintain
-        # consistency with /render's caching mechanism
-        params_hash = _compute_parameters_hash(request_data.endpoint_id, request_data.parameters or {})
+        # params_hash was computed earlier for cache lookup
 
         # Get artifact path based on content type
         artifact_path = _get_artifact_path(
@@ -504,26 +539,15 @@ async def execute_integration_endpoint(
         if not await _write_artifact_data(artifact_path, execution_result.data, execution_result.content_type):
             logger.warning(f"Failed to cache artifact for {integration_id}/{request_data.endpoint_id}")
 
-        # Update database record
-        now = datetime.now(UTC)
-
-        # Check if artifact already exists (update) or create new one
-        stmt = select(IntegrationArtifact).where(
-            IntegrationArtifact.workspace_id == workspace_id,
-            IntegrationArtifact.plugin_id == integration_id,
-            IntegrationArtifact.block_type == request_data.endpoint_id,
-            IntegrationArtifact.parameters_hash == params_hash,
-        )
-        result = await session.execute(stmt)
-        artifact = result.scalar_one_or_none()
-
+        # Update database record using existing_artifact from cache check
         # For execute endpoint, we don't have a block config with cache_ttl
         # so we set expires_at to None (never expires unless manually cleared)
-        if artifact:
-            artifact.artifact_path = relative_path
-            artifact.content_type = execution_result.content_type
-            artifact.fetched_at = now
-            artifact.expires_at = None
+        if existing_artifact:
+            existing_artifact.artifact_path = relative_path
+            existing_artifact.content_type = execution_result.content_type
+            existing_artifact.fetched_at = now
+            existing_artifact.expires_at = None
+            artifact = existing_artifact
         else:
             artifact = IntegrationArtifact(
                 workspace_id=workspace_id,

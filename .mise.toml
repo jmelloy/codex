@@ -1,26 +1,22 @@
 [tools]
 python = "3.14"
-node = "25"
+pnpm = "latest"
+node = "latest"
 
 [env]
 _.python.venv = { path = "backend/.venv", create = true }
 
 [tasks.install]
-description = "Install all dependencies"
 run = """
 pushd backend && uv pip install -e ".[dev]" && popd
-pushd frontend && npm install && popd
+pushd frontend && pnpm install && popd
 """
-
-[tasks.dev]
-description = "Start development servers with Docker"
-run = "docker compose up -d"
 
 [tasks.test]
 description = "Run all tests"
 run = """
 pushd backend && pytest -v tests/ || popd
-pushd frontend && npm run test || popd
+pushd frontend && pnpm run test || popd
 """
 
 [tasks."test:backend"]
@@ -28,17 +24,28 @@ description = "Run backend tests"
 run = "cd backend && pytest -v"
 
 [tasks."test:frontend"]
-description = "Run frontend tests"
-run = "cd frontend && npm run test"
+run = "cd frontend && pnpm test"
 
 [tasks.build]
-description = "Build the frontend"
-run = "cd frontend && npm run build"
+run = "cd frontend && pnpm build"
 
 [tasks.lint]
-description = "Run linters"
 run = """
 cd backend && ruff check .
-cd frontend && npm run build
+cd frontend && pnpm build
 """
 
+[tasks.worktree]
+description = "Create new git worktree"
+run = """
+#!/usr/bin/env bash
+set -e
+BRANCH=${1:-$(git branch --show-current)-wt}
+DIR="../$(basename $PWD)-wt-$BRANCH"
+git worktree add "$DIR" -b "$BRANCH"
+cd "$DIR"
+mise trust
+mise install
+mise run install
+echo "Worktree ready: $DIR"
+"""

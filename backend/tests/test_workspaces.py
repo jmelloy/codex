@@ -67,7 +67,7 @@ def test_create_workspace_without_path(test_client, cleanup_workspaces):
 
 
 def test_get_workspace_by_id(test_client, temp_workspace_dir):
-    """Test getting a specific workspace by ID."""
+    """Test getting a specific workspace by ID or slug."""
     headers, _ = setup_test_user(test_client)
 
     # Create a workspace
@@ -75,12 +75,21 @@ def test_get_workspace_by_id(test_client, temp_workspace_dir):
         "/api/v1/workspaces/", json={"name": "Get By ID Workspace", "path": temp_workspace_dir}, headers=headers
     )
     workspace_id = create_response.json()["id"]
+    workspace_slug = create_response.json()["slug"]
 
     # Get workspace by ID
     response = test_client.get(f"/api/v1/workspaces/{workspace_id}", headers=headers)
     assert response.status_code == 200
     workspace = response.json()
     assert workspace["id"] == workspace_id
+    assert workspace["name"] == "Get By ID Workspace"
+
+    # Get workspace by slug
+    response = test_client.get(f"/api/v1/workspaces/{workspace_slug}", headers=headers)
+    assert response.status_code == 200
+    workspace = response.json()
+    assert workspace["id"] == workspace_id
+    assert workspace["slug"] == workspace_slug
     assert workspace["name"] == "Get By ID Workspace"
 
     # Cleanup handled by fixture
@@ -115,7 +124,7 @@ def test_get_other_users_workspace(test_client, temp_workspace_dir):
 
 
 def test_update_workspace_theme(test_client, temp_workspace_dir):
-    """Test updating workspace theme setting."""
+    """Test updating workspace theme setting by ID or slug."""
     headers, _ = setup_test_user(test_client)
 
     # Create a workspace
@@ -123,11 +132,12 @@ def test_update_workspace_theme(test_client, temp_workspace_dir):
         "/api/v1/workspaces/", json={"name": "Theme Workspace", "path": temp_workspace_dir}, headers=headers
     )
     workspace_id = create_response.json()["id"]
+    workspace_slug = create_response.json()["slug"]
 
     # Default theme should be "cream"
     assert create_response.json()["theme_setting"] == "cream"
 
-    # Update theme to dark
+    # Update theme to dark by ID
     response = test_client.patch(f"/api/v1/workspaces/{workspace_id}/theme", json={"theme": "dark"}, headers=headers)
     assert response.status_code == 200
     assert response.json()["theme_setting"] == "dark"
@@ -135,6 +145,11 @@ def test_update_workspace_theme(test_client, temp_workspace_dir):
     # Verify the change persists
     get_response = test_client.get(f"/api/v1/workspaces/{workspace_id}", headers=headers)
     assert get_response.json()["theme_setting"] == "dark"
+
+    # Update theme using slug
+    response = test_client.patch(f"/api/v1/workspaces/{workspace_slug}/theme", json={"theme": "manila"}, headers=headers)
+    assert response.status_code == 200
+    assert response.json()["theme_setting"] == "manila"
 
     # Cleanup handled by fixture
 

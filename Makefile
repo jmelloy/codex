@@ -106,11 +106,11 @@ install-backend:
 
 install-frontend:
 	@echo "Installing frontend dependencies..."
-	cd frontend && npm install
+	cd frontend && pnpm install
 
 install-plugins:
 	@echo "Installing plugin build dependencies..."
-	cd plugins && npm install
+	cd plugins && pnpm install
 
 # =============================================================================
 # Build

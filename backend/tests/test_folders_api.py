@@ -29,10 +29,10 @@ def setup_workspace_and_notebook(test_client, headers, temp_workspace_dir):
     assert ws_response.status_code == 200
     workspace = ws_response.json()
 
-    # Create notebook
+    # Create notebook using nested route
     nb_response = test_client.post(
-        "/api/v1/notebooks/",
-        json={"workspace_id": workspace["id"], "name": "Test Notebook"},
+        f"/api/v1/workspaces/{workspace['id']}/notebooks/",
+        json={"name": "Test Notebook"},
         headers=headers,
     )
     assert nb_response.status_code == 200

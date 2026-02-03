@@ -1,22 +1,24 @@
 # Build stage
 FROM node:25-slim AS builder
-
 WORKDIR /app
 
 # Build arguments
 ARG VITE_API_BASE_URL=/api
 ARG PLUGINS_DIR=/plugins
 
-# Copy package files first for better caching
-COPY package*.json ./
+# Install pnpm via npm
+RUN npm install -g pnpm
+
+# Copy lockfile and package.json
+COPY pnpm-lock.yaml package.json ./
 
 # Install dependencies
-RUN npm ci --only=production=false
+RUN pnpm install --frozen-lockfile
 
 # Copy source code
 COPY . ./
 
-# Create plugins directory for build (will be populated by build context or mounted)
+# Create plugins directory
 RUN mkdir -p /plugins
 
 # Set environment variables for build
@@ -24,34 +26,27 @@ ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 ENV VITE_PLUGINS_DIR=${PLUGINS_DIR}
 
 # Build application
-RUN npm run build
+RUN pnpm build
 
-# Production stage
+# Production stage (unchanged)
 FROM nginx:alpine
 
-# Add non-root user for nginx
 RUN addgroup -g 1000 -S codex && \
     adduser -u 1000 -S codex -G codex
 
-# Copy built files
 COPY --from=builder /app/dist /usr/share/nginx/html
-
-# Copy nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Set proper permissions
 RUN chown -R codex:codex /usr/share/nginx/html && \
     chown -R codex:codex /var/cache/nginx && \
     chown -R codex:codex /var/log/nginx && \
     touch /var/run/nginx.pid && \
     chown -R codex:codex /var/run/nginx.pid
 
-# Security: remove server version
 RUN sed -i 's/^user .*/user codex;/' /etc/nginx/nginx.conf
 
 EXPOSE 80
 
-# Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD wget -q --spider http://localhost:80 || exit 1
 

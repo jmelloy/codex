@@ -66,8 +66,11 @@ export interface IntegrationTestResult {
 /**
  * List all available integration plugins
  */
-export async function listIntegrations(): Promise<Integration[]> {
-  const response = await apiClient.get('/api/v1/integrations')
+export async function listIntegrations(workspaceId?: number): Promise<Integration[]> {
+  const url = workspaceId 
+    ? `/api/v1/integrations?workspace_id=${workspaceId}`
+    : '/api/v1/integrations'
+  const response = await apiClient.get(url)
   return response.data
 }
 
@@ -144,6 +147,21 @@ export async function executeIntegrationEndpoint(
       endpoint_id: endpointId,
       parameters: parameters || {},
     }
+  )
+  return response.data
+}
+
+/**
+ * Enable or disable an integration for a workspace
+ */
+export async function setIntegrationEnabled(
+  integrationId: string,
+  workspaceId: number,
+  enabled: boolean
+): Promise<Integration> {
+  const response = await apiClient.put(
+    `/api/v1/integrations/${integrationId}/enable?workspace_id=${workspaceId}`,
+    { enabled }
   )
   return response.data
 }

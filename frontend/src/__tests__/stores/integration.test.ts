@@ -6,6 +6,7 @@ import * as integrationService from "../../services/integration"
 // Mock the integration service
 vi.mock("../../services/integration", () => ({
   listIntegrations: vi.fn(),
+  setIntegrationEnabled: vi.fn(),
 }))
 
 describe("Integration Store", () => {
@@ -159,5 +160,81 @@ describe("Integration Store", () => {
     expect(store.integrations).toEqual([])
     expect(store.integrationsLoaded).toBe(false)
     expect(store.integrationsLoadError).toBe(false)
+  })
+
+  it("toggles integration enabled state successfully", async () => {
+    const store = useIntegrationStore()
+    const mockIntegration = {
+      id: "test-integration",
+      name: "Test Integration",
+      description: "A test integration",
+      version: "1.0.0",
+      author: "Test Author",
+      api_type: "rest",
+      enabled: true,
+    }
+    
+    // Set initial state
+    store.integrations = [mockIntegration]
+    
+    // Mock the API call
+    const updatedIntegration = { ...mockIntegration, enabled: false }
+    vi.mocked(integrationService.setIntegrationEnabled).mockResolvedValue(updatedIntegration)
+    
+    // Toggle to disabled
+    await store.toggleIntegrationEnabled("test-integration", 1, false)
+    
+    expect(integrationService.setIntegrationEnabled).toHaveBeenCalledWith("test-integration", 1, false)
+    expect(store.integrations[0].enabled).toBe(false)
+  })
+
+  it("handles toggle error and throws", async () => {
+    const store = useIntegrationStore()
+    const mockIntegration = {
+      id: "test-integration",
+      name: "Test Integration",
+      description: "A test integration",
+      version: "1.0.0",
+      author: "Test Author",
+      api_type: "rest",
+      enabled: true,
+    }
+    
+    store.integrations = [mockIntegration]
+    
+    // Mock error
+    vi.mocked(integrationService.setIntegrationEnabled).mockRejectedValue(
+      new Error("API error")
+    )
+    
+    // Should throw error
+    await expect(
+      store.toggleIntegrationEnabled("test-integration", 1, false)
+    ).rejects.toThrow("API error")
+    
+    // State should remain unchanged
+    expect(store.integrations[0].enabled).toBe(true)
+  })
+
+  it("passes workspace_id when loading integrations", async () => {
+    const store = useIntegrationStore()
+    const mockIntegrations = [
+      {
+        id: "test-integration",
+        name: "Test Integration",
+        description: "A test integration",
+        version: "1.0.0",
+        author: "Test Author",
+        api_type: "rest",
+        enabled: true,
+      },
+    ]
+
+    vi.mocked(integrationService.listIntegrations).mockResolvedValue(mockIntegrations)
+
+    await store.loadIntegrations(123)
+
+    expect(integrationService.listIntegrations).toHaveBeenCalledWith(123)
+    expect(store.integrations).toEqual(mockIntegrations)
   })
 })

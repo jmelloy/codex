@@ -20,7 +20,6 @@ from codex.core.metadata import MetadataParser
 from codex.db.database import get_notebook_session, get_system_session
 from codex.db.models import FileMetadata, Notebook, User, Workspace
 
-router = APIRouter()
 logger = logging.getLogger(__name__)
 
 # The metadata file name stored in each folder
@@ -266,33 +265,6 @@ def get_subfolders(folder_path: str, notebook_path: Path) -> list[dict]:
     # Sort by name
     subfolders.sort(key=lambda x: x["name"].lower())
     return subfolders
-
-
-@router.get("/{folder_path:path}")
-async def get_folder_deprecated():
-    """Get folder (REMOVED - use nested route instead)."""
-    raise HTTPException(
-        status_code=410,
-        detail="This endpoint has been removed. Use GET /api/v1/workspaces/{workspace_slug}/notebooks/{notebook_slug}/folders/{folder_path} instead"
-    )
-
-
-@router.put("/{folder_path:path}")
-async def update_folder_properties_deprecated():
-    """Update folder properties (REMOVED - use nested route instead)."""
-    raise HTTPException(
-        status_code=410,
-        detail="This endpoint has been removed. Use PUT /api/v1/workspaces/{workspace_slug}/notebooks/{notebook_slug}/folders/{folder_path} instead"
-    )
-
-
-@router.delete("/{folder_path:path}")
-async def delete_folder_deprecated():
-    """Delete folder (REMOVED - use nested route instead)."""
-    raise HTTPException(
-        status_code=410,
-        detail="This endpoint has been removed. Use DELETE /api/v1/workspaces/{workspace_slug}/notebooks/{notebook_slug}/folders/{folder_path} instead"
-    )
 
 
 # New nested router for workspace/notebook-based folder routes

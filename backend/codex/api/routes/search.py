@@ -1,35 +1,13 @@
 """Search routes."""
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select
 
 from codex.api.auth import get_current_active_user
 from codex.api.routes.notebooks import get_notebook_by_slug_or_id
 from codex.api.routes.workspaces import get_workspace_by_slug_or_id
 from codex.db.database import get_system_session
-from codex.db.models import Notebook, User, Workspace
-
-router = APIRouter()
-
-
-@router.get("/")
-async def search_deprecated():
-    """Search endpoint (REMOVED - use nested route instead)."""
-    raise HTTPException(
-        status_code=410,
-        detail="This endpoint has been removed. Use GET /api/v1/workspaces/{workspace_slug}/search instead"
-    )
-
-
-@router.get("/tags")
-async def search_by_tags_deprecated():
-    """Tag search endpoint (REMOVED - use nested route instead)."""
-    raise HTTPException(
-        status_code=410,
-        detail="This endpoint has been removed. Use GET /api/v1/workspaces/{workspace_slug}/search/tags instead"
-    )
-
+from codex.db.models import User
 
 # New nested router for workspace-based search routes
 nested_router = APIRouter()

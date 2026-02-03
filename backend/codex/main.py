@@ -187,14 +187,12 @@ app.include_router(
     prefix="/api/v1/workspaces/{workspace_identifier}/notebooks/{notebook_identifier}/files",
     tags=["files"]
 )
-app.include_router(folders.router, prefix="/api/v1/folders", tags=["folders"])
 # New nested folder routes under workspaces/notebooks
 app.include_router(
     folders.nested_router,
     prefix="/api/v1/workspaces/{workspace_identifier}/notebooks/{notebook_identifier}/folders",
     tags=["folders"]
 )
-app.include_router(search.router, prefix="/api/v1/search", tags=["search"])
 # New nested search routes under workspaces
 app.include_router(
     search.nested_router,

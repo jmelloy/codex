@@ -98,7 +98,7 @@ class CreateFromTemplateRequest(BaseModel):
 
 def load_default_templates(loader) -> list[dict]:
     """Load default templates from YAML files in the templates directory and from plugins.
-    
+
     This loads templates from any plugin that provides them, not just view plugins.
     This allows themes, integrations, or any other plugin type to provide templates.
     """
@@ -110,7 +110,7 @@ def load_default_templates(loader) -> list[dict]:
     try:
         # Get all plugins that have templates (regardless of type)
         plugins_with_templates = loader.get_plugins_with_templates()
-        
+
         for plugin in plugins_with_templates:
             # Add templates from this plugin
             for template_def in plugin.templates:
@@ -173,10 +173,10 @@ def expand_template_pattern(pattern: str, title: str = "untitled") -> str:
 
 def add_template_source(templates: list[dict]) -> list[dict]:
     """Add source field to templates based on whether they're from plugins.
-    
+
     Args:
         templates: List of template dictionaries
-        
+
     Returns:
         List of templates with source field added
     """
@@ -206,7 +206,7 @@ async def list_templates(
     """
     notebook_path, _ = await get_notebook_path(notebook_id, workspace_id, current_user, session)
 
-    
+
     defaults = get_default_templates(request.app.state.plugin_loader)
     defaults_with_source = add_template_source(defaults)
 
@@ -215,7 +215,7 @@ async def list_templates(
     templates = []
     if templates_dir.exists() and templates_dir.is_dir():
         # Load templates from the .templates folder
-        
+
         for template_file in templates_dir.iterdir():
             if template_file.is_file() and not template_file.name.startswith("."):
                 try:
@@ -1500,30 +1500,30 @@ async def get_notebook_path_nested(
     """
     # Get workspace by slug or ID
     workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
-    
+
     # Get notebook by slug or ID
     notebook = await get_notebook_by_slug_or_id(notebook_identifier, workspace, session)
-    
+
     # Get notebook path
     workspace_path = Path(workspace.path)
     notebook_path = workspace_path / notebook.path
-    
+
     if not notebook_path.exists():
         raise HTTPException(status_code=404, detail="Notebook path not found")
-    
+
     return notebook_path, notebook, workspace
 
 
 class CreateFileRequestNested(BaseModel):
     """Request model for creating a file (nested routes)."""
-    
+
     path: str
     content: str
 
 
 class UpdateFileRequestNested(BaseModel):
     """Request model for updating a file (nested routes)."""
-    
+
     content: str | None = None
     properties: dict[str, Any] | None = None
 
@@ -1540,10 +1540,10 @@ async def list_templates_nested(
     notebook_path, notebook, workspace = await get_notebook_path_nested(
         workspace_identifier, notebook_identifier, current_user, session
     )
-    
+
     defaults = get_default_templates(request.app.state.plugin_loader)
     defaults_with_source = add_template_source(defaults)
-    
+
     templates_dir = notebook_path / ".templates"
     # Check if notebook has a .templates folder
     templates = []
@@ -1554,15 +1554,15 @@ async def list_templates_nested(
                 try:
                     with open(template_file) as f:
                         content = f.read()
-                    
+
                     # Parse frontmatter to get template metadata
                     properties, body = MetadataParser.parse_frontmatter(content)
-                    
+
                     # Template must have type: template in frontmatter
                     if properties and properties.get("type") == "template":
                         template_id = template_file.stem
                         ext = properties.get("template_for", template_file.suffix)
-                        
+
                         templates.append(
                             {
                                 "id": template_id,
@@ -1578,7 +1578,7 @@ async def list_templates_nested(
                 except Exception as e:
                     logger.warning(f"Failed to parse template {template_file}: {e}")
                     continue
-    
+
     return {"templates": defaults_with_source + templates}
 
 
@@ -1595,22 +1595,22 @@ async def list_files_nested(
     notebook_path, notebook, workspace = await get_notebook_path_nested(
         workspace_identifier, notebook_identifier, current_user, session
     )
-    
+
     # Query files from notebook database
     nb_session = get_notebook_session(str(notebook_path))
     try:
         # Get total count efficiently
         from sqlmodel import func
-        
+
         count_statement = select(func.count(FileMetadata.id)).where(FileMetadata.notebook_id == notebook.id)
         count_result = nb_session.execute(count_statement)
         total_count = count_result.scalar_one()
-        
+
         # Get paginated files
         statement = select(FileMetadata).where(FileMetadata.notebook_id == notebook.id).offset(skip).limit(limit)
         files_result = nb_session.execute(statement)
         files = files_result.scalars().all()
-        
+
         file_list = []
         for f in files:
             # Parse properties JSON if available
@@ -1620,7 +1620,7 @@ async def list_files_nested(
                     properties = json.loads(f.properties)
                 except json.JSONDecodeError:
                     properties = None
-            
+
             file_list.append(
                 {
                     "id": f.id,
@@ -1639,7 +1639,7 @@ async def list_files_nested(
                     "file_modified_at": f.file_modified_at.isoformat() if f.file_modified_at else None,
                 }
             )
-        
+
         return {
             "files": file_list,
             "pagination": {
@@ -1665,17 +1665,17 @@ async def get_file_by_path_nested(
     notebook_path, notebook, workspace = await get_notebook_path_nested(
         workspace_identifier, notebook_identifier, current_user, session
     )
-    
+
     nb_session = get_notebook_session(str(notebook_path))
     try:
         result = nb_session.execute(
             select(FileMetadata).where(FileMetadata.notebook_id == notebook.id, FileMetadata.path == path)
         )
         file_meta = result.scalar_one_or_none()
-        
+
         if not file_meta:
             raise HTTPException(status_code=404, detail="File not found")
-        
+
         # Parse properties JSON if available
         properties = None
         if file_meta.properties:
@@ -1683,7 +1683,7 @@ async def get_file_by_path_nested(
                 properties = json.loads(file_meta.properties)
             except json.JSONDecodeError:
                 properties = None
-        
+
         return {
             "id": file_meta.id,
             "notebook_id": file_meta.notebook_id,
@@ -1716,12 +1716,12 @@ async def get_file_text_by_path_nested(
     notebook_path, notebook, workspace = await get_notebook_path_nested(
         workspace_identifier, notebook_identifier, current_user, session
     )
-    
+
     file_path = notebook_path / path
-    
+
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
-    
+
     try:
         with open(file_path, "r") as f:
             content = f.read()
@@ -1743,28 +1743,28 @@ async def create_file_nested(
     notebook_path, notebook, workspace = await get_notebook_path_nested(
         workspace_identifier, notebook_identifier, current_user, session
     )
-    
+
     path = request.path
     content = request.content
-    
+
     # Create the file
     nb_session = get_notebook_session(str(notebook_path))
     try:
         file_path = notebook_path / path
-        
+
         # Check if file already exists
         if file_path.exists():
             raise HTTPException(status_code=400, detail="File already exists")
-        
+
         # Create parent directories if needed
         file_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         # Determine content type before creating file
         content_type = get_content_type(str(file_path))
-        
+
         import hashlib
         from datetime import datetime
-        
+
         # Create metadata record BEFORE writing file to prevent race with watcher
         file_meta = FileMetadata(
             notebook_id=notebook.id,
@@ -1774,7 +1774,7 @@ async def create_file_nested(
             size=0,  # Placeholder, will be updated
             hash=hashlib.sha256(content.encode()).hexdigest(),
         )
-        
+
         # Add and commit the metadata record first
         nb_session.add(file_meta)
         try:
@@ -1793,32 +1793,32 @@ async def create_file_nested(
                     raise HTTPException(status_code=500, detail="Race condition: file metadata not found")
             else:
                 raise
-        
+
         # Now write the file to disk
         with open(file_path, "w") as f:
             f.write(content)
-        
+
         # Refresh to get any updates the watcher may have made
         nb_session.refresh(file_meta)
-        
+
         # Update metadata with actual file stats
         file_stats = os.stat(file_path)
         file_meta.size = file_stats.st_size
         file_meta.file_created_at = datetime.fromtimestamp(file_stats.st_ctime)
         file_meta.file_modified_at = datetime.fromtimestamp(file_stats.st_mtime)
-        
+
         # Commit file to git
         from codex.core.git_manager import GitManager
-        
+
         git_manager = GitManager(str(notebook_path))
         commit_hash = git_manager.commit(f"Create {os.path.basename(path)}", [str(file_path)])
         if commit_hash:
             file_meta.last_commit_hash = commit_hash
-        
+
         # Commit the updates
         nb_session.commit()
         nb_session.refresh(file_meta)
-        
+
         result = {
             "id": file_meta.id,
             "notebook_id": file_meta.notebook_id,
@@ -1828,7 +1828,7 @@ async def create_file_nested(
             "size": file_meta.size,
             "message": "File created successfully",
         }
-        
+
         return result
     except HTTPException:
         raise
@@ -1851,17 +1851,17 @@ async def get_file_nested(
     notebook_path, notebook, workspace = await get_notebook_path_nested(
         workspace_identifier, notebook_identifier, current_user, session
     )
-    
+
     nb_session = get_notebook_session(str(notebook_path))
     try:
         result = nb_session.execute(
             select(FileMetadata).where(FileMetadata.id == file_id, FileMetadata.notebook_id == notebook.id)
         )
         file_meta = result.scalar_one_or_none()
-        
+
         if not file_meta:
             raise HTTPException(status_code=404, detail="File not found")
-        
+
         # Parse properties JSON if available
         properties = None
         if file_meta.properties:
@@ -1869,7 +1869,7 @@ async def get_file_nested(
                 properties = json.loads(file_meta.properties)
             except json.JSONDecodeError:
                 properties = None
-        
+
         return {
             "id": file_meta.id,
             "notebook_id": file_meta.notebook_id,
@@ -1902,7 +1902,7 @@ async def get_file_text_nested(
     notebook_path, notebook, workspace = await get_notebook_path_nested(
         workspace_identifier, notebook_identifier, current_user, session
     )
-    
+
     # Get file metadata
     nb_session = get_notebook_session(str(notebook_path))
     try:
@@ -1910,15 +1910,15 @@ async def get_file_text_nested(
             select(FileMetadata).where(FileMetadata.id == file_id, FileMetadata.notebook_id == notebook.id)
         )
         file_meta = result.scalar_one_or_none()
-        
+
         if not file_meta:
             raise HTTPException(status_code=404, detail="File not found")
-        
+
         file_path = notebook_path / file_meta.path
-        
+
         if not file_path.exists():
             raise HTTPException(status_code=404, detail="File not found on disk")
-        
+
         try:
             with open(file_path, "r") as f:
                 content = f.read()
@@ -1943,10 +1943,10 @@ async def update_file_nested(
     notebook_path, notebook, workspace = await get_notebook_path_nested(
         workspace_identifier, notebook_identifier, current_user, session
     )
-    
+
     content = request.content
     properties = request.properties
-    
+
     nb_session = get_notebook_session(str(notebook_path))
     try:
         # Get file metadata
@@ -1954,15 +1954,15 @@ async def update_file_nested(
             select(FileMetadata).where(FileMetadata.id == file_id, FileMetadata.notebook_id == notebook.id)
         )
         file_meta = result.scalar_one_or_none()
-        
+
         if not file_meta:
             raise HTTPException(status_code=404, detail="File not found")
-        
+
         file_path = notebook_path / file_meta.path
-        
+
         if not file_path.exists():
             raise HTTPException(status_code=404, detail="File not found on disk")
-        
+
         # Handle properties update
         if properties is not None:
             if content and file_meta.content_type in ["text/markdown", "application/x-codex-view"]:
@@ -1970,12 +1970,12 @@ async def update_file_nested(
                 content = MetadataParser.write_frontmatter(content, properties)
             else:
                 MetadataParser.write_sidecar(str(file_path), properties)
-        
+
         # Update content if provided
         if content is not None:
             with open(file_path, "w") as f:
                 f.write(content)
-        
+
         result = {
             "id": file_meta.id,
             "notebook_id": file_meta.notebook_id,
@@ -1990,7 +1990,7 @@ async def update_file_nested(
             "updated_at": file_meta.updated_at.isoformat() if file_meta.updated_at else None,
             "message": "File updated successfully",
         }
-        
+
         return result
     except HTTPException:
         raise
@@ -2014,9 +2014,9 @@ async def move_file_nested(
     notebook_path, notebook, workspace = await get_notebook_path_nested(
         workspace_identifier, notebook_identifier, current_user, session
     )
-    
+
     new_path = request.new_path
-    
+
     nb_session = get_notebook_session(str(notebook_path))
     try:
         # Get file metadata
@@ -2024,36 +2024,36 @@ async def move_file_nested(
             select(FileMetadata).where(FileMetadata.id == file_id, FileMetadata.notebook_id == notebook.id)
         )
         file_meta = result.scalar_one_or_none()
-        
+
         if not file_meta:
             raise HTTPException(status_code=404, detail="File not found")
-        
+
         old_path = notebook_path / file_meta.path
         new_file_path = notebook_path / new_path
-        
+
         # Check if target already exists
         if new_file_path.exists():
             raise HTTPException(status_code=400, detail="Target path already exists")
-        
+
         # Create parent directories if needed
         new_file_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         # Move the file
         import shutil
         shutil.move(str(old_path), str(new_file_path))
-        
+
         # Update metadata
         file_meta.path = new_path
         file_meta.filename = os.path.basename(new_path)
-        
+
         # Commit to git
         from codex.core.git_manager import GitManager
         git_manager = GitManager(str(notebook_path))
         git_manager.commit(f"Move {os.path.basename(file_meta.path)} to {new_path}", [])
-        
+
         nb_session.commit()
         nb_session.refresh(file_meta)
-        
+
         return {
             "id": file_meta.id,
             "path": file_meta.path,
@@ -2081,7 +2081,7 @@ async def delete_file_nested(
     notebook_path, notebook, workspace = await get_notebook_path_nested(
         workspace_identifier, notebook_identifier, current_user, session
     )
-    
+
     nb_session = get_notebook_session(str(notebook_path))
     try:
         # Get file metadata
@@ -2089,32 +2089,32 @@ async def delete_file_nested(
             select(FileMetadata).where(FileMetadata.id == file_id, FileMetadata.notebook_id == notebook.id)
         )
         file_meta = result.scalar_one_or_none()
-        
+
         if not file_meta:
             raise HTTPException(status_code=404, detail="File not found")
-        
+
         file_path = notebook_path / file_meta.path
-        
+
         # Delete the file from disk
         if file_path.exists():
             os.remove(file_path)
-        
+
         # Delete sidecar file if it exists
         _, sidecar = MetadataParser.resolve_sidecar(str(file_path))
         if sidecar and Path(sidecar).exists():
             os.remove(sidecar)
             logger.debug(f"Deleted sidecar file: {sidecar}")
-        
+
         # Delete from database
         nb_session.delete(file_meta)
-        
+
         # Commit deletion to git
         from codex.core.git_manager import GitManager
         git_manager = GitManager(str(notebook_path))
         git_manager.commit(f"Delete {file_meta.filename}", [])
-        
+
         nb_session.commit()
-        
+
         return {"message": "File deleted successfully"}
     except HTTPException:
         raise
@@ -2137,13 +2137,13 @@ async def resolve_link_nested(
     notebook_path, notebook, workspace = await get_notebook_path_nested(
         workspace_identifier, notebook_identifier, current_user, session
     )
-    
+
     # Resolve the link
     try:
         resolved_path = LinkResolver.resolve_link(request.link, request.current_file_path, notebook_path)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    
+
     # Query the resolved file from notebook database
     nb_session = get_notebook_session(str(notebook_path))
     try:
@@ -2152,7 +2152,7 @@ async def resolve_link_nested(
             select(FileMetadata).where(FileMetadata.notebook_id == notebook.id, FileMetadata.path == resolved_path)
         )
         file_meta = file_result.scalar_one_or_none()
-        
+
         # If not found and path doesn't contain directory separator, try filename match
         if not file_meta and "/" not in resolved_path:
             file_result = nb_session.execute(
@@ -2162,10 +2162,10 @@ async def resolve_link_nested(
             )
             # Get first match if multiple files have same name
             file_meta = file_result.scalars().first()
-        
+
         if not file_meta:
             raise HTTPException(status_code=404, detail=f"File not found: {resolved_path}")
-        
+
         # Parse properties if available
         properties = None
         if file_meta.properties:
@@ -2173,7 +2173,7 @@ async def resolve_link_nested(
                 properties = json.loads(file_meta.properties)
             except json.JSONDecodeError:
                 properties = None
-        
+
         result = {
             "id": file_meta.id,
             "notebook_id": file_meta.notebook_id,
@@ -2190,7 +2190,7 @@ async def resolve_link_nested(
             "created_at": file_meta.created_at.isoformat() if file_meta.created_at else None,
             "updated_at": file_meta.updated_at.isoformat() if file_meta.updated_at else None,
         }
-        
+
         return result
     except HTTPException:
         raise
@@ -2213,7 +2213,7 @@ async def get_file_history_nested(
     notebook_path, notebook, workspace = await get_notebook_path_nested(
         workspace_identifier, notebook_identifier, current_user, session
     )
-    
+
     nb_session = get_notebook_session(str(notebook_path))
     try:
         # Get file metadata
@@ -2221,17 +2221,17 @@ async def get_file_history_nested(
             select(FileMetadata).where(FileMetadata.id == file_id, FileMetadata.notebook_id == notebook.id)
         )
         file_meta = result.scalar_one_or_none()
-        
+
         if not file_meta:
             raise HTTPException(status_code=404, detail="File not found")
-        
+
         file_path = notebook_path / file_meta.path
-        
+
         # Get git history
         from codex.core.git_manager import GitManager
         git_manager = GitManager(str(notebook_path))
         history = git_manager.get_file_history(str(file_path))
-        
+
         return {"history": history}
     except HTTPException:
         raise

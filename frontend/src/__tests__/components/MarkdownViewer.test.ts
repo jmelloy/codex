@@ -119,9 +119,9 @@ describe("MarkdownViewer", () => {
 
     const html = wrapper.find(".markdown-content").html()
     expect(html).toContain("<img")
-    // HTML entities are escaped in the output
+    // HTML entities are escaped in the output - now using nested route format
     expect(html).toContain(
-      'src="/api/v1/files/by-path/content?path=test-image.png&amp;workspace_id=1&amp;notebook_id=2"'
+      'src="/api/v1/workspaces/1/notebooks/2/files/by-path/content?path=test-image.png"'
     )
     expect(html).toContain('alt="Test Image"')
   })
@@ -141,9 +141,9 @@ describe("MarkdownViewer", () => {
 
     const html = wrapper.find(".markdown-content").html()
     expect(html).toContain("<a")
-    // HTML entities are escaped in the output
+    // HTML entities are escaped in the output - now using nested route format
     expect(html).toContain(
-      'href="/api/v1/files/by-path/content?path=document.md&amp;workspace_id=1&amp;notebook_id=2"'
+      'href="/api/v1/workspaces/1/notebooks/2/files/by-path/content?path=document.md"'
     )
     expect(html).toContain("Read More")
   })
@@ -213,9 +213,9 @@ describe("MarkdownViewer", () => {
 
     const html = wrapper.find(".markdown-content").html()
     expect(html).toContain("<img")
-    // The path is URL-encoded and HTML entities are escaped
+    // The path is URL-encoded and HTML entities are escaped - now using nested route format
     expect(html).toContain(
-      'src="/api/v1/files/by-path/content?path=.%2Fimages%2Ftest.png&amp;workspace_id=1&amp;notebook_id=2"'
+      'src="/api/v1/workspaces/1/notebooks/2/files/by-path/content?path=.%2Fimages%2Ftest.png"'
     )
   })
 
@@ -233,12 +233,12 @@ describe("MarkdownViewer", () => {
     await flushPromises()
 
     const html = wrapper.find(".markdown-content").html()
-    // HTML entities are escaped in the output
+    // HTML entities are escaped in the output - now using nested route format
     expect(html).toContain(
-      'src="/api/v1/files/by-path/content?path=img1.png&amp;workspace_id=1&amp;notebook_id=2"'
+      'src="/api/v1/workspaces/1/notebooks/2/files/by-path/content?path=img1.png"'
     )
     expect(html).toContain(
-      'src="/api/v1/files/by-path/content?path=img2.jpg&amp;workspace_id=1&amp;notebook_id=2"'
+      'src="/api/v1/workspaces/1/notebooks/2/files/by-path/content?path=img2.jpg"'
     )
   })
 })

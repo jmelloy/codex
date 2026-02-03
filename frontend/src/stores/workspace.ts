@@ -281,8 +281,8 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     fileLoading.value = true
     error.value = null
     try {
-      await fileService.delete(fileId, currentWorkspace.value.id)
       const notebookId = currentFile.value.notebook_id
+      await fileService.delete(fileId, currentWorkspace.value.id, notebookId)
       const filePath = currentFile.value.path
       currentFile.value = null
       isEditing.value = false

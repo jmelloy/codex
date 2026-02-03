@@ -42,11 +42,14 @@ class Workspace(SQLModel, table=True):
     """Workspace for organizing notebooks and files."""
 
     __tablename__ = "workspaces"  # type: ignore[assignment]
-    __table_args__ = (UniqueConstraint("owner_id", "slug", name="uq_workspaces_owner_slug"),)
+    __table_args__ = (
+        UniqueConstraint("owner_id", "slug", name="uq_workspaces_owner_slug"),
+        {"sqlite_autoincrement": True},
+    )
 
     id: int | None = Field(default=None, primary_key=True)
     name: str = Field(index=True)
-    slug: str = Field(index=True)  # URL-safe identifier (unique per owner)
+    slug: str = Field(index=True)  # URL-safe identifier, unique per owner
     path: str = Field(unique=True)  # Filesystem path
     owner_id: int = Field(foreign_key="users.id")
     theme_setting: str | None = Field(default="cream")  # User's preferred theme

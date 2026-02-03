@@ -440,9 +440,9 @@ export const pageService = {
 
 
 export const fileService = {
-  async list(notebookId: number, workspaceId: number): Promise<FileMetadata[]> {
+  async list(notebookId: number | string, workspaceId: number | string): Promise<FileMetadata[]> {
     const response = await apiClient.get<{ files: FileMetadata[]; pagination: any }>(
-      `/api/v1/files/?notebook_id=${notebookId}&workspace_id=${workspaceId}`
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/`
     )
     // For backwards compatibility, return just the files array
     // The frontend currently loads all files at once for the tree
@@ -453,9 +453,9 @@ export const fileService = {
    * Get file metadata (without content).
    * Use getContent() to fetch the file content separately.
    */
-  async get(id: number, workspaceId: number, notebookId: number): Promise<FileMetadata> {
+  async get(id: number, workspaceId: number | string, notebookId: number | string): Promise<FileMetadata> {
     const response = await apiClient.get<FileMetadata>(
-      `/api/v1/files/${id}?workspace_id=${workspaceId}&notebook_id=${notebookId}`
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/${id}`
     )
     return response.data
   },
@@ -465,9 +465,9 @@ export const fileService = {
    * For markdown files, returns body content without frontmatter.
    * For view files (.cdx), returns raw content including frontmatter.
    */
-  async getContent(id: number, workspaceId: number, notebookId: number): Promise<FileTextContent> {
+  async getContent(id: number, workspaceId: number | string, notebookId: number | string): Promise<FileTextContent> {
     const response = await apiClient.get<FileTextContent>(
-      `/api/v1/files/${id}/text?workspace_id=${workspaceId}&notebook_id=${notebookId}`
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/${id}/text`
     )
     return response.data
   },
@@ -477,10 +477,10 @@ export const fileService = {
    * Supports exact path match or filename-only search.
    * Use getContentByPath() to fetch content separately.
    */
-  async getByPath(path: string, workspaceId: number, notebookId: number): Promise<FileMetadata> {
+  async getByPath(path: string, workspaceId: number | string, notebookId: number | string): Promise<FileMetadata> {
     const encodedPath = encodeURIComponent(path)
     const response = await apiClient.get<FileMetadata>(
-      `/api/v1/files/by-path?path=${encodedPath}&workspace_id=${workspaceId}&notebook_id=${notebookId}`
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/by-path?path=${encodedPath}`
     )
     return response.data
   },
@@ -490,12 +490,12 @@ export const fileService = {
    */
   async getContentByPath(
     path: string,
-    workspaceId: number,
-    notebookId: number
+    workspaceId: number | string,
+    notebookId: number | string
   ): Promise<FileTextContent> {
     const encodedPath = encodeURIComponent(path)
     const response = await apiClient.get<FileTextContent>(
-      `/api/v1/files/by-path/text?path=${encodedPath}&workspace_id=${workspaceId}&notebook_id=${notebookId}`
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/by-path/text?path=${encodedPath}`
     )
     return response.data
   },
@@ -503,16 +503,16 @@ export const fileService = {
   /**
    * Get the content URL for a file by path (for binary files like images).
    */
-  getContentUrlByPath(path: string, workspaceId: number, notebookId: number): string {
+  getContentUrlByPath(path: string, workspaceId: number | string, notebookId: number | string): string {
     const encodedPath = encodeURIComponent(path)
-    return `/api/v1/files/by-path/content?path=${encodedPath}&workspace_id=${workspaceId}&notebook_id=${notebookId}`
+    return `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/by-path/content?path=${encodedPath}`
   },
 
   /**
    * Get the content URL for a file by ID (for binary files like images).
    */
-  getContentUrl(id: number, workspaceId: number, notebookId: number): string {
-    return `/api/v1/files/${id}/content?workspace_id=${workspaceId}&notebook_id=${notebookId}`
+  getContentUrl(id: number, workspaceId: number | string, notebookId: number | string): string {
+    return `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/${id}/content`
   },
 
   /**
@@ -520,12 +520,12 @@ export const fileService = {
    */
   async resolveLink(
     link: string,
-    workspaceId: number,
-    notebookId: number,
+    workspaceId: number | string,
+    notebookId: number | string,
     currentFilePath?: string
   ): Promise<FileMetadata & { resolved_path: string }> {
     const response = await apiClient.post<FileMetadata & { resolved_path: string }>(
-      `/api/v1/files/resolve-link?workspace_id=${workspaceId}&notebook_id=${notebookId}`,
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/resolve-link`,
       {
         link,
         current_file_path: currentFilePath,
@@ -535,24 +535,25 @@ export const fileService = {
   },
 
   async create(
-    notebookId: number,
-    workspaceId: number,
+    notebookId: number | string,
+    workspaceId: number | string,
     path: string,
     content: string
   ): Promise<FileMetadata> {
-    const response = await apiClient.post<FileMetadata>("/api/v1/files/", {
-      notebook_id: notebookId,
-      workspace_id: workspaceId,
-      path,
-      content,
-    })
+    const response = await apiClient.post<FileMetadata>(
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/`, 
+      {
+        path,
+        content,
+      }
+    )
     return response.data
   },
 
   async update(
     id: number,
-    workspaceId: number,
-    notebookId: number,
+    workspaceId: number | string,
+    notebookId: number | string,
     content?: string | null,
     properties?: Record<string, any>
   ): Promise<FileMetadata> {
@@ -566,19 +567,19 @@ export const fileService = {
       body.properties = properties
     }
     const response = await apiClient.put<FileMetadata>(
-      `/api/v1/files/${id}?workspace_id=${workspaceId}&notebook_id=${notebookId}`,
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/${id}`,
       body
     )
     return response.data
   },
 
-  async delete(id: number, workspaceId: number): Promise<void> {
-    await apiClient.delete(`/api/v1/files/${id}?workspace_id=${workspaceId}`)
+  async delete(id: number, workspaceId: number | string, notebookId: number | string): Promise<void> {
+    await apiClient.delete(`/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/${id}`)
   },
 
   async upload(
-    notebookId: number,
-    workspaceId: number,
+    notebookId: number | string,
+    workspaceId: number | string,
     file: File,
     path?: string
   ): Promise<FileMetadata> {
@@ -589,6 +590,7 @@ export const fileService = {
     if (path) {
       formData.append("path", path)
     }
+    // Note: This still uses old route since nested route not implemented yet
     const response = await apiClient.post<FileMetadata>("/api/v1/files/upload", formData, {
       headers: {
         "Content-Type": "multipart/form-data",
@@ -599,12 +601,12 @@ export const fileService = {
 
   async move(
     id: number,
-    workspaceId: number,
-    notebookId: number,
+    workspaceId: number | string,
+    notebookId: number | string,
     newPath: string
   ): Promise<FileMetadata> {
     const response = await apiClient.patch<FileMetadata>(
-      `/api/v1/files/${id}/move?workspace_id=${workspaceId}&notebook_id=${notebookId}`,
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/${id}/move`,
       { new_path: newPath }
     )
     return response.data
@@ -615,12 +617,12 @@ export const fileService = {
    */
   async getHistory(
     id: number,
-    workspaceId: number,
-    notebookId: number,
+    workspaceId: number | string,
+    notebookId: number | string,
     maxCount: number = 20
   ): Promise<FileHistory> {
     const response = await apiClient.get<FileHistory>(
-      `/api/v1/files/${id}/history?workspace_id=${workspaceId}&notebook_id=${notebookId}&max_count=${maxCount}`
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/${id}/history?max_count=${maxCount}`
     )
     return response.data
   },
@@ -630,10 +632,11 @@ export const fileService = {
    */
   async getAtCommit(
     id: number,
-    workspaceId: number,
-    notebookId: number,
+    workspaceId: number | string,
+    notebookId: number | string,
     commitHash: string
   ): Promise<FileAtCommit> {
+    // Note: This still uses old route since nested route not implemented yet
     const response = await apiClient.get<FileAtCommit>(
       `/api/v1/files/${id}/history/${commitHash}?workspace_id=${workspaceId}&notebook_id=${notebookId}`
     )
@@ -645,9 +648,9 @@ export const templateService = {
   /**
    * List available templates for a notebook.
    */
-  async list(notebookId: number, workspaceId: number): Promise<Template[]> {
+  async list(notebookId: number | string, workspaceId: number | string): Promise<Template[]> {
     const response = await apiClient.get<{ templates: Template[] }>(
-      `/api/v1/files/templates?notebook_id=${notebookId}&workspace_id=${workspaceId}`
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/templates`
     )
     return response.data.templates
   },
@@ -656,11 +659,12 @@ export const templateService = {
    * Create a file from a template.
    */
   async createFromTemplate(
-    notebookId: number,
-    workspaceId: number,
+    notebookId: number | string,
+    workspaceId: number | string,
     templateId: string,
     filename?: string
   ): Promise<FileMetadata> {
+    // Note: This still uses old route since nested route not implemented yet
     const response = await apiClient.post<FileMetadata>("/api/v1/files/from-template", {
       notebook_id: notebookId,
       workspace_id: workspaceId,
@@ -712,8 +716,9 @@ export const folderService = {
    * Get folder metadata and contents.
    * The folder metadata is stored in a .file within the folder.
    */
-  async get(path: string, notebookId: number, workspaceId: number): Promise<FolderWithFiles> {
+  async get(path: string, notebookId: number | string, workspaceId: number | string): Promise<FolderWithFiles> {
     const encodedPath = encodeURIComponent(path)
+    // Note: This still uses old route since nested route not implemented yet
     const response = await apiClient.get<FolderWithFiles>(
       `/api/v1/folders/${encodedPath}?notebook_id=${notebookId}&workspace_id=${workspaceId}`
     )
@@ -726,11 +731,12 @@ export const folderService = {
    */
   async updateProperties(
     path: string,
-    notebookId: number,
-    workspaceId: number,
+    notebookId: number | string,
+    workspaceId: number | string,
     properties: Record<string, any>
   ): Promise<FolderMetadata> {
     const encodedPath = encodeURIComponent(path)
+    // Note: This still uses old route since nested route not implemented yet
     const response = await apiClient.put<FolderMetadata>(
       `/api/v1/folders/${encodedPath}?notebook_id=${notebookId}&workspace_id=${workspaceId}`,
       { properties }
@@ -741,8 +747,9 @@ export const folderService = {
   /**
    * Delete a folder and all its contents.
    */
-  async delete(path: string, notebookId: number, workspaceId: number): Promise<void> {
+  async delete(path: string, notebookId: number | string, workspaceId: number | string): Promise<void> {
     const encodedPath = encodeURIComponent(path)
+    // Note: This still uses old route since nested route not implemented yet
     await apiClient.delete(
       `/api/v1/folders/${encodedPath}?notebook_id=${notebookId}&workspace_id=${workspaceId}`
     )
@@ -750,12 +757,14 @@ export const folderService = {
 }
 
 export const searchService = {
-  async search(workspaceId: number, query: string): Promise<any> {
+  async search(workspaceId: number | string, query: string): Promise<any> {
+    // Note: This still uses old route since nested route not implemented yet
     const response = await apiClient.get(`/api/v1/search/?workspace_id=${workspaceId}&q=${query}`)
     return response.data
   },
 
-  async searchByTags(workspaceId: number, tags: string[]): Promise<any> {
+  async searchByTags(workspaceId: number | string, tags: string[]): Promise<any> {
+    // Note: This still uses old route since nested route not implemented yet
     const response = await apiClient.get(
       `/api/v1/search/tags?workspace_id=${workspaceId}&tags=${tags.join(",")}`
     )

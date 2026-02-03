@@ -29,9 +29,9 @@ def setup_workspace_and_notebook(test_client, headers, temp_workspace_dir):
     assert ws_response.status_code == 200
     workspace = ws_response.json()
 
-    # Create notebook using nested route
+    # Create notebook using nested route with slug
     nb_response = test_client.post(
-        f"/api/v1/workspaces/{workspace['id']}/notebooks/",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/",
         json={"name": "Test Notebook"},
         headers=headers,
     )
@@ -42,13 +42,11 @@ def setup_workspace_and_notebook(test_client, headers, temp_workspace_dir):
 
 
 def create_folder_with_files(test_client, headers, workspace, notebook, folder_path, num_files=3):
-    """Helper to create a folder with files."""
+    """Helper to create a folder with files using nested routes."""
     for i in range(num_files):
         test_client.post(
-            "/api/v1/files/",
+            f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/files/",
             json={
-                "notebook_id": notebook["id"],
-                "workspace_id": workspace["id"],
                 "path": f"{folder_path}/file_{i}.md",
                 "content": f"# File {i}",
             },
@@ -64,10 +62,8 @@ def test_get_root_folder(test_client, temp_workspace_dir):
     # Create some files in root
     for i in range(2):
         test_client.post(
-            "/api/v1/files/",
+            f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/files/",
             json={
-                "notebook_id": notebook["id"],
-                "workspace_id": workspace["id"],
                 "path": f"root_file_{i}.md",
                 "content": f"# Root File {i}",
             },
@@ -135,10 +131,8 @@ def test_folder_with_subfolders(test_client, temp_workspace_dir):
 
     # Create files in parent folder
     test_client.post(
-        "/api/v1/files/",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/files/",
         json={
-            "notebook_id": notebook["id"],
-            "workspace_id": workspace["id"],
             "path": "parent/file.md",
             "content": "# Parent File",
         },
@@ -147,10 +141,8 @@ def test_folder_with_subfolders(test_client, temp_workspace_dir):
 
     # Create files in subfolders
     test_client.post(
-        "/api/v1/files/",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/files/",
         json={
-            "notebook_id": notebook["id"],
-            "workspace_id": workspace["id"],
             "path": "parent/child1/file.md",
             "content": "# Child 1 File",
         },
@@ -158,10 +150,8 @@ def test_folder_with_subfolders(test_client, temp_workspace_dir):
     )
 
     test_client.post(
-        "/api/v1/files/",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/files/",
         json={
-            "notebook_id": notebook["id"],
-            "workspace_id": workspace["id"],
             "path": "parent/child2/file.md",
             "content": "# Child 2 File",
         },
@@ -220,10 +210,8 @@ def test_update_folder_properties(test_client, temp_workspace_dir):
 
     # Create folder with a file
     test_client.post(
-        "/api/v1/files/",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/files/",
         json={
-            "notebook_id": notebook["id"],
-            "workspace_id": workspace["id"],
             "path": "props_folder/file.md",
             "content": "# File",
         },
@@ -297,10 +285,8 @@ def test_delete_nested_folder(test_client, temp_workspace_dir):
 
     # Create nested structure
     test_client.post(
-        "/api/v1/files/",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/files/",
         json={
-            "notebook_id": notebook["id"],
-            "workspace_id": workspace["id"],
             "path": "outer/inner/deep/file.md",
             "content": "# Deep File",
         },
@@ -374,10 +360,8 @@ def test_folder_timestamps(test_client, temp_workspace_dir):
 
     # Create folder
     test_client.post(
-        "/api/v1/files/",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/files/",
         json={
-            "notebook_id": notebook["id"],
-            "workspace_id": workspace["id"],
             "path": "timed_folder/file.md",
             "content": "# File",
         },

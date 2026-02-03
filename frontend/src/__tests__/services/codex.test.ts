@@ -123,7 +123,7 @@ describe("Codex Services", () => {
 
       const result = await fileService.list(1, 1)
 
-      expect(apiClient.get).toHaveBeenCalledWith("/api/v1/files/?notebook_id=1&workspace_id=1")
+      expect(apiClient.get).toHaveBeenCalledWith("/api/v1/workspaces/1/notebooks/1/files/")
       expect(result).toEqual([mockFile])
     })
 
@@ -141,7 +141,7 @@ describe("Codex Services", () => {
 
       const result = await fileService.get(1, 1, 1)
 
-      expect(apiClient.get).toHaveBeenCalledWith("/api/v1/files/1?workspace_id=1&notebook_id=1")
+      expect(apiClient.get).toHaveBeenCalledWith("/api/v1/workspaces/1/notebooks/1/files/1")
       expect(result).toEqual(mockFile)
     })
 
@@ -151,7 +151,7 @@ describe("Codex Services", () => {
 
       const result = await fileService.getContent(1, 1, 1)
 
-      expect(apiClient.get).toHaveBeenCalledWith("/api/v1/files/1/text?workspace_id=1&notebook_id=1")
+      expect(apiClient.get).toHaveBeenCalledWith("/api/v1/workspaces/1/notebooks/1/files/1/text")
       expect(result).toEqual(mockContent)
     })
 
@@ -161,7 +161,7 @@ describe("Codex Services", () => {
       await fileService.getByPath("folder/test file.md", 1, 1)
 
       expect(apiClient.get).toHaveBeenCalledWith(
-        "/api/v1/files/by-path?path=folder%2Ftest%20file.md&workspace_id=1&notebook_id=1"
+        "/api/v1/workspaces/1/notebooks/1/files/by-path?path=folder%2Ftest%20file.md"
       )
     })
 
@@ -172,7 +172,7 @@ describe("Codex Services", () => {
       await fileService.getContentByPath("folder/test.md", 1, 1)
 
       expect(apiClient.get).toHaveBeenCalledWith(
-        "/api/v1/files/by-path/text?path=folder%2Ftest.md&workspace_id=1&notebook_id=1"
+        "/api/v1/workspaces/1/notebooks/1/files/by-path/text?path=folder%2Ftest.md"
       )
     })
 
@@ -180,14 +180,14 @@ describe("Codex Services", () => {
       const url = fileService.getContentUrlByPath("folder/test.png", 1, 1)
 
       expect(url).toBe(
-        "/api/v1/files/by-path/content?path=folder%2Ftest.png&workspace_id=1&notebook_id=1"
+        "/api/v1/workspaces/1/notebooks/1/files/by-path/content?path=folder%2Ftest.png"
       )
     })
 
     it("returns content URL by id", () => {
       const url = fileService.getContentUrl(1, 2, 3)
 
-      expect(url).toBe("/api/v1/files/1/content?workspace_id=2&notebook_id=3")
+      expect(url).toBe("/api/v1/workspaces/2/notebooks/3/files/1/content")
     })
 
     it("resolves a link to a file", async () => {
@@ -197,7 +197,7 @@ describe("Codex Services", () => {
       const result = await fileService.resolveLink("test.md", 1, 1, "current/path.md")
 
       expect(apiClient.post).toHaveBeenCalledWith(
-        "/api/v1/files/resolve-link?workspace_id=1&notebook_id=1",
+        "/api/v1/workspaces/1/notebooks/1/files/resolve-link",
         {
           link: "test.md",
           current_file_path: "current/path.md",
@@ -211,9 +211,7 @@ describe("Codex Services", () => {
 
       const result = await fileService.create(1, 1, "new.md", "# New file")
 
-      expect(apiClient.post).toHaveBeenCalledWith("/api/v1/files/", {
-        notebook_id: 1,
-        workspace_id: 1,
+      expect(apiClient.post).toHaveBeenCalledWith("/api/v1/workspaces/1/notebooks/1/files/", {
         path: "new.md",
         content: "# New file",
       })
@@ -225,7 +223,7 @@ describe("Codex Services", () => {
 
       const result = await fileService.update(1, 1, 1, "updated content", { tag: "test" })
 
-      expect(apiClient.put).toHaveBeenCalledWith("/api/v1/files/1?workspace_id=1&notebook_id=1", {
+      expect(apiClient.put).toHaveBeenCalledWith("/api/v1/workspaces/1/notebooks/1/files/1", {
         content: "updated content",
         properties: { tag: "test" },
       })
@@ -237,7 +235,7 @@ describe("Codex Services", () => {
 
       await fileService.update(1, 1, 1, null, { tag: "test" })
 
-      expect(apiClient.put).toHaveBeenCalledWith("/api/v1/files/1?workspace_id=1&notebook_id=1", {
+      expect(apiClient.put).toHaveBeenCalledWith("/api/v1/workspaces/1/notebooks/1/files/1", {
         properties: { tag: "test" },
       })
     })
@@ -247,7 +245,7 @@ describe("Codex Services", () => {
 
       await fileService.update(1, 1, 1, "new content", undefined)
 
-      expect(apiClient.put).toHaveBeenCalledWith("/api/v1/files/1?workspace_id=1&notebook_id=1", {
+      expect(apiClient.put).toHaveBeenCalledWith("/api/v1/workspaces/1/notebooks/1/files/1", {
         content: "new content",
       })
     })
@@ -255,9 +253,9 @@ describe("Codex Services", () => {
     it("deletes a file", async () => {
       ;(apiClient.delete as Mock).mockResolvedValue({})
 
-      await fileService.delete(1, 1)
+      await fileService.delete(1, 1, 1)
 
-      expect(apiClient.delete).toHaveBeenCalledWith("/api/v1/files/1?workspace_id=1")
+      expect(apiClient.delete).toHaveBeenCalledWith("/api/v1/workspaces/1/notebooks/1/files/1")
     })
 
     it("uploads a file with form data", async () => {
@@ -293,7 +291,7 @@ describe("Codex Services", () => {
       const result = await fileService.move(1, 1, 1, "new/path.md")
 
       expect(apiClient.patch).toHaveBeenCalledWith(
-        "/api/v1/files/1/move?workspace_id=1&notebook_id=1",
+        "/api/v1/workspaces/1/notebooks/1/files/1/move",
         { new_path: "new/path.md" }
       )
       expect(result).toEqual(movedFile)
@@ -310,7 +308,7 @@ describe("Codex Services", () => {
       const result = await fileService.getHistory(1, 1, 1, 10)
 
       expect(apiClient.get).toHaveBeenCalledWith(
-        "/api/v1/files/1/history?workspace_id=1&notebook_id=1&max_count=10"
+        "/api/v1/workspaces/1/notebooks/1/files/1/history?max_count=10"
       )
       expect(result).toEqual(mockHistory)
     })
@@ -322,7 +320,7 @@ describe("Codex Services", () => {
       await fileService.getHistory(1, 1, 1)
 
       expect(apiClient.get).toHaveBeenCalledWith(
-        "/api/v1/files/1/history?workspace_id=1&notebook_id=1&max_count=20"
+        "/api/v1/workspaces/1/notebooks/1/files/1/history?max_count=20"
       )
     })
 
@@ -355,7 +353,7 @@ describe("Codex Services", () => {
       const result = await templateService.list(1, 1)
 
       expect(apiClient.get).toHaveBeenCalledWith(
-        "/api/v1/files/templates?notebook_id=1&workspace_id=1"
+        "/api/v1/workspaces/1/notebooks/1/files/templates"
       )
       expect(result).toEqual(mockTemplates)
     })

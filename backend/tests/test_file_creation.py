@@ -7,7 +7,7 @@ def setup_test_user_and_notebook(test_client, temp_workspace_dir, username, emai
     """Helper function to set up a test user, workspace, and notebook.
     
     Returns:
-        tuple: (headers, workspace_id, notebook_id, notebook_path)
+        tuple: (headers, workspace, notebook, notebook_path)
     """
     # Register and login
     test_client.post(
@@ -24,38 +24,34 @@ def setup_test_user_and_notebook(test_client, temp_workspace_dir, username, emai
         "/api/v1/workspaces/", json={"name": workspace_name, "path": temp_workspace_dir}, headers=headers
     )
     assert workspace_response.status_code == 200
-    workspace_data = workspace_response.json()
-    workspace_id = workspace_data["id"]
-    actual_workspace_path = Path(workspace_data["path"])
+    workspace = workspace_response.json()
+    actual_workspace_path = Path(workspace["path"])
 
     # Create a notebook using nested route
     notebook_response = test_client.post(
-        f"/api/v1/workspaces/{workspace_id}/notebooks/", json={"name": notebook_name}, headers=headers
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/", json={"name": notebook_name}, headers=headers
     )
     assert notebook_response.status_code == 200
-    notebook_data = notebook_response.json()
-    notebook_id = notebook_data["id"]
-    notebook_path = actual_workspace_path / notebook_data["path"]
+    notebook = notebook_response.json()
+    notebook_path = actual_workspace_path / notebook["path"]
 
-    return headers, workspace_id, notebook_id, notebook_path
+    return headers, workspace, notebook, notebook_path
 
 
 def test_create_file_with_folder_path(test_client, temp_workspace_dir):
     """Test creating a file with a folder path creates the folder structure."""
-    headers, workspace_id, notebook_id, notebook_path = setup_test_user_and_notebook(
+    headers, workspace, notebook, notebook_path = setup_test_user_and_notebook(
         test_client, temp_workspace_dir, "testuser_file", "testfile@example.com",
         "Test Workspace", "Test Notebook"
     )
 
-    # Create a file with a folder path
+    # Create a file with a folder path using nested route
     file_path = "folder1/folder2/testfile.md"
     file_content = "# Test File\n\nThis is a test file in nested folders."
 
     file_response = test_client.post(
-        "/api/v1/files/",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/files/",
         json={
-            "notebook_id": notebook_id,
-            "workspace_id": workspace_id,
             "path": file_path,
             "content": file_content,
         },
@@ -87,20 +83,18 @@ def test_create_file_with_folder_path(test_client, temp_workspace_dir):
 
 def test_create_file_with_single_folder(test_client, temp_workspace_dir):
     """Test creating a file with a single folder path."""
-    headers, workspace_id, notebook_id, notebook_path = setup_test_user_and_notebook(
+    headers, workspace, notebook, notebook_path = setup_test_user_and_notebook(
         test_client, temp_workspace_dir, "testuser_single", "testsingle@example.com",
         "Test Workspace 2", "Test Notebook 2"
     )
 
-    # Create a file with a single folder path
+    # Create a file with a single folder path using nested route
     file_path = "docs/readme.md"
     file_content = "# README\n\nDocumentation file."
 
     file_response = test_client.post(
-        "/api/v1/files/",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/files/",
         json={
-            "notebook_id": notebook_id,
-            "workspace_id": workspace_id,
             "path": file_path,
             "content": file_content,
         },
@@ -125,20 +119,18 @@ def test_create_file_with_single_folder(test_client, temp_workspace_dir):
 
 def test_create_file_without_folder(test_client, temp_workspace_dir):
     """Test creating a file without a folder path (in the root)."""
-    headers, workspace_id, notebook_id, notebook_path = setup_test_user_and_notebook(
+    headers, workspace, notebook, notebook_path = setup_test_user_and_notebook(
         test_client, temp_workspace_dir, "testuser_root", "testroot@example.com",
         "Test Workspace 3", "Test Notebook 3"
     )
 
-    # Create a file in the root (no folder)
+    # Create a file in the root (no folder) using nested route
     file_path = "notes.md"
     file_content = "# Notes\n\nJust some notes."
 
     file_response = test_client.post(
-        "/api/v1/files/",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/files/",
         json={
-            "notebook_id": notebook_id,
-            "workspace_id": workspace_id,
             "path": file_path,
             "content": file_content,
         },

@@ -11,11 +11,11 @@ def setup_test_user_and_notebook(test_client, temp_workspace_dir, username, emai
     """
     # Register and login
     test_client.post(
-        "/api/register",
+        "/api/v1/users/register",
         json={"username": username, "email": email, "password": "testpass123"},
     )
 
-    login_response = test_client.post("/api/token", data={"username": username, "password": "testpass123"})
+    login_response = test_client.post("/api/v1/users/token", data={"username": username, "password": "testpass123"})
     token = login_response.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 

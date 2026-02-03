@@ -20,7 +20,7 @@ def test_weather_integration_is_loaded(client):
     username = f"testuser_weather_{int(time.time() * 1000)}"
     
     response = client.post(
-        "/api/register",
+        "/api/v1/users/register",
         json={
             "username": username,
             "email": f"{username}@example.com",
@@ -30,7 +30,7 @@ def test_weather_integration_is_loaded(client):
     assert response.status_code == 201
 
     response = client.post(
-        "/api/token", data={"username": username, "password": "testpass123"}
+        "/api/v1/users/token", data={"username": username, "password": "testpass123"}
     )
     assert response.status_code == 200
     token = response.json()["access_token"]
@@ -57,7 +57,7 @@ def test_weather_integration_details(client):
     username = f"testuser_weather_{int(time.time() * 1000)}"
     
     response = client.post(
-        "/api/register",
+        "/api/v1/users/register",
         json={
             "username": username,
             "email": f"{username}@example.com",
@@ -67,7 +67,7 @@ def test_weather_integration_details(client):
     assert response.status_code == 201
 
     response = client.post(
-        "/api/token", data={"username": username, "password": "testpass123"}
+        "/api/v1/users/token", data={"username": username, "password": "testpass123"}
     )
     assert response.status_code == 200
     token = response.json()["access_token"]
@@ -91,7 +91,7 @@ def test_weather_integration_blocks(client):
     username = f"testuser_weather_{int(time.time() * 1000)}"
     
     response = client.post(
-        "/api/register",
+        "/api/v1/users/register",
         json={
             "username": username,
             "email": f"{username}@example.com",
@@ -101,7 +101,7 @@ def test_weather_integration_blocks(client):
     assert response.status_code == 201
 
     response = client.post(
-        "/api/token", data={"username": username, "password": "testpass123"}
+        "/api/v1/users/token", data={"username": username, "password": "testpass123"}
     )
     assert response.status_code == 200
     token = response.json()["access_token"]

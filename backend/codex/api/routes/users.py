@@ -55,7 +55,7 @@ async def login(
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-@router.get("/users/me")
+@router.get("/me")
 async def read_users_me(current_user: User = Depends(get_current_active_user)) -> UserResponse:
     """Get current user information."""
     return UserResponse.model_validate(current_user)
@@ -92,7 +92,7 @@ async def register(user_data: UserCreate, session: AsyncSession = Depends(get_sy
     return UserResponse.model_validate(new_user)
 
 
-@router.patch("/users/me/theme")
+@router.patch("/me/theme")
 async def update_user_theme(
     body: ThemeUpdate,
     current_user: User = Depends(get_current_active_user),

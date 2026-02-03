@@ -9,15 +9,15 @@ Based on the URL_STRUCTURE_REFACTOR.md document, the target URL pattern is:
 
 ---
 
-## 1. USER ROUTES (`/api/...`)
+## 1. USER ROUTES (`/api/v1/users/...`)
 **File:** `backend/codex/api/routes/users.py`
 
 | Route | Method | Tested | Frontend | Fits Pattern | Recommendation |
 |-------|--------|--------|----------|--------------|----------------|
-| `/api/token` | POST | ✅ test_users.py | Not in codex.ts (uses api.ts directly) | N/A (auth) | **KEEP** - Auth endpoint, no refactor needed |
-| `/api/users/me` | GET | ✅ test_users.py | Not in codex.ts | N/A (auth) | **KEEP** - User profile endpoint |
-| `/api/register` | POST | ✅ test_registration.py | Not in codex.ts | N/A (auth) | **KEEP** - Registration endpoint |
-| `/api/users/me/theme` | PATCH | ❌ | ❌ | N/A (auth) | **KEEP** - User-level theme setting |
+| `/api/v1/users/token` | POST | ✅ test_users.py | Not in codex.ts (uses api.ts directly) | N/A (auth) | **KEEP** - Auth endpoint, no refactor needed |
+| `/api/v1/users/me` | GET | ✅ test_users.py | Not in codex.ts | N/A (auth) | **KEEP** - User profile endpoint |
+| `/api/v1/users/register` | POST | ✅ test_registration.py | Not in codex.ts | N/A (auth) | **KEEP** - Registration endpoint |
+| `/api/v1/users/me/theme` | PATCH | ❌ | ❌ | N/A (auth) | **KEEP** - User-level theme setting |
 
 ---
 

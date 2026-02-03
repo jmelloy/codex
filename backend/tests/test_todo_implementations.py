@@ -174,57 +174,9 @@ def test_file_endpoints(temp_workspace_dir):
     # Cleanup handled by fixture
 
 
-def test_markdown_file_operations(temp_workspace_dir):
-    """Test markdown file operations."""
-    headers = setup_test_user()
-
-    # Create a workspace
-    workspace_response = client.post(
-        "/api/v1/workspaces/", json={"name": "Markdown Test", "path": temp_workspace_dir}, headers=headers
-    )
-    workspace_id = workspace_response.json()["id"]
-
-    # Create a markdown file
-    response = client.post(
-        f"/api/v1/markdown/{workspace_id}/file",
-        json={"path": "test.md", "content": "# Test Content", "frontmatter": {"title": "Test", "author": "TestUser"}},
-        headers=headers,
-    )
-    assert response.status_code == 201
-
-    # List markdown files
-    response = client.get(f"/api/v1/markdown/{workspace_id}/files", headers=headers)
-    assert response.status_code == 200
-    files = response.json()
-    assert len(files) == 1
-    assert "test.md" in files[0]
-
-    # Get markdown file
-    response = client.get(f"/api/v1/markdown/{workspace_id}/file", params={"file_path": "test.md"}, headers=headers)
-    assert response.status_code == 200
-    file_data = response.json()
-    assert file_data["path"] == "test.md"
-    assert file_data["frontmatter"]["title"] == "Test"
-
-    # Update markdown file
-    response = client.put(
-        f"/api/v1/markdown/{workspace_id}/file",
-        json={
-            "path": "test.md",
-            "content": "# Updated Content",
-            "frontmatter": {"title": "Updated", "author": "TestUser"},
-        },
-        headers=headers,
-    )
-    assert response.status_code == 200
-
-    # Delete markdown file
-    response = client.delete(f"/api/v1/markdown/{workspace_id}/file", params={"file_path": "test.md"}, headers=headers)
-    assert response.status_code == 200
-
-    # Verify deletion
-    response = client.get(f"/api/v1/markdown/{workspace_id}/files", headers=headers)
-    assert response.status_code == 200
-    assert len(response.json()) == 0
-
     # Cleanup handled by fixture
+
+
+# test_markdown_file_operations was removed because all markdown endpoints
+# have been deleted from markdown.py as they were unused and redundant
+# with the files.py router which handles all file operations.

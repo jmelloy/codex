@@ -12,7 +12,7 @@ def setup_test_user(test_client):
     password = "testpass123"
 
     test_client.post("/api/v1/users/register", json={"username": username, "email": email, "password": password})
-    login_response = test_client.post("/api/token", data={"username": username, "password": password})
+    login_response = test_client.post("/api/v1/users/token", data={"username": username, "password": password})
     assert login_response.status_code == 200
     token = login_response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}, username

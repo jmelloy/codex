@@ -48,8 +48,6 @@ describe("MarkdownViewer", () => {
     })
 
     await flushPromises()
-    // Wait for any remaining async operations (like plugin loading)
-    await flushPromises()
 
     const html = wrapper.find(".markdown-content").html()
     expect(html).toContain("<pre>")

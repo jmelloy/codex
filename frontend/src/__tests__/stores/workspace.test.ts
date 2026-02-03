@@ -379,7 +379,7 @@ describe("Workspace Store", () => {
 
       await store.deleteFile(1)
 
-      expect(fileService.delete).toHaveBeenCalledWith(1, 1)
+      expect(fileService.delete).toHaveBeenCalledWith(1, 1, 1)
       expect(store.currentFile).toBeNull()
       expect(store.isEditing).toBe(false)
     })

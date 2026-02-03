@@ -414,6 +414,7 @@ async def seed_data():
                         notebook = Notebook(
                             workspace_id=workspace.id,
                             name=notebook_data["name"],
+                            slug=notebook_slug,
                             path=notebook_slug,
                             description=notebook_data.get("description"),
                         )

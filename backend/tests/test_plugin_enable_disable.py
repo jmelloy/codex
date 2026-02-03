@@ -43,10 +43,11 @@ async def test_workspace(session, test_user):
     """Create a test workspace."""
     import time
     
+    timestamp = int(time.time() * 1000)
     workspace = Workspace(
         name="Test Workspace",
-        slug="test-workspace",
-        path=f"/tmp/test-workspace-{int(time.time() * 1000)}",
+        slug=f"test-workspace-{timestamp}",
+        path=f"/tmp/test-workspace-{timestamp}",
         owner_id=test_user.id,
     )
     session.add(workspace)
@@ -58,11 +59,14 @@ async def test_workspace(session, test_user):
 @pytest.fixture
 async def test_notebook(session, test_workspace):
     """Create a test notebook."""
+    import time
+    
+    timestamp = int(time.time() * 1000)
     notebook = Notebook(
         workspace_id=test_workspace.id,
         name="Test Notebook",
-        slug="test-notebook",
-        path="test-notebook",
+        slug=f"test-notebook-{timestamp}",
+        path=f"test-notebook-{timestamp}",
     )
     session.add(notebook)
     await session.commit()
@@ -268,15 +272,20 @@ async def test_multiple_notebook_plugin_configs(
 ):
     """Test multiple notebooks with different plugin configs."""
     # Create two notebooks
+    import time
+    timestamp = int(time.time() * 1000)
+    
     notebook1 = Notebook(
         workspace_id=test_workspace.id,
         name="Notebook 1",
-        path="notebook-1",
+        slug=f"notebook-1-{timestamp}",
+        path=f"notebook-1-{timestamp}",
     )
     notebook2 = Notebook(
         workspace_id=test_workspace.id,
         name="Notebook 2",
-        path="notebook-2",
+        slug=f"notebook-2-{timestamp}",
+        path=f"notebook-2-{timestamp}",
     )
     session.add(notebook1)
     session.add(notebook2)

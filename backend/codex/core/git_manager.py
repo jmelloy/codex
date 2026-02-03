@@ -193,26 +193,6 @@ class GitManager:
                 logger.error(f"Error getting file at commit: {e}")
                 return None
 
-    def get_diff(self, filepath: str, commit_hash1: str, commit_hash2: str = "HEAD") -> str | None:
-        """Get diff between two commits for a file."""
-        if not self.repo:
-            return None
-
-        resolved_path = str(Path(filepath).resolve())
-        rel_path = os.path.relpath(resolved_path, self.notebook_path)
-
-        with git_lock_manager.lock(self.notebook_path):
-            try:
-                commit1 = self.repo.commit(commit_hash1)
-                commit2 = self.repo.commit(commit_hash2)
-                diff = commit1.diff(commit2, paths=rel_path, create_patch=True)
-                if diff:
-                    return diff[0].diff.decode("utf-8")
-                return None
-            except Exception as e:
-                logger.error(f"Error getting diff: {e}")
-                return None
-
     def auto_commit_on_change(self, filepath: str, sidecar: str | None = None) -> str | None:
         """Automatically commit a file when it changes."""
         if not self.repo:

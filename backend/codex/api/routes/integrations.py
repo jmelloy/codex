@@ -490,7 +490,8 @@ async def execute_integration_endpoint(
         )
 
         # Compute cache key for artifact storage
-        # Note: endpoint_id serves as the block identifier for cache key generation
+        # For /execute, we use endpoint_id in place of block_type to maintain
+        # consistency with /render's caching mechanism
         params_hash = _compute_parameters_hash(request_data.endpoint_id, request_data.parameters or {})
 
         # Get artifact path based on content type

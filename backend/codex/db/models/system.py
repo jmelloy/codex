@@ -95,6 +95,7 @@ class Notebook(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     workspace_id: int = Field(foreign_key="workspaces.id", index=True)
     name: str = Field(index=True)
+    slug: str = Field(index=True)  # URL-friendly slug for notebook (unique per workspace)
     path: str = Field(index=True)  # Relative path from workspace
     description: str | None = None
     created_at: datetime = Field(default_factory=utc_now)

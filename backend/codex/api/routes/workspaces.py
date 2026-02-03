@@ -87,10 +87,11 @@ async def create_workspace(
     workspace_path = base_path / base_slug
 
     # Handle collisions by checking both filesystem and database
+    final_slug = base_slug
     while workspace_path.exists() or await path_exists_in_db(session, str(workspace_path)):
         counter = uuid4().hex[:8]
-        slug = f"{base_slug}-{counter}"
-        workspace_path = base_path / slug
+        final_slug = f"{base_slug}-{counter}"
+        workspace_path = base_path / final_slug
 
     path = str(workspace_path)
 
@@ -98,7 +99,7 @@ async def create_workspace(
     workspace_dir = Path(path)
     workspace_dir.mkdir(parents=True, exist_ok=True)
 
-    workspace = Workspace(name=name, path=path, owner_id=current_user.id)
+    workspace = Workspace(name=name, slug=final_slug, path=path, owner_id=current_user.id)
     session.add(workspace)
     await session.commit()
     await session.refresh(workspace)

@@ -13,7 +13,7 @@
 
 **Tech Stack:**
 
-- **Backend**: Python 3.14+ with FastAPI, SQLAlchemy, SQLite, Alembic migrations
+- **Backend**: Python 3.12+ with FastAPI, SQLAlchemy, SQLite, Alembic migrations
 - **Frontend**: Vue.js 3, TypeScript, Vite
 - **CLI**: Click-based command-line interface
 - **Deployment**: Docker Compose with production/development configurations
@@ -25,7 +25,7 @@
 
 ### Python Backend
 
-**Python Version Required**: 3.14+ (3.14 in CI)
+**Python Version Required**: 3.12+ (3.12 in CI)
 
 **Installation Steps (Always run in this order):**
 
@@ -103,7 +103,7 @@ The project uses Alembic for database migrations. The migration system automatic
 
 ```
 /
-├── .github/workflows/test.yml    # CI: Python 3.14, pip install, pytest
+├── .github/workflows/test.yml    # CI: Python 3.12, pip install, pytest
 ├── backend/                       # Main Python package directory
 │   ├── api/                      # FastAPI application
 │   │   ├── main.py              # API entry point
@@ -156,7 +156,7 @@ The project uses Alembic for database migrations. The migration system automatic
 │   └── test_*.py                # Other test modules
 ├── scripts/mac/                 # macOS-specific scripts for window tracking
 ├── pyproject.toml               # Python package configuration and dependencies
-├── mise.toml                    # Development tool versions (Python 3.14, black)
+├── mise.toml                    # Development tool versions (Python 3.12, black)
 ├── build.sh                     # Build script (frontend build + pip install)
 ├── validate-docker.sh           # Docker validation script
 ├── docker-compose.yml           # Development Docker setup
@@ -167,7 +167,7 @@ The project uses Alembic for database migrations. The migration system automatic
 ### Key Configuration Files
 
 - **pyproject.toml**: Python dependencies, project metadata, ruff linting config, pytest config
-- **mise.toml**: Specifies Python 3.14 and black for development
+- **mise.toml**: Specifies Python 3.12 and black for development
 - **package.json**: Frontend dependencies and build scripts
 - **.gitignore**: Excludes `.lab/`, `frontend/dist/`, `frontend/node_modules/`, Python cache files
 
@@ -176,10 +176,10 @@ The project uses Alembic for database migrations. The migration system automatic
 **GitHub Actions** (`.github/workflows/test.yml`):
 
 - **Triggers**: Push/PR to main or develop branches, manual dispatch
-- **Environment**: Ubuntu latest, Python 3.14
+- **Environment**: Ubuntu latest, Python 3.12
 - **Steps**:
   1. Checkout code
-  2. Setup Python 3.14
+  2. Setup Python 3.12
   3. Install dependencies: `pip install -e ".[dev]"`
   4. Run tests: `pytest tests/ -v`
 - **Expected Result**: 251 tests pass, 63 deprecation warnings (these are acceptable)
@@ -242,7 +242,7 @@ codex <command> --help
 
 1. **Frontend ESLint**: No ESLint config file exists. Skip `npm run lint` or add configuration first.
 
-2. **Python 3.12 vs 3.14**: Local development may use Python 3.12, but CI uses 3.14. Both work fine.
+2. **Python 3.12**: Both local development and CI use Python 3.12.
 
 3. **Docker Build Context**: When building, the frontend must be built separately inside its Dockerfile (see Dockerfile.dev.frontend).
 

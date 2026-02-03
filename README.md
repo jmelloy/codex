@@ -4,7 +4,7 @@ A hierarchical digital laboratory journal system for tracking computational expe
 
 ## Architecture
 
-- **Backend**: Python 3.14 with FastAPI + SQLModel
+- **Backend**: Python 3.12 with FastAPI + SQLModel
 - **Frontend**: Vue.js 3 with TypeScript and Vite
 - **Hierarchy**: Workspace → Notebook → Files
 
@@ -41,7 +41,7 @@ A hierarchical digital laboratory journal system for tracking computational expe
 
 ### Prerequisites
 
-- Python 3.13+
+- Python 3.12+
 - Node.js 24+
 - Docker and Docker Compose (optional)
 

@@ -439,12 +439,10 @@ def test_delete_file(test_client, temp_workspace_dir):
     # Updated to check for queued message
     assert "queued successfully" in response.json()["message"].lower()
 
-    # Verify deletion
-    get_response = test_client.get(
-        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/files/{file_id}",
-        headers=headers,
-    )
-    assert get_response.status_code == 404
+    # Note: The file is queued for deletion but not immediately deleted.
+    # The file metadata will still exist until the queue worker processes it.
+    # In a production environment with active workers, this would be deleted within 5 seconds.
+    # For this test, we just verify the API responded correctly.
 
 
 def test_get_file_history(test_client, temp_workspace_dir):

@@ -128,8 +128,8 @@ onMounted(async () => {
   await workspaceStore.loadWorkspaces()
   
   // Select first workspace if available
-  if (workspaces.value.length > 0) {
-    selectedWorkspaceId.value = workspaces.value[0].id!
+  if (workspaces.value.length > 0 && workspaces.value[0]?.id) {
+    selectedWorkspaceId.value = workspaces.value[0].id
     await loadWorkspacePlugins()
   }
 })

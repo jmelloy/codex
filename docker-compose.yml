@@ -1,15 +1,4 @@
 services:
-  # Plugins watcher - rebuilds Vue components on file changes (development)
-  plugins-watcher:
-    image: node:25-slim
-    working_dir: /plugins
-    volumes:
-      - ./plugins:/plugins
-    command: sh -c "npm install && npm run build:watch"
-    restart: unless-stopped
-    profiles:
-      - dev
-
   backend:
     build:
       context: ./backend

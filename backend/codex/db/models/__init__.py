@@ -19,6 +19,7 @@ from .base import utc_now
 # Re-export notebook models
 from .notebook import (
     FileMetadata,
+    FileSystemEvent,
     FileTag,
     SearchIndex,
     Tag,
@@ -59,4 +60,5 @@ __all__ = [
     "Tag",
     "FileTag",
     "SearchIndex",
+    "FileSystemEvent",
 ]

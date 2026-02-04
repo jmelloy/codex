@@ -106,7 +106,7 @@ class FileSystemEvent(SQLModel, table=True):
     event_type: str = Field(index=True)  # 'create', 'modify', 'delete', 'move'
     file_path: str  # Source path for the operation
     new_path: str | None = None  # Target path for move operations
-    metadata: str | None = None  # JSON-encoded additional data
+    event_metadata: str | None = None  # JSON-encoded additional data (renamed from metadata to avoid SQLAlchemy conflict)
     status: str = Field(default="pending", index=True)  # 'pending', 'processing', 'completed', 'failed'
     error_message: str | None = None  # Error details if status is 'failed'
     created_at: datetime = Field(default_factory=utc_now, index=True)

@@ -250,11 +250,11 @@ class EventQueueWorker:
         """Handle a create operation."""
         # Parse metadata from event
         metadata = {}
-        if event.metadata:
+        if event.event_metadata:
             try:
-                metadata = json.loads(event.metadata)
+                metadata = json.loads(event.event_metadata)
             except json.JSONDecodeError:
-                logger.warning(f"Failed to parse event metadata: {event.metadata}")
+                logger.warning(f"Failed to parse event metadata: {event.event_metadata}")
         
         # The file should already exist on disk (created by the API endpoint)
         # This handler just ensures the database is updated

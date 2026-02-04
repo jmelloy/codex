@@ -30,7 +30,7 @@ def upgrade() -> None:
         sa.Column("event_type", sa.String(), nullable=False),
         sa.Column("file_path", sa.String(), nullable=False),
         sa.Column("new_path", sa.String(), nullable=True),
-        sa.Column("metadata", sa.String(), nullable=True),
+        sa.Column("event_metadata", sa.String(), nullable=True),
         sa.Column("status", sa.String(), nullable=False),
         sa.Column("error_message", sa.String(), nullable=True),
         sa.Column("created_at", sa.DateTime(), nullable=False),

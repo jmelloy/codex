@@ -229,7 +229,15 @@ class NotebookFileHandler(FileSystemEventHandler):
                 self.callback(filepath, event_type)
 
         except Exception as e:
-            logger.error(f"Error updating metadata for {filepath}: {e}", exc_info=True)
+            # Check if this is a database table missing error (e.g., during test cleanup)
+            error_msg = str(e)
+            if "no such table" in error_msg or "OperationalError" in str(type(e)):
+                # Database or table has been removed (e.g., during test cleanup)
+                # This is expected in some scenarios, so just log at debug level
+                logger.debug(f"Database table not found for {filepath}, likely during cleanup: {e}")
+            else:
+                # Unexpected error - log at error level
+                logger.error(f"Error updating metadata for {filepath}: {e}", exc_info=True)
         finally:
             if session:
                 session.close()

@@ -728,7 +728,9 @@ async def list_templates_nested(
         workspace_identifier, notebook_identifier, current_user, session
     )
 
-    defaults = get_default_templates(request.app.state.plugin_loader)
+    # Get plugin_loader if available (may not be in test environment)
+    plugin_loader = getattr(request.app.state, 'plugin_loader', None)
+    defaults = get_default_templates(plugin_loader) if plugin_loader else []
     defaults_with_source = add_template_source(defaults)
 
     templates_dir = notebook_path / ".templates"

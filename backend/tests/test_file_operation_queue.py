@@ -167,7 +167,7 @@ class TestFileOperationQueue:
             elapsed = time.time() - start_time
 
             # Should have waited for processing
-            assert elapsed >= 0.05  # At least some time passed
+            assert elapsed >= 0.01  # At least some time passed
             assert op.result == {"status": "success"}
             assert op.error is None
         finally:

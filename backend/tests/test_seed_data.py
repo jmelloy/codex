@@ -101,30 +101,53 @@ async def test_seed_creates_markdown_files():
     """Test that seed_data creates markdown files in notebooks."""
     await init_system_db()
 
-    # Clean up any existing test data first to ensure fresh creation
+    # Clean up and re-seed to ensure fresh data
     await clean_test_data()
-
-    # Run seed script
     await seed_data()
 
-    # Verify markdown files exist
-    workspace_dirs = Path("workspaces").glob("*")
-    found_files = False
+    # Verify that seed data users and their workspaces exist
+    async for session in get_system_session():
+        try:
+            # Check the first test user
+            user_data = TEST_USERS[0]
+            result = await session.execute(select(User).where(User.username == user_data["username"]))
+            user = result.scalar_one_or_none()
+            assert user is not None, f"Test user '{user_data['username']}' not found after seeding"
 
-    for workspace_dir in workspace_dirs:
-        if workspace_dir.is_dir():
-            notebook_dirs = workspace_dir.glob("*")
-            for notebook_dir in notebook_dirs:
-                if notebook_dir.is_dir() and not notebook_dir.name.startswith("."):
-                    md_files = list(notebook_dir.glob("*.md"))
-                    if md_files:
-                        found_files = True
-                        # Verify file has content
-                        content = md_files[0].read_text()
-                        assert len(content) > 0
-                        assert "---" in content  # Check for frontmatter
+            # Get user's workspaces
+            result = await session.execute(select(Workspace).where(Workspace.owner_id == user.id))
+            workspaces = result.scalars().all()
+            assert len(workspaces) > 0, f"No workspaces found for user '{user.username}' after seeding"
 
-    assert found_files, "No markdown files found in notebooks"
+            # Check for notebooks and files
+            found_file_with_frontmatter = False
+            for workspace in workspaces:
+                workspace_path = Path(workspace.path)
+                if not workspace_path.exists():
+                    continue
+
+                # Get notebooks for this workspace
+                result = await session.execute(select(Notebook).where(Notebook.workspace_id == workspace.id))
+                notebooks = result.scalars().all()
+
+                for notebook in notebooks:
+                    notebook_path = workspace_path / notebook.path
+                    if notebook_path.exists():
+                        md_files = list(notebook_path.glob("*.md"))
+                        for md_file in md_files:
+                            if not md_file.name.startswith("."):
+                                content = md_file.read_text()
+                                if "---" in content:  # Has frontmatter
+                                    found_file_with_frontmatter = True
+                                    break
+                        if found_file_with_frontmatter:
+                            break
+                if found_file_with_frontmatter:
+                    break
+
+            assert found_file_with_frontmatter, f"No markdown files with frontmatter found for user '{user.username}' after clean seeding"
+        finally:
+            pass
 
 
 @pytest.mark.asyncio

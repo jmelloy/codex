@@ -24,7 +24,7 @@ from codex.api.routes import (
     users,
     workspaces,
 )
-from codex.core.watcher import NotebookWatcher
+from codex.core.watcher import NotebookWatcher, register_watcher, stop_all_watchers
 from codex.db.database import get_system_session_sync, init_notebook_db, init_system_db
 from codex.db.models import Notebook, Workspace
 from codex.plugins.loader import PluginLoader
@@ -32,14 +32,6 @@ from codex.plugins.loader import PluginLoader
 request_id_var: ContextVar[str] = ContextVar("request_id", default="")
 
 logger = logging.getLogger(__name__)
-
-# Global registry of active watchers
-_active_watchers: list[NotebookWatcher] = []
-
-
-def get_active_watchers() -> list[NotebookWatcher]:
-    """Get the list of active notebook watchers."""
-    return _active_watchers
 
 
 @asynccontextmanager
@@ -71,11 +63,7 @@ async def lifespan(app: FastAPI):
     yield
 
     # Stop all watchers on shutdown
-    for watcher in _active_watchers:
-        try:
-            watcher.stop()
-        except Exception as e:
-            logger.error(f"Error stopping watcher: {e}", exc_info=True)
+    stop_all_watchers()
 
 
 def _start_notebook_watchers_sync():
@@ -120,7 +108,7 @@ def _start_notebook_watchers_sync():
                 logger.info(f"Starting watcher for: {nb.name} (id={nb.id})")
                 watcher = NotebookWatcher(str(notebook_path), nb.id)
                 watcher.start()
-                _active_watchers.append(watcher)
+                register_watcher(watcher)
                 logger.info(f"Watcher started successfully for {nb.name}")
 
             except Exception as e:
@@ -128,7 +116,8 @@ def _start_notebook_watchers_sync():
     finally:
         session.close()
 
-    logger.info(f"Finished starting {len(_active_watchers)} watchers")
+    from codex.core.watcher import get_active_watchers
+    logger.info(f"Finished starting {len(get_active_watchers())} watchers")
 
 
 app = FastAPI(

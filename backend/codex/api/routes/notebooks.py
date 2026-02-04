@@ -405,8 +405,8 @@ async def get_notebook_indexing_status_nested(
     notebook = await get_notebook_by_slug_or_id(notebook_identifier, workspace, session)
     
     # Find the watcher for this notebook
-    from codex.main import get_active_watchers
-    
+    from codex.core.watcher import get_active_watchers
+
     for watcher in get_active_watchers():
         if watcher.notebook_id == notebook.id:
             return watcher.get_indexing_status()

@@ -8,10 +8,9 @@ import pytest
 from PIL import Image
 from sqlmodel import select
 
-from codex.core.watcher import NotebookFileHandler
+from codex.core.watcher import NotebookFileHandler, NotebookWatcher, get_watcher_for_notebook
 from codex.db.database import get_notebook_session, init_notebook_db
 from codex.db.models import FileMetadata
-
 
 @pytest.fixture
 def temp_notebook():
@@ -21,9 +20,18 @@ def temp_notebook():
     # Initialize the notebook database
     init_notebook_db(temp_dir)
     
-    yield temp_dir
+    watcher = NotebookWatcher(temp_dir, notebook_id=1)
+    watcher.queue.BATCH_INTERVAL = .1  # Speed up tests
+    watcher.start()
+
+    yield temp_dir, watcher
     
-    # Cleanup
+    # Cleanup - stop watcher first
+    try:
+        watcher.stop(queue_timeout=1.0)
+    except Exception:
+        pass
+    
     import shutil
     try:
         shutil.rmtree(temp_dir, ignore_errors=True)
@@ -33,19 +41,17 @@ def temp_notebook():
 
 def test_watcher_extracts_image_metadata(temp_notebook):
     """Test that the watcher extracts image metadata when scanning files."""
+    temp_dir, watcher = temp_notebook
     # Create a test image
-    img_path = os.path.join(temp_notebook, "test_photo.png")
+    img_path = os.path.join(temp_dir, "test_photo.png")
     img = Image.new("RGB", (1024, 768), color="blue")
     img.save(img_path, format="PNG")
     
-    # Create a file handler
-    handler = NotebookFileHandler(temp_notebook, notebook_id=1)
-    
-    # Trigger the file metadata update
-    handler._update_file_metadata(img_path, "created")
-    
+    # Wait for watcher to process (synchronously)
+    watcher.enqueue_operation(img_path, None, "created", wait=True)
+
     # Query the database to verify metadata was stored
-    session = get_notebook_session(temp_notebook)
+    session = get_notebook_session(temp_dir)
     try:
         result = session.execute(
             select(FileMetadata).where(
@@ -75,19 +81,16 @@ def test_watcher_extracts_image_metadata(temp_notebook):
 
 def test_watcher_extracts_jpeg_metadata(temp_notebook):
     """Test that the watcher extracts JPEG image metadata."""
+    temp_dir, watcher = temp_notebook
     # Create a test JPEG image
-    img_path = os.path.join(temp_notebook, "photo.jpg")
+    img_path = os.path.join(temp_dir, "photo.jpg")
     img = Image.new("RGB", (640, 480), color="red")
     img.save(img_path, format="JPEG")
     
-    # Create a file handler
-    handler = NotebookFileHandler(temp_notebook, notebook_id=1)
-    
-    # Trigger the file metadata update
-    handler._update_file_metadata(img_path, "created")
-    
+    # Wait for watcher to process (synchronously)
+    watcher.enqueue_operation(img_path, None, "created", wait=True)
     # Query the database to verify metadata was stored
-    session = get_notebook_session(temp_notebook)
+    session = get_notebook_session(temp_dir)
     try:
         result = session.execute(
             select(FileMetadata).where(
@@ -112,19 +115,17 @@ def test_watcher_extracts_jpeg_metadata(temp_notebook):
 
 def test_watcher_extracts_rgba_image_metadata(temp_notebook):
     """Test that the watcher extracts metadata from images with alpha channel."""
+    temp_dir, watcher = temp_notebook
     # Create a test image with alpha channel
-    img_path = os.path.join(temp_notebook, "transparent.png")
+    img_path = os.path.join(temp_dir, "transparent.png")
     img = Image.new("RGBA", (500, 300), color=(0, 255, 0, 128))
     img.save(img_path, format="PNG")
     
-    # Create a file handler
-    handler = NotebookFileHandler(temp_notebook, notebook_id=1)
-    
-    # Trigger the file metadata update
-    handler._update_file_metadata(img_path, "created")
+    # Wait for watcher to process (synchronously)
+    watcher.enqueue_operation(img_path, None, "created", wait=True)
     
     # Query the database to verify metadata was stored
-    session = get_notebook_session(temp_notebook)
+    session = get_notebook_session(temp_dir)
     try:
         result = session.execute(
             select(FileMetadata).where(
@@ -147,19 +148,17 @@ def test_watcher_extracts_rgba_image_metadata(temp_notebook):
 
 def test_watcher_non_image_no_image_metadata(temp_notebook):
     """Test that non-image files don't have image metadata."""
+    temp_dir, watcher = temp_notebook
     # Create a text file
-    text_path = os.path.join(temp_notebook, "document.txt")
+    text_path = os.path.join(temp_dir, "document.txt")
     with open(text_path, "w") as f:
         f.write("This is just text content")
     
-    # Create a file handler
-    handler = NotebookFileHandler(temp_notebook, notebook_id=1)
-    
-    # Trigger the file metadata update
-    handler._update_file_metadata(text_path, "created")
+    # Wait for watcher to process (synchronously)
+    watcher.enqueue_operation(text_path, None, "created", wait=True)
     
     # Query the database to verify metadata was stored
-    session = get_notebook_session(temp_notebook)
+    session = get_notebook_session(temp_dir)
     try:
         result = session.execute(
             select(FileMetadata).where(
@@ -183,13 +182,14 @@ def test_watcher_non_image_no_image_metadata(temp_notebook):
 
 def test_watcher_image_with_sidecar_metadata(temp_notebook):
     """Test that image metadata is combined with sidecar metadata."""
+    temp_dir, watcher = temp_notebook
     # Create a test image
-    img_path = os.path.join(temp_notebook, "artwork.png")
+    img_path = os.path.join(temp_dir, "artwork.png")
     img = Image.new("RGB", (800, 600), color="purple")
     img.save(img_path, format="PNG")
     
     # Create a sidecar file with additional metadata
-    sidecar_path = os.path.join(temp_notebook, "artwork.png.json")
+    sidecar_path = os.path.join(temp_dir, "artwork.png.json")
     with open(sidecar_path, "w") as f:
         json.dump({
             "title": "My Artwork",
@@ -197,14 +197,10 @@ def test_watcher_image_with_sidecar_metadata(temp_notebook):
             "artist": "Test Artist"
         }, f)
     
-    # Create a file handler
-    handler = NotebookFileHandler(temp_notebook, notebook_id=1)
-    
-    # Trigger the file metadata update
-    handler._update_file_metadata(img_path, "created")
-    
+    # Wait for watcher to process (synchronously)
+    watcher.enqueue_operation(img_path, sidecar_path, "created", wait=True)
     # Query the database to verify metadata was stored
-    session = get_notebook_session(temp_notebook)
+    session = get_notebook_session(temp_dir)
     try:
         result = session.execute(
             select(FileMetadata).where(

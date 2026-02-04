@@ -24,6 +24,8 @@ from codex.core.metadata import MetadataParser
 from codex.core.watcher import get_content_type
 from codex.db.database import get_notebook_session, get_system_session
 from codex.db.models import FileMetadata, Notebook, User, Workspace
+from codex.core.watcher import get_watcher_for_notebook
+
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -859,79 +861,76 @@ async def create_file_nested(
     path = request.path
     content = request.content
 
-    # Create the file
-    nb_session = get_notebook_session(str(notebook_path))
-    try:
-        file_path = notebook_path / path
+    file_path = notebook_path / path
 
-        # Check if file already exists
-        if file_path.exists():
-            raise HTTPException(status_code=400, detail="File already exists")
+    # Check if file already exists
+    if file_path.exists():
+        raise HTTPException(status_code=400, detail="File already exists")
 
-        # Create parent directories if needed
-        file_path.parent.mkdir(parents=True, exist_ok=True)
+    # Create parent directories if needed
+    file_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Determine content type before creating file
-        content_type = get_content_type(str(file_path))
+    # Write the file to disk first
+    with open(file_path, "w") as f:
+        f.write(content)
 
-        import hashlib
-        from datetime import datetime
+    # Check if we have an active watcher for this notebook
+    watcher = get_watcher_for_notebook(str(notebook_path))
 
-        # Create metadata record BEFORE writing file to prevent race with watcher
-        file_meta = FileMetadata(
-            notebook_id=notebook.id,
-            path=path,
-            filename=os.path.basename(path),
-            content_type=content_type,
-            size=0,  # Placeholder, will be updated
-            hash=hashlib.sha256(content.encode()).hexdigest(),
+    if watcher:
+        # Use the queue system - enqueue and wait for processing
+        from codex.core.metadata import MetadataParser
+
+        filepath, sidecar = MetadataParser.resolve_sidecar(str(file_path))
+        op = watcher.enqueue_operation(
+            filepath=filepath,
+            sidecar_path=sidecar,
+            operation="created",
+            comment=f"Create {os.path.basename(path)}",
+            wait=True,
         )
 
-        # Add and commit the metadata record first
-        nb_session.add(file_meta)
-        try:
+        if op.error:
+            logger.error(f"Error processing file creation: {op.error}")
+            raise HTTPException(status_code=500, detail=f"Error creating file: {str(op.error)}")
+
+    # Query the file metadata (either created by watcher or we create it now)
+    nb_session = get_notebook_session(str(notebook_path))
+    try:
+        # Query the file metadata
+        result = nb_session.execute(
+            select(FileMetadata).where(FileMetadata.notebook_id == notebook.id, FileMetadata.path == path)
+        )
+        file_meta = result.scalar_one_or_none()
+
+        if not file_meta:
+            # No watcher or watcher didn't create the record - create it manually
+            content_type = get_content_type(str(file_path))
+            file_stats = os.stat(file_path)
+
+            file_meta = FileMetadata(
+                notebook_id=notebook.id,
+                path=path,
+                filename=os.path.basename(path),
+                content_type=content_type,
+                size=file_stats.st_size,
+                hash=hashlib.sha256(content.encode()).hexdigest(),
+                file_created_at=datetime.fromtimestamp(file_stats.st_ctime),
+                file_modified_at=datetime.fromtimestamp(file_stats.st_mtime),
+            )
+            nb_session.add(file_meta)
+
+            # Commit file to git if no watcher
+            if not watcher:
+                git_manager = GitManager(str(notebook_path))
+                commit_hash = git_manager.commit(f"Create {os.path.basename(path)}", [str(file_path)])
+                if commit_hash:
+                    file_meta.last_commit_hash = commit_hash
+
             nb_session.commit()
             nb_session.refresh(file_meta)
-        except Exception as commit_error:
-            # Handle race condition: watcher may have created the record
-            nb_session.rollback()
-            if "UNIQUE constraint failed" in str(commit_error):
-                # Query for the existing record created by the watcher
-                existing_result = nb_session.execute(
-                    select(FileMetadata).where(FileMetadata.notebook_id == notebook.id, FileMetadata.path == path)
-                )
-                file_meta = existing_result.scalar_one_or_none()
-                if not file_meta:
-                    raise HTTPException(status_code=500, detail="Race condition: file metadata not found")
-            else:
-                raise
 
-        # Now write the file to disk
-        with open(file_path, "w") as f:
-            f.write(content)
-
-        # Refresh to get any updates the watcher may have made
-        nb_session.refresh(file_meta)
-
-        # Update metadata with actual file stats
-        file_stats = os.stat(file_path)
-        file_meta.size = file_stats.st_size
-        file_meta.file_created_at = datetime.fromtimestamp(file_stats.st_ctime)
-        file_meta.file_modified_at = datetime.fromtimestamp(file_stats.st_mtime)
-
-        # Commit file to git
-        from codex.core.git_manager import GitManager
-
-        git_manager = GitManager(str(notebook_path))
-        commit_hash = git_manager.commit(f"Create {os.path.basename(path)}", [str(file_path)])
-        if commit_hash:
-            file_meta.last_commit_hash = commit_hash
-
-        # Commit the updates
-        nb_session.commit()
-        nb_session.refresh(file_meta)
-
-        result = {
+        return {
             "id": file_meta.id,
             "notebook_id": file_meta.notebook_id,
             "path": file_meta.path,
@@ -940,8 +939,6 @@ async def create_file_nested(
             "size": file_meta.size,
             "message": "File created successfully",
         }
-
-        return result
     except HTTPException:
         raise
     except Exception as e:
@@ -1291,19 +1288,32 @@ async def update_file_nested(
             raise HTTPException(status_code=404, detail="File not found on disk")
 
         # Handle properties update
+        sidecar_path = None
         if properties is not None:
             if content and file_meta.content_type in ["text/markdown", "application/x-codex-view"]:
                 # Write frontmatter to file
                 content = MetadataParser.write_frontmatter(content, properties)
             else:
-                MetadataParser.write_sidecar(str(file_path), properties)
+                sidecar_path = MetadataParser.write_sidecar(str(file_path), properties)
 
         # Update content if provided
         if content is not None:
             with open(file_path, "w") as f:
                 f.write(content)
 
-        result = {
+        # Notify watcher queue if available
+        watcher = get_watcher_for_notebook(str(notebook_path))
+        if watcher and (content is not None or properties is not None):
+            filepath, resolved_sidecar = MetadataParser.resolve_sidecar(str(file_path))
+            watcher.enqueue_operation(
+                filepath=filepath,
+                sidecar_path=sidecar_path or resolved_sidecar,
+                operation="modified",
+                comment=f"Update {file_meta.filename}",
+                wait=False,  # Don't block - let queue batch it
+            )
+
+        return {
             "id": file_meta.id,
             "notebook_id": file_meta.notebook_id,
             "path": file_meta.path,
@@ -1317,8 +1327,6 @@ async def update_file_nested(
             "updated_at": file_meta.updated_at.isoformat() if file_meta.updated_at else None,
             "message": "File updated successfully",
         }
-
-        return result
     except HTTPException:
         raise
     except Exception as e:
@@ -1338,6 +1346,9 @@ async def move_file_nested(
     session: AsyncSession = Depends(get_system_session),
 ):
     """Move/rename a file (nested under workspace/notebook route)."""
+    import shutil
+    from codex.core.watcher import calculate_file_hash
+
     notebook_path, notebook, workspace = await get_notebook_path_nested(
         workspace_identifier, notebook_identifier, current_user, session
     )
@@ -1365,23 +1376,67 @@ async def move_file_nested(
         # Create parent directories if needed
         new_file_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Move the file on disk first
-        import shutil
+        # Capture file hash before move (for watcher move detection)
+        file_hash = None
+        try:
+            if old_path.exists():
+                file_hash = calculate_file_hash(str(old_path))
+        except Exception:
+            pass
+
+        # Move the file on disk
         shutil.move(str(old_path), str(new_file_path))
 
-        # Update metadata to match the new file location
-        file_meta.path = new_path
-        file_meta.filename = os.path.basename(new_path)
+        # Handle sidecar file
+        old_sidecar_path = None
+        new_sidecar_path = None
         if file_meta.sidecar_path:
-            new_sidecar_path = new_file_path.parent / Path(file_meta.sidecar_path).name
-            shutil.move(file_meta.sidecar_path, str(new_sidecar_path))
-            file_meta.sidecar_path = str(new_sidecar_path)
+            old_sidecar_abs = notebook_path / file_meta.sidecar_path
+            if old_sidecar_abs.exists():
+                old_sidecar_path = str(old_sidecar_abs)
+                new_sidecar_path = new_file_path.parent / Path(file_meta.sidecar_path).name
+                shutil.move(old_sidecar_path, str(new_sidecar_path))
 
+        # Check if we have an active watcher
+        watcher = get_watcher_for_notebook(str(notebook_path))
+
+        if watcher:
+            # Let the queue handle the move detection
+            # Enqueue delete (with hash) and create
+            watcher.enqueue_operation(
+                filepath=str(old_path),
+                sidecar_path=old_sidecar_path,
+                operation="deleted",
+                file_hash=file_hash,
+                wait=False,
+            )
+            dest_filepath, dest_sidecar = MetadataParser.resolve_sidecar(str(new_file_path))
+            watcher.enqueue_operation(
+                filepath=dest_filepath,
+                sidecar_path=str(new_sidecar_path) if new_sidecar_path else dest_sidecar,
+                operation="created",
+                comment=f"Move {file_meta.filename} to {new_path}",
+                wait=True,  # Wait for this one to ensure DB is updated
+            )
+        else:
+            # No watcher - update metadata directly
+            file_meta.path = new_path
+            file_meta.filename = os.path.basename(new_path)
+            if new_sidecar_path:
+                file_meta.sidecar_path = os.path.relpath(str(new_sidecar_path), str(notebook_path))
+            nb_session.commit()
+
+        # Re-query to get updated metadata
+        nb_session.expire_all()
+        result = nb_session.execute(
+            select(FileMetadata).where(FileMetadata.notebook_id == notebook.id, FileMetadata.path == new_path)
+        )
+        updated_meta = result.scalar_one_or_none()
 
         return {
-            "id": file_meta.id,
-            "path": file_meta.path,
-            "filename": file_meta.filename,
+            "id": updated_meta.id if updated_meta else file_meta.id,
+            "path": new_path,
+            "filename": os.path.basename(new_path),
             "message": "File moved successfully",
         }
 
@@ -1403,6 +1458,8 @@ async def delete_file_nested(
     session: AsyncSession = Depends(get_system_session),
 ):
     """Delete a file (nested under workspace/notebook route)."""
+    from sqlalchemy.orm.exc import StaleDataError
+
     notebook_path, notebook, workspace = await get_notebook_path_nested(
         workspace_identifier, notebook_identifier, current_user, session
     )
@@ -1421,30 +1478,42 @@ async def delete_file_nested(
         file_path = notebook_path / file_meta.path
         filename = file_meta.filename
 
-        # Delete the file from disk
-        if file_path.exists():
-            os.remove(file_path)
-
         # Delete sidecar file if it exists
         _, sidecar = MetadataParser.resolve_sidecar(str(file_path))
         if sidecar and Path(sidecar).exists():
             os.remove(sidecar)
             logger.debug(f"Deleted sidecar file: {sidecar}")
 
-        # Commit deletion to git first (before deleting from DB)
-        from codex.core.git_manager import GitManager
-        git_manager = GitManager(str(notebook_path))
-        git_manager.commit(f"Delete {filename}", [])
+        # Delete the file from disk
+        if file_path.exists():
+            os.remove(file_path)
 
-        # Delete from database (watcher may have already deleted it due to race condition)
-        from sqlalchemy.orm.exc import StaleDataError
-        nb_session.delete(file_meta)
-        
-        try:
-            nb_session.commit()
-        except StaleDataError:
-            # Watcher deleted the record before us - this is fine
-            nb_session.rollback()
+        # Check if we have an active watcher
+        watcher = get_watcher_for_notebook(str(notebook_path))
+
+        if watcher:
+            # Let the queue handle the deletion
+            op = watcher.enqueue_operation(
+                filepath=str(file_path),
+                sidecar_path=sidecar,
+                operation="deleted",
+                comment=f"Delete {filename}",
+                wait=True,
+            )
+            if op.error:
+                logger.warning(f"Error in watcher delete processing: {op.error}")
+        else:
+            # No watcher - handle directly
+            # Commit deletion to git
+            git_manager = GitManager(str(notebook_path))
+            git_manager.commit(f"Delete {filename}", [])
+
+            # Delete from database
+            nb_session.delete(file_meta)
+            try:
+                nb_session.commit()
+            except StaleDataError:
+                nb_session.rollback()
 
         return {"message": "File deleted successfully"}
     except HTTPException:

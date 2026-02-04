@@ -30,7 +30,9 @@ jobs:
         pip install -e ".[dev]"
     
     - name: Run tests
-      working-directory: backend  
+      working-directory: backend
+      env:
+        CODEX_PLUGINS_DIR: ${{ github.workspace }}/plugins
       run: |
         pytest -v --cov=. --cov-report=term-missing --cov-report=xml
 
@@ -69,4 +71,6 @@ jobs:
     
     - name: Build frontend
       working-directory: frontend
+      env:
+        PLUGINS_DIR: ${{ github.workspace }}/plugins
       run: npm run build

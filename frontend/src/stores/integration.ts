@@ -9,12 +9,12 @@ export const useIntegrationStore = defineStore("integration", () => {
 
   const availableIntegrations = computed(() => integrations.value)
 
-  async function loadIntegrations(workspaceId?: number) {
+  async function loadIntegrations(workspaceId: number | string, notebookId: number | string) {
     // Only load once unless there was an error
     if (integrationsLoaded.value && !integrationsLoadError.value) return
 
     try {
-      integrations.value = await listIntegrations(workspaceId)
+      integrations.value = await listIntegrations(workspaceId, notebookId)
       integrationsLoaded.value = true
       integrationsLoadError.value = false
     } catch (error) {
@@ -24,9 +24,19 @@ export const useIntegrationStore = defineStore("integration", () => {
     }
   }
 
-  async function toggleIntegrationEnabled(integrationId: string, workspaceId: number, enabled: boolean) {
+  async function toggleIntegrationEnabled(
+    integrationId: string,
+    workspaceId: number | string,
+    notebookId: number | string,
+    enabled: boolean
+  ) {
     try {
-      const updatedIntegration = await setIntegrationEnabled(integrationId, workspaceId, enabled)
+      const updatedIntegration = await setIntegrationEnabled(
+        integrationId,
+        workspaceId,
+        notebookId,
+        enabled
+      )
       
       // Update the integration in the local state
       const index = integrations.value.findIndex(i => i.id === integrationId)

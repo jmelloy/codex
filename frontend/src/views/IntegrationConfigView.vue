@@ -230,12 +230,24 @@ async function loadIntegration() {
 
     // Load existing config if workspace is available
     if (currentWorkspace.value?.id) {
-      const existingConfig = await getIntegrationConfig(
-        integrationId.value,
-        currentWorkspace.value.id
-      )
-      if (existingConfig.config) {
-        config.value = { ...config.value, ...existingConfig.config }
+      // Get notebook ID - use current notebook or first available notebook
+      let notebookId: number | undefined
+      
+      if (workspaceStore.currentNotebook) {
+        notebookId = workspaceStore.currentNotebook.id
+      } else if (workspaceStore.notebooks.length > 0) {
+        notebookId = workspaceStore.notebooks[0].id
+      }
+      
+      if (notebookId) {
+        const existingConfig = await getIntegrationConfig(
+          integrationId.value,
+          currentWorkspace.value.id,
+          notebookId
+        )
+        if (existingConfig.config) {
+          config.value = { ...config.value, ...existingConfig.config }
+        }
       }
     }
   } catch (err: any) {
@@ -272,6 +284,23 @@ async function handleSave() {
     return
   }
 
+  // Get notebook ID - use current notebook or first available notebook
+  let notebookId: number | undefined
+  
+  if (workspaceStore.currentNotebook) {
+    notebookId = workspaceStore.currentNotebook.id
+  } else if (workspaceStore.notebooks.length > 0) {
+    notebookId = workspaceStore.notebooks[0].id
+  }
+  
+  if (!notebookId) {
+    testResult.value = {
+      success: false,
+      message: 'No notebook available - please create a notebook first',
+    }
+    return
+  }
+
   saving.value = true
   testResult.value = null
 
@@ -279,6 +308,7 @@ async function handleSave() {
     await updateIntegrationConfig(
       integrationId.value,
       currentWorkspace.value.id,
+      notebookId,
       config.value
     )
     testResult.value = {

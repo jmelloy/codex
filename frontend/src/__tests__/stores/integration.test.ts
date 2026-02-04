@@ -39,9 +39,9 @@ describe("Integration Store", () => {
 
     vi.mocked(integrationService.listIntegrations).mockResolvedValue(mockIntegrations)
 
-    await store.loadIntegrations()
+    await store.loadIntegrations(1, 1)
 
-    expect(integrationService.listIntegrations).toHaveBeenCalled()
+    expect(integrationService.listIntegrations).toHaveBeenCalledWith(1, 1)
     expect(store.integrations).toEqual(mockIntegrations)
     expect(store.integrationsLoaded).toBe(true)
     expect(store.integrationsLoadError).toBe(false)
@@ -54,7 +54,7 @@ describe("Integration Store", () => {
       new Error("Network error")
     )
 
-    await store.loadIntegrations()
+    await store.loadIntegrations(1, 1)
 
     expect(store.integrations).toEqual([])
     expect(store.integrationsLoaded).toBe(false)
@@ -78,11 +78,11 @@ describe("Integration Store", () => {
     vi.mocked(integrationService.listIntegrations).mockResolvedValue(mockIntegrations)
 
     // First load
-    await store.loadIntegrations()
+    await store.loadIntegrations(1, 1)
     expect(integrationService.listIntegrations).toHaveBeenCalledTimes(1)
 
     // Second load should not call the service again
-    await store.loadIntegrations()
+    await store.loadIntegrations(1, 1)
     expect(integrationService.listIntegrations).toHaveBeenCalledTimes(1)
   })
 
@@ -93,7 +93,7 @@ describe("Integration Store", () => {
     vi.mocked(integrationService.listIntegrations).mockRejectedValueOnce(
       new Error("Network error")
     )
-    await store.loadIntegrations()
+    await store.loadIntegrations(1, 1)
     expect(store.integrationsLoadError).toBe(true)
 
     // Second attempt succeeds
@@ -109,7 +109,7 @@ describe("Integration Store", () => {
       },
     ]
     vi.mocked(integrationService.listIntegrations).mockResolvedValue(mockIntegrations)
-    await store.loadIntegrations()
+    await store.loadIntegrations(1, 1)
 
     expect(integrationService.listIntegrations).toHaveBeenCalledTimes(2)
     expect(store.integrations).toEqual(mockIntegrations)
@@ -182,9 +182,9 @@ describe("Integration Store", () => {
     vi.mocked(integrationService.setIntegrationEnabled).mockResolvedValue(updatedIntegration)
     
     // Toggle to disabled
-    await store.toggleIntegrationEnabled("test-integration", 1, false)
+    await store.toggleIntegrationEnabled("test-integration", 1, 1, false)
     
-    expect(integrationService.setIntegrationEnabled).toHaveBeenCalledWith("test-integration", 1, false)
+    expect(integrationService.setIntegrationEnabled).toHaveBeenCalledWith("test-integration", 1, 1, false)
     expect(store.integrations[0].enabled).toBe(false)
   })
 
@@ -209,14 +209,14 @@ describe("Integration Store", () => {
     
     // Should throw error
     await expect(
-      store.toggleIntegrationEnabled("test-integration", 1, false)
+      store.toggleIntegrationEnabled("test-integration", 1, 1, false)
     ).rejects.toThrow("API error")
     
     // State should remain unchanged
     expect(store.integrations[0].enabled).toBe(true)
   })
 
-  it("passes workspace_id when loading integrations", async () => {
+  it("passes workspace_id and notebook_id when loading integrations", async () => {
     const store = useIntegrationStore()
     const mockIntegrations = [
       {
@@ -232,9 +232,9 @@ describe("Integration Store", () => {
 
     vi.mocked(integrationService.listIntegrations).mockResolvedValue(mockIntegrations)
 
-    await store.loadIntegrations(123)
+    await store.loadIntegrations(123, 456)
 
-    expect(integrationService.listIntegrations).toHaveBeenCalledWith(123)
+    expect(integrationService.listIntegrations).toHaveBeenCalledWith(123, 456)
     expect(store.integrations).toEqual(mockIntegrations)
   })
 })

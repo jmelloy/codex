@@ -14,6 +14,9 @@ from codex.api.auth import get_current_active_user
 from codex.db.database import DATA_DIRECTORY, get_system_session
 from codex.db.models import PluginConfig, User, Workspace
 
+# Default plugin enabled state
+DEFAULT_PLUGIN_ENABLED = True
+
 
 class WorkspaceCreate(BaseModel):
     """Request body for creating a workspace."""
@@ -272,7 +275,7 @@ async def get_workspace_plugin_config(
     if not config:
         return {
             "plugin_id": plugin_id,
-            "enabled": True,  # Default to enabled if no config
+            "enabled": DEFAULT_PLUGIN_ENABLED,
             "config": {},
         }
     
@@ -327,7 +330,7 @@ async def update_workspace_plugin_config(
         config = PluginConfig(
             workspace_id=workspace.id,
             plugin_id=plugin_id,
-            enabled=request_data.enabled if request_data.enabled is not None else True,
+            enabled=request_data.enabled if request_data.enabled is not None else DEFAULT_PLUGIN_ENABLED,
             config=request_data.config if request_data.config is not None else {},
         )
         session.add(config)

@@ -172,6 +172,9 @@ const notebookPluginConfigs = ref<PluginConfig[]>([])
 const loadingPlugins = ref(false)
 const saveMessage = ref("")
 
+// Default plugin enabled state - matches backend DEFAULT_PLUGIN_ENABLED
+const DEFAULT_PLUGIN_ENABLED = true
+
 onMounted(async () => {
   await workspaceStore.loadWorkspaces()
   
@@ -231,7 +234,7 @@ async function loadNotebookPlugins() {
 
 function isWorkspacePluginEnabled(pluginId: string): boolean {
   const config = workspacePluginConfigs.value.find(c => c.plugin_id === pluginId)
-  return config ? config.enabled : true // Default to enabled
+  return config ? config.enabled : DEFAULT_PLUGIN_ENABLED
 }
 
 function hasNotebookOverride(pluginId: string): boolean {

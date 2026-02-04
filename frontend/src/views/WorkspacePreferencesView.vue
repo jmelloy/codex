@@ -124,6 +124,9 @@ const pluginConfigs = ref<PluginConfig[]>([])
 const loadingPlugins = ref(false)
 const saveMessage = ref("")
 
+// Default plugin enabled state - matches backend DEFAULT_PLUGIN_ENABLED
+const DEFAULT_PLUGIN_ENABLED = true
+
 onMounted(async () => {
   await workspaceStore.loadWorkspaces()
   
@@ -157,7 +160,7 @@ async function loadWorkspacePlugins() {
 
 function isPluginEnabled(pluginId: string): boolean {
   const config = pluginConfigs.value.find(c => c.plugin_id === pluginId)
-  return config ? config.enabled : true // Default to enabled
+  return config ? config.enabled : DEFAULT_PLUGIN_ENABLED
 }
 
 async function togglePlugin(pluginId: string, event: Event) {

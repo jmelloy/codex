@@ -40,10 +40,8 @@ export const useAuthStore = defineStore("auth", () => {
       } catch (err) {
         console.warn("Failed to register plugins:", err)
       }
-      // Now load integrations (after plugins are registered)
-      const { useIntegrationStore } = await import("./integration")
-      const integrationStore = useIntegrationStore()
-      await integrationStore.loadIntegrations()
+      // Note: Integrations are loaded on-demand in IntegrationSettingsView
+      // when workspace/notebook context is available
       // Initialize view plugin service (non-blocking)
       viewPluginService.initialize().catch((err) => {
         console.warn("Failed to initialize view plugin service:", err)

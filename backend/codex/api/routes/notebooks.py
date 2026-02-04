@@ -413,3 +413,186 @@ async def get_notebook_indexing_status_nested(
     
     # If no watcher found, indexing hasn't started
     return {"notebook_id": notebook.id, "status": "not_started", "is_alive": False}
+
+
+@nested_router.get("/{notebook_identifier}/plugins")
+async def list_notebook_plugins_nested(
+    workspace_identifier: str,
+    notebook_identifier: str,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """List plugin configurations for a notebook (nested under workspace route).
+    
+    Args:
+        workspace_identifier: Workspace slug or ID
+        notebook_identifier: Notebook slug or ID
+        
+    Returns:
+        List of plugin configurations for the notebook
+    """
+    workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
+    notebook = await get_notebook_by_slug_or_id(notebook_identifier, workspace, session)
+    
+    # Query notebook plugin configs
+    stmt = select(NotebookPluginConfig).where(
+        NotebookPluginConfig.notebook_id == notebook.id
+    )
+    result = await session.execute(stmt)
+    configs = result.scalars().all()
+    
+    return [
+        {
+            "plugin_id": config.plugin_id,
+            "enabled": config.enabled,
+            "config": config.config,
+            "created_at": config.created_at.isoformat() if config.created_at else None,
+            "updated_at": config.updated_at.isoformat() if config.updated_at else None,
+        }
+        for config in configs
+    ]
+
+
+@nested_router.get("/{notebook_identifier}/plugins/{plugin_id}")
+async def get_notebook_plugin_config_nested(
+    workspace_identifier: str,
+    notebook_identifier: str,
+    plugin_id: str,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Get plugin configuration for a notebook (nested under workspace route).
+    
+    Args:
+        workspace_identifier: Workspace slug or ID
+        notebook_identifier: Notebook slug or ID
+        plugin_id: Plugin ID
+        
+    Returns:
+        Plugin configuration for the notebook
+    """
+    workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
+    notebook = await get_notebook_by_slug_or_id(notebook_identifier, workspace, session)
+    
+    # Query notebook plugin config
+    stmt = select(NotebookPluginConfig).where(
+        NotebookPluginConfig.notebook_id == notebook.id,
+        NotebookPluginConfig.plugin_id == plugin_id,
+    )
+    result = await session.execute(stmt)
+    config = result.scalar_one_or_none()
+    
+    if not config:
+        return {
+            "plugin_id": plugin_id,
+            "enabled": True,  # Default to enabled if no config
+            "config": {},
+        }
+    
+    return {
+        "plugin_id": config.plugin_id,
+        "enabled": config.enabled,
+        "config": config.config,
+        "created_at": config.created_at.isoformat() if config.created_at else None,
+        "updated_at": config.updated_at.isoformat() if config.updated_at else None,
+    }
+
+
+@nested_router.put("/{notebook_identifier}/plugins/{plugin_id}")
+async def update_notebook_plugin_config_nested(
+    workspace_identifier: str,
+    notebook_identifier: str,
+    plugin_id: str,
+    request_data: NotebookPluginConfigUpdate,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Update plugin configuration for a notebook (nested under workspace route).
+    
+    Args:
+        workspace_identifier: Workspace slug or ID
+        notebook_identifier: Notebook slug or ID
+        plugin_id: Plugin ID
+        request_data: Plugin configuration update
+        
+    Returns:
+        Updated plugin configuration
+    """
+    workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
+    notebook = await get_notebook_by_slug_or_id(notebook_identifier, workspace, session)
+    
+    # Check if config exists
+    stmt = select(NotebookPluginConfig).where(
+        NotebookPluginConfig.notebook_id == notebook.id,
+        NotebookPluginConfig.plugin_id == plugin_id,
+    )
+    result = await session.execute(stmt)
+    config = result.scalar_one_or_none()
+    
+    if config:
+        # Update existing config
+        if request_data.enabled is not None:
+            config.enabled = request_data.enabled
+        if request_data.config is not None:
+            config.config = request_data.config
+        session.add(config)
+        await session.commit()
+        await session.refresh(config)
+    else:
+        # Create new config
+        config = NotebookPluginConfig(
+            notebook_id=notebook.id,
+            plugin_id=plugin_id,
+            enabled=request_data.enabled if request_data.enabled is not None else True,
+            config=request_data.config if request_data.config is not None else {},
+        )
+        session.add(config)
+        await session.commit()
+        await session.refresh(config)
+    
+    return {
+        "plugin_id": config.plugin_id,
+        "enabled": config.enabled,
+        "config": config.config,
+        "created_at": config.created_at.isoformat() if config.created_at else None,
+        "updated_at": config.updated_at.isoformat() if config.updated_at else None,
+    }
+
+
+@nested_router.delete("/{notebook_identifier}/plugins/{plugin_id}")
+async def delete_notebook_plugin_config_nested(
+    workspace_identifier: str,
+    notebook_identifier: str,
+    plugin_id: str,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Delete plugin configuration for a notebook (nested under workspace route).
+    
+    Reverts to workspace defaults.
+    
+    Args:
+        workspace_identifier: Workspace slug or ID
+        notebook_identifier: Notebook slug or ID
+        plugin_id: Plugin ID
+        
+    Returns:
+        Success message
+    """
+    workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
+    notebook = await get_notebook_by_slug_or_id(notebook_identifier, workspace, session)
+    
+    # Check if config exists
+    stmt = select(NotebookPluginConfig).where(
+        NotebookPluginConfig.notebook_id == notebook.id,
+        NotebookPluginConfig.plugin_id == plugin_id,
+    )
+    result = await session.execute(stmt)
+    config = result.scalar_one_or_none()
+    
+    if config:
+        await session.delete(config)
+        await session.commit()
+        return {"message": "Plugin configuration deleted, reverted to workspace defaults"}
+    
+    return {"message": "No configuration found for this plugin"}

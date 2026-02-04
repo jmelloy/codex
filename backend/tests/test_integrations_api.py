@@ -22,7 +22,7 @@ def auth_headers(client):
     # Register and login
     username = f"testuser_integration_{int(time.time() * 1000)}"
     response = client.post(
-        "/api/register",
+        "/api/v1/users/register",
         json={
             "username": username,
             "email": f"{username}@example.com",
@@ -37,6 +37,41 @@ def auth_headers(client):
     assert response.status_code == 200
     token = response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+def workspace_and_notebook(client, auth_headers):
+    """Create a test workspace and notebook."""
+    import tempfile
+    from pathlib import Path
+    
+    # Create a temporary workspace
+    tmpdir = tempfile.mkdtemp()
+    workspace_path = Path(tmpdir) / "test_workspace"
+    workspace_path.mkdir(parents=True, exist_ok=True)
+    
+    # Create workspace via API
+    response = client.post(
+        "/api/v1/workspaces",
+        headers=auth_headers,
+        json={"name": f"Test Workspace {int(time.time() * 1000)}", "path": str(workspace_path)},
+    )
+    assert response.status_code == 200
+    workspace_id = response.json()["id"]
+    
+    # Create notebook using nested route
+    notebook_response = client.post(
+        f"/api/v1/workspaces/{workspace_id}/notebooks/",
+        json={
+            "name": f"Test Notebook {int(time.time() * 1000)}",
+            "description": "Test notebook for integration config",
+        },
+        headers=auth_headers,
+    )
+    assert notebook_response.status_code == 200
+    notebook_id = notebook_response.json()["id"]
+    
+    return workspace_id, notebook_id
 
 
 def test_list_integrations(client, auth_headers):
@@ -55,10 +90,12 @@ def test_list_integrations_unauthorized(client):
     assert response.status_code == 401
 
 
-def test_get_integration_config_not_found(client, auth_headers):
+def test_get_integration_config_not_found(client, auth_headers, workspace_and_notebook):
     """Test getting config for non-existent integration."""
+    workspace_id, notebook_id = workspace_and_notebook
+    
     response = client.get(
-        "/api/v1/plugins/integrations/nonexistent/config?workspace_id=1",
+        f"/api/v1/workspaces/{workspace_id}/notebooks/{notebook_id}/integrations/nonexistent/config",
         headers=auth_headers,
     )
     # Should return empty config, not error
@@ -68,16 +105,9 @@ def test_get_integration_config_not_found(client, auth_headers):
     assert data["config"] == {}
 
 
-def test_update_integration_config(client, auth_headers):
+def test_update_integration_config(client, auth_headers, workspace_and_notebook):
     """Test updating integration configuration."""
-    # First create a workspace
-    response = client.post(
-        "/api/v1/workspaces",
-        headers=auth_headers,
-        json={"name": "Test Workspace", "path": "/tmp/test_integration_workspace"},
-    )
-    assert response.status_code == 200
-    workspace_id = response.json()["id"]
+    workspace_id, notebook_id = workspace_and_notebook
 
     # Update integration config
     config_data = {
@@ -87,7 +117,7 @@ def test_update_integration_config(client, auth_headers):
         }
     }
     response = client.put(
-        f"/api/v1/plugins/integrations/test-integration/config?workspace_id={workspace_id}",
+        f"/api/v1/workspaces/{workspace_id}/notebooks/{notebook_id}/integrations/test-integration/config",
         headers=auth_headers,
         json=config_data,
     )
@@ -98,7 +128,7 @@ def test_update_integration_config(client, auth_headers):
 
     # Verify we can retrieve it
     response = client.get(
-        f"/api/v1/plugins/integrations/test-integration/config?workspace_id={workspace_id}",
+        f"/api/v1/workspaces/{workspace_id}/notebooks/{notebook_id}/integrations/test-integration/config",
         headers=auth_headers,
     )
     assert response.status_code == 200
@@ -134,10 +164,12 @@ def test_test_integration_exists(client, auth_headers):
     assert isinstance(data["success"], bool)
 
 
-def test_execute_integration_not_found(client, auth_headers):
+def test_execute_integration_not_found(client, auth_headers, workspace_and_notebook):
     """Test executing endpoint on non-existent integration."""
+    workspace_id, notebook_id = workspace_and_notebook
+    
     response = client.post(
-        "/api/v1/plugins/integrations/nonexistent/execute?workspace_id=1",
+        f"/api/v1/workspaces/{workspace_id}/notebooks/{notebook_id}/integrations/nonexistent/execute",
         headers=auth_headers,
         json={"endpoint_id": "test", "parameters": {}},
     )
@@ -153,7 +185,7 @@ def test_get_integration_blocks_not_found(client, auth_headers):
     assert response.status_code == 404
 
 
-def test_execute_integration_with_artifact_caching(client, auth_headers):
+def test_execute_integration_with_artifact_caching(client, auth_headers, workspace_and_notebook):
     """Test that /execute endpoint includes artifact caching.
     
     This is a smoke test to ensure the endpoint doesn't break with the new
@@ -163,36 +195,21 @@ def test_execute_integration_with_artifact_caching(client, auth_headers):
     Full integration tests with real plugins and artifact verification are
     better suited for end-to-end tests that can handle external dependencies.
     """
-    import tempfile
-    from pathlib import Path
+    workspace_id, notebook_id = workspace_and_notebook
+        
+    # Try to execute an endpoint on a non-existent integration
+    # This should return 404, not crash
+    execute_response = client.post(
+        f"/api/v1/workspaces/{workspace_id}/notebooks/{notebook_id}/integrations/nonexistent/execute",
+        headers=auth_headers,
+        json={
+            "endpoint_id": "test",
+            "parameters": {},
+        },
+    )
     
-    # Create a temporary workspace
-    with tempfile.TemporaryDirectory() as tmpdir:
-        workspace_path = Path(tmpdir) / "test_workspace"
-        workspace_path.mkdir()
-        
-        # Create workspace via API
-        response = client.post(
-            "/api/v1/workspaces",
-            headers=auth_headers,
-            json={"name": "Test Artifact Workspace", "path": str(workspace_path)},
-        )
-        assert response.status_code == 200
-        workspace_id = response.json()["id"]
-        
-        # Try to execute an endpoint on a non-existent integration
-        # This should return 404, not crash
-        execute_response = client.post(
-            f"/api/v1/plugins/integrations/nonexistent/execute?workspace_id={workspace_id}",
-            headers=auth_headers,
-            json={
-                "endpoint_id": "test",
-                "parameters": {},
-            },
-        )
-        
-        # Should get 404 for non-existent integration
-        assert execute_response.status_code == 404
-        
-        # The important thing is that the endpoint doesn't crash with the
-        # new artifact caching code when the workspace lookup is added
+    # Should get 404 for non-existent integration
+    assert execute_response.status_code == 404
+    
+    # The important thing is that the endpoint doesn't crash with the
+    # new artifact caching code when the workspace lookup is added

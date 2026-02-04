@@ -203,6 +203,17 @@ const testResult = ref<IntegrationTestResult | null>(null)
 const integrationId = computed(() => route.params.integrationId as string)
 const currentWorkspace = computed(() => workspaceStore.currentWorkspace)
 
+// Helper to get notebook ID for integration operations
+// Uses current notebook or falls back to first notebook
+function getNotebookId(): number | undefined {
+  if (workspaceStore.currentNotebook) {
+    return workspaceStore.currentNotebook.id
+  } else if (workspaceStore.notebooks.length > 0) {
+    return workspaceStore.notebooks[0]?.id
+  }
+  return undefined
+}
+
 // Convert snake_case to Title Case
 function formatLabel(name: string): string {
   return name
@@ -230,12 +241,17 @@ async function loadIntegration() {
 
     // Load existing config if workspace is available
     if (currentWorkspace.value?.id) {
-      const existingConfig = await getIntegrationConfig(
-        integrationId.value,
-        currentWorkspace.value.id
-      )
-      if (existingConfig.config) {
-        config.value = { ...config.value, ...existingConfig.config }
+      const notebookId = getNotebookId()
+      
+      if (notebookId) {
+        const existingConfig = await getIntegrationConfig(
+          integrationId.value,
+          currentWorkspace.value.id,
+          notebookId
+        )
+        if (existingConfig.config) {
+          config.value = { ...config.value, ...existingConfig.config }
+        }
       }
     }
   } catch (err: any) {
@@ -272,6 +288,16 @@ async function handleSave() {
     return
   }
 
+  const notebookId = getNotebookId()
+  
+  if (!notebookId) {
+    testResult.value = {
+      success: false,
+      message: 'No notebook available - please create a notebook first',
+    }
+    return
+  }
+
   saving.value = true
   testResult.value = null
 
@@ -279,6 +305,7 @@ async function handleSave() {
     await updateIntegrationConfig(
       integrationId.value,
       currentWorkspace.value.id,
+      notebookId,
       config.value
     )
     testResult.value = {

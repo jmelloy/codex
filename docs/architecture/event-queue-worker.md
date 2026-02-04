@@ -42,6 +42,36 @@ The event queue system is designed to handle file system operations (move, delet
 5. **Operation Execution**: Worker performs the actual file system operation
 6. **Status Update**: Event status updated to 'completed' or 'failed'
 
+## Batching Strategy
+
+### Why Creates Are Synchronous
+
+Create operations (POST /files/) remain synchronous for several reasons:
+
+1. **File ID Required**: The API must return the new file's ID immediately so clients can work with it
+2. **No Race Condition**: Creating a file doesn't conflict with the file watcher - the watcher will simply index the new file
+3. **User Expectation**: Users expect newly created files to be immediately available
+
+### Why Moves/Deletes Are Queued
+
+Move and delete operations are queued because:
+
+1. **Watcher Race Conditions**: The file watcher may try to update metadata for a file that's being moved/deleted
+2. **Concurrent Operations**: Multiple API calls might try to operate on the same file
+3. **Ordering Matters**: Moving then deleting a file must happen in order
+
+### Git Commit Batching
+
+Git commits are batched per processing cycle:
+
+1. All filesystem/database changes in a batch are processed first
+2. At the end of the batch, a single git commit is created with a summary message
+3. This reduces git overhead and creates cleaner commit history
+
+Example commit messages:
+- Single operation: `Move renamed.md`
+- Multiple operations: `Batch: move 2 files, delete 3 files`
+
 ## Benefits
 
 ### Prevents Race Conditions

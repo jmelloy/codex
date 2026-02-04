@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from codex.api.auth import get_current_active_user
-from codex.api.routes.notebooks import get_notebook_by_slug_or_id
+from codex.api.routes.notebooks import get_notebook_by_slug_or_id, get_notebook_path_nested
 from codex.api.routes.workspaces import get_workspace_by_slug_or_id
 from codex.core.metadata import MetadataParser
 from codex.db.database import get_notebook_session, get_system_session
@@ -57,36 +57,6 @@ async def get_notebook_path(
         raise HTTPException(status_code=404, detail="Notebook path not found")
 
     return notebook_path, notebook
-
-
-async def get_notebook_path_nested(
-    workspace_identifier: str,
-    notebook_identifier: str,
-    current_user: User,
-    session: AsyncSession,
-) -> tuple[Path, Notebook, Workspace]:
-    """Helper to get and verify notebook path using workspace and notebook identifiers.
-
-    Returns:
-        Tuple of (notebook_path, notebook_model, workspace_model)
-
-    Raises:
-        HTTPException if workspace or notebook not found
-    """
-    # Get workspace by slug or ID
-    workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
-
-    # Get notebook by slug or ID
-    notebook = await get_notebook_by_slug_or_id(notebook_identifier, workspace, session)
-
-    # Get notebook path
-    workspace_path = Path(workspace.path)
-    notebook_path = workspace_path / notebook.path
-
-    if not notebook_path.exists():
-        raise HTTPException(status_code=404, detail="Notebook path not found")
-
-    return notebook_path, notebook, workspace
 
 
 class UpdateFolderPropertiesRequest(BaseModel):
@@ -487,7 +457,7 @@ async def delete_folder(
     try:
         # Queue the delete operation instead of performing it directly
         from codex.db.models import FileSystemEvent
-        
+
         event = FileSystemEvent(
             notebook_id=notebook.id,
             event_type="delete",
@@ -496,10 +466,17 @@ async def delete_folder(
         )
         nb_session.add(event)
         nb_session.commit()
-        
+        nb_session.refresh(event)
+
         logger.info(f"Queued folder delete operation: {folder_path}")
 
-        return {"message": "Folder deletion queued successfully", "queued": True}
+        return {
+            "path": folder_path,
+            "message": "Folder deletion queued successfully",
+            "queued": True,
+            "status": "pending",
+            "event_id": event.id,
+        }
     except HTTPException:
         raise
     except Exception as e:

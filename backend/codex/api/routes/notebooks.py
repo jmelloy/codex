@@ -63,6 +63,45 @@ async def slug_exists_for_workspace(session: AsyncSession, slug: str, workspace_
     return result.scalar_one_or_none() is not None
 
 
+async def get_notebook_path_nested(
+    workspace_identifier: str,
+    notebook_identifier: str,
+    current_user: User,
+    session: AsyncSession,
+) -> tuple[Path, Notebook, Workspace]:
+    """Helper to get and verify notebook path using workspace and notebook identifiers.
+
+    This is a shared utility used by files, folders, search, and other routes
+    that need to resolve a notebook path from workspace/notebook slugs or IDs.
+
+    Args:
+        workspace_identifier: Workspace slug or ID
+        notebook_identifier: Notebook slug or ID
+        current_user: Current authenticated user
+        session: Database session
+
+    Returns:
+        Tuple of (notebook_path, notebook_model, workspace_model)
+
+    Raises:
+        HTTPException: If workspace or notebook not found, or path doesn't exist
+    """
+    # Get workspace by slug or ID
+    workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
+
+    # Get notebook by slug or ID
+    notebook = await get_notebook_by_slug_or_id(notebook_identifier, workspace, session)
+
+    # Get notebook path
+    workspace_path = Path(workspace.path).resolve()
+    notebook_path = workspace_path / notebook.path
+
+    if not notebook_path.exists():
+        raise HTTPException(status_code=404, detail="Notebook path not found")
+
+    return notebook_path, notebook, workspace
+
+
 router = APIRouter()
 
 

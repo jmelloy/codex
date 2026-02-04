@@ -79,11 +79,14 @@ def test_move_file_queued(test_client, temp_workspace_dir):
         )
         assert move_response.status_code == 200
         data = move_response.json()
-        
+
         # Verify the response indicates the operation was queued
         assert data["queued"] is True
+        assert data["status"] == "pending"
         assert "queued successfully" in data["message"].lower()
-        assert data["path"] == "moved_file.md"
+        assert data["current_path"] == "test_move.md"
+        assert data["target_path"] == "moved_file.md"
+        assert "event_id" in data
         
         # Wait for the queue worker to process the event (up to 10 seconds)
         max_wait = 10

@@ -19,6 +19,8 @@ from codex.api.routes.workspaces import get_workspace_by_slug_or_id
 from codex.core.metadata import MetadataParser
 from codex.db.database import get_notebook_session, get_system_session
 from codex.db.models import FileMetadata, Notebook, User, Workspace
+from codex.core.watcher import get_watcher_for_notebook
+
 
 logger = logging.getLogger(__name__)
 
@@ -400,12 +402,26 @@ async def update_folder_properties(
         # Write properties to .file
         write_folder_properties(full_folder_path, request.properties)
 
-        # Commit to git
-        from codex.core.git_manager import GitManager
-
-        git_manager = GitManager(str(notebook_path))
         metadata_file = full_folder_path / FOLDER_METADATA_FILE
-        git_manager.commit(f"Update folder properties: {folder_path}", [str(metadata_file)])
+
+        # Check if we have an active watcher
+        watcher = get_watcher_for_notebook(str(notebook_path))
+
+        if watcher:
+            # Enqueue the metadata file update
+            watcher.enqueue_operation(
+                filepath=str(metadata_file),
+                sidecar_path=None,
+                operation="modified",
+                comment=f"Update folder properties: {folder_path}",
+                wait=False,  # Don't block - let queue batch it
+            )
+        else:
+            # No watcher - commit to git directly
+            from codex.core.git_manager import GitManager
+
+            git_manager = GitManager(str(notebook_path))
+            git_manager.commit(f"Update folder properties: {folder_path}", [str(metadata_file)])
 
         # Get folder stats
         folder_stats = full_folder_path.stat()
@@ -479,27 +495,49 @@ async def delete_folder(
     if not folder_path:
         raise HTTPException(status_code=400, detail="Cannot delete root folder")
 
+    # Check if we have an active watcher
+    watcher = get_watcher_for_notebook(str(notebook_path))
+
     nb_session = get_notebook_session(str(notebook_path))
     try:
-        # Delete all files in folder from database
+        # Get all files in folder from database (for tracking what will be deleted)
         prefix = f"{folder_path}/"
         files_result = nb_session.execute(select(FileMetadata).where(FileMetadata.notebook_id == notebook.id))
         all_files = files_result.scalars().all()
 
+        files_to_delete = []
         for f in all_files:
             if f.path.startswith(prefix) or f.path == folder_path:
-                nb_session.delete(f)
+                files_to_delete.append(f)
 
-        # Delete the folder from disk
+        # Delete the folder from disk first
+        # The watcher will detect the individual file deletions
         shutil.rmtree(full_folder_path)
 
-        # Commit to git
-        from codex.core.git_manager import GitManager
+        if watcher:
+            # Enqueue delete operations for each file
+            # The watcher will batch these and handle DB cleanup
+            for f in files_to_delete:
+                file_path = notebook_path / f.path
+                watcher.enqueue_operation(
+                    filepath=str(file_path),
+                    sidecar_path=str(notebook_path / f.sidecar_path) if f.sidecar_path else None,
+                    operation="deleted",
+                    wait=False,
+                )
+            # Note: Git commit will happen as part of the batched operations
+        else:
+            # No watcher - delete from database directly
+            for f in files_to_delete:
+                nb_session.delete(f)
 
-        git_manager = GitManager(str(notebook_path))
-        git_manager.commit(f"Delete folder: {folder_path}", [])
+            # Commit to git
+            from codex.core.git_manager import GitManager
 
-        nb_session.commit()
+            git_manager = GitManager(str(notebook_path))
+            git_manager.commit(f"Delete folder: {folder_path}", [])
+
+            nb_session.commit()
 
         return {"message": "Folder deleted successfully"}
     except HTTPException:

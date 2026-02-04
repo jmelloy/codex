@@ -4,26 +4,32 @@
 
 This document outlines the refactoring of the Codex backend API URL structure to use path-based routing with slugs instead of query parameters.
 
-## Status: IN PROGRESS
+## Status: MOSTLY COMPLETE (2026-02-04)
 
 **Completed:**
 - ✅ Database models updated with slug fields
 - ✅ Migration created and tested
 - ✅ Workspace routes support slug-based access
 - ✅ Notebook routes support nested slug-based access
-- ✅ Comprehensive test suite for new routes
+- ✅ File routes refactored (14/17 routes nested)
+- ✅ Folder routes refactored (all routes nested)
+- ✅ Search routes refactored (all routes nested)
+- ✅ Integration routes refactored (all routes nested)
+- ✅ Comprehensive test suite for new routes (325/328 passing)
 - ✅ Both slug and ID access supported for backward compatibility
-
-**In Progress:**
-- 🔄 File routes refactoring
-- 🔄 Search routes refactoring
-- 🔄 Folder routes refactoring
+- ✅ Frontend updated for most routes
 
 **Remaining:**
-- ⏳ Update frontend API client
-- ⏳ Update all existing tests
-- ⏳ Plugin routes refactoring (if needed)
+- 🔄 File routes: 3 missing nested routes (upload, from-template, history/{commit})
+- 🔄 Frontend: Update fileService.upload() and templateService.createFromTemplate()
+- ⏳ Query routes: Not yet nested (frontend uses old route)
+- ⏳ Task routes: Not yet nested (no frontend usage)
+- ⏳ Deprecate/remove old flat routes
 - ⏳ Documentation updates
+
+**Test Status:**
+- 325 passing, 3 failing (template API tests using old route)
+- All new nested routes have comprehensive test coverage
 
 ## Goals
 
@@ -241,86 +247,168 @@ CREATE UNIQUE INDEX idx_notebooks_slug_workspace ON notebooks(workspace_id, slug
 - `POST /api/v1/workspaces/{workspace_slug}/notebooks` - Create notebook in workspace
 - `GET /api/v1/workspaces/{workspace_slug}/notebooks/{notebook_slug}` - Get notebook
 - `GET /api/v1/workspaces/{workspace_slug}/notebooks/{notebook_slug}/indexing-status` - Get indexing status
+- `GET /api/v1/workspaces/{workspace_slug}/notebooks/{notebook_slug}/plugins` - List plugins
+- `GET/PUT/DELETE /api/v1/workspaces/{workspace_slug}/notebooks/{notebook_slug}/plugins/{plugin_id}` - Plugin config
 
 **Implementation Details:**
 - Created separate `nested_router` for workspace-nested routes
 - Added `get_notebook_by_slug_or_id()` helper for flexible lookup
 - Added `slug_exists_for_workspace()` to check notebook slug collisions
 - Slug collision handling with UUID suffix
-- Backward compatible: old flat routes still work (marked as deprecated)
+- Backward compatible: old flat routes still work (but deprecated)
 - Both slug and numeric ID accepted in nested routes
 
-#### 4. Tests (✅ Complete)
-Created comprehensive test suite in `backend/tests/test_slug_routes.py`:
-- ✅ Workspace slug generation on creation
-- ✅ Get workspace by slug and by ID
-- ✅ Nested notebook creation with slug generation
-- ✅ Get notebook by slug and by ID
-- ✅ List notebooks using nested route
+#### 4. File Routes (✅ Mostly Complete - 14/17 routes)
+**Implemented Nested Endpoints:**
+- `GET/POST /api/v1/workspaces/{ws}/notebooks/{nb}/files/` - List/create files
+- `GET /api/v1/workspaces/{ws}/notebooks/{nb}/files/templates` - List templates
+- `GET /api/v1/workspaces/{ws}/notebooks/{nb}/files/{id}` - Get file metadata
+- `GET /api/v1/workspaces/{ws}/notebooks/{nb}/files/{id}/text` - Get text content
+- `GET /api/v1/workspaces/{ws}/notebooks/{nb}/files/{id}/content` - Get binary content
+- `GET /api/v1/workspaces/{ws}/notebooks/{nb}/files/path/{filepath:path}` - Get by path
+- `GET /api/v1/workspaces/{ws}/notebooks/{nb}/files/path/{filepath:path}/text` - Get text by path
+- `GET /api/v1/workspaces/{ws}/notebooks/{nb}/files/path/{filepath:path}/content` - Get binary by path
+- `PUT /api/v1/workspaces/{ws}/notebooks/{nb}/files/{id}` - Update file
+- `PATCH /api/v1/workspaces/{ws}/notebooks/{nb}/files/{id}/move` - Move file
+- `DELETE /api/v1/workspaces/{ws}/notebooks/{nb}/files/{id}` - Delete file
+- `POST /api/v1/workspaces/{ws}/notebooks/{nb}/files/resolve-link` - Resolve wiki link
+- `GET /api/v1/workspaces/{ws}/notebooks/{nb}/files/{id}/history` - Get file history
 
-All 5 tests passing.
+**Missing Nested Routes (Frontend Uses Old):**
+- ⏳ `POST /api/v1/workspaces/{ws}/notebooks/{nb}/files/upload` - File upload
+- ⏳ `POST /api/v1/workspaces/{ws}/notebooks/{nb}/files/from-template` - Create from template
+- ⏳ `GET /api/v1/workspaces/{ws}/notebooks/{nb}/files/{id}/history/{commit}` - Get file at commit
+
+#### 5. Folder Routes (✅ Complete)
+**Implemented Nested Endpoints:**
+- `GET /api/v1/workspaces/{ws}/notebooks/{nb}/folders/{path}` - Get folder
+- `PUT /api/v1/workspaces/{ws}/notebooks/{nb}/folders/{path}` - Update folder properties
+- `DELETE /api/v1/workspaces/{ws}/notebooks/{nb}/folders/{path}` - Delete folder
+
+Frontend fully migrated to use nested routes.
+
+#### 6. Search Routes (✅ Complete)
+**Implemented Nested Endpoints:**
+- `GET /api/v1/workspaces/{ws}/search/?q=` - Workspace-wide search
+- `GET /api/v1/workspaces/{ws}/search/tags?tags=` - Search by tags in workspace
+- `GET /api/v1/workspaces/{ws}/notebooks/{nb}/search/?q=` - Notebook-specific search
+- `GET /api/v1/workspaces/{ws}/notebooks/{nb}/search/tags?tags=` - Search by tags in notebook
+
+Frontend fully migrated to use nested routes.
+
+#### 7. Integration Routes (✅ Complete)
+**Implemented Nested Endpoints:**
+- `GET /api/v1/workspaces/{ws}/notebooks/{nb}/integrations` - List integrations
+- `PUT /api/v1/workspaces/{ws}/notebooks/{nb}/integrations/{id}/enable` - Enable integration
+- `GET/PUT /api/v1/workspaces/{ws}/notebooks/{nb}/integrations/{id}/config` - Get/update config
+- `POST /api/v1/workspaces/{ws}/notebooks/{nb}/integrations/{id}/execute` - Execute integration
+
+All integration tests updated to use nested routes.
+
+#### 8. Tests (✅ Mostly Complete)
+Created comprehensive test suite:
+- ✅ `test_slug_routes.py` - Slug generation and lookup (5 tests)
+- ✅ `test_files_api.py` - File operations with nested routes (50+ tests)
+- ✅ `test_folders_api.py` - Folder operations (10+ tests)
+- ✅ `test_search_api.py` - Search functionality (15+ tests)
+- ✅ `test_plugin_api.py` - Plugin config (11 tests, using nested)
+- ✅ `test_integrations_api.py` - Integration operations (9 tests, using nested)
+- ✅ `test_notebooks_api.py` - Notebook operations (20 tests)
+- ❌ `test_template_api.py` - 1 failure (uses old from-template route)
+
+**Overall: 325 passing, 3 failing (template tests using old routes)**
 
 ### What Needs to Be Done
 
-#### 1. File Routes (⏳ TODO)
-Files currently use query parameters. Need to create nested router:
+#### 1. File Routes - Missing 3 Nested Routes (⏳ High Priority)
+
+**Current Problem:**
+Frontend still uses old flat routes for these operations:
+- `/api/v1/files/upload` → `fileService.upload()`
+- `/api/v1/files/from-template` → `templateService.createFromTemplate()`
+- `/api/v1/files/{id}/history/{commit}` → `fileService.getAtCommit()`
+
+**Required Implementation:**
+```
+POST /api/v1/workspaces/{workspace_slug}/notebooks/{notebook_slug}/files/upload
+POST /api/v1/workspaces/{workspace_slug}/notebooks/{notebook_slug}/files/from-template
+GET  /api/v1/workspaces/{workspace_slug}/notebooks/{notebook_slug}/files/{id}/history/{commit}
+```
+
+**Action Items:**
+- [ ] Implement nested upload route (similar to existing upload but with nested params)
+- [ ] Implement nested from-template route (similar to existing but with nested params)
+- [ ] Implement nested history/{commit} route (similar to existing but with nested params)
+- [ ] Update frontend `fileService.upload()` to use new route
+- [ ] Update frontend `templateService.createFromTemplate()` to use new route
+- [ ] Update frontend `fileService.getAtCommit()` to use new route
+- [ ] Fix test failure in `test_template_api.py`
+
+#### 2. Query Routes (⏳ Medium Priority)
 
 **Current:**
 ```
-GET /api/v1/files/?notebook_id={id}&workspace_id={id}
-GET /api/v1/files/{file_id}?notebook_id={id}&workspace_id={id}
+POST /api/v1/query/?workspace_id={id}
 ```
 
 **Proposed:**
 ```
-GET /api/v1/workspaces/{workspace_slug}/notebooks/{notebook_slug}/files
-GET /api/v1/workspaces/{workspace_slug}/notebooks/{notebook_slug}/files/{file_path:path}
+POST /api/v1/workspaces/{workspace_slug}/query/
 ```
 
-**Considerations:**
-- Files have paths within notebooks (can be nested in folders)
-- Need to handle path parameter properly (use FastAPI's `path` type)
-- Many file operations: list, get, create, update, delete, upload, move, history
-- File access by ID vs by path - may need both approaches
+Frontend actively uses the query service for dynamic views. This is medium priority.
 
-#### 2. Search Routes (⏳ TODO)
+**Action Items:**
+- [ ] Create nested query router
+- [ ] Implement workspace-nested query endpoint
+- [ ] Update frontend `queryService.execute()` to use new route
+- [ ] Update tests to use new route
+
+#### 3. Task Routes (⏳ Low Priority)
+
 **Current:**
 ```
-GET /api/v1/search/?workspace_id={id}&notebook_id={id}&query={q}
+GET  /api/v1/tasks/?workspace_id={id}
+POST /api/v1/tasks/?workspace_id={id}&title={title}
 ```
 
 **Proposed:**
 ```
-GET /api/v1/workspaces/{workspace_slug}/search?query={q}
-GET /api/v1/workspaces/{workspace_slug}/notebooks/{notebook_slug}/search?query={q}
+GET  /api/v1/workspaces/{workspace_slug}/tasks/
+POST /api/v1/workspaces/{workspace_slug}/tasks/
 ```
 
-#### 3. Folder Routes (⏳ TODO)
-**Current:**
-```
-GET /api/v1/folders/?notebook_id={id}&workspace_id={id}&path={path}
-POST /api/v1/folders/
-```
+Tasks are not used by frontend. This is low priority.
 
-**Proposed:**
-```
-GET /api/v1/workspaces/{workspace_slug}/notebooks/{notebook_slug}/folders/{folder_path:path}
-POST /api/v1/workspaces/{workspace_slug}/notebooks/{notebook_slug}/folders
-```
+**Action Items:**
+- [ ] Create nested task routes under workspace
+- [ ] Update tests to use new routes
 
-#### 4. Frontend Updates (⏳ TODO)
-Update `frontend/src/services/codex.ts` to use new URL patterns:
-- Update all workspace API calls to use slugs
-- Update all notebook API calls to use nested routes
-- Update file, search, and folder calls once backend is updated
-- Keep backward compatibility during transition
+#### 4. Frontend Updates (⏳ After Backend Routes Added)
 
-#### 5. Existing Test Updates (⏳ TODO)
-Many existing tests use the old URL patterns with query parameters. Need to update:
-- `tests/test_files_api.py` - File operation tests
-- `tests/test_file_creation.py` - File creation tests  
-- `tests/test_search_api.py` - Search tests
-- Any other tests that create workspaces/notebooks/files
+Files that need updates:
+- `frontend/src/services/codex.ts`:
+  - `fileService.upload()` - Line 594
+  - `templateService.createFromTemplate()` - Line 668
+  - `fileService.getAtCommit()` - Referenced but not shown
+- `frontend/src/services/queryService.ts`:
+  - `queryService.execute()` - Line 22-26
+
+#### 5. Cleanup (⏳ Future)
+
+After all routes are implemented and frontend migrated:
+
+**Deprecate Old Routes:**
+- Old notebook plugin routes (4 routes) - have nested equivalents
+- Old file routes (14+ routes) - have nested equivalents
+- Old integration routes (5 routes) - have nested equivalents
+
+**Delete Unused Files:**
+- `backend/codex/api/routes/markdown.py` - empty router, not used
+
+**Update Documentation:**
+- Mark URL_STRUCTURE_REFACTOR.md as COMPLETE
+- Update any API documentation
 
 ## Note on Terminology
 

@@ -25,6 +25,7 @@ from codex.api.routes import (
     workspaces,
 )
 from codex.core.watcher import NotebookWatcher
+from codex.core.queue_worker import EventQueueWorker
 from codex.db.database import get_system_session_sync, init_notebook_db, init_system_db
 from codex.db.models import Notebook, Workspace
 from codex.plugins.loader import PluginLoader
@@ -33,13 +34,19 @@ request_id_var: ContextVar[str] = ContextVar("request_id", default="")
 
 logger = logging.getLogger(__name__)
 
-# Global registry of active watchers
+# Global registry of active watchers and queue workers
 _active_watchers: list[NotebookWatcher] = []
+_active_queue_workers: list[EventQueueWorker] = []
 
 
 def get_active_watchers() -> list[NotebookWatcher]:
     """Get the list of active notebook watchers."""
     return _active_watchers
+
+
+def get_active_queue_workers() -> list[EventQueueWorker]:
+    """Get the list of active queue workers."""
+    return _active_queue_workers
 
 
 @asynccontextmanager
@@ -68,7 +75,20 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Error starting notebook watcher: {e}", exc_info=True)
 
+    try:
+        # Start queue workers for each notebook
+        await asyncio.to_thread(_start_queue_workers_sync)
+    except Exception as e:
+        logger.error(f"Error starting queue workers: {e}", exc_info=True)
+
     yield
+
+    # Stop all queue workers on shutdown
+    for worker in _active_queue_workers:
+        try:
+            worker.stop()
+        except Exception as e:
+            logger.error(f"Error stopping queue worker: {e}", exc_info=True)
 
     # Stop all watchers on shutdown
     for watcher in _active_watchers:
@@ -129,6 +149,54 @@ def _start_notebook_watchers_sync():
         session.close()
 
     logger.info(f"Finished starting {len(_active_watchers)} watchers")
+
+
+def _start_queue_workers_sync():
+    """Start event queue workers synchronously (runs in thread pool)."""
+    logger.info("Starting event queue workers...")
+    
+    # Query notebooks from the system database
+    session = get_system_session_sync()
+    try:
+        # Select notebooks with their workspace relationship to get full paths
+        result = session.exec(select(Notebook, Workspace).join(Workspace, Notebook.workspace_id == Workspace.id))
+        notebooks = result.scalars().all()
+        logger.info(f"Found {len(notebooks)} notebooks for queue workers")
+        
+        for nb in notebooks:
+            try:
+                workspace = nb.workspace
+                if not workspace:
+                    logger.warning(f"Notebook {nb.name} (id={nb.id}) has no associated workspace, skipping")
+                    continue
+                
+                # Compute full notebook path
+                notebook_path = (Path(workspace.path) / nb.path).resolve()
+                codex_db_path = notebook_path / ".codex" / "notebook.db"
+                
+                logger.debug(f"Checking notebook for queue worker: {nb.name} at {notebook_path}")
+                
+                if not notebook_path.exists():
+                    logger.warning(f"Notebook directory does not exist: {notebook_path}")
+                    continue
+                
+                if not codex_db_path.exists():
+                    logger.debug(f"No .codex/notebook.db found at {codex_db_path}, skipping")
+                    continue
+                
+                logger.info(f"Starting queue worker for: {nb.name} (id={nb.id})")
+                worker = EventQueueWorker(str(notebook_path), nb.id, batch_interval=5.0)
+                worker.start()
+                _active_queue_workers.append(worker)
+                logger.info(f"Queue worker started successfully for {nb.name}")
+                
+            except Exception as e:
+                logger.error(f"Error starting queue worker for notebook {nb.name}: {e}", exc_info=True)
+    finally:
+        session.close()
+    
+    logger.info(f"Finished starting {len(_active_queue_workers)} queue workers")
+
 
 
 app = FastAPI(

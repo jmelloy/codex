@@ -451,7 +451,11 @@ async def delete_folder(
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_system_session),
 ):
-    """Delete a folder and all its contents."""
+    """Delete a folder and all its contents.
+    
+    This operation is queued and will be processed by the event queue worker
+    within 5 seconds to prevent race conditions.
+    """
     notebook_path, notebook, workspace = await get_notebook_path_nested(
         workspace_identifier, notebook_identifier, current_user, session
     )
@@ -481,31 +485,25 @@ async def delete_folder(
 
     nb_session = get_notebook_session(str(notebook_path))
     try:
-        # Delete all files in folder from database
-        prefix = f"{folder_path}/"
-        files_result = nb_session.execute(select(FileMetadata).where(FileMetadata.notebook_id == notebook.id))
-        all_files = files_result.scalars().all()
-
-        for f in all_files:
-            if f.path.startswith(prefix) or f.path == folder_path:
-                nb_session.delete(f)
-
-        # Delete the folder from disk
-        shutil.rmtree(full_folder_path)
-
-        # Commit to git
-        from codex.core.git_manager import GitManager
-
-        git_manager = GitManager(str(notebook_path))
-        git_manager.commit(f"Delete folder: {folder_path}", [])
-
+        # Queue the delete operation instead of performing it directly
+        from codex.db.models import FileSystemEvent
+        
+        event = FileSystemEvent(
+            notebook_id=notebook.id,
+            event_type="delete",
+            file_path=folder_path,
+            status="pending"
+        )
+        nb_session.add(event)
         nb_session.commit()
+        
+        logger.info(f"Queued folder delete operation: {folder_path}")
 
-        return {"message": "Folder deleted successfully"}
+        return {"message": "Folder deletion queued successfully", "queued": True}
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error deleting folder: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error deleting folder: {str(e)}")
+        logger.error(f"Error queueing folder deletion: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error queueing folder deletion: {str(e)}")
     finally:
         nb_session.close()

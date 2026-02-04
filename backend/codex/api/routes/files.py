@@ -1337,7 +1337,11 @@ async def move_file_nested(
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_system_session),
 ):
-    """Move/rename a file (nested under workspace/notebook route)."""
+    """Move/rename a file (nested under workspace/notebook route).
+    
+    This operation is queued and will be processed by the event queue worker
+    within 5 seconds to prevent race conditions.
+    """
     notebook_path, notebook, workspace = await get_notebook_path_nested(
         workspace_identifier, notebook_identifier, current_user, session
     )
@@ -1362,34 +1366,34 @@ async def move_file_nested(
         if new_file_path.exists():
             raise HTTPException(status_code=400, detail="Target path already exists")
 
-        # Create parent directories if needed
-        new_file_path.parent.mkdir(parents=True, exist_ok=True)
-
-        # Move the file on disk first
-        import shutil
-        shutil.move(str(old_path), str(new_file_path))
-
-        # Update metadata to match the new file location
-        file_meta.path = new_path
-        file_meta.filename = os.path.basename(new_path)
-        if file_meta.sidecar_path:
-            new_sidecar_path = new_file_path.parent / Path(file_meta.sidecar_path).name
-            shutil.move(file_meta.sidecar_path, str(new_sidecar_path))
-            file_meta.sidecar_path = str(new_sidecar_path)
-
+        # Queue the move operation instead of performing it directly
+        from codex.db.models import FileSystemEvent
+        
+        event = FileSystemEvent(
+            notebook_id=notebook.id,
+            event_type="move",
+            file_path=file_meta.path,
+            new_path=new_path,
+            status="pending"
+        )
+        nb_session.add(event)
+        nb_session.commit()
+        
+        logger.info(f"Queued move operation: {file_meta.path} -> {new_path}")
 
         return {
             "id": file_meta.id,
-            "path": file_meta.path,
-            "filename": file_meta.filename,
-            "message": "File moved successfully",
+            "path": new_path,  # Return the target path
+            "filename": os.path.basename(new_path),
+            "message": "File move queued successfully",
+            "queued": True,
         }
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error moving file: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error moving file: {str(e)}")
+        logger.error(f"Error queueing file move: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error queueing file move: {str(e)}")
     finally:
         nb_session.close()
 
@@ -1402,7 +1406,11 @@ async def delete_file_nested(
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_system_session),
 ):
-    """Delete a file (nested under workspace/notebook route)."""
+    """Delete a file (nested under workspace/notebook route).
+    
+    This operation is queued and will be processed by the event queue worker
+    within 5 seconds to prevent race conditions.
+    """
     notebook_path, notebook, workspace = await get_notebook_path_nested(
         workspace_identifier, notebook_identifier, current_user, session
     )
@@ -1418,40 +1426,26 @@ async def delete_file_nested(
         if not file_meta:
             raise HTTPException(status_code=404, detail="File not found")
 
-        file_path = notebook_path / file_meta.path
-        filename = file_meta.filename
-
-        # Delete the file from disk
-        if file_path.exists():
-            os.remove(file_path)
-
-        # Delete sidecar file if it exists
-        _, sidecar = MetadataParser.resolve_sidecar(str(file_path))
-        if sidecar and Path(sidecar).exists():
-            os.remove(sidecar)
-            logger.debug(f"Deleted sidecar file: {sidecar}")
-
-        # Commit deletion to git first (before deleting from DB)
-        from codex.core.git_manager import GitManager
-        git_manager = GitManager(str(notebook_path))
-        git_manager.commit(f"Delete {filename}", [])
-
-        # Delete from database (watcher may have already deleted it due to race condition)
-        from sqlalchemy.orm.exc import StaleDataError
-        nb_session.delete(file_meta)
+        # Queue the delete operation instead of performing it directly
+        from codex.db.models import FileSystemEvent
         
-        try:
-            nb_session.commit()
-        except StaleDataError:
-            # Watcher deleted the record before us - this is fine
-            nb_session.rollback()
+        event = FileSystemEvent(
+            notebook_id=notebook.id,
+            event_type="delete",
+            file_path=file_meta.path,
+            status="pending"
+        )
+        nb_session.add(event)
+        nb_session.commit()
+        
+        logger.info(f"Queued delete operation: {file_meta.path}")
 
-        return {"message": "File deleted successfully"}
+        return {"message": "File deletion queued successfully", "queued": True}
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error deleting file: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error deleting file: {str(e)}")
+        logger.error(f"Error queueing file deletion: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error queueing file deletion: {str(e)}")
     finally:
         nb_session.close()
 

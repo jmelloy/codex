@@ -90,3 +90,24 @@ class SearchIndex(SQLModel, table=True):
     file_id: int = Field(foreign_key="file_metadata.id", index=True)
     content: str  # Full text content for searching
     updated_at: datetime = Field(default_factory=utc_now)
+
+
+class FileSystemEvent(SQLModel, table=True):
+    """Queue for file system operations to prevent race conditions.
+    
+    Events are batched and processed by the queue worker every 5 seconds.
+    This provides isolation for moves/deletes and reduces timing issues.
+    """
+
+    __tablename__ = "filesystem_events"  # type: ignore[assignment]
+
+    id: int | None = Field(default=None, primary_key=True)
+    notebook_id: int  # Reference to notebook in system database
+    event_type: str = Field(index=True)  # 'create', 'modify', 'delete', 'move'
+    file_path: str  # Source path for the operation
+    new_path: str | None = None  # Target path for move operations
+    metadata: str | None = None  # JSON-encoded additional data
+    status: str = Field(default="pending", index=True)  # 'pending', 'processing', 'completed', 'failed'
+    error_message: str | None = None  # Error details if status is 'failed'
+    created_at: datetime = Field(default_factory=utc_now, index=True)
+    processed_at: datetime | None = None

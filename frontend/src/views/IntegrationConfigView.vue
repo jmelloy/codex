@@ -209,7 +209,7 @@ function getNotebookId(): number | undefined {
   if (workspaceStore.currentNotebook) {
     return workspaceStore.currentNotebook.id
   } else if (workspaceStore.notebooks.length > 0) {
-    return workspaceStore.notebooks[0].id
+    return workspaceStore.notebooks[0]?.id
   }
   return undefined
 }

@@ -23,8 +23,10 @@ from codex.api.routes import (
     tasks,
     users,
     workspaces,
+    ws,
 )
 from codex.core.watcher import NotebookWatcher, register_watcher, stop_all_watchers
+from codex.core.websocket import connection_manager
 from codex.db.database import get_system_session_sync, init_notebook_db, init_system_db
 from codex.db.models import Notebook, Workspace
 from codex.plugins.loader import PluginLoader
@@ -39,6 +41,9 @@ async def lifespan(app: FastAPI):
     """Initialize database and plugins on startup."""
 
     await init_system_db()
+
+    # Start WebSocket broadcast loop
+    await connection_manager.start_broadcast_loop()
 
     # Initialize plugin loader
     try:
@@ -64,6 +69,9 @@ async def lifespan(app: FastAPI):
 
     # Stop all watchers on shutdown
     stop_all_watchers()
+
+    # Stop WebSocket broadcast loop
+    await connection_manager.stop_broadcast_loop()
 
 
 def _start_notebook_watchers_sync():
@@ -204,6 +212,7 @@ app.include_router(tasks.router, prefix="/api/v1/tasks", tags=["tasks"])
 app.include_router(query.router, prefix="/api/v1/query", tags=["query"])
 app.include_router(integrations.router, prefix="/api/v1/plugins/integrations", tags=["integrations"])
 app.include_router(plugins.router, prefix="/api/v1/plugins", tags=["plugins"])
+app.include_router(ws.router, prefix="/api/v1/ws", tags=["websocket"])
 
 if __name__ == "__main__":
     import uvicorn

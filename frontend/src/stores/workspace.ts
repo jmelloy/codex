@@ -22,6 +22,7 @@ import {
   findNode,
   moveNode,
 } from "../utils/fileTree"
+import { websocketService, type FileChangeEvent } from "../services/websocket"
 
 export const useWorkspaceStore = defineStore("workspace", () => {
   const workspaces = ref<Workspace[]>([])
@@ -41,6 +42,22 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   // Folder state
   const currentFolder = ref<FolderWithFiles | null>(null)
   const folderLoading = ref(false)
+
+  // WebSocket connection state
+  const wsConnected = ref<Set<number>>(new Set())
+
+  // Set up WebSocket event handler
+  websocketService.onFileChange((event: FileChangeEvent) => {
+    handleFileChangeEvent(event)
+  })
+
+  websocketService.onConnectionChange((connected: boolean, notebookId: number) => {
+    if (connected) {
+      wsConnected.value.add(notebookId)
+    } else {
+      wsConnected.value.delete(notebookId)
+    }
+  })
 
   // Backwards-compatible files accessor (returns flat list from tree)
   const files = computed(() => {
@@ -113,6 +130,9 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     if (workspace) {
       fetchNotebooks(workspace.id)
     }
+    // Disconnect all WebSocket connections when switching workspaces
+    websocketService.disconnectAll()
+    wsConnected.value.clear()
     // Clear file and folder state when switching workspaces
     currentNotebook.value = null
     currentFile.value = null
@@ -309,12 +329,101 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     const notebookId = notebook.id
     if (expandedNotebooks.value.has(notebookId)) {
       expandedNotebooks.value.delete(notebookId)
+      // Disconnect WebSocket when collapsing
+      websocketService.disconnect(notebookId)
     } else {
       expandedNotebooks.value.add(notebookId)
       // Fetch files when expanding
       fetchFiles(notebookId)
+      // Connect WebSocket for real-time updates
+      websocketService.connect(notebookId)
     }
     currentNotebook.value = notebook
+  }
+
+  /**
+   * Handle file change events from WebSocket.
+   * Updates the file tree incrementally based on the event type.
+   */
+  async function handleFileChangeEvent(event: FileChangeEvent) {
+    const tree = fileTrees.value.get(event.notebook_id)
+    if (!tree) {
+      // No tree loaded for this notebook, ignore
+      return
+    }
+
+    switch (event.event_type) {
+      case "created":
+      case "modified":
+      case "scanned":
+        // Fetch the updated file metadata from the API
+        if (currentWorkspace.value) {
+          try {
+            const file = await fileService.getByPath(
+              event.path,
+              currentWorkspace.value.id,
+              event.notebook_id,
+            )
+            if (event.event_type === "created") {
+              insertFileNode(tree, file)
+            } else {
+              // For modified, update the existing node
+              if (!updateFileNode(tree, file)) {
+                // If node not found, insert it (might have been created outside our view)
+                insertFileNode(tree, file)
+              }
+            }
+
+            // Update current file if it's the one that changed
+            if (currentFile.value?.path === event.path && currentFile.value?.notebook_id === event.notebook_id) {
+              // Refresh the file content
+              await selectFile(file)
+            }
+          } catch (e) {
+            console.warn(`Failed to fetch file metadata for ${event.path}:`, e)
+          }
+        }
+        break
+
+      case "deleted":
+        removeNode(tree, event.path)
+        // Clear current file if it was deleted
+        if (currentFile.value?.path === event.path && currentFile.value?.notebook_id === event.notebook_id) {
+          currentFile.value = null
+          isEditing.value = false
+        }
+        // Clear current folder if it was deleted
+        if (currentFolder.value?.path === event.path && currentFolder.value?.notebook_id === event.notebook_id) {
+          currentFolder.value = null
+        }
+        break
+
+      case "moved":
+        if (event.old_path) {
+          // Move node from old path to new path
+          moveNode(tree, event.old_path, event.path)
+
+          // Fetch updated metadata for the moved file
+          if (currentWorkspace.value) {
+            try {
+              const file = await fileService.getByPath(
+                event.path,
+                currentWorkspace.value.id,
+                event.notebook_id,
+              )
+              updateFileNode(tree, file)
+
+              // Update current file if it was moved
+              if (currentFile.value?.path === event.old_path && currentFile.value?.notebook_id === event.notebook_id) {
+                currentFile.value = { ...currentFile.value, ...file }
+              }
+            } catch (e) {
+              console.warn(`Failed to fetch moved file metadata for ${event.path}:`, e)
+            }
+          }
+        }
+        break
+    }
   }
 
   function setEditing(editing: boolean) {
@@ -507,6 +616,8 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     // Folder state
     currentFolder,
     folderLoading,
+    // WebSocket state
+    wsConnected,
     // Workspace actions
     fetchWorkspaces,
     loadWorkspaces,

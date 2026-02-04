@@ -20,6 +20,7 @@ from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 
 from codex.core.metadata import MetadataParser
+from codex.core.websocket import notify_file_change
 from codex.db.database import get_notebook_session
 from codex.db.models import FileMetadata
 
@@ -307,6 +308,14 @@ class FileOperationQueue:
 
                     session.commit()
                     logger.info(f"Moved file in DB: {old_rel_path} -> {new_rel_path}")
+
+                    # Notify WebSocket clients about the move
+                    notify_file_change(
+                        notebook_id=self.notebook_id,
+                        event_type="moved",
+                        path=new_rel_path,
+                        old_path=old_rel_path,
+                    )
                 else:
                     # File not found by old path, treat as new create
                     self._process_single(create_op)
@@ -336,6 +345,14 @@ class FileOperationQueue:
         try:
             self.process_callback(op.filepath, op.sidecar_path, op.operation)
             op.result = {"status": "success"}
+
+            # Notify WebSocket clients about the file change
+            rel_path = os.path.relpath(op.filepath, self.notebook_path)
+            notify_file_change(
+                notebook_id=self.notebook_id,
+                event_type=op.operation,
+                path=rel_path,
+            )
         except Exception as e:
             logger.error(f"Error processing {op.operation} for {op.filepath}: {e}")
             op.error = e

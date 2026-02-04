@@ -63,6 +63,9 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     }
   }
 
+  // Alias for backwards compatibility
+  const loadWorkspaces = fetchWorkspaces
+
   async function fetchNotebooks(workspaceId: number) {
     loading.value = true
     error.value = null
@@ -506,6 +509,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     folderLoading,
     // Workspace actions
     fetchWorkspaces,
+    loadWorkspaces,
     fetchNotebooks,
     createWorkspace,
     createNotebook,

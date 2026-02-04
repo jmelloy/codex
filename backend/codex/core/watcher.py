@@ -820,16 +820,42 @@ class NotebookFileHandler(FileSystemEventHandler):
 
     def on_created(self, event):
         """Called when a file or directory is created."""
-        if not event.is_directory:
-            src_path = str(event.src_path)
-            if self._should_ignore(src_path):
-                return
+        src_path = str(event.src_path)
+        if self._should_ignore(src_path):
+            return
+
+        if event.is_directory:
+            # When a directory is created, scan it for any files that may already exist
+            # This handles cases like copying a folder with contents, or extracting an archive
+            self._scan_new_directory(src_path)
+        else:
             if self.queue:
                 # Resolve sidecar for the operation
                 filepath, sidecar = MetadataParser.resolve_sidecar(src_path)
                 self.queue.enqueue(filepath, sidecar, "created")
             else:
                 self._update_file_metadata(src_path, "created")
+
+    def _scan_new_directory(self, dir_path: str):
+        """Scan a newly created directory for files and index them."""
+        logger.debug(f"Scanning newly created directory: {dir_path}")
+        try:
+            for root, dirs, files in os.walk(dir_path):
+                # Skip ignored directories
+                dirs[:] = [d for d in dirs if not self._should_ignore(os.path.join(root, d))]
+
+                for filename in files:
+                    filepath = os.path.join(root, filename)
+                    if self._should_ignore(filepath):
+                        continue
+
+                    if self.queue:
+                        abs_filepath, abs_sidecar = MetadataParser.resolve_sidecar(filepath)
+                        self.queue.enqueue(abs_filepath, abs_sidecar, "created")
+                    else:
+                        self._update_file_metadata(filepath, "created")
+        except Exception as e:
+            logger.error(f"Error scanning new directory {dir_path}: {e}", exc_info=True)
 
     def on_modified(self, event):
         """Called when a file or directory is modified."""
@@ -845,10 +871,15 @@ class NotebookFileHandler(FileSystemEventHandler):
 
     def on_deleted(self, event):
         """Called when a file or directory is deleted."""
-        if not event.is_directory:
-            src_path = str(event.src_path)
-            if self._should_ignore(src_path):
-                return
+        src_path = str(event.src_path)
+        if self._should_ignore(src_path):
+            return
+
+        if event.is_directory:
+            # When a directory is deleted, we need to delete all files within it
+            # Since the directory no longer exists, we query the database for files with matching prefix
+            self._delete_directory_files(src_path)
+        else:
             if self.queue:
                 # Get cached hash for move detection
                 file_hash = self._get_cached_hash(src_path)
@@ -856,13 +887,59 @@ class NotebookFileHandler(FileSystemEventHandler):
             else:
                 self._update_file_metadata(src_path, "deleted")
 
+    def _delete_directory_files(self, dir_path: str):
+        """Delete all files in a deleted directory from the database."""
+        logger.debug(f"Handling deleted directory: {dir_path}")
+        try:
+            session = get_notebook_session(self.notebook_path)
+            try:
+                rel_dir = os.path.relpath(dir_path, self.notebook_path)
+                prefix = f"{rel_dir}/"
+
+                # Find all files that start with this directory path
+                result = session.execute(
+                    select(FileMetadata).where(
+                        FileMetadata.notebook_id == self.notebook_id,
+                        FileMetadata.path.startswith(prefix),
+                    )
+                )
+                files_to_delete = result.scalars().all()
+
+                for f in files_to_delete:
+                    filepath = os.path.join(self.notebook_path, f.path)
+                    if self.queue:
+                        self.queue.enqueue(filepath, None, "deleted")
+                    else:
+                        session.delete(f)
+
+                if not self.queue:
+                    session.commit()
+
+                logger.debug(f"Queued deletion of {len(files_to_delete)} files from deleted directory {dir_path}")
+            finally:
+                session.close()
+        except Exception as e:
+            logger.error(f"Error handling deleted directory {dir_path}: {e}", exc_info=True)
+
     def on_moved(self, event):
         """Called when a file or directory is moved."""
-        if not event.is_directory:
-            src_path = str(event.src_path)
-            dest_path = str(event.dest_path)
-            if self._should_ignore(src_path) and self._should_ignore(dest_path):
-                return
+        src_path = str(event.src_path)
+        dest_path = str(event.dest_path)
+
+        src_ignored = self._should_ignore(src_path)
+        dest_ignored = self._should_ignore(dest_path)
+
+        # If both source and destination are ignored, skip entirely
+        if src_ignored and dest_ignored:
+            return
+
+        if event.is_directory:
+            # Directory move: delete files at old location, scan files at new location
+            if not src_ignored:
+                self._delete_directory_files(src_path)
+            if not dest_ignored:
+                self._scan_new_directory(dest_path)
+        else:
             if self.queue:
                 # For moves, we enqueue delete (with hash) and create
                 # The queue will detect this as a move via hash matching
@@ -871,12 +948,16 @@ class NotebookFileHandler(FileSystemEventHandler):
                     file_hash = calculate_file_hash(dest_path) if os.path.exists(dest_path) else None
                 except Exception:
                     file_hash = None
-                self.queue.enqueue(src_path, None, "deleted", file_hash=file_hash)
-                dest_filepath, dest_sidecar = MetadataParser.resolve_sidecar(dest_path)
-                self.queue.enqueue(dest_filepath, dest_sidecar, "created")
+                if not src_ignored:
+                    self.queue.enqueue(src_path, None, "deleted", file_hash=file_hash)
+                if not dest_ignored:
+                    dest_filepath, dest_sidecar = MetadataParser.resolve_sidecar(dest_path)
+                    self.queue.enqueue(dest_filepath, dest_sidecar, "created")
             else:
-                self._update_file_metadata(src_path, "deleted")
-                self._update_file_metadata(dest_path, "created")
+                if not src_ignored:
+                    self._update_file_metadata(src_path, "deleted")
+                if not dest_ignored:
+                    self._update_file_metadata(dest_path, "created")
 
 
 class NotebookWatcher:

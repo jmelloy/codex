@@ -12,7 +12,7 @@ from sqlmodel import select
 
 from codex.api.auth import get_current_active_user
 from codex.db.database import DATA_DIRECTORY, get_system_session
-from codex.db.models import User, Workspace
+from codex.db.models import PluginConfig, User, Workspace
 
 
 class WorkspaceCreate(BaseModel):
@@ -26,6 +26,13 @@ class ThemeUpdate(BaseModel):
     """Request body for updating theme setting."""
 
     theme: str
+
+
+class PluginConfigUpdate(BaseModel):
+    """Request body for updating plugin configuration."""
+    
+    enabled: bool | None = None
+    config: dict | None = None
 
 
 def slugify(name: str) -> str:
@@ -199,3 +206,171 @@ async def update_workspace_theme(
     await session.commit()
     await session.refresh(workspace)
     return workspace
+
+
+@router.get("/{workspace_identifier}/plugins")
+async def list_workspace_plugins(
+    workspace_identifier: str,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """List plugin configurations for a workspace.
+    
+    Args:
+        workspace_identifier: Workspace slug or ID
+        
+    Returns:
+        List of plugin configurations for the workspace
+    """
+    workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
+    
+    # Query workspace plugin configs
+    stmt = select(PluginConfig).where(
+        PluginConfig.workspace_id == workspace.id
+    )
+    result = await session.execute(stmt)
+    configs = result.scalars().all()
+    
+    return [
+        {
+            "plugin_id": config.plugin_id,
+            "enabled": config.enabled,
+            "config": config.config,
+            "created_at": config.created_at.isoformat() if config.created_at else None,
+            "updated_at": config.updated_at.isoformat() if config.updated_at else None,
+        }
+        for config in configs
+    ]
+
+
+@router.get("/{workspace_identifier}/plugins/{plugin_id}")
+async def get_workspace_plugin_config(
+    workspace_identifier: str,
+    plugin_id: str,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Get plugin configuration for a workspace.
+    
+    Args:
+        workspace_identifier: Workspace slug or ID
+        plugin_id: Plugin ID
+        
+    Returns:
+        Plugin configuration for the workspace
+    """
+    workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
+    
+    # Query workspace plugin config
+    stmt = select(PluginConfig).where(
+        PluginConfig.workspace_id == workspace.id,
+        PluginConfig.plugin_id == plugin_id,
+    )
+    result = await session.execute(stmt)
+    config = result.scalar_one_or_none()
+    
+    if not config:
+        return {
+            "plugin_id": plugin_id,
+            "enabled": True,  # Default to enabled if no config
+            "config": {},
+        }
+    
+    return {
+        "plugin_id": config.plugin_id,
+        "enabled": config.enabled,
+        "config": config.config,
+        "created_at": config.created_at.isoformat() if config.created_at else None,
+        "updated_at": config.updated_at.isoformat() if config.updated_at else None,
+    }
+
+
+@router.put("/{workspace_identifier}/plugins/{plugin_id}")
+async def update_workspace_plugin_config(
+    workspace_identifier: str,
+    plugin_id: str,
+    request_data: PluginConfigUpdate,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Update plugin configuration for a workspace.
+    
+    Args:
+        workspace_identifier: Workspace slug or ID
+        plugin_id: Plugin ID
+        request_data: Plugin configuration update
+        
+    Returns:
+        Updated plugin configuration
+    """
+    workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
+    
+    # Check if config exists
+    stmt = select(PluginConfig).where(
+        PluginConfig.workspace_id == workspace.id,
+        PluginConfig.plugin_id == plugin_id,
+    )
+    result = await session.execute(stmt)
+    config = result.scalar_one_or_none()
+    
+    if config:
+        # Update existing config
+        if request_data.enabled is not None:
+            config.enabled = request_data.enabled
+        if request_data.config is not None:
+            config.config = request_data.config
+        session.add(config)
+        await session.commit()
+        await session.refresh(config)
+    else:
+        # Create new config
+        config = PluginConfig(
+            workspace_id=workspace.id,
+            plugin_id=plugin_id,
+            enabled=request_data.enabled if request_data.enabled is not None else True,
+            config=request_data.config if request_data.config is not None else {},
+        )
+        session.add(config)
+        await session.commit()
+        await session.refresh(config)
+    
+    return {
+        "plugin_id": config.plugin_id,
+        "enabled": config.enabled,
+        "config": config.config,
+        "created_at": config.created_at.isoformat() if config.created_at else None,
+        "updated_at": config.updated_at.isoformat() if config.updated_at else None,
+    }
+
+
+@router.delete("/{workspace_identifier}/plugins/{plugin_id}")
+async def delete_workspace_plugin_config(
+    workspace_identifier: str,
+    plugin_id: str,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Delete plugin configuration for a workspace (revert to defaults).
+    
+    Args:
+        workspace_identifier: Workspace slug or ID
+        plugin_id: Plugin ID
+        
+    Returns:
+        Success message
+    """
+    workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
+    
+    # Query workspace plugin config
+    stmt = select(PluginConfig).where(
+        PluginConfig.workspace_id == workspace.id,
+        PluginConfig.plugin_id == plugin_id,
+    )
+    result = await session.execute(stmt)
+    config = result.scalar_one_or_none()
+    
+    if config:
+        await session.delete(config)
+        await session.commit()
+    
+    return {"message": "Plugin configuration deleted successfully"}

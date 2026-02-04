@@ -250,7 +250,7 @@ def test_update_folder_properties(test_client, temp_workspace_dir):
 
 
 def test_delete_folder(test_client, temp_workspace_dir):
-    """Test deleting a folder and all its contents."""
+    """Test queuing deletion of a folder and all its contents."""
     headers, _ = setup_test_user(test_client)
     workspace, notebook = setup_workspace_and_notebook(test_client, headers, temp_workspace_dir)
 
@@ -264,24 +264,24 @@ def test_delete_folder(test_client, temp_workspace_dir):
     )
     assert get_response.status_code == 200
 
-    # Delete folder using nested route
+    # Delete folder using nested route (queued operation)
     response = test_client.delete(
         f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/folders/to_delete",
         headers=headers,
     )
     assert response.status_code == 200
-    assert response.json()["message"] == "Folder deleted successfully"
+    data = response.json()
+    assert data["queued"] is True
+    assert data["status"] == "pending"
+    assert data["path"] == "to_delete"
+    assert "event_id" in data
 
-    # Verify folder is deleted
-    get_response = test_client.get(
-        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/folders/to_delete",
-        headers=headers,
-    )
-    assert get_response.status_code == 404
+    # Note: Folder still exists until queue worker processes the event
+    # Actual deletion is tested in test_queue_worker.py
 
 
 def test_delete_nested_folder(test_client, temp_workspace_dir):
-    """Test deleting a nested folder."""
+    """Test queuing deletion of a nested folder."""
     headers, _ = setup_test_user(test_client)
     workspace, notebook = setup_workspace_and_notebook(test_client, headers, temp_workspace_dir)
 
@@ -295,26 +295,20 @@ def test_delete_nested_folder(test_client, temp_workspace_dir):
         headers=headers,
     )
 
-    # Delete inner folder using nested route
+    # Delete inner folder using nested route (queued operation)
     response = test_client.delete(
         f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/folders/outer/inner",
         headers=headers,
     )
     assert response.status_code == 200
+    data = response.json()
+    assert data["queued"] is True
+    assert data["status"] == "pending"
+    assert data["path"] == "outer/inner"
+    assert "event_id" in data
 
-    # Outer folder should still exist
-    outer_response = test_client.get(
-        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/folders/outer",
-        headers=headers,
-    )
-    assert outer_response.status_code == 200
-
-    # Inner folder should be gone
-    inner_response = test_client.get(
-        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/folders/outer/inner",
-        headers=headers,
-    )
-    assert inner_response.status_code == 404
+    # Note: Folders still exist until queue worker processes the event
+    # Actual deletion is tested in test_queue_worker.py
 
 
 def test_delete_root_folder_fails(test_client, temp_workspace_dir):

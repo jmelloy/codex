@@ -375,7 +375,7 @@ def test_move_file(test_client, temp_workspace_dir):
     )
     file_id = create_response.json()["id"]
 
-    # Move file
+    # Move file (queued operation)
     response = test_client.patch(
         f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/files/{file_id}/move",
         json={"new_path": "renamed_file.md"},
@@ -383,7 +383,9 @@ def test_move_file(test_client, temp_workspace_dir):
     )
     assert response.status_code == 200
     data = response.json()
-    assert data["path"] == "renamed_file.md"
+    assert data["queued"] is True
+    assert data["status"] == "pending"
+    assert data["target_path"] == "renamed_file.md"
     assert data["filename"] == "renamed_file.md"
 
 
@@ -403,7 +405,7 @@ def test_move_file_to_subdirectory(test_client, temp_workspace_dir):
     )
     file_id = create_response.json()["id"]
 
-    # Move to subdirectory
+    # Move to subdirectory (queued operation)
     response = test_client.patch(
         f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/files/{file_id}/move",
         json={"new_path": "subdir/moved_file.md"},
@@ -411,7 +413,9 @@ def test_move_file_to_subdirectory(test_client, temp_workspace_dir):
     )
     assert response.status_code == 200
     data = response.json()
-    assert data["path"] == "subdir/moved_file.md"
+    assert data["queued"] is True
+    assert data["status"] == "pending"
+    assert data["target_path"] == "subdir/moved_file.md"
 
 
 def test_delete_file(test_client, temp_workspace_dir):

@@ -6,6 +6,10 @@ import RegisterView from "../views/RegisterView.vue"
 import IntegrationSettingsView from "../views/IntegrationSettingsView.vue"
 import IntegrationConfigView from "../views/IntegrationConfigView.vue"
 import PageDetailView from "../views/PageDetailView.vue"
+import SettingsView from "../views/SettingsView.vue"
+import UserPreferencesView from "../views/UserPreferencesView.vue"
+import WorkspacePreferencesView from "../views/WorkspacePreferencesView.vue"
+import NotebookPreferencesView from "../views/NotebookPreferencesView.vue"
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -23,7 +27,32 @@ const router = createRouter({
     },
     {
       path: "/settings",
-      redirect: { path: "/", query: { view: "settings" } },
+      component: SettingsView,
+      meta: { requiresAuth: true },
+      children: [
+        {
+          path: "",
+          redirect: "/settings/user",
+        },
+        {
+          path: "user",
+          name: "settings-user",
+          component: UserPreferencesView,
+          meta: { requiresAuth: true },
+        },
+        {
+          path: "workspace",
+          name: "settings-workspace",
+          component: WorkspacePreferencesView,
+          meta: { requiresAuth: true },
+        },
+        {
+          path: "notebook",
+          name: "settings-notebook",
+          component: NotebookPreferencesView,
+          meta: { requiresAuth: true },
+        },
+      ],
     },
     {
       path: "/page/:notebookId/:pagePath+",

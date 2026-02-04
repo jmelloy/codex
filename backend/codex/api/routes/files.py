@@ -1573,3 +1573,327 @@ async def get_file_history_nested(
         nb_session.close()
 
 
+@nested_router.get("/{file_id}/history/{commit_hash}")
+async def get_file_at_commit_nested(
+    workspace_identifier: str,
+    notebook_identifier: str,
+    file_id: int,
+    commit_hash: str,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Get file content at a specific commit (nested under workspace/notebook route)."""
+    notebook_path, notebook, workspace = await get_notebook_path_nested(
+        workspace_identifier, notebook_identifier, current_user, session
+    )
+
+    nb_session = get_notebook_session(str(notebook_path))
+    try:
+        # Get file metadata
+        result = nb_session.execute(
+            select(FileMetadata).where(FileMetadata.id == file_id, FileMetadata.notebook_id == notebook.id)
+        )
+        file_meta = result.scalar_one_or_none()
+
+        if not file_meta:
+            raise HTTPException(status_code=404, detail="File not found")
+
+        file_path = notebook_path / file_meta.path
+
+        # Get file content at commit
+        from codex.core.git_manager import GitManager
+        git_manager = GitManager(str(notebook_path))
+        content = git_manager.get_file_at_commit(str(file_path), commit_hash)
+
+        if content is None:
+            raise HTTPException(status_code=404, detail="File not found at this commit")
+
+        return {"file_id": file_id, "path": file_meta.path, "commit_hash": commit_hash, "content": content}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting file at commit: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error getting file at commit: {str(e)}")
+    finally:
+        nb_session.close()
+
+
+class CreateFromTemplateRequestNested(BaseModel):
+    """Request model for creating a file from a template (nested routes)."""
+
+    template_id: str
+    filename: str | None = None
+
+
+@nested_router.post("/from-template")
+async def create_from_template_nested(
+    req: Request,
+    workspace_identifier: str,
+    notebook_identifier: str,
+    request: CreateFromTemplateRequestNested,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Create a new file from a template (nested under workspace/notebook route).
+
+    Expands date patterns in filename and content.
+    """
+    template_id = request.template_id
+    custom_filename = request.filename
+
+    # Get notebook path
+    notebook_path, notebook, workspace = await get_notebook_path_nested(
+        workspace_identifier, notebook_identifier, current_user, session
+    )
+
+    # Find the template
+    template = None
+
+    # First check .templates folder
+    templates_dir = notebook_path / ".templates"
+    if templates_dir.exists():
+        for template_file in templates_dir.iterdir():
+            if template_file.stem == template_id:
+                try:
+                    with open(template_file) as f:
+                        content = f.read()
+                    properties, body = MetadataParser.parse_frontmatter(content)
+                    if properties and properties.get("type") == "template":
+                        ext = properties.get("template_for", template_file.suffix)
+                        template = {
+                            "id": template_id,
+                            "file_extension": ext,
+                            "default_name": properties.get("default_name", f"{{title}}{ext}"),
+                            "content": properties.get("template_content", body),
+                        }
+                        break
+                except Exception:
+                    continue
+
+    # Fall back to default templates
+    if not template:
+        # Get plugin_loader if available (may not be in test environment)
+        plugin_loader = getattr(req.app.state, 'plugin_loader', None)
+        if plugin_loader:
+            for t in get_default_templates(plugin_loader):
+                if t["id"] == template_id:
+                    template = t
+                    break
+
+    if not template:
+        raise HTTPException(status_code=404, detail=f"Template not found: {template_id}")
+
+    # Determine filename
+    if custom_filename:
+        # Use custom filename, ensure it has the right extension
+        filename = custom_filename
+        if not filename.endswith(template["file_extension"]):
+            filename += template["file_extension"]
+    else:
+        # Generate from pattern
+        filename = expand_template_pattern(template["default_name"])
+
+    # Extract title from filename for content expansion
+    title = os.path.splitext(filename)[0]
+
+    # Expand patterns in content
+    content = expand_template_pattern(template["content"], title)
+
+    # Create the file directly (same logic as create_file_nested)
+    nb_session = get_notebook_session(str(notebook_path))
+    try:
+        file_path = notebook_path / filename
+
+        # Check if file already exists
+        if file_path.exists():
+            raise HTTPException(status_code=400, detail="File already exists")
+
+        # Create parent directories if needed
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Determine content type before creating file
+        content_type = get_content_type(str(file_path))
+
+        # Create metadata record BEFORE writing file to prevent race with watcher
+        file_meta = FileMetadata(
+            notebook_id=notebook.id,
+            path=filename,
+            filename=os.path.basename(filename),
+            content_type=content_type,
+            size=0,  # Placeholder, will be updated
+            hash=hashlib.sha256(content.encode()).hexdigest(),
+        )
+
+        # Add and commit the metadata record first
+        nb_session.add(file_meta)
+        try:
+            nb_session.commit()
+            nb_session.refresh(file_meta)
+        except Exception as commit_error:
+            # Handle race condition: watcher may have created the record
+            nb_session.rollback()
+            if "UNIQUE constraint failed" in str(commit_error):
+                # Query for the existing record created by the watcher
+                existing_result = nb_session.execute(
+                    select(FileMetadata).where(FileMetadata.notebook_id == notebook.id, FileMetadata.path == filename)
+                )
+                file_meta = existing_result.scalar_one_or_none()
+                if not file_meta:
+                    raise HTTPException(status_code=500, detail="Race condition: file metadata not found")
+            else:
+                raise
+
+        # Now write the file to disk
+        with open(file_path, "w") as f:
+            f.write(content)
+
+        # Update metadata with actual file stats
+        file_stats = os.stat(file_path)
+        file_meta.size = file_stats.st_size
+        file_meta.file_created_at = datetime.fromtimestamp(file_stats.st_ctime)
+        file_meta.file_modified_at = datetime.fromtimestamp(file_stats.st_mtime)
+
+        # Commit the updates
+        nb_session.commit()
+        nb_session.refresh(file_meta)
+
+        # Commit to git if available
+        try:
+            from codex.core.git_manager import GitManager
+            git_manager = GitManager(str(notebook_path))
+            commit_hash = git_manager.commit(f"Create {filename} from template {template_id}", [str(file_path)])
+            if commit_hash:
+                file_meta.last_commit_hash = commit_hash
+                nb_session.commit()
+                nb_session.refresh(file_meta)
+        except Exception as e:
+            logger.warning(f"Failed to commit file to git: {e}")
+
+        return {
+            "id": file_meta.id,
+            "notebook_id": file_meta.notebook_id,
+            "path": file_meta.path,
+            "filename": file_meta.filename,
+            "content_type": file_meta.content_type,
+            "size": file_meta.size,
+            "message": "File created successfully from template",
+            "properties": file_meta.properties,
+            "created_at": file_meta.created_at.isoformat() if file_meta.created_at else None,
+            "updated_at": file_meta.updated_at.isoformat() if file_meta.updated_at else None,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating file from template: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error creating file from template: {str(e)}")
+    finally:
+        nb_session.close()
+
+
+@nested_router.post("/upload")
+async def upload_file_nested(
+    workspace_identifier: str,
+    notebook_identifier: str,
+    file: UploadFile = File(...),
+    path: str = Form(None),
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Upload a binary file (nested under workspace/notebook route)."""
+    notebook_path, notebook, workspace = await get_notebook_path_nested(
+        workspace_identifier, notebook_identifier, current_user, session
+    )
+
+    # Create the file
+    nb_session = get_notebook_session(str(notebook_path))
+    try:
+        # Use provided path or default to filename
+        target_path = path if path else file.filename
+        if not target_path:
+            raise HTTPException(status_code=400, detail="No filename provided")
+
+        file_path = notebook_path / target_path
+
+        # Check if file already exists
+        if file_path.exists():
+            raise HTTPException(status_code=400, detail="File already exists")
+
+        # Create parent directories if needed
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Determine content type
+        content_type = get_content_type(str(file_path))
+
+        # Read file content
+        content = await file.read()
+        file_hash = hashlib.sha256(content).hexdigest()
+
+        # Create metadata record
+        file_meta = FileMetadata(
+            notebook_id=notebook.id,
+            path=target_path,
+            filename=os.path.basename(target_path),
+            content_type=content_type,
+            size=len(content),
+            hash=file_hash,
+        )
+
+        # Add and commit the metadata record
+        nb_session.add(file_meta)
+        try:
+            nb_session.commit()
+            nb_session.refresh(file_meta)
+        except Exception as commit_error:
+            nb_session.rollback()
+            if "UNIQUE constraint failed" in str(commit_error):
+                existing_result = nb_session.execute(
+                    select(FileMetadata).where(
+                        FileMetadata.notebook_id == notebook.id, FileMetadata.path == target_path
+                    )
+                )
+                file_meta = existing_result.scalar_one_or_none()
+                if not file_meta:
+                    raise HTTPException(status_code=500, detail="Race condition: file metadata not found")
+            else:
+                raise
+
+        # Write the file to disk
+        with open(file_path, "wb") as f:
+            f.write(content)
+
+        # Update metadata with actual file stats
+        file_stats = os.stat(file_path)
+        file_meta.size = file_stats.st_size
+        file_meta.file_created_at = datetime.fromtimestamp(file_stats.st_ctime)
+        file_meta.file_modified_at = datetime.fromtimestamp(file_stats.st_mtime)
+
+        # Commit file to git
+        from codex.core.git_manager import GitManager
+        git_manager = GitManager(str(notebook_path))
+        commit_hash = git_manager.commit(f"Upload {os.path.basename(target_path)}", [str(file_path)])
+        if commit_hash:
+            file_meta.last_commit_hash = commit_hash
+
+        nb_session.commit()
+        nb_session.refresh(file_meta)
+
+        result = {
+            "id": file_meta.id,
+            "notebook_id": file_meta.notebook_id,
+            "path": file_meta.path,
+            "filename": file_meta.filename,
+            "content_type": file_meta.content_type,
+            "size": file_meta.size,
+            "message": "File uploaded successfully",
+        }
+
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error uploading file to notebook {notebook_path}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error uploading file: {str(e)}")
+    finally:
+        nb_session.close()
+
+

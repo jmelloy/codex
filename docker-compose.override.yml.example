@@ -44,6 +44,15 @@ services:
     tty: true
     depends_on:
       - backend
+    
+  # Plugins watcher - rebuilds Vue components on file changes (development)
+  plugins-watcher:
+    image: node:25-slim
+    working_dir: /plugins
+    volumes:
+      - ./plugins:/plugins
+    command: sh -c "npm install && npm run build:watch"
+    restart: unless-stopped
 
 volumes:
   frontend-node-modules:

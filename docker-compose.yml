@@ -15,7 +15,7 @@ services:
       - CODEX_PLUGINS_DIR=/app/plugins
     volumes:
       - ./data:/app/data
-      - ./plugins:/app/plugins:ro
+      - ./plugins:/app/plugins
     restart: unless-stopped
     command: >
       sh -c "alembic upgrade head && python -m codex.main"
@@ -36,7 +36,7 @@ services:
     ports:
       - 8065:80
     volumes:
-      - ./plugins:/plugins:ro
+      - ./plugins:/plugins
     depends_on:
       backend:
         condition: service_healthy

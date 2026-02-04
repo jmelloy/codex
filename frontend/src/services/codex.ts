@@ -585,17 +585,18 @@ export const fileService = {
   ): Promise<FileMetadata> {
     const formData = new FormData()
     formData.append("file", file)
-    formData.append("notebook_id", String(notebookId))
-    formData.append("workspace_id", String(workspaceId))
     if (path) {
       formData.append("path", path)
     }
-    // Note: This still uses old route since nested route not implemented yet
-    const response = await apiClient.post<FileMetadata>("/api/v1/files/upload", formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    })
+    const response = await apiClient.post<FileMetadata>(
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/upload`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    )
     return response.data
   },
 
@@ -636,9 +637,8 @@ export const fileService = {
     notebookId: number | string,
     commitHash: string
   ): Promise<FileAtCommit> {
-    // Note: This still uses old route since nested route not implemented yet
     const response = await apiClient.get<FileAtCommit>(
-      `/api/v1/files/${id}/history/${commitHash}?workspace_id=${workspaceId}&notebook_id=${notebookId}`
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/${id}/history/${commitHash}`
     )
     return response.data
   },
@@ -664,13 +664,13 @@ export const templateService = {
     templateId: string,
     filename?: string
   ): Promise<FileMetadata> {
-    // Note: This still uses old route since nested route not implemented yet
-    const response = await apiClient.post<FileMetadata>("/api/v1/files/from-template", {
-      notebook_id: notebookId,
-      workspace_id: workspaceId,
-      template_id: templateId,
-      filename: filename || null,
-    })
+    const response = await apiClient.post<FileMetadata>(
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/from-template`,
+      {
+        template_id: templateId,
+        filename: filename || null,
+      }
+    )
     return response.data
   },
 

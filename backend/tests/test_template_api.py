@@ -83,10 +83,8 @@ Template definition file.
 
     # Create file from custom template
     response = test_client.post(
-        "/api/v1/files/from-template",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/files/from-template",
         json={
-            "workspace_id": workspace["id"],
-            "notebook_id": notebook["id"],
             "template_id": "simple-template",
         },
         headers=headers,
@@ -129,10 +127,8 @@ template_content: "# Custom Filename Test"
 
     # Create file from template with custom filename
     response = test_client.post(
-        "/api/v1/files/from-template",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/files/from-template",
         json={
-            "workspace_id": workspace["id"],
-            "notebook_id": notebook["id"],
             "template_id": "filename-test",
             "filename": "my-custom-note",
         },
@@ -152,10 +148,8 @@ def test_create_from_template_invalid_template(test_client, temp_workspace_dir):
 
     # Try to create file from non-existent template
     response = test_client.post(
-        "/api/v1/files/from-template",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/files/from-template",
         json={
-            "workspace_id": workspace["id"],
-            "notebook_id": notebook["id"],
             "template_id": "non-existent-template-xyz",
         },
         headers=headers,
@@ -183,10 +177,8 @@ This is the template definition file.
 
     # Create file from template with custom filename
     response1 = test_client.post(
-        "/api/v1/files/from-template",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/files/from-template",
         json={
-            "workspace_id": workspace["id"],
-            "notebook_id": notebook["id"],
             "template_id": "dup-test",
             "filename": "duplicate-test",
         },
@@ -196,10 +188,8 @@ This is the template definition file.
 
     # Try to create same file again
     response2 = test_client.post(
-        "/api/v1/files/from-template",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/files/from-template",
         json={
-            "workspace_id": workspace["id"],
-            "notebook_id": notebook["id"],
             "template_id": "dup-test",
             "filename": "duplicate-test",
         },
@@ -225,10 +215,8 @@ template_content: "# Nested Path Test"
     notebook_path = setup_custom_template(test_client, headers, workspace, notebook, "nested-test", template_content)
 
     response = test_client.post(
-        "/api/v1/files/from-template",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/files/from-template",
         json={
-            "workspace_id": workspace["id"],
-            "notebook_id": notebook["id"],
             "template_id": "nested-test",
         },
         headers=headers,
@@ -260,10 +248,8 @@ template_content: "---\\ntitle: {title}\\nyear: {yyyy}\\nmonth: {mm}\\nday: {dd}
     notebook_path = Path(setup_custom_template(test_client, headers, workspace, notebook, "pattern-test", template_content)).resolve()
 
     response = test_client.post(
-        "/api/v1/files/from-template",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/files/from-template",
         json={
-            "workspace_id": workspace["id"],
-            "notebook_id": notebook["id"],
             "template_id": "pattern-test",
         },
         headers=headers,

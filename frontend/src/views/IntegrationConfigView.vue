@@ -203,6 +203,17 @@ const testResult = ref<IntegrationTestResult | null>(null)
 const integrationId = computed(() => route.params.integrationId as string)
 const currentWorkspace = computed(() => workspaceStore.currentWorkspace)
 
+// Helper to get notebook ID for integration operations
+// Uses current notebook or falls back to first notebook
+function getNotebookId(): number | undefined {
+  if (workspaceStore.currentNotebook) {
+    return workspaceStore.currentNotebook.id
+  } else if (workspaceStore.notebooks.length > 0) {
+    return workspaceStore.notebooks[0].id
+  }
+  return undefined
+}
+
 // Convert snake_case to Title Case
 function formatLabel(name: string): string {
   return name
@@ -230,14 +241,7 @@ async function loadIntegration() {
 
     // Load existing config if workspace is available
     if (currentWorkspace.value?.id) {
-      // Get notebook ID - use current notebook or first available notebook
-      let notebookId: number | undefined
-      
-      if (workspaceStore.currentNotebook) {
-        notebookId = workspaceStore.currentNotebook.id
-      } else if (workspaceStore.notebooks.length > 0) {
-        notebookId = workspaceStore.notebooks[0].id
-      }
+      const notebookId = getNotebookId()
       
       if (notebookId) {
         const existingConfig = await getIntegrationConfig(
@@ -284,14 +288,7 @@ async function handleSave() {
     return
   }
 
-  // Get notebook ID - use current notebook or first available notebook
-  let notebookId: number | undefined
-  
-  if (workspaceStore.currentNotebook) {
-    notebookId = workspaceStore.currentNotebook.id
-  } else if (workspaceStore.notebooks.length > 0) {
-    notebookId = workspaceStore.notebooks[0].id
-  }
+  const notebookId = getNotebookId()
   
   if (!notebookId) {
     testResult.value = {

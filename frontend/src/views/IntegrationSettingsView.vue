@@ -78,6 +78,17 @@ const error = computed(() => integrationStore.integrationsLoadError ? 'Failed to
 const hasWorkspace = computed(() => workspaceStore.currentWorkspace !== null)
 const toggling = ref<string | null>(null)
 
+// Helper to get notebook ID for integration operations
+// Uses current notebook or falls back to first notebook
+function getNotebookId(): number | undefined {
+  if (workspaceStore.currentNotebook) {
+    return workspaceStore.currentNotebook.id
+  } else if (workspaceStore.notebooks.length > 0) {
+    return workspaceStore.notebooks[0].id
+  }
+  return undefined
+}
+
 async function loadIntegrations() {
   const workspaceId = workspaceStore.currentWorkspace?.id
   if (!workspaceId) {
@@ -85,15 +96,7 @@ async function loadIntegrations() {
     return
   }
 
-  // Get notebook ID - use current notebook or first available notebook
-  let notebookId: number | undefined
-  
-  if (workspaceStore.currentNotebook) {
-    notebookId = workspaceStore.currentNotebook.id
-  } else if (workspaceStore.notebooks.length > 0) {
-    // Use first notebook if none is currently selected
-    notebookId = workspaceStore.notebooks[0].id
-  }
+  const notebookId = getNotebookId()
   
   if (!notebookId) {
     console.warn('No notebook available - integration settings require a notebook context')
@@ -116,14 +119,7 @@ async function toggleEnabled(integrationId: string, event: Event) {
     return
   }
   
-  // Get notebook ID - use current notebook or first available notebook
-  let notebookId: number | undefined
-  
-  if (workspaceStore.currentNotebook) {
-    notebookId = workspaceStore.currentNotebook.id
-  } else if (workspaceStore.notebooks.length > 0) {
-    notebookId = workspaceStore.notebooks[0].id
-  }
+  const notebookId = getNotebookId()
   
   if (!notebookId) {
     console.error('No notebook available')

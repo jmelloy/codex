@@ -10,14 +10,36 @@ These models are stored in the system database (codex_system.db):
 - PluginConfig: Plugin configurations per workspace
 - PluginSecret: Secure plugin secrets (encrypted)
 - PluginAPILog: Plugin API request logs
+- FileEvent: Event queue for file operations
 """
 
 from datetime import datetime
+from enum import Enum
 
-from sqlalchemy import UniqueConstraint
+from sqlalchemy import Index, Text, UniqueConstraint
 from sqlmodel import JSON, Column, Field, Relationship, SQLModel
 
 from .base import utc_now
+
+
+class FileEventType(str, Enum):
+    """Types of file events."""
+
+    CREATE = "create"
+    UPDATE = "update"
+    MOVE = "move"
+    DELETE = "delete"
+    SYNC = "sync"  # Watcher-detected external change
+
+
+class FileEventStatus(str, Enum):
+    """Status of file events."""
+
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    SUPERSEDED = "superseded"  # Replaced by newer event
 
 
 class User(SQLModel, table=True):
@@ -211,3 +233,47 @@ class IntegrationArtifact(SQLModel, table=True):
     content_type: str = Field(default="application/json")  # MIME type of the artifact
     fetched_at: datetime = Field(default_factory=utc_now)
     expires_at: datetime | None = None  # Optional expiration time for cache
+
+
+class FileEvent(SQLModel, table=True):
+    """Event queue for file operations.
+
+    This table stores file operation events for async processing by workers.
+    Events are processed in order by notebook, enabling batched git commits
+    and eliminating race conditions between API endpoints and watchers.
+    """
+
+    __tablename__ = "file_events"  # type: ignore[assignment]
+    __table_args__ = (
+        Index("ix_file_events_notebook_status", "notebook_id", "status"),
+        Index("ix_file_events_correlation", "correlation_id"),
+        Index("ix_file_events_created_at", "created_at"),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    notebook_id: int = Field(foreign_key="notebooks.id", index=True)
+
+    # Event type and status
+    event_type: str = Field(index=True)  # FileEventType value
+    status: str = Field(default=FileEventStatus.PENDING.value)  # FileEventStatus value
+
+    # Operation details (JSON serialized)
+    # Examples:
+    # CREATE: {"path": "/notes/foo.md", "content": "...", "metadata": {...}}
+    # UPDATE: {"path": "/notes/foo.md", "content": "...", "metadata": {...}}
+    # MOVE:   {"source_path": "/notes/foo.md", "dest_path": "/archive/foo.md"}
+    # DELETE: {"path": "/notes/foo.md", "is_directory": false}
+    # SYNC:   {"path": "/notes/foo.md", "event": "modified"}
+    operation: str = Field(sa_column=Column(Text))
+
+    # Correlation for multi-event operations (e.g., folder move)
+    correlation_id: str | None = Field(default=None, index=True)
+    sequence: int = Field(default=0)  # Order within correlation group
+
+    # Tracking
+    created_at: datetime = Field(default_factory=utc_now)
+    processed_at: datetime | None = None
+
+    # Error handling
+    error_message: str | None = Field(default=None, sa_column=Column(Text))
+    retry_count: int = Field(default=0)

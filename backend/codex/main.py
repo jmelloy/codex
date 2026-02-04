@@ -13,6 +13,7 @@ from sqlmodel import select
 from ulid import ULID
 
 from codex.api.routes import (
+    events,
     files,
     folders,
     integrations,
@@ -24,6 +25,7 @@ from codex.api.routes import (
     users,
     workspaces,
 )
+from codex.core.event_worker import EventWorkerManager
 from codex.core.watcher import NotebookWatcher
 from codex.db.database import get_system_session_sync, init_notebook_db, init_system_db
 from codex.db.models import Notebook, Workspace
@@ -36,17 +38,34 @@ logger = logging.getLogger(__name__)
 # Global registry of active watchers
 _active_watchers: list[NotebookWatcher] = []
 
+# Global event worker manager (manages workers for all notebooks)
+_event_worker_manager: EventWorkerManager | None = None
+
+# Configuration: Enable event queue mode for async file operations
+USE_EVENT_QUEUE = os.getenv("CODEX_USE_EVENT_QUEUE", "false").lower() == "true"
+
 
 def get_active_watchers() -> list[NotebookWatcher]:
     """Get the list of active notebook watchers."""
     return _active_watchers
 
 
+def get_event_worker_manager() -> EventWorkerManager | None:
+    """Get the event worker manager."""
+    return _event_worker_manager
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize database and plugins on startup."""
+    global _event_worker_manager
 
     await init_system_db()
+
+    # Initialize event worker manager if event queue mode is enabled
+    if USE_EVENT_QUEUE:
+        _event_worker_manager = EventWorkerManager()
+        logger.info("Event queue mode enabled - initialized EventWorkerManager")
 
     # Initialize plugin loader
     try:
@@ -70,6 +89,14 @@ async def lifespan(app: FastAPI):
 
     yield
 
+    # Stop all event workers on shutdown
+    if _event_worker_manager:
+        try:
+            logger.info("Stopping event worker manager...")
+            _event_worker_manager.stop_all()
+        except Exception as e:
+            logger.error(f"Error stopping event workers: {e}", exc_info=True)
+
     # Stop all watchers on shutdown
     for watcher in _active_watchers:
         try:
@@ -81,6 +108,9 @@ async def lifespan(app: FastAPI):
 def _start_notebook_watchers_sync():
     """Start notebook watchers synchronously (runs in thread pool)."""
     logger.info("Starting notebook watchers...")
+
+    if USE_EVENT_QUEUE:
+        logger.info("Event queue mode enabled - watchers will publish sync events")
 
     # Query notebooks from the system database
     session = get_system_session_sync()
@@ -117,8 +147,13 @@ def _start_notebook_watchers_sync():
                     logger.error(f"Failed to initialize notebook database for {nb.name}: {e}")
                     continue
 
+                # Start event worker if event queue mode is enabled
+                if USE_EVENT_QUEUE and _event_worker_manager:
+                    logger.info(f"Starting event worker for: {nb.name} (id={nb.id})")
+                    _event_worker_manager.start_worker(nb.id, str(notebook_path))
+
                 logger.info(f"Starting watcher for: {nb.name} (id={nb.id})")
-                watcher = NotebookWatcher(str(notebook_path), nb.id)
+                watcher = NotebookWatcher(str(notebook_path), nb.id, use_event_queue=USE_EVENT_QUEUE)
                 watcher.start()
                 _active_watchers.append(watcher)
                 logger.info(f"Watcher started successfully for {nb.name}")
@@ -213,6 +248,7 @@ app.include_router(
 )
 app.include_router(tasks.router, prefix="/api/v1/tasks", tags=["tasks"])
 app.include_router(query.router, prefix="/api/v1/query", tags=["query"])
+app.include_router(events.router, prefix="/api/v1/events", tags=["events"])
 app.include_router(integrations.router, prefix="/api/v1/plugins/integrations", tags=["integrations"])
 app.include_router(plugins.router, prefix="/api/v1/plugins", tags=["plugins"])
 

@@ -443,15 +443,30 @@ async def update_folder_properties(
         raise HTTPException(status_code=500, detail=f"Error updating folder properties: {str(e)}")
 
 
+class EventResponse(BaseModel):
+    """Response model for async event operations."""
+
+    event_id: int
+    status: str
+    path: str
+    message: str
+
+
 @nested_router.delete("/{folder_path:path}")
 async def delete_folder(
     workspace_identifier: str,
     notebook_identifier: str,
     folder_path: str,
+    sync: bool = True,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_system_session),
 ):
-    """Delete a folder and all its contents."""
+    """Delete a folder and all its contents.
+
+    Args:
+        sync: If True (default), perform operation synchronously.
+              If False, queue the operation and return event ID.
+    """
     notebook_path, notebook, workspace = await get_notebook_path_nested(
         workspace_identifier, notebook_identifier, current_user, session
     )
@@ -479,6 +494,33 @@ async def delete_folder(
     if not folder_path:
         raise HTTPException(status_code=400, detail="Cannot delete root folder")
 
+    # Async mode: publish event to queue
+    if not sync:
+        from codex.core.event_publisher import EventPublisher
+        from codex.db.database import get_system_session_sync
+        from codex.db.models import FileEventType
+
+        sys_session = get_system_session_sync()
+        try:
+            publisher = EventPublisher(sys_session)
+            event = publisher.publish(
+                notebook_id=notebook.id,
+                event_type=FileEventType.DELETE,
+                operation={
+                    "path": folder_path,
+                    "is_directory": True,
+                },
+            )
+            return EventResponse(
+                event_id=event.id,
+                status="pending",
+                path=folder_path,
+                message="Folder deletion queued",
+            )
+        finally:
+            sys_session.close()
+
+    # Sync mode: perform operation directly (existing behavior)
     nb_session = get_notebook_session(str(notebook_path))
     try:
         # Delete all files in folder from database

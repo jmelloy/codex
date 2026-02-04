@@ -715,6 +715,15 @@ class UpdateFileRequestNested(BaseModel):
     properties: dict[str, Any] | None = None
 
 
+class EventResponse(BaseModel):
+    """Response model for async event operations."""
+
+    event_id: int
+    status: str
+    path: str
+    message: str
+
+
 @nested_router.get("/templates")
 async def list_templates_nested(
     request: Request,
@@ -848,10 +857,16 @@ async def create_file_nested(
     workspace_identifier: str,
     notebook_identifier: str,
     request: CreateFileRequestNested,
+    sync: bool = True,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_system_session),
 ):
-    """Create a new file (nested under workspace/notebook route)."""
+    """Create a new file (nested under workspace/notebook route).
+
+    Args:
+        sync: If True (default), perform operation synchronously.
+              If False, queue the operation and return event ID.
+    """
     notebook_path, notebook, workspace = await get_notebook_path_nested(
         workspace_identifier, notebook_identifier, current_user, session
     )
@@ -859,15 +874,41 @@ async def create_file_nested(
     path = request.path
     content = request.content
 
-    # Create the file
+    # Check if file already exists
+    file_path = notebook_path / path
+    if file_path.exists():
+        raise HTTPException(status_code=400, detail="File already exists")
+
+    # Async mode: publish event to queue
+    if not sync:
+        from codex.core.event_publisher import EventPublisher
+        from codex.db.database import get_system_session_sync
+        from codex.db.models import FileEventType
+
+        sys_session = get_system_session_sync()
+        try:
+            publisher = EventPublisher(sys_session)
+            event = publisher.publish(
+                notebook_id=notebook.id,
+                event_type=FileEventType.CREATE,
+                operation={
+                    "path": path,
+                    "content": content,
+                    "metadata": {},
+                },
+            )
+            return EventResponse(
+                event_id=event.id,
+                status="pending",
+                path=path,
+                message="File creation queued",
+            )
+        finally:
+            sys_session.close()
+
+    # Sync mode: perform operation directly (existing behavior)
     nb_session = get_notebook_session(str(notebook_path))
     try:
-        file_path = notebook_path / path
-
-        # Check if file already exists
-        if file_path.exists():
-            raise HTTPException(status_code=400, detail="File already exists")
-
         # Create parent directories if needed
         file_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -1334,10 +1375,16 @@ async def move_file_nested(
     notebook_identifier: str,
     file_id: int,
     request: MoveFileRequest,
+    sync: bool = True,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_system_session),
 ):
-    """Move/rename a file (nested under workspace/notebook route)."""
+    """Move/rename a file (nested under workspace/notebook route).
+
+    Args:
+        sync: If True (default), perform operation synchronously.
+              If False, queue the operation and return event ID.
+    """
     notebook_path, notebook, workspace = await get_notebook_path_nested(
         workspace_identifier, notebook_identifier, current_user, session
     )
@@ -1357,11 +1404,39 @@ async def move_file_nested(
 
         old_path = notebook_path / file_meta.path
         new_file_path = notebook_path / new_path
+        source_path = file_meta.path
 
         # Check if target already exists
         if new_file_path.exists():
             raise HTTPException(status_code=400, detail="Target path already exists")
 
+        # Async mode: publish event to queue
+        if not sync:
+            from codex.core.event_publisher import EventPublisher
+            from codex.db.database import get_system_session_sync
+            from codex.db.models import FileEventType
+
+            sys_session = get_system_session_sync()
+            try:
+                publisher = EventPublisher(sys_session)
+                event = publisher.publish(
+                    notebook_id=notebook.id,
+                    event_type=FileEventType.MOVE,
+                    operation={
+                        "source_path": source_path,
+                        "dest_path": new_path,
+                    },
+                )
+                return EventResponse(
+                    event_id=event.id,
+                    status="pending",
+                    path=new_path,
+                    message="File move queued",
+                )
+            finally:
+                sys_session.close()
+
+        # Sync mode: perform operation directly (existing behavior)
         # Create parent directories if needed
         new_file_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -1377,6 +1452,7 @@ async def move_file_nested(
             shutil.move(file_meta.sidecar_path, str(new_sidecar_path))
             file_meta.sidecar_path = str(new_sidecar_path)
 
+        nb_session.commit()
 
         return {
             "id": file_meta.id,
@@ -1399,10 +1475,16 @@ async def delete_file_nested(
     workspace_identifier: str,
     notebook_identifier: str,
     file_id: int,
+    sync: bool = True,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_system_session),
 ):
-    """Delete a file (nested under workspace/notebook route)."""
+    """Delete a file (nested under workspace/notebook route).
+
+    Args:
+        sync: If True (default), perform operation synchronously.
+              If False, queue the operation and return event ID.
+    """
     notebook_path, notebook, workspace = await get_notebook_path_nested(
         workspace_identifier, notebook_identifier, current_user, session
     )
@@ -1418,9 +1500,37 @@ async def delete_file_nested(
         if not file_meta:
             raise HTTPException(status_code=404, detail="File not found")
 
-        file_path = notebook_path / file_meta.path
+        file_path_str = file_meta.path
+        file_path = notebook_path / file_path_str
         filename = file_meta.filename
 
+        # Async mode: publish event to queue
+        if not sync:
+            from codex.core.event_publisher import EventPublisher
+            from codex.db.database import get_system_session_sync
+            from codex.db.models import FileEventType
+
+            sys_session = get_system_session_sync()
+            try:
+                publisher = EventPublisher(sys_session)
+                event = publisher.publish(
+                    notebook_id=notebook.id,
+                    event_type=FileEventType.DELETE,
+                    operation={
+                        "path": file_path_str,
+                        "is_directory": False,
+                    },
+                )
+                return EventResponse(
+                    event_id=event.id,
+                    status="pending",
+                    path=file_path_str,
+                    message="File deletion queued",
+                )
+            finally:
+                sys_session.close()
+
+        # Sync mode: perform operation directly (existing behavior)
         # Delete the file from disk
         if file_path.exists():
             os.remove(file_path)
@@ -1439,7 +1549,7 @@ async def delete_file_nested(
         # Delete from database (watcher may have already deleted it due to race condition)
         from sqlalchemy.orm.exc import StaleDataError
         nb_session.delete(file_meta)
-        
+
         try:
             nb_session.commit()
         except StaleDataError:

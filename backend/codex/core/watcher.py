@@ -77,11 +77,62 @@ def get_content_type(filepath: str) -> str:
 class NotebookFileHandler(FileSystemEventHandler):
     """Handler for file system events in a notebook."""
 
-    def __init__(self, notebook_path: str, notebook_id: int, callback: Callable | None = None):
+    def __init__(
+        self,
+        notebook_path: str,
+        notebook_id: int,
+        callback: Callable | None = None,
+        use_event_queue: bool = False,
+    ):
         self.notebook_path = notebook_path
         self.notebook_id = notebook_id
         self.callback = callback
+        self.use_event_queue = use_event_queue
+        self._recent_internal_changes: dict[str, float] = {}
+        import time
+        self._time = time
         super().__init__()
+
+    def mark_internal_change(self, path: str) -> None:
+        """Mark a path as changed internally (by the worker) to avoid duplicate events."""
+        self._recent_internal_changes[path] = self._time.time()
+
+    def _is_internal_change(self, filepath: str) -> bool:
+        """Check if this change was caused by the event worker."""
+        rel_path = os.path.relpath(filepath, self.notebook_path)
+        last_change = self._recent_internal_changes.get(rel_path, 0)
+        # Changes within 2 seconds of internal modification are considered internal
+        if self._time.time() - last_change < 2.0:
+            return True
+        return False
+
+    def _publish_sync_event(self, filepath: str, event_type: str) -> None:
+        """Publish a sync event to the event queue.
+
+        This is used when use_event_queue is True to publish external changes
+        to the queue instead of directly modifying the database.
+        """
+        from codex.core.event_publisher import EventPublisher
+        from codex.db.database import get_system_session_sync
+        from codex.db.models import FileEventType
+
+        rel_path = os.path.relpath(filepath, self.notebook_path)
+
+        session = get_system_session_sync()
+        try:
+            publisher = EventPublisher(session)
+            publisher.publish(
+                notebook_id=self.notebook_id,
+                event_type=FileEventType.SYNC,
+                operation={
+                    "path": rel_path,
+                    "event": event_type,
+                },
+            )
+        except Exception as e:
+            logger.error(f"Error publishing sync event: {e}")
+        finally:
+            session.close()
 
     def _should_ignore(self, path: str) -> bool:
         """Check if path should be ignored."""
@@ -246,38 +297,80 @@ class NotebookFileHandler(FileSystemEventHandler):
         """Called when a file or directory is created."""
         if not event.is_directory:
             src_path = str(event.src_path)
-            self._update_file_metadata(src_path, "created")
+            if self._should_ignore(src_path):
+                return
+
+            # In event queue mode, skip internal changes and publish sync events
+            if self.use_event_queue:
+                if self._is_internal_change(src_path):
+                    return
+                self._publish_sync_event(src_path, "created")
+            else:
+                self._update_file_metadata(src_path, "created")
 
     def on_modified(self, event):
         """Called when a file or directory is modified."""
         if not event.is_directory:
             src_path = str(event.src_path)
-            self._update_file_metadata(src_path, "modified")
+            if self._should_ignore(src_path):
+                return
+
+            # In event queue mode, skip internal changes and publish sync events
+            if self.use_event_queue:
+                if self._is_internal_change(src_path):
+                    return
+                self._publish_sync_event(src_path, "modified")
+            else:
+                self._update_file_metadata(src_path, "modified")
 
     def on_deleted(self, event):
         """Called when a file or directory is deleted."""
         if not event.is_directory:
             src_path = str(event.src_path)
-            self._update_file_metadata(src_path, "deleted")
+            if self._should_ignore(src_path):
+                return
+
+            # In event queue mode, skip internal changes and publish sync events
+            if self.use_event_queue:
+                if self._is_internal_change(src_path):
+                    return
+                self._publish_sync_event(src_path, "deleted")
+            else:
+                self._update_file_metadata(src_path, "deleted")
 
     def on_moved(self, event):
         """Called when a file or directory is moved."""
         if not event.is_directory:
             dest_path = str(event.dest_path)
             src_path = str(event.src_path)
-            self._update_file_metadata(src_path, "deleted")
-            self._update_file_metadata(dest_path, "created")
+
+            # In event queue mode, skip internal changes and publish sync events
+            if self.use_event_queue:
+                if not self._is_internal_change(src_path):
+                    self._publish_sync_event(src_path, "deleted")
+                if not self._is_internal_change(dest_path):
+                    self._publish_sync_event(dest_path, "created")
+            else:
+                self._update_file_metadata(src_path, "deleted")
+                self._update_file_metadata(dest_path, "created")
 
 
 class NotebookWatcher:
     """Watcher for monitoring notebook filesystem changes."""
 
-    def __init__(self, notebook_path: str, notebook_id: int, callback: Callable | None = None):
+    def __init__(
+        self,
+        notebook_path: str,
+        notebook_id: int,
+        callback: Callable | None = None,
+        use_event_queue: bool = False,
+    ):
         self.notebook_path = notebook_path
         self.notebook_id = notebook_id
         self.callback = callback
+        self.use_event_queue = use_event_queue
         self.observer = Observer()
-        self.handler = NotebookFileHandler(notebook_path, notebook_id, callback)
+        self.handler = NotebookFileHandler(notebook_path, notebook_id, callback, use_event_queue)
         self._indexing_status = "not_started"  # not_started, in_progress, completed, error
         self._indexing_thread: threading.Thread | None = None
 

@@ -26,6 +26,9 @@ from .notebook import (
 
 # Re-export system models
 from .system import (
+    FileEvent,
+    FileEventStatus,
+    FileEventType,
     IntegrationArtifact,
     Notebook,
     NotebookPluginConfig,
@@ -54,6 +57,9 @@ __all__ = [
     "PluginSecret",
     "PluginAPILog",
     "IntegrationArtifact",
+    "FileEvent",
+    "FileEventType",
+    "FileEventStatus",
     # Notebook models
     "FileMetadata",
     "Tag",

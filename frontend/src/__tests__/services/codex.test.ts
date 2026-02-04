@@ -265,7 +265,7 @@ describe("Codex Services", () => {
       const result = await fileService.upload(1, 1, file, "uploads/test.txt")
 
       expect(apiClient.post).toHaveBeenCalledWith(
-        "/api/v1/files/upload",
+        "/api/v1/workspaces/1/notebooks/1/files/upload",
         expect.any(FormData),
         expect.objectContaining({
           headers: { "Content-Type": "multipart/form-data" },
@@ -336,7 +336,7 @@ describe("Codex Services", () => {
       const result = await fileService.getAtCommit(1, 1, 1, "abc123")
 
       expect(apiClient.get).toHaveBeenCalledWith(
-        "/api/v1/files/1/history/abc123?workspace_id=1&notebook_id=1"
+        "/api/v1/workspaces/1/notebooks/1/files/1/history/abc123"
       )
       expect(result).toEqual(mockFileAtCommit)
     })
@@ -364,12 +364,13 @@ describe("Codex Services", () => {
 
       const result = await templateService.createFromTemplate(1, 1, "note", "my-note.md")
 
-      expect(apiClient.post).toHaveBeenCalledWith("/api/v1/files/from-template", {
-        notebook_id: 1,
-        workspace_id: 1,
-        template_id: "note",
-        filename: "my-note.md",
-      })
+      expect(apiClient.post).toHaveBeenCalledWith(
+        "/api/v1/workspaces/1/notebooks/1/files/from-template",
+        {
+          template_id: "note",
+          filename: "my-note.md",
+        }
+      )
       expect(result).toEqual(mockFile)
     })
 
@@ -379,12 +380,13 @@ describe("Codex Services", () => {
 
       await templateService.createFromTemplate(1, 1, "note")
 
-      expect(apiClient.post).toHaveBeenCalledWith("/api/v1/files/from-template", {
-        notebook_id: 1,
-        workspace_id: 1,
-        template_id: "note",
-        filename: null,
-      })
+      expect(apiClient.post).toHaveBeenCalledWith(
+        "/api/v1/workspaces/1/notebooks/1/files/from-template",
+        {
+          template_id: "note",
+          filename: null,
+        }
+      )
     })
 
     it("expands date patterns in filenames", () => {

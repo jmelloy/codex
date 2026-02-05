@@ -35,12 +35,11 @@ describe("Theme Store", () => {
   it("provides all available themes", () => {
     const store = useThemeStore()
 
-    expect(store.availableThemes).toHaveLength(4)
+    expect(store.availableThemes).toHaveLength(3)
     expect(store.availableThemes.map((t) => t.name)).toEqual([
       "cream",
       "manila",
       "white",
-      "blueprint",
     ])
   })
 
@@ -167,13 +166,13 @@ describe("Theme Store", () => {
     it("returns full theme object for current theme", () => {
       const store = useThemeStore()
 
-      store.currentTheme = "blueprint"
+      store.currentTheme = "manila"
 
       expect(store.theme).toEqual({
-        name: "blueprint",
-        label: "Blueprint",
-        description: "Dark mode with blueprint styling",
-        className: "theme-blueprint",
+        name: "manila",
+        label: "Manila",
+        description: "Vintage manila folder aesthetic",
+        className: "theme-manila",
       })
     })
 

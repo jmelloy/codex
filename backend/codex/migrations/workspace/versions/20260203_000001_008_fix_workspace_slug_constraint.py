@@ -22,19 +22,19 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     """Change workspace slug constraint to be unique per owner."""
-    with op.batch_alter_table("workspaces") as batch_op:
-        # Drop the old global unique constraint
-        try:
-            batch_op.drop_constraint("uq_workspaces_slug", type_="unique")
-        except Exception:
-            # Constraint might not exist if previous migration was not applied
-            pass
-        # Create new unique constraint on (owner_id, slug)
-        try:
-            batch_op.create_unique_constraint("uq_workspaces_owner_slug", ["owner_id", "slug"])
-        except Exception:
-            # Constraint might already exist if migration was previously applied
-            pass
+    try:
+        op.drop_constraint("uq_workspaces_slug", "workspaces", type_="unique")
+    except Exception as e:
+        print(f"Could not drop old unique constraint uq_workspaces_slug: {e}")
+        # Constraint might not exist if previous migration was not applied
+        pass
+
+    try:
+        op.create_unique_constraint("uq_workspaces_owner_slug", "workspaces", ["owner_id", "slug"])
+    except Exception as e:  
+        print(f"Could not create new unique constraint uq_workspaces_owner_slug: {e}")
+        # Constraint might already exist if migration was previously applied
+        pass
 
 
 def downgrade() -> None:

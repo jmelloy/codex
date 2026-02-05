@@ -363,6 +363,7 @@ defineExpose({
 .toolbar-group.mode-toggle button.active {
   background: var(--color-bg-tertiary);
   box-shadow: var(--shadow-sm);
+  color: var(--color-text-primary);
 }
 
 .toolbar-group.live-mode-hint {

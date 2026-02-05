@@ -69,7 +69,7 @@ class OpenGraphScraper:
                     metadata["title"] = title
 
             return metadata
-        
+
         except Exception as e:
             # If direct scraping fails and we have an API key, try opengraph.io fallback
             if self.opengraph_io_api_key:
@@ -146,7 +146,7 @@ class OpenGraphScraper:
             httpx.HTTPError: If the API request fails
         """
         logger.info(f"Fetching Open Graph metadata from opengraph.io API for: {url}")
-        
+
         api_url = "https://opengraph.io/api/1.1/site"
         params = {
             "app_id": self.opengraph_io_api_key,
@@ -161,10 +161,10 @@ class OpenGraphScraper:
         # Transform opengraph.io response to our format
         # The API returns data in format: {"hybridGraph": {"title": ..., "description": ..., "image": ...}}
         metadata = {}
-        
+
         if "hybridGraph" in data:
             hybrid = data["hybridGraph"]
-            
+
             # Map common fields
             if "title" in hybrid:
                 metadata["title"] = hybrid["title"]
@@ -178,7 +178,7 @@ class OpenGraphScraper:
                 metadata["url"] = hybrid["site"]
             if "site_name" in hybrid:
                 metadata["site_name"] = hybrid["site_name"]
-            
+
             # Also check openGraph nested object for more complete data
             if "openGraph" in data:
                 og = data["openGraph"]
@@ -199,7 +199,7 @@ class OpenGraphScraper:
                     metadata["url"] = og["url"]
                 if "siteName" in og:
                     metadata["site_name"] = og["siteName"]
-        
+
         # Ensure URL is set
         if "url" not in metadata:
             metadata["url"] = url

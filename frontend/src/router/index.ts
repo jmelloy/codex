@@ -7,7 +7,6 @@ import IntegrationSettingsView from "../views/IntegrationSettingsView.vue"
 import IntegrationConfigView from "../views/IntegrationConfigView.vue"
 import PageDetailView from "../views/PageDetailView.vue"
 import SettingsView from "../views/SettingsView.vue"
-import UserPreferencesView from "../views/UserPreferencesView.vue"
 import WorkspacePreferencesView from "../views/WorkspacePreferencesView.vue"
 import NotebookPreferencesView from "../views/NotebookPreferencesView.vue"
 
@@ -39,13 +38,12 @@ const router = createRouter({
       children: [
         {
           path: "",
-          redirect: "/settings/user",
+          redirect: "/settings/workspace",
         },
         {
           path: "user",
           name: "settings-user",
-          component: UserPreferencesView,
-          meta: { requiresAuth: true },
+          redirect: "/",
         },
         {
           path: "workspace",

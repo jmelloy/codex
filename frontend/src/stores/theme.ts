@@ -1,7 +1,11 @@
 import { defineStore } from "pinia"
 import { ref, computed } from "vue"
 import { authService } from "../services/auth"
-import { getAvailableThemes, getThemeStylesheetUrl, type PluginTheme } from "../services/pluginLoader"
+import {
+  getAvailableThemes,
+  getThemeStylesheetUrl,
+  type PluginTheme,
+} from "../services/pluginLoader"
 
 export type ThemeName = string
 
@@ -34,12 +38,6 @@ const DEFAULT_THEMES: Theme[] = [
     label: "White",
     description: "Clean white pages",
     className: "theme-white",
-  },
-  {
-    name: "blueprint",
-    label: "Blueprint",
-    description: "Dark mode with blueprint styling",
-    className: "theme-blueprint",
   },
 ]
 
@@ -125,18 +123,18 @@ export const useThemeStore = defineStore("theme", () => {
 
   async function loadThemeStylesheet(themeName: ThemeName) {
     // Remove any existing theme stylesheets
-    const existingLinks = document.querySelectorAll('link[data-theme-stylesheet]')
-    existingLinks.forEach(link => link.remove())
+    const existingLinks = document.querySelectorAll("link[data-theme-stylesheet]")
+    existingLinks.forEach((link) => link.remove())
 
     // Find the theme to get its stylesheet path
-    const themeData = themes.value.find(t => t.name === themeName)
+    const themeData = themes.value.find((t) => t.name === themeName)
     const stylesheetUrl = getThemeStylesheetUrl(themeName, themeData?.stylesheet)
 
     // Create and append new stylesheet link
-    const link = document.createElement('link')
-    link.rel = 'stylesheet'
+    const link = document.createElement("link")
+    link.rel = "stylesheet"
     link.href = stylesheetUrl
-    link.setAttribute('data-theme-stylesheet', themeName)
+    link.setAttribute("data-theme-stylesheet", themeName)
 
     // Add error handling
     link.onerror = () => {

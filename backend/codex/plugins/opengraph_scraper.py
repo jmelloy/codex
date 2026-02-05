@@ -179,26 +179,27 @@ class OpenGraphScraper:
             if "site_name" in hybrid:
                 metadata["site_name"] = hybrid["site_name"]
 
-            # Also check openGraph nested object for more complete data
-            if "openGraph" in data:
-                og = data["openGraph"]
-                # Override with OpenGraph data if available
-                if "title" in og:
-                    metadata["title"] = og["title"]
-                if "description" in og:
-                    metadata["description"] = og["description"]
-                if "image" in og:
-                    # OpenGraph image can be an array or object
-                    if isinstance(og["image"], list) and len(og["image"]) > 0:
-                        metadata["image"] = og["image"][0].get("url") if isinstance(og["image"][0], dict) else og["image"][0]
-                    elif isinstance(og["image"], dict):
-                        metadata["image"] = og["image"].get("url")
-                    else:
-                        metadata["image"] = og["image"]
-                if "url" in og:
-                    metadata["url"] = og["url"]
-                if "siteName" in og:
-                    metadata["site_name"] = og["siteName"]
+        # Also check openGraph object for more complete data (top-level key)
+        if "openGraph" in data:
+            og = data["openGraph"]
+            # Override with OpenGraph data if available
+            if "title" in og:
+                metadata["title"] = og["title"]
+            if "description" in og:
+                metadata["description"] = og["description"]
+            if "image" in og:
+                # OpenGraph image can be an array or object
+                if isinstance(og["image"], list) and len(og["image"]) > 0:
+                    first_image = og["image"][0]
+                    metadata["image"] = first_image.get("url") if isinstance(first_image, dict) else first_image
+                elif isinstance(og["image"], dict):
+                    metadata["image"] = og["image"].get("url")
+                else:
+                    metadata["image"] = og["image"]
+            if "url" in og:
+                metadata["url"] = og["url"]
+            if "siteName" in og:
+                metadata["site_name"] = og["siteName"]
 
         # Ensure URL is set
         if "url" not in metadata:

@@ -251,8 +251,10 @@ onMounted(() => {
   line-height: 1.3;
   overflow: hidden;
   text-overflow: ellipsis;
+  /* Use -webkit- prefixed properties with standard fallback for cross-browser compatibility */
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
 }
 
@@ -262,8 +264,10 @@ onMounted(() => {
   line-height: 1.5;
   overflow: hidden;
   text-overflow: ellipsis;
+  /* Use -webkit- prefixed properties with standard fallback for cross-browser compatibility */
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
 }
 

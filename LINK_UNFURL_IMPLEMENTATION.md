@@ -236,10 +236,13 @@ None required! Works out of the box.
 
 ## Demo
 
-Run the demonstration script:
+Run the demonstration script from the repository root:
 ```bash
+# Must be run from repository root directory
 python demo_link_unfurl.py
 ```
+
+**Note**: The demo script assumes it's being run from the repository root directory where the `plugins/` folder is accessible as `./plugins/`. If you need to run it from a different location, update the path in line 88.
 
 This shows:
 1. URL detection examples

@@ -81,14 +81,15 @@ class OpenGraphScraper:
         # Examples:
         # <meta property="og:title" content="Page Title">
         # <meta property="og:image" content="https://example.com/image.jpg">
+        # Handles attributes in any order and additional attributes between property and content
         og_pattern = re.compile(
-            r'<meta\s+property=["\']og:([^"\']+)["\']\s+content=["\']([^"\']+)["\']',
+            r'<meta\s+[^>]*property=["\']og:([^"\']+)["\'][^>]*content=["\']([^"\']+)["\'][^>]*>',
             re.IGNORECASE,
         )
 
         # Also match reverse order (content before property)
         og_pattern_reverse = re.compile(
-            r'<meta\s+content=["\']([^"\']+)["\']\s+property=["\']og:([^"\']+)["\']',
+            r'<meta\s+[^>]*content=["\']([^"\']+)["\'][^>]*property=["\']og:([^"\']+)["\'][^>]*>',
             re.IGNORECASE,
         )
 

@@ -1,8 +1,10 @@
 """End-to-end test for link unfurl functionality."""
 
 import time
+from pathlib import Path
 
 import pytest
+import yaml
 from fastapi.testclient import TestClient
 
 from codex.main import app
@@ -73,8 +75,6 @@ def workspace_and_notebook(client, auth_headers):
 def test_opengraph_integration_available(client, auth_headers):
     """Test that opengraph-unfurl integration is available."""
     # First register the plugin
-    from pathlib import Path
-    import yaml
     
     manifest_path = Path(__file__).parent.parent.parent / "plugins" / "opengraph" / "manifest.yml"
     with open(manifest_path) as f:

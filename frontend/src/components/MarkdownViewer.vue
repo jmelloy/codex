@@ -291,6 +291,8 @@ const detectAndUnfurlUrls = (markdown: string): string => {
 
   // Pattern to match standalone URLs (not in markdown links or code blocks)
   // Matches URLs that are on their own line or after whitespace
+  // Note: Excludes parentheses from URL pattern to avoid capturing markdown link syntax
+  // This may miss some URLs with parentheses (e.g., Wikipedia URLs)
   const urlPattern = /(^|[\s\n])(https?:\/\/[^\s<>\[\]()]+)(?=[\s\n]|$)/gm
 
   // Track code block regions to avoid detecting URLs inside them
@@ -315,6 +317,7 @@ const detectAndUnfurlUrls = (markdown: string): string => {
     }
 
     // Don't replace if the URL is already part of a markdown link [text](url)
+    // Check up to 10 characters before the URL for markdown link syntax
     const beforeUrl = markdown.substring(Math.max(0, offset - 10), offset)
     if (beforeUrl.includes("](") || beforeUrl.includes("[")) {
       return fullMatch

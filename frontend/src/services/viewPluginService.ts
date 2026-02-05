@@ -148,7 +148,7 @@ class ViewPluginService {
 
   /**
    * Load a view component dynamically
-   * Tries to load from compiled dist/ first, falls back to source files
+   * In dev mode, uses glob loader for HMR. Otherwise tries compiled dist/ first.
    */
   async loadViewComponent(viewId: string): Promise<Component> {
     // Dashboard is loaded from frontend (has frontend service dependencies)
@@ -157,7 +157,21 @@ class ViewPluginService {
       return module.default
     }
 
-    // Try to load from dist/ first
+    // In dev mode, use glob loader for full HMR support
+    if (import.meta.env.DEV) {
+      try {
+        const { getDevComponentLoader } = await import("./pluginDevLoader")
+        const loader = getDevComponentLoader(viewId)
+        if (loader) {
+          const module = await loader()
+          return (module.default || module) as Component
+        }
+      } catch (err) {
+        console.warn(`[dev] Failed to load view component via glob for ${viewId}:`, err)
+      }
+    }
+
+    // Production path: try to load from dist/ first
     const distName = VIEW_DIST_NAMES[viewId] || `${viewId}-view`
     try {
       const moduleUrl = `${PLUGINS_BASE}/${this.getPluginIdForView(viewId)}/dist/${distName}.js`
@@ -235,6 +249,7 @@ class ViewPluginService {
       return true
     }
     // Check if we have a fallback path or it's in the available views
+    // In dev mode, availableViews is populated from the dev manifest via getAvailableViews()
     return viewId in VIEW_FALLBACK_PATHS || this.availableViews.has(viewId)
   }
 }

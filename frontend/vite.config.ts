@@ -80,9 +80,19 @@ export default defineConfig({
     },
   },
   // Allow importing from plugins directory
+  // In dev mode, plugin .vue files are processed through Vite's module graph.
+  // Plugin-specific deps (e.g., chart.js in chart-example) are resolved from
+  // their own node_modules via Vite's entries config.
   optimizeDeps: {
     include: [],
     exclude: [],
+    // Scan plugin directories so Vite pre-bundles their dependencies
+    entries: [
+      "src/**/*.{ts,vue}",
+      ...(fs.existsSync(pluginsDir)
+        ? [`${path.relative(__dirname, pluginsDir)}/*/components/*.vue`]
+        : []),
+    ],
   },
   build: {
     // Include plugins in the build

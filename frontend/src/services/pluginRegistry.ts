@@ -58,7 +58,8 @@ let pluginsCache: PluginRegistration[] | null = null
 let pluginsLoadPromise: Promise<PluginRegistration[]> | null = null
 
 /**
- * Load plugins from the plugins.json manifest
+ * Load plugins from the plugins.json manifest.
+ * In dev mode, loads from glob-based dev loader instead.
  */
 async function loadPlugins(): Promise<PluginRegistration[]> {
   if (pluginsCache) {
@@ -70,6 +71,25 @@ async function loadPlugins(): Promise<PluginRegistration[]> {
   }
 
   pluginsLoadPromise = (async () => {
+    // In dev mode, use glob-based loader
+    if (import.meta.env.DEV) {
+      try {
+        const { getDevManifest } = await import("./pluginDevLoader")
+        const manifest = getDevManifest()
+        pluginsCache = manifest.plugins.map((p) => ({
+          id: p.id,
+          name: p.name,
+          version: p.version,
+          type: p.type,
+          manifest: p.manifest,
+        }))
+        console.log(`[dev] Loaded ${pluginsCache.length} plugins for registration via import.meta.glob`)
+        return pluginsCache
+      } catch (err) {
+        console.warn("[dev] Failed to load plugins via dev loader, falling back to plugins.json", err)
+      }
+    }
+
     try {
       const response = await fetch(`${PLUGINS_BASE}/plugins.json`)
       if (!response.ok) {

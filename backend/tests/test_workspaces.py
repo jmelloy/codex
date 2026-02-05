@@ -4,25 +4,9 @@ import time
 from pathlib import Path
 
 
-def setup_test_user(test_client):
-    """Register and login a test user for workspace tests."""
-    username = f"test_ws_user_{int(time.time() * 1000)}"
-    email = f"{username}@example.com"
-    password = "testpass123"
-
-    # Register
-    test_client.post("/api/v1/users/register", json={"username": username, "email": email, "password": password})
-
-    # Login
-    login_response = test_client.post("/api/v1/users/token", data={"username": username, "password": password})
-    assert login_response.status_code == 200
-    token = login_response.json()["access_token"]
-    return {"Authorization": f"Bearer {token}"}, username
-
-
-def test_list_workspaces(test_client):
+def test_list_workspaces(test_client, auth_headers):
     """Test listing workspaces for authenticated user."""
-    headers, username = setup_test_user(test_client)
+    headers, username = auth_headers
 
     # User should have their default workspace
     response = test_client.get("/api/v1/workspaces/", headers=headers)
@@ -35,9 +19,9 @@ def test_list_workspaces(test_client):
     assert default_ws is not None
 
 
-def test_create_workspace_with_path(test_client, temp_workspace_dir):
+def test_create_workspace_with_path(test_client, auth_headers, temp_workspace_dir):
     """Test creating a workspace with explicit path."""
-    headers, _ = setup_test_user(test_client)
+    headers = auth_headers[0]
 
     response = test_client.post(
         "/api/v1/workspaces/", json={"name": "Test Workspace", "path": temp_workspace_dir}, headers=headers
@@ -45,12 +29,11 @@ def test_create_workspace_with_path(test_client, temp_workspace_dir):
     assert response.status_code == 200
     workspace = response.json()
     assert workspace["name"] == "Test Workspace"
-    # Cleanup handled by fixture
 
 
-def test_create_workspace_without_path(test_client, cleanup_workspaces):
+def test_create_workspace_without_path(test_client, auth_headers, cleanup_workspaces):
     """Test creating a workspace without explicit path (auto-generated)."""
-    headers, _ = setup_test_user(test_client)
+    headers = auth_headers[0]
 
     response = test_client.post("/api/v1/workspaces/", json={"name": "Auto Path Workspace"}, headers=headers)
     assert response.status_code == 200
@@ -66,9 +49,9 @@ def test_create_workspace_without_path(test_client, cleanup_workspaces):
     cleanup_workspaces(workspace["path"])
 
 
-def test_get_workspace_by_id(test_client, temp_workspace_dir):
+def test_get_workspace_by_id(test_client, auth_headers, temp_workspace_dir):
     """Test getting a specific workspace by ID or slug."""
-    headers, _ = setup_test_user(test_client)
+    headers = auth_headers[0]
 
     # Create a workspace
     create_response = test_client.post(
@@ -92,40 +75,42 @@ def test_get_workspace_by_id(test_client, temp_workspace_dir):
     assert workspace["slug"] == workspace_slug
     assert workspace["name"] == "Get By ID Workspace"
 
-    # Cleanup handled by fixture
 
-
-def test_get_nonexistent_workspace(test_client):
+def test_get_nonexistent_workspace(test_client, auth_headers):
     """Test getting a workspace that doesn't exist."""
-    headers, _ = setup_test_user(test_client)
+    headers = auth_headers[0]
 
     response = test_client.get("/api/v1/workspaces/99999", headers=headers)
     assert response.status_code == 404
     assert response.json()["detail"] == "Workspace not found"
 
 
-def test_get_other_users_workspace(test_client, temp_workspace_dir):
+def test_get_other_users_workspace(test_client, auth_headers, temp_workspace_dir):
     """Test that users cannot access other users' workspaces."""
-    # Create first user and workspace
-    headers1, _ = setup_test_user(test_client)
+    # Create workspace with first user
+    headers1 = auth_headers[0]
     create_response = test_client.post(
         "/api/v1/workspaces/", json={"name": "Private Workspace", "path": temp_workspace_dir}, headers=headers1
     )
     workspace_id = create_response.json()["id"]
 
     # Create second user
-    headers2, _ = setup_test_user(test_client)
+    username2 = f"test_ws_user2_{int(time.time() * 1000)}"
+    test_client.post(
+        "/api/v1/users/register",
+        json={"username": username2, "email": f"{username2}@example.com", "password": "testpass123"},
+    )
+    login_response = test_client.post("/api/v1/users/token", data={"username": username2, "password": "testpass123"})
+    headers2 = {"Authorization": f"Bearer {login_response.json()['access_token']}"}
 
     # Second user should not be able to access first user's workspace
     response = test_client.get(f"/api/v1/workspaces/{workspace_id}", headers=headers2)
     assert response.status_code == 404
 
-    # Cleanup handled by fixture
 
-
-def test_update_workspace_theme(test_client, temp_workspace_dir):
+def test_update_workspace_theme(test_client, auth_headers, temp_workspace_dir):
     """Test updating workspace theme setting by ID or slug."""
-    headers, _ = setup_test_user(test_client)
+    headers = auth_headers[0]
 
     # Create a workspace
     create_response = test_client.post(
@@ -151,34 +136,36 @@ def test_update_workspace_theme(test_client, temp_workspace_dir):
     assert response.status_code == 200
     assert response.json()["theme_setting"] == "manila"
 
-    # Cleanup handled by fixture
 
-
-def test_update_theme_nonexistent_workspace(test_client):
+def test_update_theme_nonexistent_workspace(test_client, auth_headers):
     """Test updating theme for a workspace that doesn't exist."""
-    headers, _ = setup_test_user(test_client)
+    headers = auth_headers[0]
 
     response = test_client.patch("/api/v1/workspaces/99999/theme", json={"theme": "dark"}, headers=headers)
     assert response.status_code == 404
 
 
-def test_update_theme_other_users_workspace(test_client, temp_workspace_dir):
+def test_update_theme_other_users_workspace(test_client, auth_headers, temp_workspace_dir):
     """Test that users cannot update theme on other users' workspaces."""
-    # Create first user and workspace
-    headers1, _ = setup_test_user(test_client)
+    # Create workspace with first user
+    headers1 = auth_headers[0]
     create_response = test_client.post(
         "/api/v1/workspaces/", json={"name": "Private Theme Workspace", "path": temp_workspace_dir}, headers=headers1
     )
     workspace_id = create_response.json()["id"]
 
     # Create second user
-    headers2, _ = setup_test_user(test_client)
+    username2 = f"test_ws_user2_{int(time.time() * 1000)}"
+    test_client.post(
+        "/api/v1/users/register",
+        json={"username": username2, "email": f"{username2}@example.com", "password": "testpass123"},
+    )
+    login_response = test_client.post("/api/v1/users/token", data={"username": username2, "password": "testpass123"})
+    headers2 = {"Authorization": f"Bearer {login_response.json()['access_token']}"}
 
     # Second user should not be able to update theme
     response = test_client.patch(f"/api/v1/workspaces/{workspace_id}/theme", json={"theme": "dark"}, headers=headers2)
     assert response.status_code == 404
-
-    # Cleanup handled by fixture
 
 
 def test_workspace_requires_authentication(test_client):
@@ -197,9 +184,9 @@ def test_workspace_requires_authentication(test_client):
     assert response.status_code == 401
 
 
-def test_workspace_name_collision_handling(test_client, cleanup_workspaces):
+def test_workspace_name_collision_handling(test_client, auth_headers, cleanup_workspaces):
     """Test that workspace creation handles name collisions gracefully."""
-    headers, _ = setup_test_user(test_client)
+    headers = auth_headers[0]
 
     # Create first workspace with auto-generated path
     response1 = test_client.post("/api/v1/workspaces/", json={"name": "Collision Test"}, headers=headers)
@@ -216,12 +203,10 @@ def test_workspace_name_collision_handling(test_client, cleanup_workspaces):
     # Paths should be different
     assert path1 != path2
 
-    # Cleanup handled by fixture
 
-
-def test_workspace_special_characters_in_name(test_client, cleanup_workspaces):
+def test_workspace_special_characters_in_name(test_client, auth_headers, cleanup_workspaces):
     """Test creating workspace with special characters in name."""
-    headers, _ = setup_test_user(test_client)
+    headers = auth_headers[0]
 
     response = test_client.post("/api/v1/workspaces/", json={"name": "Test & Workspace! @#$%"}, headers=headers)
     assert response.status_code == 200

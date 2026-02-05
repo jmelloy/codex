@@ -1,45 +1,5 @@
 """Integration tests for folder API endpoints."""
 
-import os
-import time
-from pathlib import Path
-
-
-def setup_test_user(test_client):
-    """Register and login a test user."""
-    username = f"test_folders_user_{int(time.time() * 1000)}"
-    email = f"{username}@example.com"
-    password = "testpass123"
-
-    test_client.post("/api/v1/users/register", json={"username": username, "email": email, "password": password})
-    login_response = test_client.post("/api/v1/users/token", data={"username": username, "password": password})
-    assert login_response.status_code == 200
-    token = login_response.json()["access_token"]
-    return {"Authorization": f"Bearer {token}"}, username
-
-
-def setup_workspace_and_notebook(test_client, headers, temp_workspace_dir):
-    """Create a workspace and notebook for testing."""
-    # Create workspace
-    ws_response = test_client.post(
-        "/api/v1/workspaces/",
-        json={"name": "Test Folders Workspace", "path": temp_workspace_dir},
-        headers=headers,
-    )
-    assert ws_response.status_code == 200
-    workspace = ws_response.json()
-
-    # Create notebook using nested route with slug
-    nb_response = test_client.post(
-        f"/api/v1/workspaces/{workspace['slug']}/notebooks/",
-        json={"name": "Test Notebook"},
-        headers=headers,
-    )
-    assert nb_response.status_code == 200
-    notebook = nb_response.json()
-
-    return workspace, notebook
-
 
 def create_folder_with_files(test_client, headers, workspace, notebook, folder_path, num_files=3):
     """Helper to create a folder with files using nested routes."""
@@ -54,10 +14,10 @@ def create_folder_with_files(test_client, headers, workspace, notebook, folder_p
         )
 
 
-def test_get_root_folder(test_client, temp_workspace_dir):
+def test_get_root_folder(test_client, auth_headers, workspace_and_notebook):
     """Test getting the root folder of a notebook."""
-    headers, _ = setup_test_user(test_client)
-    workspace, notebook = setup_workspace_and_notebook(test_client, headers, temp_workspace_dir)
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
 
     # Create some files in root
     for i in range(2):
@@ -85,10 +45,10 @@ def test_get_root_folder(test_client, temp_workspace_dir):
     assert "notebook_slug" in data
 
 
-def test_get_subfolder(test_client, temp_workspace_dir):
+def test_get_subfolder(test_client, auth_headers, workspace_and_notebook):
     """Test getting a subfolder with files."""
-    headers, _ = setup_test_user(test_client)
-    workspace, notebook = setup_workspace_and_notebook(test_client, headers, temp_workspace_dir)
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
 
     # Create folder with files
     create_folder_with_files(test_client, headers, workspace, notebook, "docs", num_files=3)
@@ -106,10 +66,10 @@ def test_get_subfolder(test_client, temp_workspace_dir):
     assert data["file_count"] == 3
 
 
-def test_get_nested_folder(test_client, temp_workspace_dir):
+def test_get_nested_folder(test_client, auth_headers, workspace_and_notebook):
     """Test getting a deeply nested folder."""
-    headers, _ = setup_test_user(test_client)
-    workspace, notebook = setup_workspace_and_notebook(test_client, headers, temp_workspace_dir)
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
 
     # Create nested folder with files
     create_folder_with_files(test_client, headers, workspace, notebook, "level1/level2/level3", num_files=2)
@@ -126,10 +86,10 @@ def test_get_nested_folder(test_client, temp_workspace_dir):
     assert len(data["files"]) == 2
 
 
-def test_folder_with_subfolders(test_client, temp_workspace_dir):
+def test_folder_with_subfolders(test_client, auth_headers, workspace_and_notebook):
     """Test getting a folder that contains subfolders."""
-    headers, _ = setup_test_user(test_client)
-    workspace, notebook = setup_workspace_and_notebook(test_client, headers, temp_workspace_dir)
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
 
     # Create files in parent folder
     test_client.post(
@@ -175,10 +135,10 @@ def test_folder_with_subfolders(test_client, temp_workspace_dir):
     assert "child2" in subfolder_names
 
 
-def test_folder_pagination(test_client, temp_workspace_dir):
+def test_folder_pagination(test_client, auth_headers, workspace_and_notebook):
     """Test folder file listing with pagination."""
-    headers, _ = setup_test_user(test_client)
-    workspace, notebook = setup_workspace_and_notebook(test_client, headers, temp_workspace_dir)
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
 
     # Create many files in a folder
     create_folder_with_files(test_client, headers, workspace, notebook, "many_files", num_files=10)
@@ -205,10 +165,10 @@ def test_folder_pagination(test_client, temp_workspace_dir):
     assert data["pagination"]["skip"] == 3
 
 
-def test_update_folder_properties(test_client, temp_workspace_dir):
+def test_update_folder_properties(test_client, auth_headers, workspace_and_notebook):
     """Test updating folder properties (metadata)."""
-    headers, _ = setup_test_user(test_client)
-    workspace, notebook = setup_workspace_and_notebook(test_client, headers, temp_workspace_dir)
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
 
     # Create folder with a file
     test_client.post(
@@ -249,10 +209,10 @@ def test_update_folder_properties(test_client, temp_workspace_dir):
     assert get_data["properties"]["custom_field"] == "custom_value"
 
 
-def test_delete_folder(test_client, temp_workspace_dir):
+def test_delete_folder(test_client, auth_headers, workspace_and_notebook):
     """Test deleting a folder and all its contents."""
-    headers, _ = setup_test_user(test_client)
-    workspace, notebook = setup_workspace_and_notebook(test_client, headers, temp_workspace_dir)
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
 
     # Create folder with files
     create_folder_with_files(test_client, headers, workspace, notebook, "to_delete", num_files=3)
@@ -280,10 +240,10 @@ def test_delete_folder(test_client, temp_workspace_dir):
     assert get_response.status_code == 404
 
 
-def test_delete_nested_folder(test_client, temp_workspace_dir):
+def test_delete_nested_folder(test_client, auth_headers, workspace_and_notebook):
     """Test deleting a nested folder."""
-    headers, _ = setup_test_user(test_client)
-    workspace, notebook = setup_workspace_and_notebook(test_client, headers, temp_workspace_dir)
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
 
     # Create nested structure
     test_client.post(
@@ -317,10 +277,10 @@ def test_delete_nested_folder(test_client, temp_workspace_dir):
     assert inner_response.status_code == 404
 
 
-def test_delete_root_folder_fails(test_client, temp_workspace_dir):
+def test_delete_root_folder_fails(test_client, auth_headers, workspace_and_notebook):
     """Test that deleting the root folder is not allowed."""
-    headers, _ = setup_test_user(test_client)
-    workspace, notebook = setup_workspace_and_notebook(test_client, headers, temp_workspace_dir)
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
 
     # Try to delete root using nested route
     response = test_client.delete(
@@ -331,10 +291,10 @@ def test_delete_root_folder_fails(test_client, temp_workspace_dir):
     assert "Cannot delete root folder" in response.json()["detail"]
 
 
-def test_get_nonexistent_folder(test_client, temp_workspace_dir):
+def test_get_nonexistent_folder(test_client, auth_headers, workspace_and_notebook):
     """Test getting a folder that doesn't exist."""
-    headers, _ = setup_test_user(test_client)
-    workspace, notebook = setup_workspace_and_notebook(test_client, headers, temp_workspace_dir)
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
 
     response = test_client.get(
         f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/folders/nonexistent",
@@ -355,10 +315,10 @@ def test_folder_requires_authentication(test_client):
     assert response.status_code == 401
 
 
-def test_folder_timestamps(test_client, temp_workspace_dir):
+def test_folder_timestamps(test_client, auth_headers, workspace_and_notebook):
     """Test that folder response includes timestamps."""
-    headers, _ = setup_test_user(test_client)
-    workspace, notebook = setup_workspace_and_notebook(test_client, headers, temp_workspace_dir)
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
 
     # Create folder
     test_client.post(

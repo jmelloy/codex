@@ -1,34 +1,11 @@
 """Tests for task endpoints."""
 
-import time
 
-
-def setup_test_user(test_client):
-    """Register and login a test user for task tests."""
-    username = f"test_task_user_{int(time.time() * 1000)}"
-    email = f"{username}@example.com"
-    password = "testpass123"
-
-    # Register
-    test_client.post("/api/v1/users/register", json={"username": username, "email": email, "password": password})
-
-    # Login
-    login_response = test_client.post("/api/v1/users/token", data={"username": username, "password": password})
-    assert login_response.status_code == 200
-    token = login_response.json()["access_token"]
-    return {"Authorization": f"Bearer {token}"}
-
-
-def test_create_task(test_client, temp_workspace_dir):
+def test_create_task(test_client, auth_headers, create_workspace):
     """Test creating a task."""
-    headers = setup_test_user(test_client)
-
-    # Create a workspace first
-    workspace_response = test_client.post(
-        "/api/v1/workspaces/", json={"name": "Task Test Workspace", "path": temp_workspace_dir}, headers=headers
-    )
-    assert workspace_response.status_code == 200
-    workspace_id = workspace_response.json()["id"]
+    headers = auth_headers[0]
+    workspace = create_workspace()
+    workspace_id = workspace["id"]
 
     # Create a task
     response = test_client.post(
@@ -43,18 +20,12 @@ def test_create_task(test_client, temp_workspace_dir):
     assert task["status"] == "pending"
     assert task["workspace_id"] == workspace_id
 
-    # Cleanup handled by fixture
 
-
-def test_list_tasks(test_client, temp_workspace_dir):
+def test_list_tasks(test_client, auth_headers, create_workspace):
     """Test listing tasks for a workspace."""
-    headers = setup_test_user(test_client)
-
-    # Create a workspace
-    workspace_response = test_client.post(
-        "/api/v1/workspaces/", json={"name": "Task List Workspace", "path": temp_workspace_dir}, headers=headers
-    )
-    workspace_id = workspace_response.json()["id"]
+    headers = auth_headers[0]
+    workspace = create_workspace()
+    workspace_id = workspace["id"]
 
     # Initially should be empty
     response = test_client.get("/api/v1/tasks/", params={"workspace_id": workspace_id}, headers=headers)
@@ -73,18 +44,12 @@ def test_list_tasks(test_client, temp_workspace_dir):
     tasks = response.json()
     assert len(tasks) == 3
 
-    # Cleanup handled by fixture
 
-
-def test_get_task(test_client, temp_workspace_dir):
+def test_get_task(test_client, auth_headers, create_workspace):
     """Test getting a specific task."""
-    headers = setup_test_user(test_client)
-
-    # Create a workspace
-    workspace_response = test_client.post(
-        "/api/v1/workspaces/", json={"name": "Get Task Workspace", "path": temp_workspace_dir}, headers=headers
-    )
-    workspace_id = workspace_response.json()["id"]
+    headers = auth_headers[0]
+    workspace = create_workspace()
+    workspace_id = workspace["id"]
 
     # Create a task
     create_response = test_client.post(
@@ -102,27 +67,21 @@ def test_get_task(test_client, temp_workspace_dir):
     assert task["title"] == "Specific Task"
     assert task["description"] == "Task to retrieve"
 
-    # Cleanup handled by fixture
 
-
-def test_get_nonexistent_task(test_client):
+def test_get_nonexistent_task(test_client, auth_headers):
     """Test getting a task that doesn't exist."""
-    headers = setup_test_user(test_client)
+    headers = auth_headers[0]
 
     response = test_client.get("/api/v1/tasks/99999", headers=headers)
     assert response.status_code == 404
     assert response.json()["detail"] == "Task not found"
 
 
-def test_update_task_status(test_client, temp_workspace_dir):
+def test_update_task_status(test_client, auth_headers, create_workspace):
     """Test updating a task's status."""
-    headers = setup_test_user(test_client)
-
-    # Create a workspace
-    workspace_response = test_client.post(
-        "/api/v1/workspaces/", json={"name": "Update Task Workspace", "path": temp_workspace_dir}, headers=headers
-    )
-    workspace_id = workspace_response.json()["id"]
+    headers = auth_headers[0]
+    workspace = create_workspace()
+    workspace_id = workspace["id"]
 
     # Create a task
     create_response = test_client.post(
@@ -143,18 +102,12 @@ def test_update_task_status(test_client, temp_workspace_dir):
     assert task["status"] == "completed"
     assert task["completed_at"] is not None
 
-    # Cleanup handled by fixture
 
-
-def test_update_task_assignment(test_client, temp_workspace_dir):
+def test_update_task_assignment(test_client, auth_headers, create_workspace):
     """Test assigning a task to an agent."""
-    headers = setup_test_user(test_client)
-
-    # Create a workspace
-    workspace_response = test_client.post(
-        "/api/v1/workspaces/", json={"name": "Assign Task Workspace", "path": temp_workspace_dir}, headers=headers
-    )
-    workspace_id = workspace_response.json()["id"]
+    headers = auth_headers[0]
+    workspace = create_workspace()
+    workspace_id = workspace["id"]
 
     # Create a task
     create_response = test_client.post(
@@ -167,12 +120,10 @@ def test_update_task_assignment(test_client, temp_workspace_dir):
     assert response.status_code == 200
     assert response.json()["assigned_to"] == "agent-123"
 
-    # Cleanup handled by fixture
 
-
-def test_update_nonexistent_task(test_client):
+def test_update_nonexistent_task(test_client, auth_headers):
     """Test updating a task that doesn't exist."""
-    headers = setup_test_user(test_client)
+    headers = auth_headers[0]
 
     response = test_client.put("/api/v1/tasks/99999", params={"status": "completed"}, headers=headers)
     assert response.status_code == 404

@@ -1,50 +1,10 @@
 """Integration tests for file API endpoints."""
 
-import os
-import time
-from pathlib import Path
 
-
-def setup_test_user(test_client):
-    """Register and login a test user."""
-    username = f"test_files_user_{int(time.time() * 1000)}"
-    email = f"{username}@example.com"
-    password = "testpass123"
-
-    test_client.post("/api/v1/users/register", json={"username": username, "email": email, "password": password})
-    login_response = test_client.post("/api/v1/users/token", data={"username": username, "password": password})
-    assert login_response.status_code == 200
-    token = login_response.json()["access_token"]
-    return {"Authorization": f"Bearer {token}"}, username
-
-
-def setup_workspace_and_notebook(test_client, headers, temp_workspace_dir):
-    """Create a workspace and notebook for testing."""
-    # Create workspace without specifying path to get a clean slug
-    ws_response = test_client.post(
-        "/api/v1/workspaces/",
-        json={"name": "Test Files Workspace"},
-        headers=headers,
-    )
-    assert ws_response.status_code == 200
-    workspace = ws_response.json()
-
-    # Create notebook using nested route
-    nb_response = test_client.post(
-        f"/api/v1/workspaces/{workspace['slug']}/notebooks/",
-        json={"name": "Test Notebook"},
-        headers=headers,
-    )
-    assert nb_response.status_code == 200
-    notebook = nb_response.json()
-
-    return workspace, notebook
-
-
-def test_create_file(test_client, temp_workspace_dir):
+def test_create_file(test_client, auth_headers, workspace_and_notebook):
     """Test creating a new file."""
-    headers, _ = setup_test_user(test_client)
-    workspace, notebook = setup_workspace_and_notebook(test_client, headers, temp_workspace_dir)
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
 
     response = test_client.post(
         f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/files/",
@@ -62,10 +22,10 @@ def test_create_file(test_client, temp_workspace_dir):
     assert data["message"] == "File created successfully"
 
 
-def test_create_file_with_frontmatter(test_client, temp_workspace_dir):
+def test_create_file_with_frontmatter(test_client, auth_headers, workspace_and_notebook):
     """Test creating a file with YAML frontmatter."""
-    headers, _ = setup_test_user(test_client)
-    workspace, notebook = setup_workspace_and_notebook(test_client, headers, temp_workspace_dir)
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
 
     content = """---
 title: My Document
@@ -91,10 +51,10 @@ This is the body of the document.
     assert data["path"] == "frontmatter_test.md"
 
 
-def test_create_file_in_subdirectory(test_client, temp_workspace_dir):
+def test_create_file_in_subdirectory(test_client, auth_headers, workspace_and_notebook):
     """Test creating a file in a subdirectory (auto-creates parent dirs)."""
-    headers, _ = setup_test_user(test_client)
-    workspace, notebook = setup_workspace_and_notebook(test_client, headers, temp_workspace_dir)
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
 
     response = test_client.post(
         f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/files/",
@@ -110,10 +70,10 @@ def test_create_file_in_subdirectory(test_client, temp_workspace_dir):
     assert data["filename"] == "file.md"
 
 
-def test_create_duplicate_file_fails(test_client, temp_workspace_dir):
+def test_create_duplicate_file_fails(test_client, auth_headers, workspace_and_notebook):
     """Test that creating a duplicate file returns an error."""
-    headers, _ = setup_test_user(test_client)
-    workspace, notebook = setup_workspace_and_notebook(test_client, headers, temp_workspace_dir)
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
 
     # Create first file
     test_client.post(
@@ -138,10 +98,10 @@ def test_create_duplicate_file_fails(test_client, temp_workspace_dir):
     assert "already exists" in response.json()["detail"]
 
 
-def test_list_files(test_client, temp_workspace_dir):
+def test_list_files(test_client, auth_headers, workspace_and_notebook):
     """Test listing files in a notebook."""
-    headers, _ = setup_test_user(test_client)
-    workspace, notebook = setup_workspace_and_notebook(test_client, headers, temp_workspace_dir)
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
 
     # Create multiple files
     for i in range(3):
@@ -167,10 +127,10 @@ def test_list_files(test_client, temp_workspace_dir):
     assert data["pagination"]["total"] >= 3
 
 
-def test_list_files_with_pagination(test_client, temp_workspace_dir):
+def test_list_files_with_pagination(test_client, auth_headers, workspace_and_notebook):
     """Test listing files with pagination."""
-    headers, _ = setup_test_user(test_client)
-    workspace, notebook = setup_workspace_and_notebook(test_client, headers, temp_workspace_dir)
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
 
     # Create multiple files
     for i in range(5):
@@ -194,10 +154,10 @@ def test_list_files_with_pagination(test_client, temp_workspace_dir):
     assert data["pagination"]["has_more"] is True
 
 
-def test_get_file_by_id(test_client, temp_workspace_dir):
+def test_get_file_by_id(test_client, auth_headers, workspace_and_notebook):
     """Test getting file metadata by ID."""
-    headers, _ = setup_test_user(test_client)
-    workspace, notebook = setup_workspace_and_notebook(test_client, headers, temp_workspace_dir)
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
 
     # Create file
     create_response = test_client.post(
@@ -221,10 +181,10 @@ def test_get_file_by_id(test_client, temp_workspace_dir):
     assert data["path"] == "get_by_id.md"
 
 
-def test_get_file_text(test_client, temp_workspace_dir):
+def test_get_file_text(test_client, auth_headers, workspace_and_notebook):
     """Test getting file text content."""
-    headers, _ = setup_test_user(test_client)
-    workspace, notebook = setup_workspace_and_notebook(test_client, headers, temp_workspace_dir)
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
 
     content = "# Test Content\n\nThis is the body."
     create_response = test_client.post(
@@ -248,10 +208,10 @@ def test_get_file_text(test_client, temp_workspace_dir):
     assert "Test Content" in data["content"]
 
 
-def test_get_file_by_path(test_client, temp_workspace_dir):
+def test_get_file_by_path(test_client, auth_headers, workspace_and_notebook):
     """Test getting file by path."""
-    headers, _ = setup_test_user(test_client)
-    workspace, notebook = setup_workspace_and_notebook(test_client, headers, temp_workspace_dir)
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
 
     # Create file
     test_client.post(
@@ -273,10 +233,10 @@ def test_get_file_by_path(test_client, temp_workspace_dir):
     assert data["path"] == "by_path_test.md"
 
 
-def test_get_file_text_by_path(test_client, temp_workspace_dir):
+def test_get_file_text_by_path(test_client, auth_headers, workspace_and_notebook):
     """Test getting file text content by path."""
-    headers, _ = setup_test_user(test_client)
-    workspace, notebook = setup_workspace_and_notebook(test_client, headers, temp_workspace_dir)
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
 
     content = "# By Path Content"
     test_client.post(
@@ -298,10 +258,10 @@ def test_get_file_text_by_path(test_client, temp_workspace_dir):
     assert "By Path Content" in data["content"]
 
 
-def test_update_file(test_client, temp_workspace_dir):
+def test_update_file(test_client, auth_headers, workspace_and_notebook):
     """Test updating file content."""
-    headers, _ = setup_test_user(test_client)
-    workspace, notebook = setup_workspace_and_notebook(test_client, headers, temp_workspace_dir)
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
 
     # Create file
     create_response = test_client.post(
@@ -331,10 +291,10 @@ def test_update_file(test_client, temp_workspace_dir):
     assert "Updated Content" in text_response.json()["content"]
 
 
-def test_update_file_with_properties(test_client, temp_workspace_dir):
+def test_update_file_with_properties(test_client, auth_headers, workspace_and_notebook):
     """Test updating file with properties (frontmatter)."""
-    headers, _ = setup_test_user(test_client)
-    workspace, notebook = setup_workspace_and_notebook(test_client, headers, temp_workspace_dir)
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
 
     # Create file
     create_response = test_client.post(
@@ -359,10 +319,10 @@ def test_update_file_with_properties(test_client, temp_workspace_dir):
     assert response.status_code == 200
 
 
-def test_move_file(test_client, temp_workspace_dir):
+def test_move_file(test_client, auth_headers, workspace_and_notebook):
     """Test moving/renaming a file."""
-    headers, _ = setup_test_user(test_client)
-    workspace, notebook = setup_workspace_and_notebook(test_client, headers, temp_workspace_dir)
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
 
     # Create file
     create_response = test_client.post(
@@ -387,10 +347,10 @@ def test_move_file(test_client, temp_workspace_dir):
     assert data["filename"] == "renamed_file.md"
 
 
-def test_move_file_to_subdirectory(test_client, temp_workspace_dir):
+def test_move_file_to_subdirectory(test_client, auth_headers, workspace_and_notebook):
     """Test moving a file to a subdirectory."""
-    headers, _ = setup_test_user(test_client)
-    workspace, notebook = setup_workspace_and_notebook(test_client, headers, temp_workspace_dir)
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
 
     # Create file
     create_response = test_client.post(
@@ -414,10 +374,10 @@ def test_move_file_to_subdirectory(test_client, temp_workspace_dir):
     assert data["path"] == "subdir/moved_file.md"
 
 
-def test_delete_file(test_client, temp_workspace_dir):
+def test_delete_file(test_client, auth_headers, workspace_and_notebook):
     """Test deleting a file."""
-    headers, _ = setup_test_user(test_client)
-    workspace, notebook = setup_workspace_and_notebook(test_client, headers, temp_workspace_dir)
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
 
     # Create file
     create_response = test_client.post(
@@ -446,10 +406,10 @@ def test_delete_file(test_client, temp_workspace_dir):
     assert get_response.status_code == 404
 
 
-def test_get_file_history(test_client, temp_workspace_dir):
+def test_get_file_history(test_client, auth_headers, workspace_and_notebook):
     """Test getting git history for a file."""
-    headers, _ = setup_test_user(test_client)
-    workspace, notebook = setup_workspace_and_notebook(test_client, headers, temp_workspace_dir)
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
 
     # Create file (creates initial commit)
     create_response = test_client.post(
@@ -479,10 +439,10 @@ def test_get_file_history(test_client, temp_workspace_dir):
         assert "message" in entry
 
 
-def test_get_nonexistent_file(test_client, temp_workspace_dir):
+def test_get_nonexistent_file(test_client, auth_headers, workspace_and_notebook):
     """Test getting a file that doesn't exist."""
-    headers, _ = setup_test_user(test_client)
-    workspace, notebook = setup_workspace_and_notebook(test_client, headers, temp_workspace_dir)
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
 
     response = test_client.get(
         f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/files/99999",
@@ -491,7 +451,7 @@ def test_get_nonexistent_file(test_client, temp_workspace_dir):
     assert response.status_code == 404
 
 
-def test_file_requires_authentication(test_client, temp_workspace_dir):
+def test_file_requires_authentication(test_client):
     """Test that file endpoints require authentication."""
     # No auth header
     response = test_client.get("/api/v1/workspaces/1/notebooks/1/files/")
@@ -501,10 +461,10 @@ def test_file_requires_authentication(test_client, temp_workspace_dir):
     assert response.status_code == 401
 
 
-def test_list_templates(test_client, temp_workspace_dir):
+def test_list_templates(test_client, auth_headers, workspace_and_notebook):
     """Test listing available templates."""
-    headers, _ = setup_test_user(test_client)
-    workspace, notebook = setup_workspace_and_notebook(test_client, headers, temp_workspace_dir)
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
 
     response = test_client.get(
         f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/files/templates",
@@ -517,10 +477,10 @@ def test_list_templates(test_client, temp_workspace_dir):
     assert isinstance(data["templates"], list)
 
 
-def test_resolve_link(test_client, temp_workspace_dir):
+def test_resolve_link(test_client, auth_headers, workspace_and_notebook):
     """Test resolving a link to a file."""
-    headers, _ = setup_test_user(test_client)
-    workspace, notebook = setup_workspace_and_notebook(test_client, headers, temp_workspace_dir)
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
 
     # Create target file
     test_client.post(
@@ -543,10 +503,10 @@ def test_resolve_link(test_client, temp_workspace_dir):
     assert data["path"] == "target.md"
 
 
-def test_resolve_nonexistent_link(test_client, temp_workspace_dir):
+def test_resolve_nonexistent_link(test_client, auth_headers, workspace_and_notebook):
     """Test resolving a link to a nonexistent file."""
-    headers, _ = setup_test_user(test_client)
-    workspace, notebook = setup_workspace_and_notebook(test_client, headers, temp_workspace_dir)
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
 
     response = test_client.post(
         f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/files/resolve-link",

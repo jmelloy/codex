@@ -65,11 +65,14 @@
         'w-[280px] min-w-[280px] notebook-sidebar flex flex-col overflow-hidden',
         'fixed lg:relative inset-y-0 left-0 z-50',
         'transform transition-transform duration-300 ease-in-out',
-        sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
       ]"
     >
       <!-- Codex Header -->
-      <div class="flex items-center justify-between px-4 py-4" style="border-bottom: 1px solid var(--page-border)">
+      <div
+        class="flex items-center justify-between px-4 py-4"
+        style="border-bottom: 1px solid var(--page-border)"
+      >
         <h1 class="m-0 text-xl font-semibold" style="color: var(--notebook-text)">Codex</h1>
         <!-- Close button for mobile -->
         <button
@@ -477,21 +480,53 @@
         v-else-if="workspaceStore.isEditing && workspaceStore.currentFile"
         class="flex-1 flex overflow-hidden p-4"
       >
-        <MarkdownEditor
-          v-model="editContent"
-          :frontmatter="workspaceStore.currentFile.properties"
-          :autosave="false"
-          @save="handleSaveFile"
-          @cancel="handleCancelEdit"
-          class="flex-1"
-        />
+        <div class="flex-1 flex flex-col overflow-hidden">
+          <FileHeader
+            :file="workspaceStore.currentFile"
+            @toggle-properties="toggleProperties"
+            @rename="handleRenameFile"
+          >
+            <template #actions>
+              <button
+                @click="handleSaveFile(editContent)"
+                class="notebook-button-primary px-4 py-2 rounded cursor-pointer text-sm transition"
+              >
+                Save
+              </button>
+              <button
+                @click="handleCancelEdit"
+                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
+              >
+                Cancel
+              </button>
+              <button
+                @click="toggleProperties"
+                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
+              >
+                Properties
+              </button>
+            </template>
+          </FileHeader>
+          <MarkdownEditor
+            v-model="editContent"
+            :frontmatter="workspaceStore.currentFile.properties"
+            :autosave="false"
+            @save="handleSaveFile"
+            @cancel="handleCancelEdit"
+            class="flex-1"
+          />
+        </div>
       </div>
 
       <!-- Viewer Mode -->
       <div v-else-if="workspaceStore.currentFile" class="flex-1 flex overflow-hidden p-4">
         <!-- All file types use a consistent header + content pattern -->
         <div class="flex-1 flex flex-col overflow-hidden">
-          <FileHeader :file="workspaceStore.currentFile" @toggle-properties="toggleProperties" @rename="handleRenameFile">
+          <FileHeader
+            :file="workspaceStore.currentFile"
+            @toggle-properties="toggleProperties"
+            @rename="handleRenameFile"
+          >
             <template #actions>
               <!-- Media files (image, pdf, audio, video, html) get Open button -->
               <button
@@ -907,16 +942,12 @@ function getSlugOrId(entity: { slug?: string; id: number } | null | undefined): 
 
 // Helper to find workspace by slug or id
 function findWorkspaceBySlugOrId(identifier: string): Workspace | undefined {
-  return workspaceStore.workspaces.find(
-    (w) => w.slug === identifier || String(w.id) === identifier
-  )
+  return workspaceStore.workspaces.find((w) => w.slug === identifier || String(w.id) === identifier)
 }
 
 // Helper to find notebook by slug or id
 function findNotebookBySlugOrId(identifier: string): Notebook | undefined {
-  return workspaceStore.notebooks.find(
-    (n) => n.slug === identifier || String(n.id) === identifier
-  )
+  return workspaceStore.notebooks.find((n) => n.slug === identifier || String(n.id) === identifier)
 }
 
 // Build file URL path: /w/{workspace}/{notebook}/{filePath}
@@ -939,7 +970,9 @@ function buildFolderUrl(folderPath: string, notebookId: number): string {
 const currentContentUrl = computed(() => {
   if (!workspaceStore.currentFile || !workspaceStore.currentWorkspace) return ""
   const workspaceId = workspaceStore.currentWorkspace.id || workspaceStore.currentWorkspace.slug
-  const notebook = workspaceStore.notebooks.find((n: any) => n.id === workspaceStore.currentFile?.notebook_id)
+  const notebook = workspaceStore.notebooks.find(
+    (n: any) => n.id === workspaceStore.currentFile?.notebook_id,
+  )
   const notebookId = notebook?.id || notebook?.slug
   return `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/${workspaceStore.currentFile.id}/content`
 })
@@ -970,7 +1003,7 @@ watch(
       editContent.value = file.content
     }
   },
-  { immediate: true }
+  { immediate: true },
 )
 
 // Watch for route changes to restore file/folder selection from URL (path-based)
@@ -1006,7 +1039,9 @@ watch(
         }
 
         // Try to find as file first, then as folder
-        const file = workspaceStore.getFilesForNotebook(notebook.id).find((f) => f.path === itemPath)
+        const file = workspaceStore
+          .getFilesForNotebook(notebook.id)
+          .find((f) => f.path === itemPath)
         if (file && workspaceStore.currentFile?.path !== itemPath) {
           await workspaceStore.selectFile(file)
         } else if (!file && workspaceStore.currentFolder?.path !== itemPath) {
@@ -1020,7 +1055,7 @@ watch(
       workspaceStore.currentFolder = null
     }
   },
-  { immediate: false }
+  { immediate: false },
 )
 
 onMounted(async () => {
@@ -1096,12 +1131,13 @@ watch(
       }
     }
   },
-  { deep: true }
+  { deep: true },
 )
 
 // Watch for file/folder selection to update document title
 watch(
-  () => [workspaceStore.currentFile, workspaceStore.currentFolder, workspaceStore.notebooks] as const,
+  () =>
+    [workspaceStore.currentFile, workspaceStore.currentFolder, workspaceStore.notebooks] as const,
   () => {
     const file = workspaceStore.currentFile
     const folder = workspaceStore.currentFolder
@@ -1110,14 +1146,14 @@ watch(
     if (file) {
       // File selected: "Codex - Notebook / Title (or Filename)"
       // Look up the notebook by the file's notebook_id for accuracy
-      const notebook = notebooks.find(n => n.id === file.notebook_id)
+      const notebook = notebooks.find((n) => n.id === file.notebook_id)
       const notebookName = notebook?.name || "Notebook"
       const fileTitle = file.title || file.filename
       document.title = `Codex - ${notebookName} / ${fileTitle}`
     } else if (folder) {
       // Folder selected: "Codex - Notebook / Folder"
       // Look up the notebook by the folder's notebook_id for accuracy
-      const notebook = notebooks.find(n => n.id === folder.notebook_id)
+      const notebook = notebooks.find((n) => n.id === folder.notebook_id)
       const notebookName = notebook?.name || "Notebook"
       const folderTitle = folder.title || folder.name
       document.title = `Codex - ${notebookName} / ${folderTitle}`
@@ -1129,7 +1165,7 @@ watch(
       document.title = "Codex"
     }
   },
-  { immediate: true }
+  { immediate: true },
 )
 
 function handleLogout() {
@@ -1165,14 +1201,19 @@ function toggleFolder(notebookId: number, folderPath: string) {
 async function handleFolderClick(event: MouseEvent, notebookId: number, folderPath: string) {
   // If clicking on the expand arrow area, just toggle expansion
   const target = event.target as HTMLElement
-  const isArrowClick = target.classList.contains("text-[10px]") || target.closest(".text-\\[10px\\]")
-  
+  const isArrowClick =
+    target.classList.contains("text-[10px]") || target.closest(".text-\\[10px\\]")
+
   await expandOrCollapseFolder(notebookId, folderPath, !isArrowClick)
 }
 
-async function expandOrCollapseFolder(notebookId: number, folderPath: string, closeSidebar: boolean = false) {
+async function expandOrCollapseFolder(
+  notebookId: number,
+  folderPath: string,
+  closeSidebar: boolean = false,
+) {
   const isExpanded = isFolderExpanded(notebookId, folderPath)
-  
+
   if (isExpanded) {
     // Just collapse
     toggleFolder(notebookId, folderPath)
@@ -1283,7 +1324,7 @@ function handleFileDragStart(event: DragEvent, file: FileMetadata, notebookId: n
       notebookId: notebookId,
       filename: file.filename,
       path: file.path,
-    })
+    }),
   )
 }
 
@@ -1476,20 +1517,20 @@ async function handleDeleteFile() {
 // Handle renaming a file by changing its filename while keeping the same directory
 async function handleRenameFile(newFilename: string) {
   if (!workspaceStore.currentFile) return
-  
+
   const currentFile = workspaceStore.currentFile
   const currentPath = currentFile.path
-  
+
   // Get the directory part of the current path
   const lastSlashIndex = currentPath.lastIndexOf("/")
   const directory = lastSlashIndex >= 0 ? currentPath.substring(0, lastSlashIndex + 1) : ""
-  
+
   // Construct the new path with the same directory but new filename
   const newPath = directory + newFilename
-  
+
   // Don't do anything if the path hasn't changed
   if (newPath === currentPath) return
-  
+
   try {
     await workspaceStore.moveFile(currentFile.id, currentFile.notebook_id, newPath)
     showToast({ message: "File renamed successfully" })
@@ -1558,7 +1599,7 @@ async function handleCreateFile() {
         createFileNotebook.value.id,
         workspaceStore.currentWorkspace.id,
         selectedTemplate.value.id,
-        filename
+        filename,
       )
 
       // Refresh file list and select the new file
@@ -1700,7 +1741,7 @@ async function handleSearch() {
     try {
       const apiResults = await searchService.search(
         workspaceStore.currentWorkspace.id,
-        searchQuery.value
+        searchQuery.value,
       )
       // Merge API results if they contain file data
       if (apiResults.results && apiResults.results.length > 0) {
@@ -1834,7 +1875,9 @@ function clearSearch() {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background-color 0.2s, color 0.2s;
+  transition:
+    background-color 0.2s,
+    color 0.2s;
 }
 
 .sidebar-icon-button:hover {

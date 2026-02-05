@@ -55,61 +55,62 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue"
+import { ref, onMounted } from "vue";
 
 interface LinkPreviewConfig {
-  url?: string
-  [key: string]: any
+  url?: string;
+  [key: string]: any;
 }
 
 interface OpenGraphMetadata {
-  title?: string
-  description?: string
-  image?: string
-  url?: string
-  site_name?: string
+  title?: string;
+  description?: string;
+  image?: string;
+  url?: string;
+  site_name?: string;
 }
 
 interface Props {
-  config: LinkPreviewConfig
-  workspaceId?: number
-  notebookId?: number
+  config: LinkPreviewConfig;
+  workspaceId?: number;
+  notebookId?: number;
 }
 
-const props = defineProps<Props>()
+const props = defineProps<Props>();
 
-const loading = ref(false)
-const error = ref<string | null>(null)
-const metadata = ref<OpenGraphMetadata | null>(null)
+const loading = ref(false);
+const error = ref<string | null>(null);
+const metadata = ref<OpenGraphMetadata | null>(null);
 
 const formatUrl = (url: string): string => {
   try {
-    const urlObj = new URL(url)
-    return urlObj.hostname
+    const urlObj = new URL(url);
+    return urlObj.hostname;
   } catch {
-    return url
+    return url;
   }
-}
+};
 
 const fetchMetadata = async () => {
+  console.log("Fetching metadata for URL:", props.config.url);
   if (!props.config.url) {
-    error.value = "No URL provided"
-    return
+    error.value = "No URL provided";
+    return;
   }
 
   if (!props.workspaceId || !props.notebookId) {
-    error.value = "Missing workspace or notebook context"
-    return
+    error.value = "Missing workspace or notebook context";
+    return;
   }
 
-  loading.value = true
-  error.value = null
+  loading.value = true;
+  error.value = null;
 
   try {
-    const token = localStorage.getItem("access_token")
+    const token = localStorage.getItem("access_token");
     if (!token) {
-      error.value = "Not authenticated"
-      return
+      error.value = "Not authenticated";
+      return;
     }
 
     const response = await fetch(
@@ -124,31 +125,32 @@ const fetchMetadata = async () => {
           endpoint_id: "fetch_metadata",
           parameters: { url: props.config.url },
         }),
-      }
-    )
+      },
+    );
 
     if (!response.ok) {
-      const data = await response.json().catch(() => ({}))
-      throw new Error(data.error || data.detail || `HTTP ${response.status}`)
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || data.detail || `HTTP ${response.status}`);
     }
 
-    const result = await response.json()
+    const result = await response.json();
     if (result.success && result.data) {
-      metadata.value = result.data
+      metadata.value = result.data;
     } else {
-      error.value = result.error || "Failed to fetch preview"
+      error.value = result.error || "Failed to fetch preview";
     }
   } catch (err: any) {
-    console.error("Error fetching link preview:", err)
-    error.value = err.message || "Failed to load preview"
+    console.error("Error fetching link preview:", err);
+    error.value = err.message || "Failed to load preview";
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-}
+};
 
 onMounted(() => {
-  fetchMetadata()
-})
+  console.log("LinkPreviewBlock mounted with config:", props.config);
+  fetchMetadata();
+});
 </script>
 
 <style scoped>

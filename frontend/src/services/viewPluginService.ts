@@ -151,6 +151,11 @@ class ViewPluginService {
    * In dev mode, uses glob loader for HMR. Otherwise tries compiled dist/ first.
    */
   async loadViewComponent(viewId: string): Promise<Component> {
+    // Ensure service is initialized before loading
+    if (!this.initialized) {
+      await this.initialize()
+    }
+
     // Dashboard is loaded from frontend (has frontend service dependencies)
     if (viewId === "dashboard") {
       const module = await import("@/components/views/DashboardView.vue")

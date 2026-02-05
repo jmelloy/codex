@@ -101,12 +101,15 @@ watch(
     }
 
     try {
+      // Ensure plugin service is initialized before checking
+      await viewPluginService.initialize()
+
       // Try to load component from plugin service
       if (viewPluginService.hasViewComponent(viewType)) {
         viewComponent.value = await viewPluginService.loadViewComponent(viewType)
       } else {
-        // View type exists in plugins but component not registered
-        console.warn(`View component not found for type: ${viewType}`)
+        // View type exists in definition but component not registered
+        console.warn(`View component not found for type: ${viewType}. Available: ${viewPluginService.getValidViewTypes().join(", ") || "none"}`)
         viewComponent.value = null
       }
     } catch (err) {

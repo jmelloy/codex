@@ -13,6 +13,9 @@
         </p>
 
         <div v-if="pluginsLoading" class="loading-state">Loading plugins...</div>
+        <div v-else-if="pluginsLoadError" class="error-state">
+          Failed to load plugins. Check that the backend is running and plugins are configured.
+        </div>
         <div v-else-if="pluginsList.length === 0" class="empty-state">No plugins available</div>
         <div v-else class="plugins-list">
           <div v-for="plugin in pluginsList" :key="plugin.id" class="plugin-row">
@@ -77,6 +80,7 @@ const workspaceStore = useWorkspaceStore()
 const pluginsList = ref<PluginData[]>([])
 const pluginConfigurations = ref<PluginConfiguration[]>([])
 const pluginsLoading = ref(false)
+const pluginsLoadError = ref(false)
 const operationMessage = ref('')
 
 const FALLBACK_ENABLED_STATE = true
@@ -88,16 +92,20 @@ const workspaceName = computed(() => {
 
 async function loadPluginData() {
   pluginsLoading.value = true
+  pluginsLoadError.value = false
   try {
     const [allPluginsResponse, configsResponse] = await Promise.all([
       api.get<PluginData[]>('/api/v1/plugins'),
       api.get<PluginConfiguration[]>(`/api/v1/workspaces/${props.workspaceId}/plugins`)
     ])
-    
-    pluginsList.value = allPluginsResponse.data
-    pluginConfigurations.value = configsResponse.data
+
+    pluginsList.value = allPluginsResponse.data ?? []
+    pluginConfigurations.value = configsResponse.data ?? []
   } catch (err) {
     console.error('Plugin loading error:', err)
+    pluginsLoadError.value = true
+    pluginsList.value = []
+    pluginConfigurations.value = []
   } finally {
     pluginsLoading.value = false
   }
@@ -200,6 +208,16 @@ onMounted(() => {
   padding: 2rem;
   text-align: center;
   color: var(--color-text-tertiary);
+  font-style: italic;
+}
+
+.error-state {
+  padding: 2rem;
+  text-align: center;
+  color: #991b1b;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
   font-style: italic;
 }
 

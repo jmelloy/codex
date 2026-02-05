@@ -219,9 +219,16 @@ const parseCustomBlocks = async (html: string): Promise<{ html: string; blocks: 
 
     const className = codeBlock.className
     const language = extractLanguage(className)
-    console.log(`Checking block for custom block type: ${language}`)
     // Check if this is a custom block using the plugin service
-    if (language && (await isBlockTypeAvailable(language))) {
+    let isCustomBlock = false
+    if (language) {
+      try {
+        isCustomBlock = await isBlockTypeAvailable(language)
+      } catch (e) {
+        console.warn(`Failed to check block type availability for "${language}":`, e)
+      }
+    }
+    if (language && isCustomBlock) {
       // This is a custom block
       const content = codeBlock.textContent || ""
 
@@ -270,14 +277,35 @@ const parseCustomBlocks = async (html: string): Promise<{ html: string; blocks: 
 const mountCustomBlocks = (blocks: any[]) => {
   blocks.forEach((block) => {
     setTimeout(() => {
-      const container = document.getElementById(block.id)
-      if (container) {
-        const app = createApp(block.component, {
-          config: block.config,
-          workspaceId: props.workspaceId,
-          notebookId: props.notebookId,
-        })
-        app.mount(container)
+      try {
+        const container = document.getElementById(block.id)
+        if (container) {
+          const app = createApp(block.component, {
+            config: block.config,
+            workspaceId: props.workspaceId,
+            notebookId: props.notebookId,
+          })
+          app.config.errorHandler = (err) => {
+            console.warn(`Plugin block "${block.type}" encountered an error:`, err)
+          }
+          app.mount(container)
+        }
+      } catch (e) {
+        console.warn(`Failed to mount plugin block "${block.type}":`, e)
+        // Show inline error in the placeholder instead of crashing
+        const container = document.getElementById(block.id)
+        if (container) {
+          container.className = "custom-block-placeholder plugin-fallback-block"
+          container.innerHTML = `
+            <div class="block-header">
+              <span class="block-icon">&#x26A0;&#xFE0F;</span>
+              <span class="block-title">${block.type} Block</span>
+            </div>
+            <div class="block-content">
+              <div class="block-note"><em>Plugin component failed to load.</em></div>
+            </div>
+          `
+        }
       }
     }, 0)
   })
@@ -285,7 +313,13 @@ const mountCustomBlocks = (blocks: any[]) => {
 
 // Detect standalone URLs in markdown text and convert to link-preview blocks
 const detectAndUnfurlUrls = async (markdown: string): Promise<string> => {
-  const linkPreviewAvailable = await isBlockTypeAvailable("link-preview")
+  let linkPreviewAvailable = false
+  try {
+    linkPreviewAvailable = await isBlockTypeAvailable("link-preview")
+  } catch (e) {
+    console.warn("Failed to check link-preview availability:", e)
+    return markdown
+  }
 
   // Only detect URLs if link-preview block type is available and we have workspace/notebook context
   if (!linkPreviewAvailable || !props.workspaceId || !props.notebookId) {
@@ -346,12 +380,26 @@ const renderMarkdown = async () => {
     updateContentKey()
 
     // Detect standalone URLs in markdown and convert to link-preview blocks
-    let processedContent = await detectAndUnfurlUrls(props.content)
+    // Plugin failures here should not prevent basic markdown rendering
+    let processedContent = props.content
+    try {
+      processedContent = await detectAndUnfurlUrls(props.content)
+    } catch (e) {
+      console.warn("URL unfurling failed, rendering without link previews:", e)
+    }
 
     const html = marked(processedContent) as string
 
-    // Parse and handle custom blocks first
-    const { html: htmlWithPlaceholders, blocks } = await parseCustomBlocks(html)
+    // Parse and handle custom blocks — plugin failures should not prevent rendering
+    let htmlWithPlaceholders = html
+    let blocks: any[] = []
+    try {
+      const result = await parseCustomBlocks(html)
+      htmlWithPlaceholders = result.html
+      blocks = result.blocks
+    } catch (e) {
+      console.warn("Custom block parsing failed, rendering without plugin blocks:", e)
+    }
 
     // Apply syntax highlighting to remaining standard code blocks
     const parser = new DOMParser()

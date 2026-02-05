@@ -116,15 +116,15 @@ def test_theme_plugin_properties():
     loader = PluginLoader(PLUGINS_DIR)
 
     # Load blueprint theme (dark theme, now in flat structure)
-    theme_path = PLUGINS_DIR / "blueprint"
+    theme_path = PLUGINS_DIR / "obsdian"
     if theme_path.exists():
         plugin = loader.load_plugin(theme_path)
 
         assert isinstance(plugin, ThemePlugin)
-        assert plugin.id == "blueprint"
+        assert plugin.id == "obsdian"
         assert plugin.category == "dark"
         assert plugin.stylesheet == "styles/main.css"
-        assert plugin.class_name == "theme-blueprint"
+        assert plugin.class_name == "theme-obsdian"
 
 
 def test_view_plugin_properties():

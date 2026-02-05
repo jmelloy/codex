@@ -229,6 +229,6 @@ async def test_workspace_theme_settings():
 
             for workspace in workspaces:
                 assert workspace.theme_setting is not None
-                assert workspace.theme_setting in ["cream", "manila", "white", "blueprint"]
+                assert workspace.theme_setting in ["cream", "manila", "white", "obsidian"]
         finally:
             break

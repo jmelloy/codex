@@ -57,12 +57,12 @@ describe("Theme Store", () => {
 
   describe("initialize", () => {
     it("loads theme from localStorage on initialize", async () => {
-      localStorage.setItem("codex-theme-preference", "blueprint")
+      localStorage.setItem("codex-theme-preference", "cream")
 
       const store = useThemeStore()
       await store.initialize()
 
-      expect(store.currentTheme).toBe("blueprint")
+      expect(store.currentTheme).toBe("cream")
     })
 
     it("uses default theme when localStorage is empty", async () => {
@@ -108,13 +108,13 @@ describe("Theme Store", () => {
         username: "test",
         email: "test@example.com",
         is_active: true,
-        theme_setting: "blueprint",
+        theme_setting: "cream",
       })
 
       const store = useThemeStore()
-      await store.setTheme("blueprint")
+      await store.setTheme("cream")
 
-      expect(authService.updateTheme).toHaveBeenCalledWith("blueprint")
+      expect(authService.updateTheme).toHaveBeenCalledWith("cream")
     })
 
     it("falls back to localStorage when API fails", async () => {
@@ -132,9 +132,9 @@ describe("Theme Store", () => {
   describe("loadFromUser", () => {
     it("loads theme from user setting", () => {
       const store = useThemeStore()
-      store.loadFromUser("blueprint")
+      store.loadFromUser("cream")
 
-      expect(store.currentTheme).toBe("blueprint")
+      expect(store.currentTheme).toBe("cream")
     })
 
     it("falls back to localStorage when user has no theme", () => {

@@ -282,6 +282,49 @@ const mountCustomBlocks = (blocks: any[]) => {
   })
 }
 
+// Detect standalone URLs in markdown text and convert to link-preview blocks
+const detectAndUnfurlUrls = (markdown: string): string => {
+  // Only detect URLs if link-preview block type is available and we have workspace/notebook context
+  if (!knownBlockTypes.value.has("link-preview") || !props.workspaceId || !props.notebookId) {
+    return markdown
+  }
+
+  // Pattern to match standalone URLs (not in markdown links or code blocks)
+  // Matches URLs that are on their own line or after whitespace
+  const urlPattern = /(^|[\s\n])(https?:\/\/[^\s<>\[\]()]+)(?=[\s\n]|$)/gm
+
+  // Track code block regions to avoid detecting URLs inside them
+  const codeBlockPattern = /```[\s\S]*?```/g
+  const codeBlocks: Array<{ start: number; end: number }> = []
+  let match
+
+  while ((match = codeBlockPattern.exec(markdown)) !== null) {
+    codeBlocks.push({ start: match.index, end: match.index + match[0].length })
+  }
+
+  // Function to check if position is inside a code block
+  const isInsideCodeBlock = (pos: number): boolean => {
+    return codeBlocks.some((block) => pos >= block.start && pos <= block.end)
+  }
+
+  // Replace standalone URLs with link-preview blocks
+  return markdown.replace(urlPattern, (fullMatch, prefix, url, offset) => {
+    // Don't replace if inside a code block
+    if (isInsideCodeBlock(offset)) {
+      return fullMatch
+    }
+
+    // Don't replace if the URL is already part of a markdown link [text](url)
+    const beforeUrl = markdown.substring(Math.max(0, offset - 10), offset)
+    if (beforeUrl.includes("](") || beforeUrl.includes("[")) {
+      return fullMatch
+    }
+
+    // Convert to link-preview block
+    return `${prefix}\n\n\`\`\`link-preview\nurl: ${url}\n\`\`\`\n\n`
+  })
+}
+
 // Computed
 const renderMarkdown = async () => {
   if (!props.content) {
@@ -293,7 +336,11 @@ const renderMarkdown = async () => {
   try {
     isLoading.value = true
     updateContentKey()
-    const html = marked(props.content) as string
+    
+    // Detect standalone URLs in markdown and convert to link-preview blocks
+    let processedContent = detectAndUnfurlUrls(props.content)
+    
+    const html = marked(processedContent) as string
 
     // Parse and handle custom blocks first
     const { html: htmlWithPlaceholders, blocks } = await parseCustomBlocks(html)

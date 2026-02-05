@@ -24,7 +24,11 @@ def upgrade() -> None:
     """Change workspace slug constraint to be unique per owner."""
     with op.batch_alter_table("workspaces") as batch_op:
         # Drop the old global unique constraint
-        batch_op.drop_constraint("uq_workspaces_slug", type_="unique")
+        try:
+            batch_op.drop_constraint("uq_workspaces_slug", type_="unique")
+        except Exception:
+            # Constraint might not exist if previous migration was not applied
+            pass
         # Create new unique constraint on (owner_id, slug)
         batch_op.create_unique_constraint("uq_workspaces_owner_slug", ["owner_id", "slug"])
 

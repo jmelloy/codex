@@ -145,7 +145,7 @@ let devFlatComponents: Map<string, FlatComponentEntry> | null = null
 function extractPluginDir(globPath: string): string {
   // Match the segment before /components/ or /manifest.yml
   const match = globPath.match(/\/([^/]+)\/(?:components\/|manifest\.yml)/)
-  return match ? match[1] : ""
+  return match?.[1] ?? ""
 }
 
 /**
@@ -153,7 +153,7 @@ function extractPluginDir(globPath: string): string {
  */
 function extractComponentName(globPath: string): string {
   const match = globPath.match(/\/([^/]+)\.vue$/)
-  return match ? match[1] : ""
+  return match?.[1] ?? ""
 }
 
 /**

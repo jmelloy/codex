@@ -17,15 +17,25 @@ api_version: 1
 integration:
   # API type
   api_type: rest
-  
+
   # Authentication method
   auth_method: none
-  
+
   # Test endpoint - only one endpoint available
   test_endpoint: fetch_metadata
 
 # Configuration Properties
-properties: []
+properties:
+  - name: api_key
+    type: string
+    description: API key for OpenGraph.io
+    required: true
+    secure: true
+    ui:
+      type: text
+      label: API Key
+      placeholder: e79b6105-6ea4-45ff-ab3b-fdab2f1d71c5
+      help: Sign up for a free API key at https://www.opengraph.io/
 
 # Block Types
 # Custom block renderers for embedding in markdown

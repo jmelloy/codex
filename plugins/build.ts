@@ -324,6 +324,11 @@ async function buildComponent(entry: ComponentEntry): Promise<void> {
 
   const config: InlineConfig = {
     plugins: [vue()],
+    resolve: {
+      alias: {
+        "@plugins": PLUGINS_DIR,
+      },
+    },
     build: {
       lib: {
         entry: entry.componentFile,

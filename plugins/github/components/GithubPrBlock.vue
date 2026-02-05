@@ -106,6 +106,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
+import { integrationClient } from "@plugins/shared/integrationClient";
 
 interface GitHubLabel {
   id: number;
@@ -226,33 +227,10 @@ async function fetchPR() {
   error.value = null;
 
   try {
-    const token = localStorage.getItem("access_token");
-    if (!token) {
-      error.value = "Not authenticated";
-      return;
-    }
-
-    const response = await fetch(
-      `/api/v1/plugins/integrations/github/execute?workspace_id=${props.workspaceId}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          endpoint_id: "get_pr",
-          parameters: parsed,
-        }),
-      },
+    const result = await integrationClient.execute<GitHubPR>(
+      "github", "get_pr", parsed,
+      { workspaceId: props.workspaceId }
     );
-
-    if (!response.ok) {
-      const data = await response.json().catch(() => ({}));
-      throw new Error(data.error || data.detail || `HTTP ${response.status}`);
-    }
-
-    const result = await response.json();
     if (result.success && result.data) {
       pr.value = result.data;
     } else {

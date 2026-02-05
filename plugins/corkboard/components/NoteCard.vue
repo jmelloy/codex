@@ -40,7 +40,7 @@
 </template>
 
 <script setup lang="ts">
-import type { FileMetadata, CorkboardConfig } from "@/shared/types"
+import type { FileMetadata, CorkboardConfig } from "@plugins/shared/types"
 
 const props = defineProps<{
   file: FileMetadata

@@ -83,6 +83,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
+import { integrationClient } from "@plugins/shared/integrationClient";
 
 interface GitHubLicense {
   key: string;
@@ -197,33 +198,10 @@ async function fetchRepo() {
   error.value = null;
 
   try {
-    const token = localStorage.getItem("access_token");
-    if (!token) {
-      error.value = "Not authenticated";
-      return;
-    }
-
-    const response = await fetch(
-      `/api/v1/plugins/integrations/github/execute?workspace_id=${props.workspaceId}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          endpoint_id: "get_repo",
-          parameters: parsed,
-        }),
-      }
+    const result = await integrationClient.execute<GitHubRepo>(
+      "github", "get_repo", parsed,
+      { workspaceId: props.workspaceId }
     );
-
-    if (!response.ok) {
-      const data = await response.json().catch(() => ({}));
-      throw new Error(data.error || data.detail || `HTTP ${response.status}`);
-    }
-
-    const result = await response.json();
     if (result.success && result.data) {
       repo.value = result.data;
     } else {

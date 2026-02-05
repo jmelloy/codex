@@ -78,7 +78,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue"
-import type { KanbanConfig, QueryResult, FileMetadata } from "@/shared/types"
+import type { KanbanConfig, QueryResult, FileMetadata } from "@plugins/shared/types"
 
 const props = defineProps<{
   data: QueryResult | null

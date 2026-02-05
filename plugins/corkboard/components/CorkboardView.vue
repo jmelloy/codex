@@ -65,7 +65,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue"
-import type { CorkboardConfig, ViewDefinition, QueryResult, FileMetadata } from "@/shared/types"
+import type { CorkboardConfig, ViewDefinition, QueryResult, FileMetadata } from "@plugins/shared/types"
 import NoteCard from "./NoteCard.vue"
 
 const props = defineProps<{

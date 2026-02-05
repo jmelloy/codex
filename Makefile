@@ -122,7 +122,7 @@ build: build-plugins build-frontend
 	@echo "  - Plugins:  plugins/*/dist/"
 	@echo "  - Frontend: frontend/dist/"
 
-build-plugins:
+build-plugins: install-frontend
 	@echo "Building plugins..."
 	cd plugins && npm install && npm run build
 

@@ -73,10 +73,10 @@
           <main class="settings-content-panel">
             <UserSettingsPanel v-if="activeSection?.type === 'user'" />
             <WorkspaceSettingsPanel 
-              v-else-if="activeSection?.type === 'workspace'" 
+              v-else-if="activeSection?.type === 'workspace' && activeSection.workspaceId" 
               :workspaceId="activeSection.workspaceId" />
             <NotebookSettingsPanel 
-              v-else-if="activeSection?.type === 'notebook'" 
+              v-else-if="activeSection?.type === 'notebook' && activeSection.workspaceId && activeSection.notebookId" 
               :workspaceId="activeSection.workspaceId"
               :notebookId="activeSection.notebookId" />
             <IntegrationsPanel v-else-if="activeSection?.type === 'integrations'" />

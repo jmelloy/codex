@@ -852,6 +852,9 @@
 
   <!-- Create View Modal -->
   <CreateViewModal v-model="showCreateView" @create="handleCreateView" />
+
+  <!-- Settings Dialog -->
+  <SettingsDialog v-model="showSettingsDialog" />
 </template>
 
 <script setup lang="ts">
@@ -876,6 +879,7 @@ import FileTreeItem from "../components/FileTreeItem.vue"
 import CreateViewModal from "../components/CreateViewModal.vue"
 import TemplateSelector from "../components/TemplateSelector.vue"
 import UserSettings from "../components/UserSettings.vue"
+import SettingsDialog from "../components/SettingsDialog.vue"
 import { showToast } from "../utils/toast"
 import type { FileTreeNode } from "../utils/fileTree"
 
@@ -889,6 +893,7 @@ const showCreateWorkspace = ref(false)
 const showCreateNotebook = ref(false)
 const showCreateFile = ref(false)
 const showCreateView = ref(false)
+const showSettingsDialog = ref(false)
 
 // Form state
 const newWorkspaceName = ref("")
@@ -1174,7 +1179,7 @@ function handleLogout() {
 }
 
 function goToSettings() {
-  router.push({ query: { view: "settings" } })
+  showSettingsDialog.value = true
 }
 
 function selectWorkspace(workspace: Workspace) {

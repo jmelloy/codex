@@ -123,12 +123,8 @@ build: build-plugins build-frontend
 	@echo "  - Frontend: frontend/dist/"
 
 build-plugins:
-	@if [ ! -d "plugins/node_modules" ]; then \
-		echo "Installing plugin dependencies..."; \
-		cd plugins && npm install; \
-	fi
 	@echo "Building plugins..."
-	cd plugins && npm run build
+	cd plugins && npm install && npm run build
 
 # Build a specific plugin independently
 # Usage: make build-plugin PLUGIN=weather-api

@@ -288,19 +288,23 @@ export async function isBlockTypeAvailable(blockType: string): Promise<boolean> 
 export async function preloadPluginComponents(): Promise<void> {
   // In dev mode, preload via glob loaders (Vite handles CSS from .vue files)
   if (import.meta.env.DEV) {
-    const { getDevFlatComponents, getDevComponentLoader } = await import("./pluginDevLoader")
-    const devComponents = getDevFlatComponents()
-    const loadPromises = Array.from(devComponents.keys()).map(async (blockId) => {
-      const loader = getDevComponentLoader(blockId)
-      if (loader) {
-        try {
-          await loader()
-        } catch {
-          // Ignore failures during preload
+    try {
+      const { getDevFlatComponents, getDevComponentLoader } = await import("./pluginDevLoader")
+      const devComponents = getDevFlatComponents()
+      const loadPromises = Array.from(devComponents.keys()).map(async (blockId) => {
+        const loader = getDevComponentLoader(blockId)
+        if (loader) {
+          try {
+            await loader()
+          } catch {
+            // Ignore failures during preload
+          }
         }
-      }
-    })
-    await Promise.allSettled(loadPromises)
+      })
+      await Promise.allSettled(loadPromises)
+    } catch (err) {
+      console.warn("Failed to preload plugin components in dev mode:", err)
+    }
     return
   }
 

@@ -13,6 +13,9 @@
         </p>
 
         <div v-if="pluginsLoading" class="loading-state">Loading...</div>
+        <div v-else-if="pluginsLoadError" class="error-state">
+          Failed to load plugins. Check that the backend is running and plugins are configured.
+        </div>
         <div v-else-if="pluginsList.length === 0" class="empty-state">No plugins configured</div>
         <div v-else class="plugins-list">
           <div v-for="plugin in pluginsList" :key="plugin.id" class="plugin-row">
@@ -89,6 +92,7 @@ const pluginsList = ref<PluginData[]>([])
 const workspaceConfigs = ref<PluginConfiguration[]>([])
 const notebookConfigs = ref<PluginConfiguration[]>([])
 const pluginsLoading = ref(false)
+const pluginsLoadError = ref(false)
 const operationMessage = ref('')
 
 const FALLBACK_ENABLED_STATE = true
@@ -100,18 +104,23 @@ const notebookName = computed(() => {
 
 async function loadAllData() {
   pluginsLoading.value = true
+  pluginsLoadError.value = false
   try {
     const [allPluginsResponse, wsConfigsResponse, nbConfigsResponse] = await Promise.all([
       api.get<PluginData[]>('/api/v1/plugins'),
       api.get<PluginConfiguration[]>(`/api/v1/workspaces/${props.workspaceId}/plugins`),
       api.get<PluginConfiguration[]>(`/api/v1/notebooks/${props.notebookId}/plugins`)
     ])
-    
-    pluginsList.value = allPluginsResponse.data
-    workspaceConfigs.value = wsConfigsResponse.data
-    notebookConfigs.value = nbConfigsResponse.data
+
+    pluginsList.value = allPluginsResponse.data ?? []
+    workspaceConfigs.value = wsConfigsResponse.data ?? []
+    notebookConfigs.value = nbConfigsResponse.data ?? []
   } catch (err) {
     console.error('Data loading error:', err)
+    pluginsLoadError.value = true
+    pluginsList.value = []
+    workspaceConfigs.value = []
+    notebookConfigs.value = []
   } finally {
     pluginsLoading.value = false
   }
@@ -241,6 +250,16 @@ onMounted(() => {
   padding: 2rem;
   text-align: center;
   color: var(--color-text-tertiary);
+  font-style: italic;
+}
+
+.error-state {
+  padding: 2rem;
+  text-align: center;
+  color: #991b1b;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
   font-style: italic;
 }
 

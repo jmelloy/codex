@@ -65,6 +65,7 @@ const emit = defineEmits<{
 
 // State
 const isLoading = ref(false)
+const isRendering = ref(false)
 const knownBlockTypes = ref<Set<string>>(new Set())
 const renderedHtml = ref('<p class="empty-content">No content to display</p>')
 
@@ -335,11 +336,13 @@ const renderMarkdown = async () => {
   if (!props.content) {
     renderedHtml.value = '<p class="empty-content">No content to display</p>'
     updateContentKey()
+    isRendering.value = false
     return
   }
 
   try {
     isLoading.value = true
+    isRendering.value = true
     updateContentKey()
 
     // Detect standalone URLs in markdown and convert to link-preview blocks
@@ -396,8 +399,15 @@ const renderMarkdown = async () => {
     renderedHtml.value = '<p class="error-content">Error rendering markdown</p>'
   } finally {
     isLoading.value = false
+    isRendering.value = false
   }
 }
+
+// Expose isRendering for testing purposes
+defineExpose({
+  isRendering,
+  renderMarkdown,
+})
 
 // Methods
 const copyContent = async () => {

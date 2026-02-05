@@ -1,7 +1,24 @@
 import { describe, it, expect, beforeEach } from "vitest"
-import { mount, flushPromises } from "@vue/test-utils"
+import { mount, flushPromises, type VueWrapper } from "@vue/test-utils"
 import { setActivePinia, createPinia } from "pinia"
+import { nextTick } from "vue"
 import MarkdownViewer from "../../components/MarkdownViewer.vue"
+
+// Helper function to wait for markdown rendering to complete
+async function waitForRendering(wrapper: VueWrapper<any>): Promise<void> {
+  await flushPromises()
+  await nextTick()
+  // Wait for isRendering to become false
+  const maxWait = 50 // 50 iterations * 10ms = 500ms max wait
+  for (let i = 0; i < maxWait; i++) {
+    if (!wrapper.vm.isRendering) {
+      break
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10))
+  }
+  await nextTick()
+  await flushPromises()
+}
 
 describe("MarkdownViewer", () => {
   beforeEach(() => {
@@ -18,7 +35,7 @@ describe("MarkdownViewer", () => {
       },
     })
 
-    await flushPromises()
+    await waitForRendering(wrapper)
 
     const html = wrapper.find(".markdown-content").html()
     expect(html).toContain("<h1")
@@ -47,7 +64,7 @@ describe("MarkdownViewer", () => {
       },
     })
 
-    await flushPromises()
+    await waitForRendering(wrapper)
 
     const html = wrapper.find(".markdown-content").html()
     expect(html).toContain("<pre>")
@@ -115,7 +132,7 @@ describe("MarkdownViewer", () => {
       },
     })
 
-    await flushPromises()
+    await waitForRendering(wrapper)
 
     const html = wrapper.find(".markdown-content").html()
     expect(html).toContain("<img")
@@ -137,7 +154,7 @@ describe("MarkdownViewer", () => {
       },
     })
 
-    await flushPromises()
+    await waitForRendering(wrapper)
 
     const html = wrapper.find(".markdown-content").html()
     expect(html).toContain("<a")
@@ -159,7 +176,7 @@ describe("MarkdownViewer", () => {
       },
     })
 
-    await flushPromises()
+    await waitForRendering(wrapper)
 
     const html = wrapper.find(".markdown-content").html()
     expect(html).toContain('src="https://example.com/image.png"')
@@ -176,7 +193,7 @@ describe("MarkdownViewer", () => {
       },
     })
 
-    await flushPromises()
+    await waitForRendering(wrapper)
 
     const html = wrapper.find(".markdown-content").html()
     expect(html).toContain('href="https://example.com"')
@@ -191,7 +208,7 @@ describe("MarkdownViewer", () => {
       },
     })
 
-    await flushPromises()
+    await waitForRendering(wrapper)
 
     const html = wrapper.find(".markdown-content").html()
     expect(html).toContain("<img")
@@ -209,7 +226,7 @@ describe("MarkdownViewer", () => {
       },
     })
 
-    await flushPromises()
+    await waitForRendering(wrapper)
 
     const html = wrapper.find(".markdown-content").html()
     expect(html).toContain("<img")
@@ -230,7 +247,7 @@ describe("MarkdownViewer", () => {
       },
     })
 
-    await flushPromises()
+    await waitForRendering(wrapper)
 
     const html = wrapper.find(".markdown-content").html()
     // HTML entities are escaped in the output - now using nested route format

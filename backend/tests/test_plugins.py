@@ -115,7 +115,7 @@ def test_theme_plugin_properties():
     """Test theme plugin properties."""
     loader = PluginLoader(PLUGINS_DIR)
 
-    # Load blueprint theme (dark theme, now in flat structure)
+    # Load obsidian theme (dark theme, now in flat structure)
     theme_path = PLUGINS_DIR / "obsdian"
     if theme_path.exists():
         plugin = loader.load_plugin(theme_path)

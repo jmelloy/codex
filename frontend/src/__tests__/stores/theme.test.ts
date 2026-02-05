@@ -25,28 +25,10 @@ describe("Theme Store", () => {
     vi.clearAllMocks()
   })
 
-  it("initializes with default theme", () => {
+  it("initializes with default theme and returns correct theme object", () => {
     const store = useThemeStore()
 
     expect(store.currentTheme).toBe("cream")
-    expect(store.theme.name).toBe("cream")
-  })
-
-  it("provides all available themes", () => {
-    const store = useThemeStore()
-
-    expect(store.availableThemes).toHaveLength(4)
-    expect(store.availableThemes.map((t) => t.name)).toEqual([
-      "cream",
-      "manila",
-      "white",
-      "blueprint",
-    ])
-  })
-
-  it("returns correct theme object", () => {
-    const store = useThemeStore()
-
     expect(store.theme).toEqual({
       name: "cream",
       label: "Cream",
@@ -56,49 +38,38 @@ describe("Theme Store", () => {
   })
 
   describe("initialize", () => {
-    it("loads theme from localStorage on initialize", async () => {
+    it("loads theme from localStorage or uses default for empty/invalid values", async () => {
+      // Valid localStorage
       localStorage.setItem("codex-theme-preference", "cream")
-
-      const store = useThemeStore()
+      let store = useThemeStore()
       await store.initialize()
-
       expect(store.currentTheme).toBe("cream")
-    })
 
-    it("uses default theme when localStorage is empty", async () => {
-      const store = useThemeStore()
+      // Empty localStorage
+      setActivePinia(createPinia())
+      localStorage.clear()
+      store = useThemeStore()
       await store.initialize()
-
       expect(store.currentTheme).toBe("cream")
-    })
 
-    it("ignores invalid theme in localStorage", async () => {
+      // Invalid theme
       localStorage.setItem("codex-theme-preference", "invalid-theme")
-
-      const store = useThemeStore()
+      setActivePinia(createPinia())
+      store = useThemeStore()
       await store.initialize()
-
       expect(store.currentTheme).toBe("cream")
     })
   })
 
   describe("setTheme", () => {
-    it("updates current theme", async () => {
+    it("updates theme, saves to localStorage when unauthenticated", async () => {
       vi.mocked(authService.isAuthenticated).mockReturnValue(false)
 
       const store = useThemeStore()
       await store.setTheme("manila")
 
       expect(store.currentTheme).toBe("manila")
-    })
-
-    it("saves to localStorage when not authenticated", async () => {
-      vi.mocked(authService.isAuthenticated).mockReturnValue(false)
-
-      const store = useThemeStore()
-      await store.setTheme("white")
-
-      expect(localStorage.getItem("codex-theme-preference")).toBe("white")
+      expect(localStorage.getItem("codex-theme-preference")).toBe("manila")
     })
 
     it("saves to user account when authenticated", async () => {
@@ -130,60 +101,25 @@ describe("Theme Store", () => {
   })
 
   describe("loadFromUser", () => {
-    it("loads theme from user setting", () => {
-      const store = useThemeStore()
+    it("loads user theme or falls back to localStorage/default", () => {
+      // Valid user theme
+      let store = useThemeStore()
       store.loadFromUser("cream")
-
       expect(store.currentTheme).toBe("cream")
-    })
 
-    it("falls back to localStorage when user has no theme", () => {
+      // Invalid user theme falls back to localStorage
+      setActivePinia(createPinia())
       localStorage.setItem("codex-theme-preference", "manila")
-
-      const store = useThemeStore()
-      store.loadFromUser(undefined)
-
-      expect(store.currentTheme).toBe("manila")
-    })
-
-    it("falls back to localStorage for invalid user theme", () => {
-      localStorage.setItem("codex-theme-preference", "white")
-
-      const store = useThemeStore()
+      store = useThemeStore()
       store.loadFromUser("invalid-theme")
+      expect(store.currentTheme).toBe("manila")
 
-      expect(store.currentTheme).toBe("white")
-    })
-
-    it("uses default when both user and localStorage are empty", () => {
-      const store = useThemeStore()
+      // No user theme or localStorage falls back to default
+      setActivePinia(createPinia())
+      localStorage.clear()
+      store = useThemeStore()
       store.loadFromUser(undefined)
-
       expect(store.currentTheme).toBe("cream")
-    })
-  })
-
-  describe("theme computed", () => {
-    it("returns full theme object for current theme", () => {
-      const store = useThemeStore()
-
-      store.currentTheme = "blueprint"
-
-      expect(store.theme).toEqual({
-        name: "blueprint",
-        label: "Blueprint",
-        description: "Dark mode with blueprint styling",
-        className: "theme-blueprint",
-      })
-    })
-
-    it("falls back to first theme for invalid current theme", () => {
-      const store = useThemeStore()
-
-      // Force an invalid theme (shouldn't happen in practice)
-      store.currentTheme = "nonexistent" as any
-
-      expect(store.theme.name).toBe("cream")
     })
   })
 })

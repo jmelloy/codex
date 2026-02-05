@@ -472,9 +472,6 @@
         </button>
       </div>
 
-      <!-- Settings View -->
-      <UserSettings v-else-if="isSettingsView" />
-
       <!-- Editor Mode -->
       <div
         v-else-if="workspaceStore.isEditing && workspaceStore.currentFile"
@@ -852,6 +849,9 @@
 
   <!-- Create View Modal -->
   <CreateViewModal v-model="showCreateView" @create="handleCreateView" />
+
+  <!-- Settings Dialog -->
+  <SettingsDialog v-model="showSettingsDialog" />
 </template>
 
 <script setup lang="ts">
@@ -875,7 +875,7 @@ import FileHeader from "../components/FileHeader.vue"
 import FileTreeItem from "../components/FileTreeItem.vue"
 import CreateViewModal from "../components/CreateViewModal.vue"
 import TemplateSelector from "../components/TemplateSelector.vue"
-import UserSettings from "../components/UserSettings.vue"
+import SettingsDialog from "../components/SettingsDialog.vue"
 import { showToast } from "../utils/toast"
 import type { FileTreeNode } from "../utils/fileTree"
 
@@ -889,6 +889,7 @@ const showCreateWorkspace = ref(false)
 const showCreateNotebook = ref(false)
 const showCreateFile = ref(false)
 const showCreateView = ref(false)
+const showSettingsDialog = ref(false)
 
 // Form state
 const newWorkspaceName = ref("")
@@ -981,11 +982,6 @@ const currentContentUrl = computed(() => {
 const displayType = computed(() => {
   if (!workspaceStore.currentFile) return "markdown"
   return getDisplayType(workspaceStore.currentFile.content_type)
-})
-
-// Check if we're in settings view
-const isSettingsView = computed(() => {
-  return route.query.view === "settings"
 })
 
 // Open file in a new tab
@@ -1174,7 +1170,7 @@ function handleLogout() {
 }
 
 function goToSettings() {
-  router.push({ query: { view: "settings" } })
+  showSettingsDialog.value = true
 }
 
 function selectWorkspace(workspace: Workspace) {

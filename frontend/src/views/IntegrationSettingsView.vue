@@ -168,10 +168,11 @@ onMounted(() => {
   font-size: 2rem;
   font-weight: 600;
   margin-bottom: 0.5rem;
+  color: var(--color-text-primary);
 }
 
 .settings-header p {
-  color: #666;
+  color: var(--color-text-secondary);
   font-size: 1rem;
 }
 
@@ -180,21 +181,21 @@ onMounted(() => {
 .empty-state {
   text-align: center;
   padding: 3rem;
-  color: #666;
+  color: var(--color-text-secondary);
 }
 
 .error-state button {
   margin-top: 1rem;
   padding: 0.5rem 1rem;
-  background: #007bff;
-  color: white;
+  background: var(--notebook-accent);
+  color: var(--color-text-inverse);
   border: none;
   border-radius: 4px;
   cursor: pointer;
 }
 
 .error-state button:hover {
-  background: #0056b3;
+  background: color-mix(in srgb, var(--notebook-accent) 85%, black);
 }
 
 .integrations-list {
@@ -204,16 +205,16 @@ onMounted(() => {
 }
 
 .integration-card {
-  border: 1px solid #ddd;
+  border: 1px solid var(--color-border-medium);
   border-radius: 8px;
   padding: 1.5rem;
   transition: all 0.2s ease;
-  background: white;
+  background: var(--color-bg-primary);
 }
 
 .integration-card:hover {
-  border-color: #007bff;
-  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.1);
+  border-color: var(--notebook-accent);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--notebook-accent) 15%, transparent);
 }
 
 .integration-header {
@@ -227,24 +228,24 @@ onMounted(() => {
   font-size: 1.25rem;
   font-weight: 600;
   margin: 0;
-  color: #333;
+  color: var(--color-text-primary);
   cursor: pointer;
 }
 
 .integration-header h3:hover {
-  color: #007bff;
+  color: var(--notebook-accent);
 }
 
 .version {
   font-size: 0.875rem;
-  color: #666;
-  background: #f0f0f0;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-tertiary);
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
 }
 
 .description {
-  color: #555;
+  color: var(--color-text-secondary);
   line-height: 1.5;
   margin-bottom: 1rem;
   min-height: 3rem;
@@ -261,11 +262,11 @@ onMounted(() => {
 }
 
 .meta-item {
-  color: #666;
+  color: var(--color-text-tertiary);
 }
 
 .meta-item strong {
-  color: #333;
+  color: var(--color-text-primary);
 }
 
 .integration-footer {
@@ -284,13 +285,13 @@ onMounted(() => {
 }
 
 .status-badge.enabled {
-  background: #d4edda;
-  color: #155724;
+  background: var(--color-success-bg);
+  color: var(--color-success);
 }
 
 .status-badge.disabled {
-  background: #f8d7da;
-  color: #721c24;
+  background: var(--color-error-bg);
+  color: var(--color-error);
 }
 
 /* Toggle switch styles */
@@ -315,7 +316,7 @@ onMounted(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: #ccc;
+  background-color: var(--color-border-medium);
   transition: 0.3s;
   border-radius: 24px;
 }
@@ -327,13 +328,13 @@ onMounted(() => {
   width: 18px;
   left: 3px;
   bottom: 3px;
-  background-color: white;
+  background-color: var(--color-bg-primary);
   transition: 0.3s;
   border-radius: 50%;
 }
 
 .toggle-switch input:checked + .slider {
-  background-color: #28a745;
+  background-color: var(--color-success);
 }
 
 .toggle-switch input:checked + .slider:before {

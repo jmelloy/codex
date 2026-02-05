@@ -3,19 +3,27 @@
 .theme-manila {
   --notebook-bg: var(--page-manila);
   --notebook-text: var(--pen-black);
-  
+
   /* Manila-tinted UI colors for vintage folder aesthetic */
   --color-bg-primary: #f4e8d0;
   --color-bg-secondary: #ede1c9;
   --color-bg-tertiary: #e6dac2;
   --color-bg-hover: #ede1c9;
   --color-bg-active: #e6dac2;
-  
+  --color-bg-disabled: #d8ccb4;
+
   /* Sepia-toned borders for manila folder look */
   --color-border-light: #d8ccb4;
   --color-border-medium: #c4b89f;
   --color-border-dark: #a89775;
-  
+
+  /* Text colors with sepia undertones */
+  --color-text-primary: #1a1814;
+  --color-text-secondary: #4a4538;
+  --color-text-tertiary: #6b6455;
+  --color-text-placeholder: #9a9280;
+  --color-text-disabled: #c4bba8;
+
   background-color: var(--notebook-bg);
   color: var(--notebook-text);
 }

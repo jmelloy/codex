@@ -342,17 +342,21 @@ onMounted(() => {
 .error-state {
   text-align: center;
   padding: 3rem;
-  color: #666;
+  color: var(--color-text-secondary);
 }
 
 .error-state button {
   margin-top: 1rem;
   padding: 0.5rem 1rem;
-  background: #007bff;
-  color: white;
+  background: var(--notebook-accent);
+  color: var(--color-text-inverse);
   border: none;
   border-radius: 4px;
   cursor: pointer;
+}
+
+.error-state button:hover {
+  background: color-mix(in srgb, var(--notebook-accent) 85%, black);
 }
 
 .config-header {
@@ -362,7 +366,7 @@ onMounted(() => {
 .back-button {
   background: none;
   border: none;
-  color: #007bff;
+  color: var(--notebook-accent);
   cursor: pointer;
   font-size: 1rem;
   padding: 0.5rem 0;
@@ -377,10 +381,11 @@ onMounted(() => {
   font-size: 2rem;
   font-weight: 600;
   margin-bottom: 0.5rem;
+  color: var(--color-text-primary);
 }
 
 .description {
-  color: #666;
+  color: var(--color-text-secondary);
   font-size: 1rem;
   margin-bottom: 1rem;
 }
@@ -391,26 +396,26 @@ onMounted(() => {
 }
 
 .badge {
-  background: #f0f0f0;
+  background: var(--color-bg-tertiary);
   padding: 0.25rem 0.75rem;
   border-radius: 12px;
   font-size: 0.875rem;
-  color: #666;
+  color: var(--color-text-secondary);
 }
 
 .warning-message {
-  background: #fff3cd;
-  border: 1px solid #ffc107;
+  background: var(--color-warning-bg);
+  border: 1px solid var(--color-warning-border);
   border-radius: 4px;
   padding: 1rem;
   margin-bottom: 1.5rem;
-  color: #856404;
+  color: var(--color-warning);
 }
 
 .config-form,
 .info-section {
-  background: white;
-  border: 1px solid #ddd;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-medium);
   border-radius: 8px;
   padding: 2rem;
   margin-bottom: 1.5rem;
@@ -421,6 +426,7 @@ onMounted(() => {
   font-size: 1.5rem;
   font-weight: 600;
   margin-bottom: 1.5rem;
+  color: var(--color-text-primary);
 }
 
 .form-group {
@@ -431,11 +437,11 @@ onMounted(() => {
   display: block;
   font-weight: 500;
   margin-bottom: 0.5rem;
-  color: #333;
+  color: var(--color-text-primary);
 }
 
 .required {
-  color: #dc3545;
+  color: var(--color-error);
   margin-left: 0.25rem;
 }
 
@@ -445,16 +451,18 @@ onMounted(() => {
 .form-group select {
   width: 100%;
   padding: 0.75rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--color-border-medium);
   border-radius: 4px;
   font-size: 1rem;
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
 }
 
 .form-group input:focus,
 .form-group select:focus {
   outline: none;
-  border-color: #007bff;
-  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+  border-color: var(--notebook-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--notebook-accent) 15%, transparent);
 }
 
 .checkbox-label {
@@ -462,6 +470,7 @@ onMounted(() => {
   align-items: center;
   gap: 0.5rem;
   cursor: pointer;
+  color: var(--color-text-primary);
 }
 
 .checkbox-label input[type='checkbox'] {
@@ -471,7 +480,7 @@ onMounted(() => {
 .help-text {
   display: block;
   margin-top: 0.5rem;
-  color: #666;
+  color: var(--color-text-tertiary);
   font-size: 0.875rem;
 }
 
@@ -493,21 +502,21 @@ onMounted(() => {
 }
 
 .btn-primary {
-  background: #007bff;
-  color: white;
+  background: var(--notebook-accent);
+  color: var(--color-text-inverse);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #0056b3;
+  background: color-mix(in srgb, var(--notebook-accent) 85%, black);
 }
 
 .btn-secondary {
-  background: #6c757d;
-  color: white;
+  background: var(--color-text-tertiary);
+  color: var(--color-text-inverse);
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: #545b62;
+  background: var(--color-text-secondary);
 }
 
 .btn-primary:disabled,
@@ -523,20 +532,20 @@ onMounted(() => {
 }
 
 .result-message.success {
-  background: #d4edda;
-  border: 1px solid #c3e6cb;
-  color: #155724;
+  background: var(--color-success-bg);
+  border: 1px solid var(--color-success-border);
+  color: var(--color-success);
 }
 
 .result-message.error {
-  background: #f8d7da;
-  border: 1px solid #f5c6cb;
-  color: #721c24;
+  background: var(--color-error-bg);
+  border: 1px solid var(--color-error-border);
+  color: var(--color-error);
 }
 
 .result-details {
   margin-top: 0.5rem;
-  background: rgba(0, 0, 0, 0.05);
+  background: color-mix(in srgb, var(--color-text-primary) 5%, transparent);
   padding: 0.5rem;
   border-radius: 4px;
   font-size: 0.875rem;
@@ -545,6 +554,7 @@ onMounted(() => {
 .result-details pre {
   margin: 0;
   white-space: pre-wrap;
+  color: var(--color-text-primary);
 }
 
 .blocks-list,
@@ -557,7 +567,7 @@ onMounted(() => {
 .block-item,
 .endpoint-item {
   padding: 1rem;
-  background: #f8f9fa;
+  background: var(--color-bg-secondary);
   border-radius: 4px;
 }
 
@@ -577,10 +587,11 @@ onMounted(() => {
 .block-info strong {
   display: block;
   margin-bottom: 0.25rem;
+  color: var(--color-text-primary);
 }
 
 .block-info p {
-  color: #666;
+  color: var(--color-text-secondary);
   margin: 0.5rem 0;
 }
 
@@ -588,10 +599,11 @@ onMounted(() => {
   display: block;
   margin-top: 0.5rem;
   padding: 0.5rem;
-  background: white;
-  border: 1px solid #ddd;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-medium);
   border-radius: 4px;
   font-size: 0.875rem;
+  color: var(--color-text-primary);
 }
 
 .endpoint-header {
@@ -602,8 +614,8 @@ onMounted(() => {
 }
 
 .method {
-  background: #007bff;
-  color: white;
+  background: var(--notebook-accent);
+  color: var(--color-text-inverse);
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
   font-size: 0.75rem;
@@ -611,14 +623,15 @@ onMounted(() => {
 }
 
 .endpoint-item code {
-  background: white;
+  background: var(--color-bg-primary);
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--color-border-medium);
+  color: var(--color-text-primary);
 }
 
 .endpoint-item p {
-  color: #666;
+  color: var(--color-text-secondary);
   margin: 0;
 }
 </style>

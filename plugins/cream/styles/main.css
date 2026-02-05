@@ -3,18 +3,27 @@
 .theme-cream {
   --notebook-bg: var(--page-cream);
   --notebook-text: var(--pen-black);
-  
+
   /* Cream-tinted UI colors for better integration */
   --color-bg-primary: #fef9f3;
   --color-bg-secondary: #f7f5f0;
   --color-bg-tertiary: #efeae3;
   --color-bg-hover: #f7f5f0;
   --color-bg-active: #efeae3;
-  
+  --color-bg-disabled: #e8e3d8;
+
   /* Slightly warmer borders to match cream aesthetic */
   --color-border-light: #e8e3d8;
   --color-border-medium: #d4cfc4;
-  
+  --color-border-dark: #b8b3a8;
+
+  /* Text colors with warm undertones */
+  --color-text-primary: #1a1a1a;
+  --color-text-secondary: #4a4540;
+  --color-text-tertiary: #6b6560;
+  --color-text-placeholder: #9a958f;
+  --color-text-disabled: #c4bfb8;
+
   background-color: var(--notebook-bg);
   color: var(--notebook-text);
 }

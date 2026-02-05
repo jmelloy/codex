@@ -6,8 +6,9 @@ const themeStore = useThemeStore()
 
 // Apply theme class to document body
 watchEffect(() => {
-  // Remove any existing theme classes
-  document.body.classList.remove("theme-cream", "theme-manila", "theme-white", "theme-blueprint")
+  // Remove any existing theme-* classes (supports plugin themes)
+  const themeClasses = Array.from(document.body.classList).filter(c => c.startsWith("theme-"))
+  themeClasses.forEach(c => document.body.classList.remove(c))
   // Add current theme class
   document.body.classList.add(themeStore.theme.className)
 })

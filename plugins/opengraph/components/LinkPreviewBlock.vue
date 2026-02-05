@@ -56,6 +56,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
+import { integrationClient } from "@plugins/shared/integrationClient";
 
 interface LinkPreviewConfig {
   url?: string;
@@ -107,33 +108,11 @@ const fetchMetadata = async () => {
   error.value = null;
 
   try {
-    const token = localStorage.getItem("access_token");
-    if (!token) {
-      error.value = "Not authenticated";
-      return;
-    }
-
-    const response = await fetch(
-      `/api/v1/workspaces/${props.workspaceId}/notebooks/${props.notebookId}/integrations/opengraph-unfurl/execute`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          endpoint_id: "fetch_metadata",
-          parameters: { url: props.config.url },
-        }),
-      },
+    const result = await integrationClient.execute<OpenGraphMetadata>(
+      "opengraph-unfurl", "fetch_metadata",
+      { url: props.config.url },
+      { workspaceId: props.workspaceId, notebookId: props.notebookId }
     );
-
-    if (!response.ok) {
-      const data = await response.json().catch(() => ({}));
-      throw new Error(data.error || data.detail || `HTTP ${response.status}`);
-    }
-
-    const result = await response.json();
     if (result.success && result.data) {
       metadata.value = result.data;
     } else {

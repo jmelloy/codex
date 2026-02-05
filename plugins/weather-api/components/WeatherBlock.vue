@@ -50,6 +50,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
+import { integrationClient } from "@plugins/shared/integrationClient";
 
 interface WeatherConfig {
   location?: string;
@@ -123,81 +124,35 @@ async function fetchWeather() {
   error.value = null;
 
   try {
-    const token = localStorage.getItem("access_token");
-    if (!token) {
-      error.value = "Not authenticated";
-      return;
-    }
-
-    var [city, state, country] = props.config.location
+    const [city, state, country_raw] = props.config.location
       .split(",")
       .map((part) => part.trim());
 
-    if (state && !country) {
-      country = "US"; // Default to US if only state is provided
-    }
+    const country = state && !country_raw ? "US" : country_raw;
 
     // Step 1: Geocode the location to get coordinates
-    const geoResponse = await fetch(
-      `/api/v1/plugins/integrations/weather-api/execute?workspace_id=${props.workspaceId}`,
+    const geoResult = await integrationClient.execute(
+      "weather-api", "geocode",
       {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          endpoint_id: "geocode",
-          parameters: {
-            q: `${city}${state ? "," + state : ""}${country ? "," + country : ""}`,
-            limit: 1,
-          },
-        }),
+        q: `${city}${state ? "," + state : ""}${country ? "," + country : ""}`,
+        limit: 1,
       },
+      { workspaceId: props.workspaceId }
     );
 
-    if (!geoResponse.ok) {
-      const data = await geoResponse.json().catch(() => ({}));
-      throw new Error(
-        data.detail || `Geocoding failed: HTTP ${geoResponse.status}`,
-      );
-    }
-
-    const geoResult = await geoResponse.json();
     const geoData = geoResult.data;
-
     if (!geoData || geoData.content?.length === 0) {
       throw new Error(`Location not found: ${props.config.location}`);
     }
 
     const { lat, lon } = geoData.content[0];
+
     // Step 2: Fetch weather using coordinates
-    const weatherResponse = await fetch(
-      `/api/v1/plugins/integrations/weather-api/execute?workspace_id=${props.workspaceId}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          endpoint_id: "current_weather",
-          parameters: {
-            lat,
-            lon,
-          },
-        }),
-      },
+    const result = await integrationClient.execute<WeatherData>(
+      "weather-api", "current_weather",
+      { lat, lon },
+      { workspaceId: props.workspaceId }
     );
-
-    if (!weatherResponse.ok) {
-      const data = await weatherResponse.json().catch(() => ({}));
-      throw new Error(
-        data.detail || `Weather fetch failed: HTTP ${weatherResponse.status}`,
-      );
-    }
-
-    const result = await weatherResponse.json();
     weather.value = result.data;
   } catch (err) {
     error.value =

@@ -1,0 +1,138 @@
+/* Obsidian Theme - Sophisticated dark mode with deep charcoals */
+
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@300;400;500;600;700&display=swap');
+
+.theme-obsidian {
+  /* Core notebook variables */
+  --notebook-bg: #1a1b1e;
+  --notebook-text: #e8e6e3;
+  --notebook-accent: #9d8cd6;
+
+  /* Page variables for dark mode */
+  --page-shadow: rgba(0, 0, 0, 0.4);
+  --page-border: rgba(255, 255, 255, 0.08);
+  --grid-color: rgba(255, 255, 255, 0.04);
+  --ruled-line-color: rgba(157, 140, 214, 0.12);
+  --margin-line-color: rgba(157, 140, 214, 0.2);
+
+  /* Pen colors for dark mode */
+  --pen-black: #e8e6e3;
+  --pen-gray: #a8a5a0;
+  --pen-blue: #7eb6ff;
+  --pen-red: #ff8a8a;
+  --pen-green: #8ae88a;
+  --pen-purple: #c4a7e7;
+
+  /* UI Background colors - layered depths */
+  --color-bg-primary: #1a1b1e;
+  --color-bg-secondary: #212226;
+  --color-bg-tertiary: #282a2e;
+  --color-bg-hover: #2e3035;
+  --color-bg-active: #35373c;
+  --color-bg-disabled: #282a2e;
+
+  /* Border colors - subtle definition */
+  --color-border-light: #35373c;
+  --color-border-medium: #454750;
+  --color-border-dark: #5c5e66;
+  --color-border-focus: #9d8cd6;
+
+  /* Text colors - avoiding pure white */
+  --color-text-primary: #e8e6e3;
+  --color-text-secondary: #a8a5a0;
+  --color-text-tertiary: #787572;
+  --color-text-placeholder: #5c5a57;
+  --color-text-disabled: #454340;
+  --color-text-inverse: #1a1b1e;
+
+  /* Primary/Accent - amethyst purple */
+  --color-primary: #9d8cd6;
+  --color-primary-hover: #b4a5e0;
+  --color-primary-active: #c7bceb;
+
+  /* Semantic colors adjusted for dark mode */
+  --color-success: #8ae88a;
+  --color-success-bg: rgba(138, 232, 138, 0.1);
+  --color-success-border: rgba(138, 232, 138, 0.3);
+
+  --color-error: #ff8a8a;
+  --color-error-bg: rgba(255, 138, 138, 0.1);
+  --color-error-border: rgba(255, 138, 138, 0.3);
+
+  --color-warning: #ffc078;
+  --color-warning-bg: rgba(255, 192, 120, 0.1);
+  --color-warning-border: rgba(255, 192, 120, 0.3);
+
+  --color-info: #7eb6ff;
+  --color-info-bg: rgba(126, 182, 255, 0.1);
+  --color-info-border: rgba(126, 182, 255, 0.3);
+
+  /* Shadows - deeper for dark mode */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.5);
+  --shadow-xl: 0 16px 32px rgba(0, 0, 0, 0.6);
+
+  /* Typography - modern monospace-inspired */
+  --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Monaco', monospace;
+
+  background-color: var(--notebook-bg);
+  color: var(--notebook-text);
+}
+
+/* Obsidian-specific notebook content styling */
+.theme-obsidian .notebook-content {
+  font-family: var(--font-sans);
+}
+
+.theme-obsidian .notebook-content h1,
+.theme-obsidian .notebook-content h2,
+.theme-obsidian .notebook-content h3,
+.theme-obsidian .notebook-content h4,
+.theme-obsidian .notebook-content h5,
+.theme-obsidian .notebook-content h6 {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  border-bottom-color: rgba(157, 140, 214, 0.25);
+}
+
+.theme-obsidian .notebook-content code {
+  font-family: var(--font-mono);
+  background: rgba(157, 140, 214, 0.12);
+  color: #c4a7e7;
+}
+
+.theme-obsidian .notebook-content pre {
+  background: #15161a;
+  border-left-color: var(--notebook-accent);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.theme-obsidian .notebook-content blockquote {
+  border-left-color: var(--notebook-accent);
+  background: rgba(157, 140, 214, 0.05);
+  padding: 1em;
+  border-radius: 0 4px 4px 0;
+}
+
+.theme-obsidian .notebook-content a {
+  color: #b4a5e0;
+}
+
+.theme-obsidian .notebook-content a:hover {
+  color: #c7bceb;
+}
+
+/* Subtle glow effect on interactive elements */
+.theme-obsidian .notebook-button:hover:not(:disabled) {
+  box-shadow: 0 2px 8px rgba(157, 140, 214, 0.3);
+}
+
+/* Dark theme adjustments for paper patterns */
+.theme-obsidian .ruled-paper,
+.theme-obsidian .graph-paper,
+.theme-obsidian .dotted-paper {
+  background-color: var(--notebook-bg);
+}

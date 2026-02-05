@@ -1,0 +1,212 @@
+/* Lab Notebook Theme - Engineering paper with green grid, scientific aesthetic */
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
+
+.theme-labnotebook {
+  /* Core notebook variables */
+  --notebook-bg: #f4f8f4;
+  --notebook-text: #1f2b1f;
+  --notebook-accent: #2e6cb8;
+
+  /* Page variables for engineering paper */
+  --page-shadow: rgba(31, 43, 31, 0.1);
+  --page-border: rgba(107, 148, 107, 0.3);
+  --grid-color: rgba(107, 148, 107, 0.25);
+  --ruled-line-color: rgba(107, 148, 107, 0.3);
+  --margin-line-color: rgba(46, 108, 184, 0.3);
+  --grid-size: 20px;
+
+  /* Pen colors - technical drawing */
+  --pen-black: #1f2b1f;
+  --pen-gray: #3d4a3d;
+  --pen-blue: #2e6cb8;
+  --pen-red: #c54040;
+  --pen-green: #2e8b57;
+  --pen-purple: #6b5b95;
+
+  /* UI Background colors - green-tinted paper */
+  --color-bg-primary: #f4f8f4;
+  --color-bg-secondary: #ebf0eb;
+  --color-bg-tertiary: #e2e8e2;
+  --color-bg-hover: #ebf0eb;
+  --color-bg-active: #e2e8e2;
+  --color-bg-disabled: #d5dcd5;
+
+  /* Border colors - green grid */
+  --color-border-light: #c8d8c8;
+  --color-border-medium: #9bb89b;
+  --color-border-dark: #6b946b;
+  --color-border-focus: #2e6cb8;
+
+  /* Text colors - graphite pencil */
+  --color-text-primary: #1f2b1f;
+  --color-text-secondary: #3d4a3d;
+  --color-text-tertiary: #5c6b5c;
+  --color-text-placeholder: #7a8a7a;
+  --color-text-disabled: #9aaa9a;
+  --color-text-inverse: #f4f8f4;
+
+  /* Primary/Accent - technical blue */
+  --color-primary: #2e6cb8;
+  --color-primary-hover: #3d7dc9;
+  --color-primary-active: #4d8ed9;
+
+  /* Semantic colors - scientific conventions */
+  --color-success: #2e8b57;
+  --color-success-bg: rgba(46, 139, 87, 0.1);
+  --color-success-border: rgba(46, 139, 87, 0.3);
+
+  --color-error: #c54040;
+  --color-error-bg: rgba(197, 64, 64, 0.1);
+  --color-error-border: rgba(197, 64, 64, 0.3);
+
+  --color-warning: #cc8800;
+  --color-warning-bg: rgba(204, 136, 0, 0.1);
+  --color-warning-border: rgba(204, 136, 0, 0.3);
+
+  --color-info: #2e6cb8;
+  --color-info-bg: rgba(46, 108, 184, 0.1);
+  --color-info-border: rgba(46, 108, 184, 0.3);
+
+  /* Shadows - subtle and precise */
+  --shadow-sm: 0 1px 2px rgba(31, 43, 31, 0.06);
+  --shadow-md: 0 2px 6px rgba(31, 43, 31, 0.1);
+  --shadow-lg: 0 4px 12px rgba(31, 43, 31, 0.12);
+  --shadow-xl: 0 8px 24px rgba(31, 43, 31, 0.15);
+
+  /* Typography - technical monospace */
+  --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'Monaco', 'Consolas', monospace;
+  --font-serif: 'IBM Plex Sans', Georgia, serif;
+
+  background-color: var(--notebook-bg);
+  color: var(--notebook-text);
+}
+
+/* Engineering graph paper background */
+.theme-labnotebook {
+  background-image:
+    /* Major grid lines */
+    linear-gradient(to right, rgba(107, 148, 107, 0.15) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(107, 148, 107, 0.15) 1px, transparent 1px),
+    /* Minor grid lines */
+    linear-gradient(to right, rgba(107, 148, 107, 0.08) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(107, 148, 107, 0.08) 1px, transparent 1px);
+  background-size:
+    100px 100px,
+    100px 100px,
+    20px 20px,
+    20px 20px;
+  background-position: -1px -1px;
+}
+
+/* Lab notebook content styling */
+.theme-labnotebook .notebook-content {
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.theme-labnotebook .notebook-content h1,
+.theme-labnotebook .notebook-content h2,
+.theme-labnotebook .notebook-content h3,
+.theme-labnotebook .notebook-content h4,
+.theme-labnotebook .notebook-content h5,
+.theme-labnotebook .notebook-content h6 {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  border-bottom-color: rgba(46, 108, 184, 0.3);
+  color: #1f2b1f;
+}
+
+.theme-labnotebook .notebook-content h1::before,
+.theme-labnotebook .notebook-content h2::before {
+  content: "§ ";
+  color: var(--notebook-accent);
+  font-weight: 400;
+}
+
+.theme-labnotebook .notebook-content code {
+  font-family: var(--font-mono);
+  background: rgba(46, 108, 184, 0.08);
+  color: #2e6cb8;
+  font-size: 0.9em;
+}
+
+.theme-labnotebook .notebook-content pre {
+  font-family: var(--font-mono);
+  background: #ebf0eb;
+  border-left: 3px solid var(--notebook-accent);
+  font-size: 0.85em;
+  line-height: 1.5;
+}
+
+.theme-labnotebook .notebook-content blockquote {
+  border-left: 3px solid #6b946b;
+  background: rgba(107, 148, 107, 0.08);
+  font-style: normal;
+  padding: 0.75em 1em;
+}
+
+.theme-labnotebook .notebook-content blockquote::before {
+  content: "NOTE: ";
+  font-weight: 600;
+  color: #6b946b;
+  font-size: 0.85em;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.theme-labnotebook .notebook-content a {
+  color: #2e6cb8;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+
+.theme-labnotebook .notebook-content a:hover {
+  text-decoration-style: solid;
+}
+
+/* Table styling for data */
+.theme-labnotebook .notebook-content table {
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+}
+
+.theme-labnotebook .notebook-content th,
+.theme-labnotebook .notebook-content td {
+  border: 1px solid #9bb89b;
+  padding: 0.5em 0.75em;
+}
+
+.theme-labnotebook .notebook-content th {
+  background: #e2e8e2;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.8em;
+  letter-spacing: 0.05em;
+}
+
+/* Experiment number badge */
+.theme-labnotebook .notebook-content h1 {
+  position: relative;
+}
+
+/* Technical button styling */
+.theme-labnotebook .notebook-button {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  text-transform: uppercase;
+  font-size: 0.8em;
+  letter-spacing: 0.03em;
+  border-radius: 2px;
+}
+
+/* Remove graph background from specific areas */
+.theme-labnotebook .notebook-sidebar,
+.theme-labnotebook .notebook-toolbar {
+  background-image: none;
+  background-color: var(--color-bg-secondary);
+}

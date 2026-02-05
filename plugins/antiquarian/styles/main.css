@@ -1,0 +1,195 @@
+/* Antiquarian Theme - Aged parchment with sepia ink, leather-bound journal */
+
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap');
+
+.theme-antiquarian {
+  /* Core notebook variables */
+  --notebook-bg: #f5efe0;
+  --notebook-text: #3d2b1f;
+  --notebook-accent: #8b3a3a;
+
+  /* Page variables for aged parchment */
+  --page-shadow: rgba(59, 43, 31, 0.15);
+  --page-border: rgba(139, 115, 85, 0.35);
+  --grid-color: rgba(59, 43, 31, 0.06);
+  --ruled-line-color: rgba(139, 115, 85, 0.2);
+  --margin-line-color: rgba(139, 58, 58, 0.3);
+
+  /* Pen colors - iron gall ink variations */
+  --pen-black: #3d2b1f;
+  --pen-gray: #5c4a3d;
+  --pen-blue: #3d5a80;
+  --pen-red: #8b3a3a;
+  --pen-green: #4a6741;
+  --pen-purple: #5c4a6b;
+
+  /* UI Background colors - aged parchment layers */
+  --color-bg-primary: #f5efe0;
+  --color-bg-secondary: #ebe4d3;
+  --color-bg-tertiary: #e0d8c5;
+  --color-bg-hover: #ebe4d3;
+  --color-bg-active: #e0d8c5;
+  --color-bg-disabled: #d5ccb8;
+
+  /* Border colors - leather and aged edges */
+  --color-border-light: #c9bda3;
+  --color-border-medium: #a99878;
+  --color-border-dark: #8b7355;
+  --color-border-focus: #8b3a3a;
+
+  /* Text colors - faded iron gall ink */
+  --color-text-primary: #3d2b1f;
+  --color-text-secondary: #5c4a3d;
+  --color-text-tertiary: #7a685a;
+  --color-text-placeholder: #9a8878;
+  --color-text-disabled: #baa898;
+  --color-text-inverse: #f5efe0;
+
+  /* Primary/Accent - oxblood leather red */
+  --color-primary: #8b3a3a;
+  --color-primary-hover: #a04545;
+  --color-primary-active: #b55050;
+
+  /* Semantic colors with sepia tones */
+  --color-success: #4a6741;
+  --color-success-bg: rgba(74, 103, 65, 0.1);
+  --color-success-border: rgba(74, 103, 65, 0.3);
+
+  --color-error: #8b3a3a;
+  --color-error-bg: rgba(139, 58, 58, 0.1);
+  --color-error-border: rgba(139, 58, 58, 0.3);
+
+  --color-warning: #a67c3d;
+  --color-warning-bg: rgba(166, 124, 61, 0.1);
+  --color-warning-border: rgba(166, 124, 61, 0.3);
+
+  --color-info: #3d5a80;
+  --color-info-bg: rgba(61, 90, 128, 0.1);
+  --color-info-border: rgba(61, 90, 128, 0.3);
+
+  /* Shadows - warm sepia tones */
+  --shadow-sm: 0 1px 2px rgba(59, 43, 31, 0.08);
+  --shadow-md: 0 4px 8px rgba(59, 43, 31, 0.12);
+  --shadow-lg: 0 8px 16px rgba(59, 43, 31, 0.15);
+  --shadow-xl: 0 16px 32px rgba(59, 43, 31, 0.2);
+
+  /* Typography - classic serif for manuscripts */
+  --font-sans: 'EB Garamond', 'Georgia', 'Palatino', serif;
+  --font-serif: 'Cormorant Garamond', 'Georgia', serif;
+
+  background-color: var(--notebook-bg);
+  color: var(--notebook-text);
+}
+
+/* Aged paper texture overlay */
+.theme-antiquarian::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  opacity: 0.03;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='4' /%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23noise)' opacity='0.6'/%3E%3C/svg%3E");
+  z-index: 0;
+}
+
+/* Antiquarian-specific notebook content styling */
+.theme-antiquarian .notebook-content {
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+  line-height: 1.8;
+}
+
+.theme-antiquarian .notebook-content h1,
+.theme-antiquarian .notebook-content h2,
+.theme-antiquarian .notebook-content h3,
+.theme-antiquarian .notebook-content h4,
+.theme-antiquarian .notebook-content h5,
+.theme-antiquarian .notebook-content h6 {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border-bottom: 1px solid rgba(139, 115, 85, 0.3);
+  color: #2d1f15;
+}
+
+.theme-antiquarian .notebook-content h1 {
+  font-size: 2.2rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  text-align: center;
+  border-bottom: 2px double rgba(139, 115, 85, 0.4);
+  padding-bottom: 0.8em;
+}
+
+.theme-antiquarian .notebook-content code {
+  font-family: 'Courier New', monospace;
+  background: rgba(139, 115, 85, 0.12);
+  color: #5c4a3d;
+  border: 1px solid rgba(139, 115, 85, 0.2);
+}
+
+.theme-antiquarian .notebook-content pre {
+  background: #ebe4d3;
+  border-left: 3px solid var(--notebook-accent);
+  border-right: 1px solid rgba(139, 115, 85, 0.2);
+  box-shadow: inset 2px 2px 8px rgba(59, 43, 31, 0.05);
+}
+
+.theme-antiquarian .notebook-content blockquote {
+  border-left: 3px solid var(--notebook-accent);
+  font-style: italic;
+  background: rgba(139, 115, 85, 0.05);
+  padding: 1em 1.5em;
+  position: relative;
+}
+
+.theme-antiquarian .notebook-content blockquote::before {
+  content: '"';
+  font-family: var(--font-serif);
+  font-size: 3rem;
+  color: rgba(139, 58, 58, 0.2);
+  position: absolute;
+  left: 0.2em;
+  top: -0.1em;
+  line-height: 1;
+}
+
+.theme-antiquarian .notebook-content a {
+  color: #8b3a3a;
+  text-decoration: none;
+  border-bottom: 1px dotted currentColor;
+}
+
+.theme-antiquarian .notebook-content a:hover {
+  color: #a04545;
+  border-bottom-style: solid;
+}
+
+/* Decorative flourish for horizontal rules */
+.theme-antiquarian .notebook-content hr {
+  border: none;
+  height: 20px;
+  background: transparent;
+  position: relative;
+}
+
+.theme-antiquarian .notebook-content hr::before {
+  content: "❧";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 1.5rem;
+  color: rgba(139, 115, 85, 0.4);
+}
+
+/* Leather-bound book button styling */
+.theme-antiquarian .notebook-button {
+  font-family: var(--font-serif);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-size: 0.85em;
+}

@@ -1,0 +1,40 @@
+# Theme Metadata
+id: antiquarian
+name: Antiquarian
+version: 1.0.0
+author: Codex Team
+description: Aged parchment with sepia ink - a vintage leather-bound journal
+license: MIT
+
+# Theme Type
+type: theme
+
+# Codex Compatibility
+codex_version: ">=1.0.0"
+
+# Theme Configuration
+theme:
+  display_name: Antiquarian
+  category: light
+  className: theme-antiquarian
+  stylesheet: styles/main.css
+
+# Color Palette
+colors:
+  # Background colors - aged parchment yellowed by time
+  bg-primary: "#f5efe0"
+  bg-secondary: "#ebe4d3"
+  bg-tertiary: "#e0d8c5"
+
+  # Border colors - leather and aged paper edges
+  border-light: "#c9bda3"
+  border-medium: "#a99878"
+  border-dark: "#8b7355"
+
+  # Text colors - iron gall ink faded over centuries
+  text-primary: "#3d2b1f"
+  text-secondary: "#5c4a3d"
+  text-tertiary: "#7a685a"
+
+  # Accent - oxblood red like old binding leather
+  accent-primary: "#8b3a3a"

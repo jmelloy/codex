@@ -1,0 +1,40 @@
+# Theme Metadata
+id: fieldnotes
+name: Field Notes
+version: 1.0.0
+author: Codex Team
+description: Rugged kraft paper with bold utilitarian aesthetic
+license: MIT
+
+# Theme Type
+type: theme
+
+# Codex Compatibility
+codex_version: ">=1.0.0"
+
+# Theme Configuration
+theme:
+  display_name: Field Notes
+  category: light
+  className: theme-fieldnotes
+  stylesheet: styles/main.css
+
+# Color Palette
+colors:
+  # Background colors - kraft paper brown
+  bg-primary: "#e8dcc8"
+  bg-secondary: "#dfd2bc"
+  bg-tertiary: "#d5c7af"
+
+  # Border colors - cardboard and tape edges
+  border-light: "#c4b499"
+  border-medium: "#a89775"
+  border-dark: "#8b7a5c"
+
+  # Text colors - bold permanent marker black
+  text-primary: "#1a1a14"
+  text-secondary: "#3d3d32"
+  text-tertiary: "#5c5c4d"
+
+  # Accent - safety orange like outdoor gear
+  accent-primary: "#dd6b20"

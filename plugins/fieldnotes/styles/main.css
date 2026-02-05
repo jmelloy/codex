@@ -1,0 +1,238 @@
+/* Field Notes Theme - Rugged kraft paper with bold utilitarian aesthetic */
+
+@import url('https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Archivo+Narrow:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
+
+.theme-fieldnotes {
+  /* Core notebook variables */
+  --notebook-bg: #e8dcc8;
+  --notebook-text: #1a1a14;
+  --notebook-accent: #dd6b20;
+
+  /* Page variables for kraft paper */
+  --page-shadow: rgba(26, 26, 20, 0.15);
+  --page-border: rgba(139, 122, 92, 0.4);
+  --grid-color: rgba(26, 26, 20, 0.1);
+  --ruled-line-color: rgba(139, 122, 92, 0.3);
+  --margin-line-color: rgba(221, 107, 32, 0.4);
+
+  /* Pen colors - bold permanent marker */
+  --pen-black: #1a1a14;
+  --pen-gray: #3d3d32;
+  --pen-blue: #1e5a8a;
+  --pen-red: #c23616;
+  --pen-green: #2d6a4f;
+  --pen-purple: #5a4a78;
+
+  /* UI Background colors - kraft paper shades */
+  --color-bg-primary: #e8dcc8;
+  --color-bg-secondary: #dfd2bc;
+  --color-bg-tertiary: #d5c7af;
+  --color-bg-hover: #dfd2bc;
+  --color-bg-active: #d5c7af;
+  --color-bg-disabled: #c9bca6;
+
+  /* Border colors - cardboard and tape */
+  --color-border-light: #c4b499;
+  --color-border-medium: #a89775;
+  --color-border-dark: #8b7a5c;
+  --color-border-focus: #dd6b20;
+
+  /* Text colors - bold ink */
+  --color-text-primary: #1a1a14;
+  --color-text-secondary: #3d3d32;
+  --color-text-tertiary: #5c5c4d;
+  --color-text-placeholder: #7a7a68;
+  --color-text-disabled: #9a9a88;
+  --color-text-inverse: #e8dcc8;
+
+  /* Primary/Accent - safety orange */
+  --color-primary: #dd6b20;
+  --color-primary-hover: #e87c2e;
+  --color-primary-active: #f08d3d;
+
+  /* Semantic colors - outdoor/utility */
+  --color-success: #2d6a4f;
+  --color-success-bg: rgba(45, 106, 79, 0.1);
+  --color-success-border: rgba(45, 106, 79, 0.3);
+
+  --color-error: #c23616;
+  --color-error-bg: rgba(194, 54, 22, 0.1);
+  --color-error-border: rgba(194, 54, 22, 0.3);
+
+  --color-warning: #dd6b20;
+  --color-warning-bg: rgba(221, 107, 32, 0.1);
+  --color-warning-border: rgba(221, 107, 32, 0.3);
+
+  --color-info: #1e5a8a;
+  --color-info-bg: rgba(30, 90, 138, 0.1);
+  --color-info-border: rgba(30, 90, 138, 0.3);
+
+  /* Shadows - rugged and bold */
+  --shadow-sm: 0 1px 3px rgba(26, 26, 20, 0.12);
+  --shadow-md: 0 3px 8px rgba(26, 26, 20, 0.18);
+  --shadow-lg: 0 6px 16px rgba(26, 26, 20, 0.22);
+  --shadow-xl: 0 12px 32px rgba(26, 26, 20, 0.28);
+
+  /* Typography - condensed and utilitarian */
+  --font-sans: 'Archivo', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-serif: 'Archivo', Georgia, serif;
+  --font-mono: 'Archivo', 'Monaco', monospace;
+
+  background-color: var(--notebook-bg);
+  color: var(--notebook-text);
+}
+
+/* Kraft paper texture */
+.theme-fieldnotes::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  opacity: 0.04;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' /%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.5'/%3E%3C/svg%3E");
+  z-index: 0;
+}
+
+/* Ruled lines for field notes */
+.theme-fieldnotes {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 27px,
+    rgba(139, 122, 92, 0.2) 27px,
+    rgba(139, 122, 92, 0.2) 28px
+  );
+  background-size: 100% 28px;
+}
+
+/* Field Notes content styling */
+.theme-fieldnotes .notebook-content {
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  line-height: 1.65;
+  font-weight: 400;
+}
+
+.theme-fieldnotes .notebook-content h1,
+.theme-fieldnotes .notebook-content h2,
+.theme-fieldnotes .notebook-content h3,
+.theme-fieldnotes .notebook-content h4,
+.theme-fieldnotes .notebook-content h5,
+.theme-fieldnotes .notebook-content h6 {
+  font-family: 'Archivo Narrow', var(--font-sans);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-bottom: 2px solid #1a1a14;
+  padding-bottom: 0.3em;
+  color: #1a1a14;
+}
+
+.theme-fieldnotes .notebook-content h1 {
+  font-size: 1.8rem;
+  border-bottom-width: 3px;
+}
+
+.theme-fieldnotes .notebook-content h2 {
+  font-size: 1.4rem;
+}
+
+.theme-fieldnotes .notebook-content h3 {
+  font-size: 1.1rem;
+  border-bottom-width: 1px;
+}
+
+.theme-fieldnotes .notebook-content code {
+  font-family: var(--font-mono);
+  background: rgba(26, 26, 20, 0.08);
+  color: #1a1a14;
+  font-weight: 500;
+  padding: 0.15em 0.4em;
+  border-radius: 2px;
+}
+
+.theme-fieldnotes .notebook-content pre {
+  background: #dfd2bc;
+  border-left: 4px solid var(--notebook-accent);
+  font-weight: 400;
+}
+
+.theme-fieldnotes .notebook-content blockquote {
+  border-left: 4px solid var(--notebook-accent);
+  background: rgba(221, 107, 32, 0.08);
+  font-style: normal;
+  font-weight: 500;
+  padding: 0.75em 1em;
+}
+
+.theme-fieldnotes .notebook-content a {
+  color: #1e5a8a;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+  font-weight: 500;
+}
+
+.theme-fieldnotes .notebook-content a:hover {
+  color: var(--notebook-accent);
+}
+
+/* Bold checkbox styling */
+.theme-fieldnotes .notebook-content input[type="checkbox"] {
+  width: 1.1em;
+  height: 1.1em;
+  border: 2px solid #1a1a14;
+  border-radius: 2px;
+}
+
+.theme-fieldnotes .notebook-content input[type="checkbox"]:checked {
+  background: var(--notebook-accent);
+  border-color: var(--notebook-accent);
+}
+
+/* List styling - dashes instead of bullets */
+.theme-fieldnotes .notebook-content ul {
+  list-style-type: none;
+  padding-left: 1.5em;
+}
+
+.theme-fieldnotes .notebook-content ul li::before {
+  content: "—";
+  color: var(--notebook-accent);
+  font-weight: 700;
+  margin-right: 0.5em;
+  margin-left: -1.5em;
+  display: inline-block;
+  width: 1em;
+}
+
+/* Rugged button styling */
+.theme-fieldnotes .notebook-button {
+  font-family: 'Archivo Narrow', var(--font-sans);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.85em;
+  border-radius: 2px;
+  box-shadow: 2px 2px 0 rgba(26, 26, 20, 0.2);
+}
+
+.theme-fieldnotes .notebook-button:hover:not(:disabled) {
+  box-shadow: 3px 3px 0 rgba(26, 26, 20, 0.25);
+  transform: translate(-1px, -1px);
+}
+
+.theme-fieldnotes .notebook-button:active:not(:disabled) {
+  box-shadow: 1px 1px 0 rgba(26, 26, 20, 0.2);
+  transform: translate(1px, 1px);
+}
+
+/* Remove ruled lines from sidebar */
+.theme-fieldnotes .notebook-sidebar,
+.theme-fieldnotes .notebook-toolbar {
+  background-image: none;
+  background-color: var(--color-bg-secondary);
+}

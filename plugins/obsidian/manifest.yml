@@ -1,0 +1,40 @@
+# Theme Metadata
+id: obsidian
+name: Obsidian
+version: 1.0.0
+author: Codex Team
+description: Sophisticated dark mode with deep charcoals and subtle purple accents
+license: MIT
+
+# Theme Type
+type: theme
+
+# Codex Compatibility
+codex_version: ">=1.0.0"
+
+# Theme Configuration
+theme:
+  display_name: Obsidian
+  category: dark
+  className: theme-obsidian
+  stylesheet: styles/main.css
+
+# Color Palette
+colors:
+  # Background colors - deep charcoal with subtle warmth
+  bg-primary: "#1a1b1e"
+  bg-secondary: "#212226"
+  bg-tertiary: "#282a2e"
+
+  # Border colors - subtle definition without harshness
+  border-light: "#35373c"
+  border-medium: "#454750"
+  border-dark: "#5c5e66"
+
+  # Text colors - soft white avoiding pure white
+  text-primary: "#e8e6e3"
+  text-secondary: "#a8a5a0"
+  text-tertiary: "#787572"
+
+  # Accent - amethyst purple
+  accent-primary: "#9d8cd6"

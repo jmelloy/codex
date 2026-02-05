@@ -1,0 +1,40 @@
+# Theme Metadata
+id: labnotebook
+name: Lab Notebook
+version: 1.0.0
+author: Codex Team
+description: Engineering paper with green grid - a technical scientific aesthetic
+license: MIT
+
+# Theme Type
+type: theme
+
+# Codex Compatibility
+codex_version: ">=1.0.0"
+
+# Theme Configuration
+theme:
+  display_name: Lab Notebook
+  category: light
+  className: theme-labnotebook
+  stylesheet: styles/main.css
+
+# Color Palette
+colors:
+  # Background colors - slightly green-tinted engineering paper
+  bg-primary: "#f4f8f4"
+  bg-secondary: "#ebf0eb"
+  bg-tertiary: "#e2e8e2"
+
+  # Border colors - green grid lines
+  border-light: "#c8d8c8"
+  border-medium: "#9bb89b"
+  border-dark: "#6b946b"
+
+  # Text colors - mechanical pencil graphite
+  text-primary: "#1f2b1f"
+  text-secondary: "#3d4a3d"
+  text-tertiary: "#5c6b5c"
+
+  # Accent - scientific blue for formulas and highlights
+  accent-primary: "#2e6cb8"

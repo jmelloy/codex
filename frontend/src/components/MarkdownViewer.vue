@@ -285,7 +285,7 @@ const mountCustomBlocks = (blocks: any[]) => {
 // Detect standalone URLs in markdown text and convert to link-preview blocks
 const detectAndUnfurlUrls = (markdown: string): string => {
   // Only detect URLs if link-preview block type is available and we have workspace/notebook context
-  if (!knownBlockTypes.value.has("link-preview") || !props.workspaceId || !props.notebookId) {
+  if (!isBlockTypeAvailable("link-preview") || !props.workspaceId || !props.notebookId) {
     return markdown
   }
 
@@ -324,7 +324,7 @@ const detectAndUnfurlUrls = (markdown: string): string => {
     }
 
     // Convert to link-preview block
-    return `${prefix}\n\n\`\`\`link-preview\nurl: ${url}\n\`\`\`\n\n`
+    return `${fullMatch}\n\n\`\`\`link-preview\nurl: ${url}\n\`\`\`\n\n`
   })
 }
 

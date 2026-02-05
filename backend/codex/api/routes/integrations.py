@@ -890,14 +890,8 @@ async def execute_integration_endpoint_nested(
         PluginConfig.plugin_id == integration_id,
     )
     result = await session.execute(stmt)
-    config = result.scalar_one_or_none()
-
-    if not config:
-        raise HTTPException(
-            status_code=400,
-            detail="Integration not configured for this workspace",
-        )
-
+    configuration = result.scalar_one_or_none()
+    
     logger.info(
         f"Executing endpoint {request_data.endpoint_id} for integration {integration_id}"
     )
@@ -944,7 +938,7 @@ async def execute_integration_endpoint_nested(
         execution_result = await executor.execute_endpoint(
             integration,
             request_data.endpoint_id,
-            config.config,
+            configuration.config if configuration else {},
             request_data.parameters or {},
         )
 

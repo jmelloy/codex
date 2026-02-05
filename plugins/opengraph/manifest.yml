@@ -29,7 +29,7 @@ properties:
   - name: api_key
     type: string
     description: API key for OpenGraph.io
-    required: true
+    required: false
     secure: true
     ui:
       type: text

@@ -1,0 +1,61 @@
+/* Notebook Theme - Classic notebook aesthetic with cream pages and serif typography */
+
+.theme-notebook-theme {
+  /* Core notebook variables */
+  --notebook-bg: var(--page-cream);
+  --notebook-text: var(--pen-black);
+  --notebook-accent: #667eea;
+
+  /* UI Background colors */
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #f7fafc;
+  --color-bg-tertiary: #edf2f7;
+  --color-bg-hover: #f7fafc;
+  --color-bg-active: #edf2f7;
+  --color-bg-disabled: #e2e8f0;
+
+  /* Border colors */
+  --color-border-light: #e2e8f0;
+  --color-border-medium: #cbd5e0;
+  --color-border-dark: #a0aec0;
+  --color-border-focus: #667eea;
+
+  /* Text colors */
+  --color-text-primary: #2d3748;
+  --color-text-secondary: #4a5568;
+  --color-text-tertiary: #718096;
+  --color-text-placeholder: #a0aec0;
+  --color-text-disabled: #cbd5e0;
+  --color-text-inverse: #ffffff;
+
+  /* Primary/Accent */
+  --color-primary: #667eea;
+  --color-primary-hover: #5a67d8;
+  --color-primary-active: #4c51bf;
+
+  /* Semantic colors */
+  --color-success: #16a34a;
+  --color-success-bg: #f0fdf4;
+  --color-success-border: #86efac;
+
+  --color-error: #dc2626;
+  --color-error-bg: #fef2f2;
+  --color-error-border: #fca5a5;
+
+  --color-warning: #d97706;
+  --color-warning-bg: #fffbeb;
+  --color-warning-border: #fde68a;
+
+  --color-info: #2563eb;
+  --color-info-bg: #eff6ff;
+  --color-info-border: #93c5fd;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+
+  background-color: var(--notebook-bg);
+  color: var(--notebook-text);
+}

@@ -29,6 +29,23 @@ describe("Theme Store", () => {
     const store = useThemeStore()
 
     expect(store.currentTheme).toBe("cream")
+    expect(store.theme.name).toBe("cream")
+  })
+
+  it("provides all available themes", () => {
+    const store = useThemeStore()
+
+    expect(store.availableThemes).toHaveLength(3)
+    expect(store.availableThemes.map((t) => t.name)).toEqual([
+      "cream",
+      "manila",
+      "white",
+    ])
+  })
+
+  it("returns correct theme object", () => {
+    const store = useThemeStore()
+
     expect(store.theme).toEqual({
       name: "cream",
       label: "Cream",
@@ -120,6 +137,30 @@ describe("Theme Store", () => {
       store = useThemeStore()
       store.loadFromUser(undefined)
       expect(store.currentTheme).toBe("cream")
+    })
+  })
+
+  describe("theme computed", () => {
+    it("returns full theme object for current theme", () => {
+      const store = useThemeStore()
+
+      store.currentTheme = "manila"
+
+      expect(store.theme).toEqual({
+        name: "manila",
+        label: "Manila",
+        description: "Vintage manila folder aesthetic",
+        className: "theme-manila",
+      })
+    })
+
+    it("falls back to first theme for invalid current theme", () => {
+      const store = useThemeStore()
+
+      // Force an invalid theme (shouldn't happen in practice)
+      store.currentTheme = "nonexistent" as any
+
+      expect(store.theme.name).toBe("cream")
     })
   })
 })

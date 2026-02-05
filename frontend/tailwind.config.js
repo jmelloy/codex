@@ -40,31 +40,11 @@ export default {
         error: "var(--color-error)",
         warning: "var(--color-warning)",
         info: "var(--color-info)",
-        // Notebook-specific colors
-        notebook: {
-          bg: "var(--notebook-bg)",
-          text: "var(--notebook-text)",
-          accent: "var(--notebook-accent)",
-          // Page colors
-          "page-white": "var(--page-white)",
-          "page-cream": "var(--page-cream)",
-          "page-manila": "var(--page-manila)",
-          "page-blueprint": "var(--page-blueprint)",
-          // Pen colors
-          "pen-black": "var(--pen-black)",
-          "pen-gray": "var(--pen-gray)",
-          "pen-blue": "var(--pen-blue)",
-          "pen-red": "var(--pen-red)",
-          "pen-green": "var(--pen-green)",
-          "pen-purple": "var(--pen-purple)",
-        },
       },
       fontFamily: {
         sans: "var(--font-sans)",
         serif: "var(--font-serif)",
         mono: "var(--font-mono)",
-        notebook: ["Georgia", "Palatino", "Times New Roman", "serif"],
-        handwriting: ["Caveat", "cursive"],
       },
       fontSize: {
         xs: "var(--text-xs)",

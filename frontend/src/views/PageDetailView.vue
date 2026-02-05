@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen flex flex-col bg-notebook-page-cream notebook-texture w-full">
+  <div class="min-h-screen flex flex-col notebook-texture w-full">
     <!-- Header -->
     <nav class="bg-primary text-white px-8 py-4 flex justify-between items-center shadow-md">
       <h1 class="m-0 text-2xl">Page Viewer</h1>

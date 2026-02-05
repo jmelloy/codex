@@ -1,0 +1,39 @@
+# Theme Metadata
+id: notebook-theme
+name: Notebook
+version: 1.0.0
+author: Codex Team
+description: Classic notebook aesthetic with cream pages and serif typography
+license: MIT
+
+# Theme Type
+type: theme
+
+# Codex Compatibility
+codex_version: ">=1.0.0"
+
+# Theme Configuration
+theme:
+  display_name: Notebook
+  category: light
+  className: theme-notebook-theme
+  stylesheet: styles/main.css
+
+# Color Palette
+colors:
+  # Background colors
+  bg-primary: "#ffffff"
+  bg-secondary: "#f7fafc"
+  bg-tertiary: "#edf2f7"
+
+  # Border colors
+  border-light: "#e2e8f0"
+  border-medium: "#cbd5e0"
+
+  # Text colors
+  text-primary: "#2d3748"
+  text-secondary: "#4a5568"
+  text-tertiary: "#718096"
+
+  # Accent
+  accent-primary: "#667eea"

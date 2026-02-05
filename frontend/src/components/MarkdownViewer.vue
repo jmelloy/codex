@@ -218,7 +218,7 @@ const parseCustomBlocks = async (html: string): Promise<{ html: string; blocks: 
 
     const className = codeBlock.className
     const language = extractLanguage(className)
-    console.log(`Checking code block for custom block type: ${language} (${className})`)
+    console.log(`Checking block for custom block type: ${language}`)
     // Check if this is a custom block using the plugin service
     if (language && (await isBlockTypeAvailable(language))) {
       // This is a custom block
@@ -283,9 +283,11 @@ const mountCustomBlocks = (blocks: any[]) => {
 }
 
 // Detect standalone URLs in markdown text and convert to link-preview blocks
-const detectAndUnfurlUrls = (markdown: string): string => {
+const detectAndUnfurlUrls = async (markdown: string): Promise<string> => {
+  const linkPreviewAvailable = await isBlockTypeAvailable("link-preview")
+
   // Only detect URLs if link-preview block type is available and we have workspace/notebook context
-  if (!isBlockTypeAvailable("link-preview") || !props.workspaceId || !props.notebookId) {
+  if (!linkPreviewAvailable || !props.workspaceId || !props.notebookId) {
     return markdown
   }
 
@@ -310,12 +312,12 @@ const detectAndUnfurlUrls = (markdown: string): string => {
   }
 
   // Replace standalone URLs with link-preview blocks
-  return markdown.replace(urlPattern, (fullMatch, prefix, url, offset) => {
+  return markdown.replace(urlPattern, (fullMatch, _, url, offset) => {
     // Don't replace if inside a code block
     if (isInsideCodeBlock(offset)) {
       return fullMatch
     }
-
+    console.log(`Detected standalone URL for unfurling: ${url} (${fullMatch}) at offset ${offset})`)
     // Don't replace if the URL is already part of a markdown link [text](url)
     // Check up to 10 characters before the URL for markdown link syntax
     const beforeUrl = markdown.substring(Math.max(0, offset - 10), offset)
@@ -339,10 +341,10 @@ const renderMarkdown = async () => {
   try {
     isLoading.value = true
     updateContentKey()
-    
+
     // Detect standalone URLs in markdown and convert to link-preview blocks
-    let processedContent = detectAndUnfurlUrls(props.content)
-    
+    let processedContent = await detectAndUnfurlUrls(props.content)
+
     const html = marked(processedContent) as string
 
     // Parse and handle custom blocks first

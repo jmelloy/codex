@@ -56,7 +56,6 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from "vue"
-import { executeIntegrationEndpoint } from "../../../frontend/src/services/integration"
 
 interface LinkPreviewConfig {
   url?: string
@@ -107,14 +106,33 @@ const fetchMetadata = async () => {
   error.value = null
 
   try {
-    const result = await executeIntegrationEndpoint(
-      "opengraph-unfurl",
-      props.workspaceId,
-      props.notebookId,
-      "fetch_metadata",
-      { url: props.config.url }
+    const token = localStorage.getItem("access_token")
+    if (!token) {
+      error.value = "Not authenticated"
+      return
+    }
+
+    const response = await fetch(
+      `/api/v1/workspaces/${props.workspaceId}/notebooks/${props.notebookId}/integrations/opengraph-unfurl/execute`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          endpoint_id: "fetch_metadata",
+          parameters: { url: props.config.url },
+        }),
+      }
     )
 
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}))
+      throw new Error(data.error || data.detail || `HTTP ${response.status}`)
+    }
+
+    const result = await response.json()
     if (result.success && result.data) {
       metadata.value = result.data
     } else {
@@ -122,7 +140,7 @@ const fetchMetadata = async () => {
     }
   } catch (err: any) {
     console.error("Error fetching link preview:", err)
-    error.value = err.response?.data?.detail || err.message || "Failed to load preview"
+    error.value = err.message || "Failed to load preview"
   } finally {
     loading.value = false
   }

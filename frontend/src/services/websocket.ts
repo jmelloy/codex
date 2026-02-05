@@ -28,6 +28,7 @@ class WebSocketService {
   private connectionHandlers: Set<ConnectionHandler> = new Set()
   private reconnectTimers: Map<number, number> = new Map()
   private pingIntervals: Map<number, number> = new Map()
+  private intentionallyDisconnected: Set<number> = new Set()
 
   /**
    * Get the WebSocket URL for a notebook.
@@ -42,6 +43,9 @@ class WebSocketService {
    * Connect to WebSocket for a notebook.
    */
   connect(notebookId: number): void {
+    // Clear intentional disconnect flag
+    this.intentionallyDisconnected.delete(notebookId)
+
     // Already connected
     if (this.connections.has(notebookId)) {
       return
@@ -98,6 +102,9 @@ class WebSocketService {
    * Disconnect from WebSocket for a notebook.
    */
   disconnect(notebookId: number): void {
+    // Mark as intentionally disconnected to prevent auto-reconnect
+    this.intentionallyDisconnected.add(notebookId)
+
     // Cancel any pending reconnect
     const timer = this.reconnectTimers.get(notebookId)
     if (timer) {
@@ -116,7 +123,9 @@ class WebSocketService {
    * Disconnect all WebSocket connections.
    */
   disconnectAll(): void {
-    for (const notebookId of this.connections.keys()) {
+    // Copy keys since disconnect modifies the map
+    const notebookIds = [...this.connections.keys()]
+    for (const notebookId of notebookIds) {
       this.disconnect(notebookId)
     }
   }
@@ -160,11 +169,16 @@ class WebSocketService {
   }
 
   private scheduleReconnect(notebookId: number): void {
+    // Don't reconnect if intentionally disconnected
+    if (this.intentionallyDisconnected.has(notebookId)) {
+      return
+    }
+
     // Reconnect after 5 seconds
     const timer = window.setTimeout(() => {
       this.reconnectTimers.delete(notebookId)
-      // Only reconnect if we still want to be connected (check if we deliberately disconnected)
-      if (!this.connections.has(notebookId)) {
+      // Only reconnect if not intentionally disconnected
+      if (!this.intentionallyDisconnected.has(notebookId)) {
         console.log(`Reconnecting WebSocket for notebook ${notebookId}`)
         this.connect(notebookId)
       }

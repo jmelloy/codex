@@ -86,13 +86,151 @@
             <!-- Workspace tab content -->
             <div v-else-if="activeTab === 'workspace'" class="tab-content">
               <h3 class="section-heading">Workspace Preferences</h3>
-              <p class="info-text">Configure workspace-level settings. <a href="/settings/workspace" class="text-link" @click.prevent="navigateToWorkspace">Go to workspace settings →</a></p>
+
+              <!-- Workspace Selector -->
+              <section class="settings-section">
+                <h4 class="subsection-title">Select Workspace</h4>
+                <select
+                  v-model="workspaceId"
+                  @change="loadWorkspacePlugins"
+                  class="form-select"
+                >
+                  <option :value="null">Select a workspace...</option>
+                  <option v-for="ws in availableWorkspaces" :key="ws.id" :value="ws.id">
+                    {{ ws.name }}
+                  </option>
+                </select>
+              </section>
+
+              <!-- Workspace Plugin Management -->
+              <section v-if="workspaceId" class="settings-section">
+                <h4 class="subsection-title">Plugins</h4>
+                <p class="subsection-description">
+                  Manage plugins for this workspace. Plugins can be enabled/disabled and configured here.
+                  Notebooks can override these settings.
+                </p>
+
+                <div v-if="workspacePluginsLoading" class="loading-text">Loading plugins...</div>
+                <div v-else-if="workspacePlugins.length === 0" class="empty-text">No plugins available.</div>
+
+                <div v-else class="plugin-list">
+                  <div v-for="plugin in workspacePlugins" :key="plugin.id" class="plugin-item">
+                    <div class="plugin-content">
+                      <div class="plugin-header-row">
+                        <h5 class="plugin-name">{{ plugin.name }}</h5>
+                        <span class="version-badge">v{{ plugin.version }}</span>
+                        <span class="type-badge">{{ plugin.type }}</span>
+                      </div>
+                      <p class="plugin-description">{{ plugin.manifest?.description || 'No description' }}</p>
+                    </div>
+                    <div class="plugin-toggle">
+                      <label class="toggle-switch">
+                        <input
+                          type="checkbox"
+                          :checked="isWorkspacePluginEnabled(plugin.id)"
+                          @change="toggleWorkspacePlugin(plugin.id, $event)"
+                          class="toggle-input"
+                        />
+                        <div class="toggle-slider"></div>
+                        <span class="toggle-label">
+                          {{ isWorkspacePluginEnabled(plugin.id) ? 'Enabled' : 'Disabled' }}
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-if="workspaceSaveMsg" class="success-message">✓ {{ workspaceSaveMsg }}</div>
+              </section>
             </div>
 
             <!-- Notebook tab content -->
             <div v-else-if="activeTab === 'notebook'" class="tab-content">
               <h3 class="section-heading">Notebook Preferences</h3>
-              <p class="info-text">Configure notebook-level settings. <a href="/settings/notebook" class="text-link" @click.prevent="navigateToNotebook">Go to notebook settings →</a></p>
+
+              <!-- Workspace Selector -->
+              <section class="settings-section">
+                <h4 class="subsection-title">Select Workspace</h4>
+                <select
+                  v-model="notebookWorkspaceId"
+                  @change="loadNotebooksForWorkspace"
+                  class="form-select"
+                >
+                  <option :value="null">Select a workspace...</option>
+                  <option v-for="ws in availableWorkspaces" :key="ws.id" :value="ws.id">
+                    {{ ws.name }}
+                  </option>
+                </select>
+              </section>
+
+              <!-- Notebook Selector -->
+              <section v-if="notebookWorkspaceId" class="settings-section">
+                <h4 class="subsection-title">Select Notebook</h4>
+                <select
+                  v-model="selectedNotebookId"
+                  @change="loadNotebookPlugins"
+                  class="form-select"
+                >
+                  <option :value="null">Select a notebook...</option>
+                  <option v-for="nb in availableNotebooks" :key="nb.id" :value="nb.id">
+                    {{ nb.name }}
+                  </option>
+                </select>
+              </section>
+
+              <!-- Notebook Plugin Overrides -->
+              <section v-if="selectedNotebookId" class="settings-section">
+                <h4 class="subsection-title">Plugin Overrides</h4>
+                <p class="subsection-description">
+                  Override workspace plugin settings for this notebook. If no override is set, the notebook
+                  will inherit the workspace settings.
+                </p>
+
+                <div v-if="notebookPluginsLoading" class="loading-text">Loading plugins...</div>
+                <div v-else-if="notebookPlugins.length === 0" class="empty-text">No plugins available.</div>
+
+                <div v-else class="plugin-list">
+                  <div v-for="plugin in notebookPlugins" :key="plugin.id" class="plugin-item">
+                    <div class="plugin-content">
+                      <div class="plugin-header-row">
+                        <h5 class="plugin-name">{{ plugin.name }}</h5>
+                        <span class="version-badge">v{{ plugin.version }}</span>
+                        <span class="type-badge">{{ plugin.type }}</span>
+                        <span v-if="hasNotebookOverride(plugin.id)" class="override-badge">
+                          Override Active
+                        </span>
+                      </div>
+                      <p class="plugin-description">{{ plugin.manifest?.description || 'No description' }}</p>
+                      <div class="workspace-setting-info">
+                        Workspace setting: {{ getWorkspacePluginState(plugin.id) ? 'Enabled' : 'Disabled' }}
+                      </div>
+                    </div>
+                    <div class="plugin-actions">
+                      <label class="toggle-switch">
+                        <input
+                          type="checkbox"
+                          :checked="isNotebookPluginEnabled(plugin.id)"
+                          @change="toggleNotebookPlugin(plugin.id, $event)"
+                          class="toggle-input"
+                        />
+                        <div class="toggle-slider"></div>
+                        <span class="toggle-label">
+                          {{ isNotebookPluginEnabled(plugin.id) ? 'Enabled' : 'Disabled' }}
+                        </span>
+                      </label>
+                      <button
+                        v-if="hasNotebookOverride(plugin.id)"
+                        @click="clearNotebookOverride(plugin.id)"
+                        class="clear-override-btn"
+                      >
+                        Clear Override
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-if="notebookSaveMsg" class="success-message">✓ {{ notebookSaveMsg }}</div>
+              </section>
             </div>
 
             <!-- Integrations tab content -->
@@ -135,11 +273,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue"
+import { ref, computed, onMounted } from "vue"
 import { useRouter } from "vue-router"
 import { useAuthStore } from "../stores/auth"
 import { useThemeStore, type ThemeName } from "../stores/theme"
 import { useIntegrationStore } from "../stores/integration"
+import { useWorkspaceStore } from "../stores/workspace"
+import api from "../services/api"
 
 interface Props {
   modelValue: boolean
@@ -155,6 +295,7 @@ const routerInstance = useRouter()
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
 const integrationStore = useIntegrationStore()
+const workspaceStoreInstance = useWorkspaceStore()
 
 const activeTab = ref('user')
 const showThemeSaved = ref(false)
@@ -170,6 +311,36 @@ const settingsTabs = [
 const integrationList = computed(() => integrationStore.availableIntegrations)
 const integrationsLoading = computed(() => !integrationStore.integrationsLoaded)
 
+// Workspace state
+const availableWorkspaces = computed(() => workspaceStoreInstance.workspaces)
+const workspaceId = ref<number | null>(null)
+const workspacePlugins = ref<any[]>([])
+const workspacePluginConfigs = ref<any[]>([])
+const workspacePluginsLoading = ref(false)
+const workspaceSaveMsg = ref("")
+
+// Notebook state
+const notebookWorkspaceId = ref<number | null>(null)
+const selectedNotebookId = ref<number | null>(null)
+const availableNotebooks = ref<any[]>([])
+const notebookPlugins = ref<any[]>([])
+const notebookWorkspacePluginConfigs = ref<any[]>([])
+const notebookPluginConfigs = ref<any[]>([])
+const notebookPluginsLoading = ref(false)
+const notebookSaveMsg = ref("")
+
+const DEFAULT_PLUGIN_ENABLED = true
+
+onMounted(async () => {
+  await workspaceStoreInstance.loadWorkspaces()
+  
+  // Auto-select first workspace if available
+  if (availableWorkspaces.value.length > 0 && availableWorkspaces.value[0]?.id) {
+    workspaceId.value = availableWorkspaces.value[0].id
+    notebookWorkspaceId.value = availableWorkspaces.value[0].id
+  }
+})
+
 function changeTheme(themeName: ThemeName) {
   themeStore.setTheme(themeName)
   showThemeSaved.value = true
@@ -182,18 +353,147 @@ function openIntegrationConfig(integrationId: string) {
   routerInstance.push({ name: "integration-config", params: { integrationId } })
 }
 
-function navigateToWorkspace() {
-  emit("update:modelValue", false)
-  routerInstance.push('/settings/workspace')
-}
-
-function navigateToNotebook() {
-  emit("update:modelValue", false)
-  routerInstance.push('/settings/notebook')
-}
-
 function closeModal() {
   emit("update:modelValue", false)
+}
+
+// Workspace plugin management
+async function loadWorkspacePlugins() {
+  if (!workspaceId.value) return
+  
+  workspacePluginsLoading.value = true
+  try {
+    const pluginsResp = await api.get<any[]>('/api/v1/plugins')
+    workspacePlugins.value = pluginsResp.data
+
+    const configsResp = await api.get<any[]>(`/api/v1/workspaces/${workspaceId.value}/plugins`)
+    workspacePluginConfigs.value = configsResp.data
+  } catch (error) {
+    console.error('Failed to load workspace plugins:', error)
+  } finally {
+    workspacePluginsLoading.value = false
+  }
+}
+
+function isWorkspacePluginEnabled(pluginId: string): boolean {
+  const cfg = workspacePluginConfigs.value.find(c => c.plugin_id === pluginId)
+  return cfg ? cfg.enabled : DEFAULT_PLUGIN_ENABLED
+}
+
+async function toggleWorkspacePlugin(pluginId: string, evt: Event) {
+  if (!workspaceId.value) return
+  
+  const tgt = evt.target as HTMLInputElement
+  const enabled = tgt.checked
+  
+  try {
+    await api.put(`/api/v1/workspaces/${workspaceId.value}/plugins/${pluginId}`, { enabled })
+    
+    const existingCfg = workspacePluginConfigs.value.find(c => c.plugin_id === pluginId)
+    if (existingCfg) {
+      existingCfg.enabled = enabled
+    } else {
+      workspacePluginConfigs.value.push({ plugin_id: pluginId, enabled, config: {} })
+    }
+    
+    workspaceSaveMsg.value = `Plugin ${enabled ? 'enabled' : 'disabled'} successfully`
+    setTimeout(() => { workspaceSaveMsg.value = "" }, 3000)
+  } catch (error) {
+    console.error('Failed to toggle workspace plugin:', error)
+    tgt.checked = !enabled
+  }
+}
+
+// Notebook plugin management
+async function loadNotebooksForWorkspace() {
+  if (!notebookWorkspaceId.value) return
+  
+  try {
+    const ws = availableWorkspaces.value.find(w => w.id === notebookWorkspaceId.value)
+    if (!ws) return
+    
+    const resp = await api.get<any[]>(`/api/v1/workspaces/${ws.slug}/notebooks`)
+    availableNotebooks.value = resp.data
+    
+    selectedNotebookId.value = null
+    notebookPluginConfigs.value = []
+  } catch (error) {
+    console.error('Failed to load notebooks:', error)
+  }
+}
+
+async function loadNotebookPlugins() {
+  if (!notebookWorkspaceId.value || !selectedNotebookId.value) return
+  
+  notebookPluginsLoading.value = true
+  try {
+    const pluginsResp = await api.get<any[]>('/api/v1/plugins')
+    notebookPlugins.value = pluginsResp.data
+
+    const wsConfigsResp = await api.get<any[]>(`/api/v1/workspaces/${notebookWorkspaceId.value}/plugins`)
+    notebookWorkspacePluginConfigs.value = wsConfigsResp.data
+
+    const nbConfigsResp = await api.get<any[]>(`/api/v1/notebooks/${selectedNotebookId.value}/plugins`)
+    notebookPluginConfigs.value = nbConfigsResp.data
+  } catch (error) {
+    console.error('Failed to load notebook plugins:', error)
+  } finally {
+    notebookPluginsLoading.value = false
+  }
+}
+
+function getWorkspacePluginState(pluginId: string): boolean {
+  const cfg = notebookWorkspacePluginConfigs.value.find(c => c.plugin_id === pluginId)
+  return cfg ? cfg.enabled : DEFAULT_PLUGIN_ENABLED
+}
+
+function hasNotebookOverride(pluginId: string): boolean {
+  return notebookPluginConfigs.value.some(c => c.plugin_id === pluginId)
+}
+
+function isNotebookPluginEnabled(pluginId: string): boolean {
+  const nbCfg = notebookPluginConfigs.value.find(c => c.plugin_id === pluginId)
+  if (nbCfg) return nbCfg.enabled
+  return getWorkspacePluginState(pluginId)
+}
+
+async function toggleNotebookPlugin(pluginId: string, evt: Event) {
+  if (!selectedNotebookId.value) return
+  
+  const tgt = evt.target as HTMLInputElement
+  const enabled = tgt.checked
+  
+  try {
+    await api.put(`/api/v1/notebooks/${selectedNotebookId.value}/plugins/${pluginId}`, { enabled })
+    
+    const existingCfg = notebookPluginConfigs.value.find(c => c.plugin_id === pluginId)
+    if (existingCfg) {
+      existingCfg.enabled = enabled
+    } else {
+      notebookPluginConfigs.value.push({ plugin_id: pluginId, enabled, config: {} })
+    }
+    
+    notebookSaveMsg.value = `Plugin ${enabled ? 'enabled' : 'disabled'} for this notebook`
+    setTimeout(() => { notebookSaveMsg.value = "" }, 3000)
+  } catch (error) {
+    console.error('Failed to toggle notebook plugin:', error)
+    tgt.checked = !enabled
+  }
+}
+
+async function clearNotebookOverride(pluginId: string) {
+  if (!selectedNotebookId.value) return
+  
+  try {
+    await api.delete(`/api/v1/notebooks/${selectedNotebookId.value}/plugins/${pluginId}`)
+    
+    notebookPluginConfigs.value = notebookPluginConfigs.value.filter(c => c.plugin_id !== pluginId)
+    
+    notebookSaveMsg.value = 'Override cleared, using workspace settings'
+    setTimeout(() => { notebookSaveMsg.value = "" }, 3000)
+  } catch (error) {
+    console.error('Failed to clear notebook override:', error)
+  }
 }
 </script>
 
@@ -575,5 +875,165 @@ function closeModal() {
 .theme-blueprint {
   background-color: var(--page-blueprint);
   color: #e0e7ff;
+}
+
+.form-select {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-border-medium);
+  border-radius: 0.375rem;
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.form-select:focus {
+  outline: none;
+  border-color: var(--notebook-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--notebook-accent) 10%, transparent);
+}
+
+.plugin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.plugin-item {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-border-medium);
+  transition: border-color 0.2s;
+}
+
+.plugin-item:hover {
+  border-color: color-mix(in srgb, var(--notebook-accent) 50%, transparent);
+}
+
+.plugin-content {
+  flex: 1;
+}
+
+.plugin-header-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.plugin-name {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0;
+  font-size: 1rem;
+}
+
+.type-badge {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-secondary);
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.25rem;
+}
+
+.override-badge {
+  font-size: 0.75rem;
+  background: #fef3c7;
+  color: #92400e;
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.25rem;
+  font-weight: 500;
+}
+
+.plugin-description {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  margin: 0 0 0.5rem 0;
+}
+
+.workspace-setting-info {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.plugin-toggle, .plugin-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.toggle-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  width: 2.75rem;
+  height: 1.5rem;
+  background: #d1d5db;
+  border-radius: 9999px;
+  position: relative;
+  transition: background-color 0.2s;
+}
+
+.toggle-slider::after {
+  content: '';
+  position: absolute;
+  top: 0.125rem;
+  left: 0.125rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.toggle-input:checked + .toggle-slider {
+  background: var(--notebook-accent);
+}
+
+.toggle-input:checked + .toggle-slider::after {
+  transform: translateX(1.25rem);
+}
+
+.toggle-input:focus + .toggle-slider {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--notebook-accent) 20%, transparent);
+}
+
+.toggle-label {
+  margin-left: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.clear-override-btn {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  text-decoration: underline;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.clear-override-btn:hover {
+  color: var(--notebook-accent);
 }
 </style>

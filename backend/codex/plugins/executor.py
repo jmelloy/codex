@@ -8,6 +8,8 @@ from urllib.parse import urljoin
 
 import httpx
 
+from codex.plugins.opengraph_scraper import OpenGraphScraper
+
 logger = logging.getLogger(__name__)
 
 
@@ -49,6 +51,7 @@ class IntegrationExecutor:
             timeout: Request timeout in seconds
         """
         self.timeout = timeout
+        self.opengraph_scraper = OpenGraphScraper(timeout=10)
 
     async def execute_endpoint(
         self,
@@ -82,6 +85,11 @@ class IntegrationExecutor:
         if not endpoint:
             raise ValueError(f"Endpoint not found: {endpoint_id}")
 
+        # Special handling for opengraph-unfurl integration
+        # This integration scrapes Open Graph metadata from the provided URL
+        if hasattr(integration, "id") and integration.id == "opengraph-unfurl":
+            return await self._execute_opengraph(endpoint, config, parameters)
+
         # Build request parameters
         request_params = self._build_parameters(endpoint, config, parameters)
 
@@ -108,6 +116,37 @@ class IntegrationExecutor:
 
             response.raise_for_status()
             return self._parse_response(response)
+
+    async def _execute_opengraph(
+        self,
+        endpoint: dict[str, Any],
+        config: dict[str, Any],
+        parameters: dict[str, Any],
+    ) -> ExecutionResult:
+        """Execute opengraph-unfurl endpoint.
+
+        This is a special case that scrapes Open Graph metadata from the provided URL.
+
+        Args:
+            endpoint: Endpoint definition
+            config: Integration configuration
+            parameters: Request parameters (must contain 'url')
+
+        Returns:
+            ExecutionResult with Open Graph metadata
+
+        Raises:
+            ValueError: If URL parameter is missing
+            httpx.HTTPError: If scraping fails
+        """
+        url = parameters.get("url")
+        if not url:
+            raise ValueError("Missing required parameter: url")
+
+        logger.info(f"Scraping Open Graph metadata for: {url}")
+        metadata = await self.opengraph_scraper.scrape_url(url)
+
+        return ExecutionResult(data=metadata, content_type="application/json")
 
     async def test_connection(
         self,

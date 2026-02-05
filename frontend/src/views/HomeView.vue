@@ -971,12 +971,31 @@ watch(
 onMounted(async () => {
   await workspaceStore.fetchWorkspaces()
 
-  // Restore file selection from URL after workspaces are loaded
+  // Check for URL parameters to restore file selection
   const fileId = route.query.fileId ? Number(route.query.fileId) : null
   const notebookId = route.query.notebookId ? Number(route.query.notebookId) : null
 
+  // Auto-select first workspace if none is currently selected
+  // This must happen BEFORE trying to restore file from URL
+  if (!workspaceStore.currentWorkspace && workspaceStore.workspaces.length > 0) {
+    const firstWorkspace = workspaceStore.workspaces[0]!
+    workspaceStore.setCurrentWorkspace(firstWorkspace)
+  }
+
+  // Restore file selection from URL after workspaces are loaded
   if (fileId && notebookId && workspaceStore.currentWorkspace) {
-    // Fetch files for the notebook
+    // Ensure notebooks are loaded for the current workspace
+    if (workspaceStore.notebooks.length === 0) {
+      await workspaceStore.fetchNotebooks(workspaceStore.currentWorkspace.id)
+    }
+
+    // Find and expand the notebook in the sidebar
+    const notebook = workspaceStore.notebooks.find((n) => n.id === notebookId)
+    if (notebook && !workspaceStore.expandedNotebooks.has(notebookId)) {
+      workspaceStore.toggleNotebookExpansion(notebook)
+    }
+
+    // Fetch files for the notebook (in case toggle didn't complete yet)
     await workspaceStore.fetchFiles(notebookId)
 
     // Find and select the file
@@ -984,11 +1003,6 @@ onMounted(async () => {
     if (file) {
       await workspaceStore.selectFile(file)
     }
-  }
-  // Auto-select first workspace if none is currently selected
-  if (!workspaceStore.currentWorkspace && workspaceStore.workspaces.length > 0) {
-    const firstWorkspace = workspaceStore.workspaces[0]!
-    workspaceStore.setCurrentWorkspace(firstWorkspace)
   }
 })
 

@@ -899,6 +899,42 @@ const notebookFileTrees = computed(() => {
   return trees
 })
 
+// Helper to get slug or fallback to id for URL building
+function getSlugOrId(entity: { slug?: string; id: number } | null | undefined): string {
+  if (!entity) return ""
+  return entity.slug || String(entity.id)
+}
+
+// Helper to find workspace by slug or id
+function findWorkspaceBySlugOrId(identifier: string): Workspace | undefined {
+  return workspaceStore.workspaces.find(
+    (w) => w.slug === identifier || String(w.id) === identifier
+  )
+}
+
+// Helper to find notebook by slug or id
+function findNotebookBySlugOrId(identifier: string): Notebook | undefined {
+  return workspaceStore.notebooks.find(
+    (n) => n.slug === identifier || String(n.id) === identifier
+  )
+}
+
+// Build file URL path: /w/{workspace}/{notebook}/{filePath}
+function buildFileUrl(file: FileMetadata, notebook?: Notebook | null): string {
+  const ws = workspaceStore.currentWorkspace
+  const nb = notebook || workspaceStore.notebooks.find((n) => n.id === file.notebook_id)
+  if (!ws || !nb) return "/"
+  return `/w/${getSlugOrId(ws)}/${getSlugOrId(nb)}/${file.path}`
+}
+
+// Build folder URL path: /w/{workspace}/{notebook}/{folderPath}
+function buildFolderUrl(folderPath: string, notebookId: number): string {
+  const ws = workspaceStore.currentWorkspace
+  const nb = workspaceStore.notebooks.find((n) => n.id === notebookId)
+  if (!ws || !nb) return "/"
+  return `/w/${getSlugOrId(ws)}/${getSlugOrId(nb)}/${folderPath}`
+}
+
 // Get content URL for current file (for binary files like images, PDFs, audio, video)
 const currentContentUrl = computed(() => {
   if (!workspaceStore.currentFile || !workspaceStore.currentWorkspace) return ""
@@ -937,32 +973,51 @@ watch(
   { immediate: true }
 )
 
-// Watch for route changes to restore file selection from URL
+// Watch for route changes to restore file/folder selection from URL (path-based)
 watch(
-  () => route.query,
-  async (query) => {
-    const fileId = query.fileId ? Number(query.fileId) : null
-    const notebookId = query.notebookId ? Number(query.notebookId) : null
+  () => route.params,
+  async (params) => {
+    const workspaceSlug = params.workspaceSlug as string | undefined
+    const notebookSlug = params.notebookSlug as string | undefined
+    const itemPath = Array.isArray(params.filePath)
+      ? params.filePath.join("/")
+      : (params.filePath as string | undefined)
 
-    if (fileId && notebookId && workspaceStore.currentWorkspace) {
-      // Only load if it's different from current file to avoid infinite loops
-      if (workspaceStore.currentFile?.id !== fileId) {
-        // Make sure files for this notebook are loaded
-        const files = workspaceStore.getFilesForNotebook(notebookId)
-        if (files.length === 0) {
-          await workspaceStore.fetchFiles(notebookId)
+    if (workspaceSlug && notebookSlug && itemPath) {
+      // Find workspace and set it if different
+      const workspace = findWorkspaceBySlugOrId(workspaceSlug)
+      if (workspace && workspaceStore.currentWorkspace?.id !== workspace.id) {
+        workspaceStore.setCurrentWorkspace(workspace)
+        await workspaceStore.fetchNotebooks(workspace.id)
+      }
+
+      // Find notebook
+      const notebook = findNotebookBySlugOrId(notebookSlug)
+      if (notebook) {
+        // Expand notebook if not already expanded
+        if (!workspaceStore.expandedNotebooks.has(notebook.id)) {
+          workspaceStore.toggleNotebookExpansion(notebook)
         }
 
-        // Find and select the file
-        const file = workspaceStore.getFilesForNotebook(notebookId).find((f) => f.id === fileId)
-        if (file) {
-          // Call store selectFile directly to load file content
+        // Make sure files for this notebook are loaded
+        const files = workspaceStore.getFilesForNotebook(notebook.id)
+        if (files.length === 0) {
+          await workspaceStore.fetchFiles(notebook.id)
+        }
+
+        // Try to find as file first, then as folder
+        const file = workspaceStore.getFilesForNotebook(notebook.id).find((f) => f.path === itemPath)
+        if (file && workspaceStore.currentFile?.path !== itemPath) {
           await workspaceStore.selectFile(file)
+        } else if (!file && workspaceStore.currentFolder?.path !== itemPath) {
+          // Not a file, try as folder
+          await workspaceStore.selectFolder(itemPath, notebook.id)
         }
       }
-    } else if (!fileId && !notebookId) {
-      // Clear file selection if no query params
+    } else if (!workspaceSlug && !notebookSlug && !itemPath && route.name === "home") {
+      // Clear file/folder selection if on home route with no path params
       workspaceStore.currentFile = null
+      workspaceStore.currentFolder = null
     }
   },
   { immediate: false }
@@ -971,9 +1026,20 @@ watch(
 onMounted(async () => {
   await workspaceStore.fetchWorkspaces()
 
-  // Check for URL parameters to restore file selection
-  const fileId = route.query.fileId ? Number(route.query.fileId) : null
-  const notebookId = route.query.notebookId ? Number(route.query.notebookId) : null
+  // Check for path-based URL parameters: /w/{workspace}/{notebook}/{path}
+  const workspaceSlug = route.params.workspaceSlug as string | undefined
+  const notebookSlug = route.params.notebookSlug as string | undefined
+  const itemPath = Array.isArray(route.params.filePath)
+    ? route.params.filePath.join("/")
+    : (route.params.filePath as string | undefined)
+
+  // If we have URL params, find and set the workspace
+  if (workspaceSlug) {
+    const workspace = findWorkspaceBySlugOrId(workspaceSlug)
+    if (workspace) {
+      workspaceStore.setCurrentWorkspace(workspace)
+    }
+  }
 
   // Auto-select first workspace if none is currently selected
   // This must happen BEFORE trying to restore file from URL
@@ -982,26 +1048,31 @@ onMounted(async () => {
     workspaceStore.setCurrentWorkspace(firstWorkspace)
   }
 
-  // Restore file selection from URL after workspaces are loaded
-  if (fileId && notebookId && workspaceStore.currentWorkspace) {
+  // Restore file/folder selection from URL after workspaces are loaded
+  if (notebookSlug && itemPath && workspaceStore.currentWorkspace) {
     // Ensure notebooks are loaded for the current workspace
     if (workspaceStore.notebooks.length === 0) {
       await workspaceStore.fetchNotebooks(workspaceStore.currentWorkspace.id)
     }
 
     // Find and expand the notebook in the sidebar
-    const notebook = workspaceStore.notebooks.find((n) => n.id === notebookId)
-    if (notebook && !workspaceStore.expandedNotebooks.has(notebookId)) {
+    const notebook = findNotebookBySlugOrId(notebookSlug)
+    if (notebook && !workspaceStore.expandedNotebooks.has(notebook.id)) {
       workspaceStore.toggleNotebookExpansion(notebook)
     }
 
-    // Fetch files for the notebook (in case toggle didn't complete yet)
-    await workspaceStore.fetchFiles(notebookId)
+    if (notebook) {
+      // Fetch files for the notebook (in case toggle didn't complete yet)
+      await workspaceStore.fetchFiles(notebook.id)
 
-    // Find and select the file
-    const file = workspaceStore.getFilesForNotebook(notebookId).find((f) => f.id === fileId)
-    if (file) {
-      await workspaceStore.selectFile(file)
+      // Try to find as file first, then as folder
+      const file = workspaceStore.getFilesForNotebook(notebook.id).find((f) => f.path === itemPath)
+      if (file) {
+        await workspaceStore.selectFile(file)
+      } else {
+        // Not a file, try as folder
+        await workspaceStore.selectFolder(itemPath, notebook.id)
+      }
     }
   }
 })
@@ -1135,6 +1206,12 @@ async function handleSelectFolder(notebookId: number, folderPath: string) {
       folders.add(folderPath)
     }
   }
+
+  // Update URL with path-based format for browser history navigation
+  const newUrl = buildFolderUrl(folderPath, notebookId)
+  if (newUrl !== "/" && route.path !== newUrl) {
+    router.push(newUrl)
+  }
 }
 
 async function handleSelectSubfolder(subfolder: { path: string }) {
@@ -1188,18 +1265,10 @@ function selectFile(file: FileMetadata) {
   workspaceStore.selectFile(file)
   // Close sidebar on mobile after selection
   closeSidebarOnMobile()
-  // Update URL with file and notebook IDs for browser history navigation
-  // Only push if the URL doesn't already have these params (to avoid redundant history entries)
-  if (
-    route.query.fileId !== String(file.id) ||
-    route.query.notebookId !== String(file.notebook_id)
-  ) {
-    router.push({
-      query: {
-        fileId: String(file.id),
-        notebookId: String(file.notebook_id),
-      },
-    })
+  // Update URL with path-based format for browser history navigation
+  const newUrl = buildFileUrl(file)
+  if (newUrl !== "/" && route.path !== newUrl) {
+    router.push(newUrl)
   }
 }
 

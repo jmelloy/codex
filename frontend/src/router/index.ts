@@ -26,6 +26,13 @@ const router = createRouter({
       redirect: "/",
     },
     {
+      // File/folder view with path-based URLs: /workspace/notebook/path/to/file
+      path: "/w/:workspaceSlug/:notebookSlug/:filePath*",
+      name: "file-view",
+      component: HomeView,
+      meta: { requiresAuth: true },
+    },
+    {
       path: "/settings",
       component: SettingsView,
       meta: { requiresAuth: true },

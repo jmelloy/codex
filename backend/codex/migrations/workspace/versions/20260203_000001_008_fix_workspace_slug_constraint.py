@@ -30,13 +30,25 @@ def upgrade() -> None:
             # Constraint might not exist if previous migration was not applied
             pass
         # Create new unique constraint on (owner_id, slug)
-        batch_op.create_unique_constraint("uq_workspaces_owner_slug", ["owner_id", "slug"])
+        try:
+            batch_op.create_unique_constraint("uq_workspaces_owner_slug", ["owner_id", "slug"])
+        except Exception:
+            # Constraint might already exist if migration was previously applied
+            pass
 
 
 def downgrade() -> None:
     """Revert to global unique constraint on slug."""
     with op.batch_alter_table("workspaces") as batch_op:
         # Drop the per-owner unique constraint
-        batch_op.drop_constraint("uq_workspaces_owner_slug", type_="unique")
+        try:
+            batch_op.drop_constraint("uq_workspaces_owner_slug", type_="unique")
+        except Exception:
+            # Constraint might not exist
+            pass
         # Restore the old global unique constraint
-        batch_op.create_unique_constraint("uq_workspaces_slug", ["slug"])
+        try:
+            batch_op.create_unique_constraint("uq_workspaces_slug", ["slug"])
+        except Exception:
+            # Constraint might already exist
+            pass

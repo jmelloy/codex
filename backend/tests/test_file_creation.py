@@ -3,47 +3,14 @@
 from pathlib import Path
 
 
-def setup_test_user_and_notebook(test_client, temp_workspace_dir, username, email, workspace_name, notebook_name):
-    """Helper function to set up a test user, workspace, and notebook.
-    
-    Returns:
-        tuple: (headers, workspace, notebook, notebook_path)
-    """
-    # Register and login
-    test_client.post(
-        "/api/v1/users/register",
-        json={"username": username, "email": email, "password": "testpass123"},
-    )
-
-    login_response = test_client.post("/api/v1/users/token", data={"username": username, "password": "testpass123"})
-    token = login_response.json()["access_token"]
-    headers = {"Authorization": f"Bearer {token}"}
-
-    # Create a workspace
-    workspace_response = test_client.post(
-        "/api/v1/workspaces/", json={"name": workspace_name, "path": temp_workspace_dir}, headers=headers
-    )
-    assert workspace_response.status_code == 200
-    workspace = workspace_response.json()
-    actual_workspace_path = Path(workspace["path"])
-
-    # Create a notebook using nested route
-    notebook_response = test_client.post(
-        f"/api/v1/workspaces/{workspace['slug']}/notebooks/", json={"name": notebook_name}, headers=headers
-    )
-    assert notebook_response.status_code == 200
-    notebook = notebook_response.json()
-    notebook_path = actual_workspace_path / notebook["path"]
-
-    return headers, workspace, notebook, notebook_path
-
-
-def test_create_file_with_folder_path(test_client, temp_workspace_dir):
+def test_create_file_with_folder_path(test_client, auth_headers, workspace_and_notebook):
     """Test creating a file with a folder path creates the folder structure."""
-    headers, workspace, notebook, notebook_path = setup_test_user_and_notebook(
-        test_client, temp_workspace_dir, "testuser_file", "testfile@example.com",
-        "Test Workspace", "Test Notebook"
-    )
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
+
+    # Get notebook path on disk
+    ws_detail = test_client.get(f"/api/v1/workspaces/{workspace['slug']}", headers=headers)
+    notebook_path = Path(ws_detail.json()["path"]) / notebook["path"]
 
     # Create a file with a folder path using nested route
     file_path = "folder1/folder2/testfile.md"
@@ -65,7 +32,6 @@ def test_create_file_with_folder_path(test_client, temp_workspace_dir):
     assert file_data["filename"] == "testfile.md"
 
     # Verify that the folder structure was created on disk
-    # Use the actual workspace path and notebook.path from the API responses
     full_file_path = notebook_path / file_path
     assert full_file_path.exists(), f"File does not exist at {full_file_path}"
 
@@ -81,12 +47,14 @@ def test_create_file_with_folder_path(test_client, temp_workspace_dir):
     assert content == file_content
 
 
-def test_create_file_with_single_folder(test_client, temp_workspace_dir):
+def test_create_file_with_single_folder(test_client, auth_headers, workspace_and_notebook):
     """Test creating a file with a single folder path."""
-    headers, workspace, notebook, notebook_path = setup_test_user_and_notebook(
-        test_client, temp_workspace_dir, "testuser_single", "testsingle@example.com",
-        "Test Workspace 2", "Test Notebook 2"
-    )
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
+
+    # Get notebook path on disk
+    ws_detail = test_client.get(f"/api/v1/workspaces/{workspace['slug']}", headers=headers)
+    notebook_path = Path(ws_detail.json()["path"]) / notebook["path"]
 
     # Create a file with a single folder path using nested route
     file_path = "docs/readme.md"
@@ -108,7 +76,6 @@ def test_create_file_with_single_folder(test_client, temp_workspace_dir):
     assert file_data["filename"] == "readme.md"
 
     # Verify that the folder was created on disk
-    # Use the actual workspace path and notebook.path from the API responses
     full_file_path = notebook_path / file_path
     assert full_file_path.exists(), f"File does not exist at {full_file_path}"
 
@@ -117,12 +84,14 @@ def test_create_file_with_single_folder(test_client, temp_workspace_dir):
     assert docs_folder.exists() and docs_folder.is_dir(), f"Docs folder does not exist at {docs_folder}"
 
 
-def test_create_file_without_folder(test_client, temp_workspace_dir):
+def test_create_file_without_folder(test_client, auth_headers, workspace_and_notebook):
     """Test creating a file without a folder path (in the root)."""
-    headers, workspace, notebook, notebook_path = setup_test_user_and_notebook(
-        test_client, temp_workspace_dir, "testuser_root", "testroot@example.com",
-        "Test Workspace 3", "Test Notebook 3"
-    )
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
+
+    # Get notebook path on disk
+    ws_detail = test_client.get(f"/api/v1/workspaces/{workspace['slug']}", headers=headers)
+    notebook_path = Path(ws_detail.json()["path"]) / notebook["path"]
 
     # Create a file in the root (no folder) using nested route
     file_path = "notes.md"
@@ -144,6 +113,5 @@ def test_create_file_without_folder(test_client, temp_workspace_dir):
     assert file_data["filename"] == "notes.md"
 
     # Verify that the file exists on disk
-    # Use the actual workspace path and notebook.path from the API responses
     full_file_path = notebook_path / file_path
     assert full_file_path.exists(), f"File does not exist at {full_file_path}"

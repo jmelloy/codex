@@ -3,46 +3,10 @@
 import time
 
 
-def setup_test_user(test_client):
-    """Register and login a test user."""
-    username = f"test_search_user_{int(time.time() * 1000)}"
-    email = f"{username}@example.com"
-    password = "testpass123"
-
-    test_client.post("/api/v1/users/register", json={"username": username, "email": email, "password": password})
-    login_response = test_client.post("/api/v1/users/token", data={"username": username, "password": password})
-    assert login_response.status_code == 200
-    token = login_response.json()["access_token"]
-    return {"Authorization": f"Bearer {token}"}, username
-
-
-def setup_workspace_and_notebook(test_client, headers, temp_workspace_dir):
-    """Create a workspace and notebook for testing."""
-    # Create workspace
-    ws_response = test_client.post(
-        "/api/v1/workspaces/",
-        json={"name": "Test Search Workspace", "path": temp_workspace_dir},
-        headers=headers,
-    )
-    assert ws_response.status_code == 200
-    workspace = ws_response.json()
-
-    # Create notebook using nested route
-    nb_response = test_client.post(
-        f"/api/v1/workspaces/{workspace['id']}/notebooks/",
-        json={"name": "Test Notebook"},
-        headers=headers,
-    )
-    assert nb_response.status_code == 200
-    notebook = nb_response.json()
-
-    return workspace, notebook
-
-
-def test_search_returns_results_structure(test_client, temp_workspace_dir):
+def test_search_returns_results_structure(test_client, auth_headers, workspace_and_notebook):
     """Test that search endpoint returns proper structure."""
-    headers, _ = setup_test_user(test_client)
-    workspace, notebook = setup_workspace_and_notebook(test_client, headers, temp_workspace_dir)
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
 
     # Perform search using nested route with workspace slug
     response = test_client.get(
@@ -61,10 +25,10 @@ def test_search_returns_results_structure(test_client, temp_workspace_dir):
     assert isinstance(data["results"], list)
 
 
-def test_search_with_empty_query(test_client, temp_workspace_dir):
+def test_search_with_empty_query(test_client, auth_headers, workspace_and_notebook):
     """Test search with empty query parameter."""
-    headers, _ = setup_test_user(test_client)
-    workspace, notebook = setup_workspace_and_notebook(test_client, headers, temp_workspace_dir)
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
 
     # Search with empty query (should still work, returning empty results)
     response = test_client.get(
@@ -75,9 +39,9 @@ def test_search_with_empty_query(test_client, temp_workspace_dir):
     assert response.status_code in [200, 422]  # 422 for validation error is also acceptable
 
 
-def test_search_nonexistent_workspace(test_client, temp_workspace_dir):
+def test_search_nonexistent_workspace(test_client, auth_headers):
     """Test search in a workspace that doesn't exist."""
-    headers, _ = setup_test_user(test_client)
+    headers = auth_headers[0]
 
     response = test_client.get(
         "/api/v1/workspaces/99999/search/?q=test",
@@ -87,14 +51,18 @@ def test_search_nonexistent_workspace(test_client, temp_workspace_dir):
     assert "Workspace not found" in response.json()["detail"]
 
 
-def test_search_other_users_workspace(test_client, temp_workspace_dir):
+def test_search_other_users_workspace(test_client, auth_headers, workspace_and_notebook):
     """Test that users cannot search in other users' workspaces."""
-    # Create first user and workspace
-    headers1, _ = setup_test_user(test_client)
-    workspace, _ = setup_workspace_and_notebook(test_client, headers1, temp_workspace_dir)
+    workspace, _ = workspace_and_notebook
 
     # Create second user
-    headers2, _ = setup_test_user(test_client)
+    username2 = f"test_search_user2_{int(time.time() * 1000)}"
+    test_client.post(
+        "/api/v1/users/register",
+        json={"username": username2, "email": f"{username2}@example.com", "password": "testpass123"},
+    )
+    login_response = test_client.post("/api/v1/users/token", data={"username": username2, "password": "testpass123"})
+    headers2 = {"Authorization": f"Bearer {login_response.json()['access_token']}"}
 
     # Try to search in first user's workspace
     response = test_client.get(
@@ -104,10 +72,10 @@ def test_search_other_users_workspace(test_client, temp_workspace_dir):
     assert response.status_code == 404
 
 
-def test_search_by_tags_returns_structure(test_client, temp_workspace_dir):
+def test_search_by_tags_returns_structure(test_client, auth_headers, workspace_and_notebook):
     """Test that tag search endpoint returns proper structure."""
-    headers, _ = setup_test_user(test_client)
-    workspace, notebook = setup_workspace_and_notebook(test_client, headers, temp_workspace_dir)
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
 
     # Perform tag search using nested route
     response = test_client.get(
@@ -126,10 +94,10 @@ def test_search_by_tags_returns_structure(test_client, temp_workspace_dir):
     assert isinstance(data["results"], list)
 
 
-def test_search_by_single_tag(test_client, temp_workspace_dir):
+def test_search_by_single_tag(test_client, auth_headers, workspace_and_notebook):
     """Test search with a single tag."""
-    headers, _ = setup_test_user(test_client)
-    workspace, notebook = setup_workspace_and_notebook(test_client, headers, temp_workspace_dir)
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
 
     response = test_client.get(
         f"/api/v1/workspaces/{workspace['slug']}/search/tags?tags=documentation",
@@ -140,10 +108,10 @@ def test_search_by_single_tag(test_client, temp_workspace_dir):
     assert data["tags"] == ["documentation"]
 
 
-def test_search_by_tags_strips_whitespace(test_client, temp_workspace_dir):
+def test_search_by_tags_strips_whitespace(test_client, auth_headers, workspace_and_notebook):
     """Test that tag search strips whitespace from tags."""
-    headers, _ = setup_test_user(test_client)
-    workspace, notebook = setup_workspace_and_notebook(test_client, headers, temp_workspace_dir)
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
 
     response = test_client.get(
         f"/api/v1/workspaces/{workspace['slug']}/search/tags?tags=  python  ,  testing  ",
@@ -154,9 +122,9 @@ def test_search_by_tags_strips_whitespace(test_client, temp_workspace_dir):
     assert data["tags"] == ["python", "testing"]
 
 
-def test_search_by_tags_nonexistent_workspace(test_client, temp_workspace_dir):
+def test_search_by_tags_nonexistent_workspace(test_client, auth_headers):
     """Test tag search in a workspace that doesn't exist."""
-    headers, _ = setup_test_user(test_client)
+    headers = auth_headers[0]
 
     response = test_client.get(
         "/api/v1/workspaces/99999/search/tags?tags=test",
@@ -175,9 +143,9 @@ def test_search_requires_authentication(test_client):
     assert response.status_code == 401
 
 
-def test_search_requires_workspace_id(test_client, temp_workspace_dir):
+def test_search_requires_workspace_id(test_client, auth_headers):
     """Test that search requires workspace parameter in path."""
-    headers, _ = setup_test_user(test_client)
+    headers = auth_headers[0]
 
     # Invalid workspace slug/id should return 404
     response = test_client.get(
@@ -187,10 +155,10 @@ def test_search_requires_workspace_id(test_client, temp_workspace_dir):
     assert response.status_code == 404
 
 
-def test_search_tags_requires_tags_parameter(test_client, temp_workspace_dir):
+def test_search_tags_requires_tags_parameter(test_client, auth_headers, workspace_and_notebook):
     """Test that tag search requires tags parameter."""
-    headers, _ = setup_test_user(test_client)
-    workspace, _ = setup_workspace_and_notebook(test_client, headers, temp_workspace_dir)
+    headers = auth_headers[0]
+    workspace, _ = workspace_and_notebook
 
     # Missing tags parameter
     response = test_client.get(

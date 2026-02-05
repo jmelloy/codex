@@ -4,6 +4,7 @@ import asyncio
 import os
 import shutil
 import tempfile
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -222,3 +223,50 @@ def cleanup_workspace_dirs():
         new_dirs = current_dirs - existing_dirs
         for new_dir in new_dirs:
             shutil.rmtree(new_dir, ignore_errors=True)
+
+
+@pytest.fixture
+def auth_headers(test_client):
+    """Register and login a test user, returning (headers, username)."""
+    username = f"test_user_{int(time.time() * 1000)}"
+    email = f"{username}@example.com"
+    password = "testpass123"
+
+    test_client.post("/api/v1/users/register", json={"username": username, "email": email, "password": password})
+    login_response = test_client.post("/api/v1/users/token", data={"username": username, "password": password})
+    assert login_response.status_code == 200
+    token = login_response.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}, username
+
+
+@pytest.fixture
+def create_workspace(test_client, auth_headers):
+    """Factory fixture to create a workspace. Returns a function that creates workspaces."""
+
+    def _create(name="Test Workspace", path=None):
+        headers = auth_headers[0]
+        json_data = {"name": name}
+        if path is not None:
+            json_data["path"] = path
+        ws_response = test_client.post("/api/v1/workspaces/", json=json_data, headers=headers)
+        assert ws_response.status_code == 200
+        return ws_response.json()
+
+    return _create
+
+
+@pytest.fixture
+def workspace_and_notebook(test_client, auth_headers, create_workspace):
+    """Create a workspace and notebook, returning (workspace, notebook)."""
+    workspace = create_workspace()
+    headers = auth_headers[0]
+
+    nb_response = test_client.post(
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/",
+        json={"name": "Test Notebook"},
+        headers=headers,
+    )
+    assert nb_response.status_code == 200
+    notebook = nb_response.json()
+
+    return workspace, notebook

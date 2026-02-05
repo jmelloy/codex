@@ -60,3 +60,9 @@
 .theme-blueprint .notebook-sidebar {
   background: color-mix(in srgb, var(--notebook-bg) 85%, white 15%);
 }
+
+/* Remove grid background from editor pages */
+.theme-blueprint.markdown-editor,
+.theme-blueprint.markdown-live-editor {
+  background-image: none;
+}

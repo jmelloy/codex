@@ -31,7 +31,7 @@ describe("Auth Service", () => {
         expect.any(URLSearchParams),
         expect.objectContaining({
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        })
+        }),
       )
       expect(result).toEqual(mockResponse)
 
@@ -135,12 +135,12 @@ describe("Auth Service", () => {
 
   describe("updateTheme", () => {
     it("updates user theme setting", async () => {
-      const mockUser = { id: 1, username: "testuser", theme_setting: "blueprint" }
+      const mockUser = { id: 1, username: "testuser", theme_setting: "cream" }
       ;(apiClient.patch as Mock).mockResolvedValue({ data: mockUser })
 
-      const result = await authService.updateTheme("blueprint")
+      const result = await authService.updateTheme("cream")
 
-      expect(apiClient.patch).toHaveBeenCalledWith("/api/v1/users/me/theme", { theme: "blueprint" })
+      expect(apiClient.patch).toHaveBeenCalledWith("/api/v1/users/me/theme", { theme: "cream" })
       expect(result).toEqual(mockUser)
     })
   })

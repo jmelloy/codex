@@ -260,3 +260,35 @@ async def test_test_connection_invalid_test_endpoint(loader, executor):
     assert result["success"] is False
     assert "not found" in result["message"].lower()
     assert "nonexistent_endpoint" in result["message"]
+
+
+@pytest.mark.asyncio
+async def test_execute_opengraph_endpoint(loader, executor):
+    """Test executing opengraph-unfurl endpoint."""
+    plugins = loader.load_all_plugins()
+    opengraph = loader.get_plugin("opengraph-unfurl")
+    
+    if not opengraph:
+        pytest.skip("opengraph-unfurl plugin not found")
+    
+    # Test with a mock HTML response
+    # We can't test with a real URL without network access
+    # But we can test the scraper directly
+    html = """
+    <html>
+    <head>
+        <title>Test Page</title>
+        <meta property="og:title" content="Test Title">
+        <meta property="og:description" content="Test Description">
+        <meta property="og:image" content="https://example.com/image.jpg">
+    </head>
+    <body></body>
+    </html>
+    """
+    
+    metadata = executor.opengraph_scraper._parse_og_tags(html)
+    
+    assert "title" in metadata
+    assert metadata["title"] == "Test Title"
+    assert metadata["description"] == "Test Description"
+    assert metadata["image"] == "https://example.com/image.jpg"

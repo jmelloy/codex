@@ -812,8 +812,9 @@ class NotebookFileHandler(FileSystemEventHandler):
                 # This is expected in some scenarios, so just log at debug level
                 logger.debug(f"Database table not found for {filepath}, likely during cleanup: {e}")
             else:
-                # Unexpected error - log at error level
+                # Unexpected error - log at error level and re-raise so caller can handle it
                 logger.error(f"Error updating metadata for {filepath}: {e}", exc_info=True)
+                raise
         finally:
             if session:
                 session.close()

@@ -45,11 +45,10 @@ jobs:
         run: docker image inspect codex-${{ matrix.service }}:test --format '{{.Size}}'
 
   integration-tests:
-    name: Integration Tests
+    name: Integration & Plugin Tests
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    needs: docker-build
 
     steps:
       - uses: actions/checkout@v6
@@ -97,44 +96,6 @@ jobs:
           BACKEND_URL: http://localhost:8765
           FRONTEND_URL: http://localhost:8065
 
-      - name: Show service logs on failure
-        if: failure()
-        run: docker compose logs --tail=100
-
-      - name: Stop services
-        if: always()
-        run: docker compose down -v
-
-  plugin-verification:
-    name: Verify Plugins
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    needs: docker-build
-
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Create data directory
-        run: mkdir -p data
-
-      - name: Start services with Docker Compose
-        run: |
-          docker compose up -d --build --wait --wait-timeout 120
-        env:
-          SECRET_KEY: ${{ env.SECRET_KEY }}
-
-      - name: Wait for backend health
-        run: |
-          for i in $(seq 1 30); do
-            if curl -sf http://localhost:8765/health > /dev/null 2>&1; then
-              echo "Backend is healthy"
-              break
-            fi
-            sleep 2
-          done
-          curl -sf http://localhost:8765/health || (docker compose logs backend && exit 1)
-
       - name: Run plugin verification tests
         run: |
           chmod +x tests/integration/test_plugins_verification.sh
@@ -144,7 +105,7 @@ jobs:
 
       - name: Show service logs on failure
         if: failure()
-        run: docker compose logs --tail=100
+        run: docker compose logs --tail=200
 
       - name: Stop services
         if: always()

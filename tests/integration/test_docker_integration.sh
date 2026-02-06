@@ -59,7 +59,7 @@ assert_json_field_exists() {
   local json="$2"
   local field="$3"
   local actual
-  actual=$(echo "$json" | python3 -c "import sys,json; d=json.load(sys.stdin); print('exists' if $field is not None else 'missing')" 2>/dev/null || echo "__PARSE_ERROR__")
+  actual=$(echo "$json" | python3 -c "import sys,json; d=json.load(sys.stdin); print('exists' if d$field is not None else 'missing')" 2>/dev/null || echo "__PARSE_ERROR__")
   if [ "$actual" = "exists" ]; then
     pass_test "$description"
   else
@@ -137,7 +137,7 @@ BODY=$(curl -s -w "\n%{http_code}" -X POST "${BACKEND_URL}/api/v1/users/register
   -d "{\"username\":\"${TEST_USER}\",\"password\":\"${TEST_PASS}\",\"email\":\"${TEST_EMAIL}\"}")
 HTTP_CODE=$(echo "$BODY" | tail -1)
 RESP_BODY=$(echo "$BODY" | sed '$d')
-assert_status "POST /api/v1/users/register creates user" 200 "$HTTP_CODE"
+assert_status "POST /api/v1/users/register creates user" 201 "$HTTP_CODE"
 assert_json_field "Registration returns username" "$RESP_BODY" "['username']" "$TEST_USER"
 
 BODY=$(curl -s -w "\n%{http_code}" -X POST "${BACKEND_URL}/api/v1/users/token" \
@@ -245,12 +245,16 @@ echo ""
 echo "=== File Operations ==="
 
 # Create a file in the notebook
-FILE_CONTENT="---\ntitle: Integration Test File\ntags: [test, integration]\n---\n\n# Hello from integration tests\n\nThis file was created by the Docker integration test suite."
+FILE_JSON=$(python3 -c "
+import json
+content = '---\ntitle: Integration Test File\ntags: [test, integration]\n---\n\n# Hello from integration tests\n\nThis file was created by the Docker integration test suite.'
+print(json.dumps({'path': 'test-file.md', 'content': content}))
+")
 BODY=$(curl -s -w "\n%{http_code}" -X POST \
-  "${BACKEND_URL}/api/v1/workspaces/${WORKSPACE_ID}/notebooks/${NOTEBOOK_ID}/files/?path=test-file.md" \
+  "${BACKEND_URL}/api/v1/workspaces/${WORKSPACE_ID}/notebooks/${NOTEBOOK_ID}/files/" \
   -H "$AUTH_HEADER" \
-  -H "Content-Type: text/markdown" \
-  -d "$FILE_CONTENT")
+  -H "Content-Type: application/json" \
+  -d "$FILE_JSON")
 HTTP_CODE=$(echo "$BODY" | tail -1)
 RESP_BODY=$(echo "$BODY" | sed '$d')
 assert_status "POST .../files/ creates file" 200 "$HTTP_CODE"
@@ -281,7 +285,7 @@ echo ""
 echo "=== Task Queue ==="
 
 RESP=$(curl -s -o /dev/null -w "%{http_code}" -H "$AUTH_HEADER" \
-  "${BACKEND_URL}/api/v1/tasks/")
+  "${BACKEND_URL}/api/v1/tasks/?workspace_id=${WORKSPACE_ID}")
 assert_status "GET /api/v1/tasks/ returns 200" 200 "$RESP"
 
 # --- Query API ---
@@ -290,15 +294,10 @@ echo ""
 echo "=== Query API ==="
 
 RESP=$(curl -s -o /dev/null -w "%{http_code}" -H "$AUTH_HEADER" \
-  -X POST "${BACKEND_URL}/api/v1/query/" \
+  -X POST "${BACKEND_URL}/api/v1/query/?workspace_id=${WORKSPACE_ID}" \
   -H "Content-Type: application/json" \
-  -d "{\"workspace_id\":\"${WORKSPACE_ID}\"}")
-# Query endpoint might return 200 or 422 depending on required params
-if [ "$RESP" -eq 200 ] || [ "$RESP" -eq 422 ]; then
-  pass_test "POST /api/v1/query/ responds (status $RESP)"
-else
-  fail_test "POST /api/v1/query/ responds" "expected 200 or 422, got $RESP"
-fi
+  -d "{}")
+assert_status "POST /api/v1/query/ returns 200" 200 "$RESP"
 
 # --- Cross-Origin / CORS Headers ---
 

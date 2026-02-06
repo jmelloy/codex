@@ -56,10 +56,21 @@
                 </div>
               </div>
 
+              <!-- Agents Section -->
+              <div class="nav-section">
+                <button
+                  @click="navigateTo({ type: 'agents', workspaceId: workspaceStore.currentWorkspace?.id })"
+                  :class="{ active: activeSection?.type === 'agents' }"
+                  class="nav-item nav-item-top">
+                  <span class="nav-icon">🤖</span>
+                  <span class="nav-label">AI Agents</span>
+                </button>
+              </div>
+
               <!-- Integrations Section -->
               <div class="nav-section">
-                <button 
-                  @click="navigateTo({ type: 'integrations' })" 
+                <button
+                  @click="navigateTo({ type: 'integrations' })"
                   :class="{ active: activeSection?.type === 'integrations' }"
                   class="nav-item nav-item-top">
                   <span class="nav-icon">🔌</span>
@@ -79,6 +90,10 @@
               v-else-if="activeSection?.type === 'notebook' && activeSection.workspaceId && activeSection.notebookId" 
               :workspaceId="activeSection.workspaceId"
               :notebookId="activeSection.notebookId" />
+            <AgentsPanel
+              v-else-if="activeSection?.type === 'agents' && activeSection.workspaceId"
+              :workspaceId="activeSection.workspaceId"
+              @open-chat="handleOpenAgentChat" />
             <IntegrationsPanel v-else-if="activeSection?.type === 'integrations'" />
             <div v-else class="empty-panel">Select a settings category</div>
           </main>
@@ -95,9 +110,12 @@ import UserSettingsPanel from './settings/UserSettingsPanel.vue'
 import WorkspaceSettingsPanel from './settings/WorkspaceSettingsPanel.vue'
 import NotebookSettingsPanel from './settings/NotebookSettingsPanel.vue'
 import IntegrationsPanel from './settings/IntegrationsPanel.vue'
+import AgentsPanel from './settings/AgentsPanel.vue'
+import { useAgentStore } from '../stores/agent'
+import type { Agent } from '../services/agent'
 
 interface NavigationTarget {
-  type: 'user' | 'workspace' | 'notebook' | 'integrations'
+  type: 'user' | 'workspace' | 'notebook' | 'integrations' | 'agents'
   workspaceId?: number
   notebookId?: number
 }
@@ -109,7 +127,15 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
+  'open-agent-chat': [agent: Agent]
 }>()
+
+const agentStore = useAgentStore()
+
+function handleOpenAgentChat(agent: Agent) {
+  agentStore.openChat(agent)
+  closeDialog()
+}
 
 const workspaceStore = useWorkspaceStore()
 const activeSection = ref<NavigationTarget | null>(null)

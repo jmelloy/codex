@@ -408,6 +408,31 @@
             }}</span>
           </div>
           <div class="flex items-center gap-1">
+            <button
+              v-if="workspaceStore.currentWorkspace"
+              @click="agentStore.openChat()"
+              class="sidebar-icon-button"
+              title="AI Agent"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M12 8V4H8"></path>
+                <rect width="16" height="12" x="4" y="8" rx="2"></rect>
+                <path d="M2 14h2"></path>
+                <path d="M20 14h2"></path>
+                <path d="M15 13v2"></path>
+                <path d="M9 13v2"></path>
+              </svg>
+            </button>
             <button @click="goToSettings" class="sidebar-icon-button" title="Settings">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -851,7 +876,21 @@
   <CreateViewModal v-model="showCreateView" @create="handleCreateView" />
 
   <!-- Settings Dialog -->
-  <SettingsDialog v-model="showSettingsDialog" />
+  <SettingsDialog v-model="showSettingsDialog" @open-agent-chat="handleOpenAgentChat" />
+
+  <!-- Agent Chat Panel (floating) -->
+  <Teleport to="body">
+    <div v-if="agentStore.chatOpen" class="agent-chat-overlay">
+      <div class="agent-chat-panel">
+        <AgentChat
+          v-if="workspaceStore.currentWorkspace"
+          :workspace-id="workspaceStore.currentWorkspace.id"
+          :initial-notebook-path="currentNotebookPath"
+          @close="agentStore.closeChat()"
+        />
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -876,6 +915,9 @@ import FileTreeItem from "../components/FileTreeItem.vue"
 import CreateViewModal from "../components/CreateViewModal.vue"
 import TemplateSelector from "../components/TemplateSelector.vue"
 import SettingsDialog from "../components/SettingsDialog.vue"
+import AgentChat from "../components/agent/AgentChat.vue"
+import { useAgentStore } from "../stores/agent"
+import type { Agent } from "../services/agent"
 import { showToast } from "../utils/toast"
 import type { FileTreeNode } from "../utils/fileTree"
 
@@ -883,6 +925,7 @@ const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
 const workspaceStore = useWorkspaceStore()
+const agentStore = useAgentStore()
 
 // Modal state
 const showCreateWorkspace = ref(false)
@@ -1791,6 +1834,17 @@ function clearSearch() {
   searchQuery.value = ""
   searchResults.value = []
 }
+
+// Agent chat
+const currentNotebookPath = computed(() => {
+  const notebook = workspaceStore.currentNotebook
+  if (!notebook) return ""
+  return notebook.path || notebook.name || ""
+})
+
+function handleOpenAgentChat(agent: Agent) {
+  agentStore.openChat(agent)
+}
 </script>
 
 <style scoped>
@@ -1934,5 +1988,42 @@ function clearSearch() {
 
 .search-result-item:hover {
   background: color-mix(in srgb, var(--notebook-text) var(--hover-opacity), transparent);
+}
+</style>
+
+<style>
+/* Agent chat overlay - unscoped so Teleport works */
+.agent-chat-overlay {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  z-index: 9998;
+}
+
+.agent-chat-panel {
+  width: 420px;
+  height: 600px;
+  max-height: calc(100vh - 2rem);
+  max-width: calc(100vw - 2rem);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--color-border-medium);
+}
+
+@media (max-width: 768px) {
+  .agent-chat-overlay {
+    inset: 0;
+    bottom: 0;
+    right: 0;
+  }
+
+  .agent-chat-panel {
+    width: 100%;
+    height: 100%;
+    max-height: 100vh;
+    max-width: 100vw;
+    border-radius: 0;
+  }
 }
 </style>

@@ -9,165 +9,111 @@ import {
 
 describe("contentType utilities", () => {
   describe("getDisplayType", () => {
-    it("returns 'view' for codex view files", () => {
-      expect(getDisplayType("application/x-codex-view")).toBe("view")
-    })
-
-    describe("image types", () => {
-      it("returns 'image' for image MIME types", () => {
-        expect(getDisplayType("image/jpeg")).toBe("image")
-        expect(getDisplayType("image/png")).toBe("image")
-        expect(getDisplayType("image/gif")).toBe("image")
-        expect(getDisplayType("image/webp")).toBe("image")
-        expect(getDisplayType("image/svg+xml")).toBe("image")
-      })
-    })
-
-    describe("video types", () => {
-      it("returns 'video' for video MIME types", () => {
-        expect(getDisplayType("video/mp4")).toBe("video")
-        expect(getDisplayType("video/webm")).toBe("video")
-        expect(getDisplayType("video/ogg")).toBe("video")
-      })
-    })
-
-    describe("audio types", () => {
-      it("returns 'audio' for audio MIME types", () => {
-        expect(getDisplayType("audio/mpeg")).toBe("audio")
-        expect(getDisplayType("audio/wav")).toBe("audio")
-        expect(getDisplayType("audio/ogg")).toBe("audio")
-      })
-    })
-
-    describe("text types", () => {
-      it("returns 'markdown' for markdown content", () => {
-        expect(getDisplayType("text/markdown")).toBe("markdown")
-        expect(getDisplayType("markdown")).toBe("markdown")
-      })
-
-      it("returns 'html' for HTML content", () => {
-        expect(getDisplayType("text/html")).toBe("html")
-      })
-
-      it("returns 'json' for JSON content", () => {
-        expect(getDisplayType("application/json")).toBe("json")
-      })
-
-      it("returns 'xml' for XML content", () => {
-        expect(getDisplayType("application/xml")).toBe("xml")
-        expect(getDisplayType("text/xml")).toBe("xml")
-      })
-
-      it("returns 'pdf' for PDF content", () => {
-        expect(getDisplayType("application/pdf")).toBe("pdf")
-      })
-    })
-
-    describe("code types", () => {
-      it("returns 'code' for code file types", () => {
-        expect(getDisplayType("text/x-python")).toBe("code")
-        expect(getDisplayType("text/x-java")).toBe("code")
-        expect(getDisplayType("text/plain")).toBe("code")
-        expect(getDisplayType("application/javascript")).toBe("code")
-        expect(getDisplayType("application/typescript")).toBe("code")
-        expect(getDisplayType("text/css")).toBe("code")
-      })
-
-      it("returns 'code' for language-specific types", () => {
-        expect(getDisplayType("text/python")).toBe("code")
-        expect(getDisplayType("application/x-java")).toBe("code")
-        expect(getDisplayType("text/x-c++")).toBe("code")
-      })
-    })
-
-    describe("generic text types", () => {
-      it("returns 'text' for other text types", () => {
-        expect(getDisplayType("text/csv")).toBe("text")
-        expect(getDisplayType("text/rtf")).toBe("text")
-      })
-    })
-
-    describe("binary types", () => {
-      it("returns 'binary' for unknown types", () => {
-        expect(getDisplayType("application/octet-stream")).toBe("binary")
-        expect(getDisplayType("application/zip")).toBe("binary")
-        expect(getDisplayType("unknown/type")).toBe("binary")
-      })
+    it.each([
+      ["application/x-codex-view", "view"],
+      // images
+      ["image/jpeg", "image"],
+      ["image/png", "image"],
+      ["image/gif", "image"],
+      ["image/webp", "image"],
+      ["image/svg+xml", "image"],
+      // video
+      ["video/mp4", "video"],
+      ["video/webm", "video"],
+      ["video/ogg", "video"],
+      // audio
+      ["audio/mpeg", "audio"],
+      ["audio/wav", "audio"],
+      ["audio/ogg", "audio"],
+      // text/structured
+      ["text/markdown", "markdown"],
+      ["markdown", "markdown"],
+      ["text/html", "html"],
+      ["application/json", "json"],
+      ["application/xml", "xml"],
+      ["text/xml", "xml"],
+      ["application/pdf", "pdf"],
+      // code
+      ["text/x-python", "code"],
+      ["text/x-java", "code"],
+      ["text/plain", "code"],
+      ["application/javascript", "code"],
+      ["application/typescript", "code"],
+      ["text/css", "code"],
+      ["text/python", "code"],
+      ["application/x-java", "code"],
+      ["text/x-c++", "code"],
+      // generic text
+      ["text/csv", "text"],
+      ["text/rtf", "text"],
+      // binary
+      ["application/octet-stream", "binary"],
+      ["application/zip", "binary"],
+      ["unknown/type", "binary"],
+    ])("returns '%s' → '%s'", (mime, expected) => {
+      expect(getDisplayType(mime)).toBe(expected)
     })
   })
 
   describe("isTextType", () => {
-    it("returns true for text/* types", () => {
-      expect(isTextType("text/plain")).toBe(true)
-      expect(isTextType("text/markdown")).toBe(true)
-      expect(isTextType("text/html")).toBe(true)
-      expect(isTextType("text/css")).toBe(true)
-    })
-
-    it("returns true for JSON", () => {
-      expect(isTextType("application/json")).toBe(true)
-    })
-
-    it("returns true for XML", () => {
-      expect(isTextType("application/xml")).toBe(true)
-    })
-
-    it("returns true for codex view files", () => {
-      expect(isTextType("application/x-codex-view")).toBe(true)
-    })
-
-    it("returns false for non-text types", () => {
-      expect(isTextType("image/png")).toBe(false)
-      expect(isTextType("video/mp4")).toBe(false)
-      expect(isTextType("audio/mpeg")).toBe(false)
-      expect(isTextType("application/pdf")).toBe(false)
-      expect(isTextType("application/zip")).toBe(false)
+    it.each([
+      ["text/plain", true],
+      ["text/markdown", true],
+      ["text/html", true],
+      ["text/css", true],
+      ["application/json", true],
+      ["application/xml", true],
+      ["application/x-codex-view", true],
+      ["image/png", false],
+      ["video/mp4", false],
+      ["audio/mpeg", false],
+      ["application/pdf", false],
+      ["application/zip", false],
+    ])("isTextType('%s') → %s", (mime, expected) => {
+      expect(isTextType(mime)).toBe(expected)
     })
   })
 
   describe("isImageType", () => {
-    it("returns true for image types", () => {
-      expect(isImageType("image/jpeg")).toBe(true)
-      expect(isImageType("image/png")).toBe(true)
-      expect(isImageType("image/gif")).toBe(true)
-      expect(isImageType("image/webp")).toBe(true)
-      expect(isImageType("image/svg+xml")).toBe(true)
-    })
-
-    it("returns false for non-image types", () => {
-      expect(isImageType("text/plain")).toBe(false)
-      expect(isImageType("video/mp4")).toBe(false)
-      expect(isImageType("application/pdf")).toBe(false)
+    it.each([
+      ["image/jpeg", true],
+      ["image/png", true],
+      ["image/gif", true],
+      ["image/webp", true],
+      ["image/svg+xml", true],
+      ["text/plain", false],
+      ["video/mp4", false],
+      ["application/pdf", false],
+    ])("isImageType('%s') → %s", (mime, expected) => {
+      expect(isImageType(mime)).toBe(expected)
     })
   })
 
   describe("isVideoType", () => {
-    it("returns true for video types", () => {
-      expect(isVideoType("video/mp4")).toBe(true)
-      expect(isVideoType("video/webm")).toBe(true)
-      expect(isVideoType("video/ogg")).toBe(true)
-      expect(isVideoType("video/quicktime")).toBe(true)
-    })
-
-    it("returns false for non-video types", () => {
-      expect(isVideoType("text/plain")).toBe(false)
-      expect(isVideoType("image/png")).toBe(false)
-      expect(isVideoType("audio/mpeg")).toBe(false)
+    it.each([
+      ["video/mp4", true],
+      ["video/webm", true],
+      ["video/ogg", true],
+      ["video/quicktime", true],
+      ["text/plain", false],
+      ["image/png", false],
+      ["audio/mpeg", false],
+    ])("isVideoType('%s') → %s", (mime, expected) => {
+      expect(isVideoType(mime)).toBe(expected)
     })
   })
 
   describe("isAudioType", () => {
-    it("returns true for audio types", () => {
-      expect(isAudioType("audio/mpeg")).toBe(true)
-      expect(isAudioType("audio/wav")).toBe(true)
-      expect(isAudioType("audio/ogg")).toBe(true)
-      expect(isAudioType("audio/flac")).toBe(true)
-    })
-
-    it("returns false for non-audio types", () => {
-      expect(isAudioType("text/plain")).toBe(false)
-      expect(isAudioType("image/png")).toBe(false)
-      expect(isAudioType("video/mp4")).toBe(false)
+    it.each([
+      ["audio/mpeg", true],
+      ["audio/wav", true],
+      ["audio/ogg", true],
+      ["audio/flac", true],
+      ["text/plain", false],
+      ["image/png", false],
+      ["video/mp4", false],
+    ])("isAudioType('%s') → %s", (mime, expected) => {
+      expect(isAudioType(mime)).toBe(expected)
     })
   })
 })

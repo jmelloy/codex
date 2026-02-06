@@ -4,7 +4,6 @@ import { createRouter, createWebHistory } from "vue-router"
 import { setActivePinia, createPinia } from "pinia"
 import RegisterView from "../../views/RegisterView.vue"
 
-// Create a mock router for testing
 const router = createRouter({
   history: createWebHistory(),
   routes: [
@@ -14,126 +13,55 @@ const router = createRouter({
   ],
 })
 
+function mountRegister() {
+  return mount(RegisterView, { global: { plugins: [router] } })
+}
+
 describe("RegisterView", () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     localStorage.clear()
   })
 
-  it("renders registration form", () => {
-    const wrapper = mount(RegisterView, {
-      global: {
-        plugins: [router],
-      },
-    })
+  it("renders registration form with all required elements", () => {
+    const wrapper = mountRegister()
 
     expect(wrapper.find("h1").text()).toBe("Register")
-    expect(wrapper.find("#username").exists()).toBe(true)
-    expect(wrapper.find("#email").exists()).toBe(true)
-    expect(wrapper.find("#password").exists()).toBe(true)
-    expect(wrapper.find("#confirmPassword").exists()).toBe(true)
+    for (const id of ["#username", "#email", "#password", "#confirmPassword"]) {
+      expect(wrapper.find(id).exists()).toBe(true)
+      expect(wrapper.find(id).attributes("required")).toBeDefined()
+    }
+    expect(wrapper.find('button[type="submit"]').text()).toBe("Register")
+    expect(wrapper.find(".login-link a").attributes("href")).toBe("/login")
   })
 
-  it("displays all required input fields", () => {
-    const wrapper = mount(RegisterView, {
-      global: {
-        plugins: [router],
-      },
-    })
-
-    const usernameInput = wrapper.find("#username")
-    const emailInput = wrapper.find("#email")
-    const passwordInput = wrapper.find("#password")
-    const confirmPasswordInput = wrapper.find("#confirmPassword")
-
-    expect(usernameInput.attributes("required")).toBeDefined()
-    expect(emailInput.attributes("required")).toBeDefined()
-    expect(passwordInput.attributes("required")).toBeDefined()
-    expect(confirmPasswordInput.attributes("required")).toBeDefined()
-  })
-
-  it("displays register button", () => {
-    const wrapper = mount(RegisterView, {
-      global: {
-        plugins: [router],
-      },
-    })
-
-    const button = wrapper.find('button[type="submit"]')
-    expect(button.exists()).toBe(true)
-    expect(button.text()).toBe("Register")
-  })
-
-  it("displays link to login page", () => {
-    const wrapper = mount(RegisterView, {
-      global: {
-        plugins: [router],
-      },
-    })
-
-    const loginLink = wrapper.find(".login-link a")
-    expect(loginLink.exists()).toBe(true)
-    expect(loginLink.attributes("href")).toBe("/login")
-  })
-
-  it("binds form inputs to component state", async () => {
-    const wrapper = mount(RegisterView, {
-      global: {
-        plugins: [router],
-      },
-    })
-
-    const usernameInput = wrapper.find("#username")
-    const emailInput = wrapper.find("#email")
-    const passwordInput = wrapper.find("#password")
-    const confirmPasswordInput = wrapper.find("#confirmPassword")
-
-    await usernameInput.setValue("testuser")
-    await emailInput.setValue("test@example.com")
-    await passwordInput.setValue("password123")
-    await confirmPasswordInput.setValue("password123")
-
-    expect(usernameInput.element.value).toBe("testuser")
-    expect(emailInput.element.value).toBe("test@example.com")
-    expect(passwordInput.element.value).toBe("password123")
-    expect(confirmPasswordInput.element.value).toBe("password123")
-  })
-
-  it("has correct input types", () => {
-    const wrapper = mount(RegisterView, {
-      global: {
-        plugins: [router],
-      },
-    })
+  it("has correct input types and validation constraints", () => {
+    const wrapper = mountRegister()
 
     expect(wrapper.find("#username").attributes("type")).toBe("text")
     expect(wrapper.find("#email").attributes("type")).toBe("email")
     expect(wrapper.find("#password").attributes("type")).toBe("password")
     expect(wrapper.find("#confirmPassword").attributes("type")).toBe("password")
+    expect(wrapper.find("#username").attributes("minlength")).toBe("3")
+    expect(wrapper.find("#username").attributes("maxlength")).toBe("50")
+    expect(wrapper.find("#password").attributes("minlength")).toBe("8")
   })
 
-  it("has validation constraints on inputs", () => {
-    const wrapper = mount(RegisterView, {
-      global: {
-        plugins: [router],
-      },
-    })
+  it("binds form inputs to component state via v-model", async () => {
+    const wrapper = mountRegister()
 
-    const usernameInput = wrapper.find("#username")
-    const passwordInput = wrapper.find("#password")
+    await wrapper.find("#username").setValue("testuser")
+    await wrapper.find("#email").setValue("test@example.com")
+    await wrapper.find("#password").setValue("password123")
+    await wrapper.find("#confirmPassword").setValue("password123")
 
-    expect(usernameInput.attributes("minlength")).toBe("3")
-    expect(usernameInput.attributes("maxlength")).toBe("50")
-    expect(passwordInput.attributes("minlength")).toBe("8")
+    expect(wrapper.find("#username").element.value).toBe("testuser")
+    expect(wrapper.find("#email").element.value).toBe("test@example.com")
+    expect(wrapper.find("#password").element.value).toBe("password123")
+    expect(wrapper.find("#confirmPassword").element.value).toBe("password123")
   })
 
   it("does not display error message initially", () => {
-    const wrapper = mount(RegisterView, {
-      global: {
-        plugins: [router],
-      },
-    })
-
-    expect(wrapper.find(".error-message").exists()).toBe(false)
+    expect(mountRegister().find(".error-message").exists()).toBe(false)
   })
 })

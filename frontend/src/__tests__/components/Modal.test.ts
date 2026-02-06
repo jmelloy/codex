@@ -1,245 +1,97 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest"
+import { describe, it, expect, afterEach } from "vitest"
 import { mount } from "@vue/test-utils"
 import Modal from "../../components/Modal.vue"
 
+let wrapper: any
+
+function mountModal(props = {}, slots = {}) {
+  wrapper = mount(Modal, {
+    props: { modelValue: true, title: "Test Modal", ...props },
+    slots: { default: "<p>Modal content</p>", ...slots },
+    attachTo: document.body,
+  })
+  return wrapper
+}
+
+afterEach(() => {
+  wrapper?.unmount()
+  document.querySelector(".modal-backdrop")?.remove()
+})
+
 describe("Modal", () => {
-  let wrapper: any
-
-  beforeEach(() => {
-    // Create a target element for the teleport
-    const el = document.createElement("div")
-    el.id = "modal-root"
-    document.body.appendChild(el)
-  })
-
-  afterEach(() => {
-    // Clean up
-    if (wrapper) {
-      wrapper.unmount()
-    }
-    const modalRoot = document.getElementById("modal-root")
-    if (modalRoot) {
-      document.body.removeChild(modalRoot)
-    }
-    // Clean up any teleported content
-    const backdrop = document.querySelector(".modal-backdrop")
-    if (backdrop) {
-      backdrop.remove()
-    }
-  })
-
-  it("renders when modelValue is true", () => {
-    wrapper = mount(Modal, {
-      props: {
-        modelValue: true,
-      },
-      attachTo: document.body,
-    })
-
+  it("renders when modelValue is true, not when false", () => {
+    mountModal()
     expect(document.querySelector(".modal-backdrop")).toBeTruthy()
-  })
 
-  it("does not render when modelValue is false", () => {
-    wrapper = mount(Modal, {
-      props: {
-        modelValue: false,
-      },
-      attachTo: document.body,
-    })
-
+    wrapper.unmount()
+    mountModal({ modelValue: false })
     expect(document.querySelector(".modal-backdrop")).toBeFalsy()
   })
 
-  it("displays title when provided", () => {
-    wrapper = mount(Modal, {
-      props: {
-        modelValue: true,
-        title: "Test Modal Title",
-      },
-      attachTo: document.body,
-    })
-
-    const heading = document.querySelector("h3")
-    expect(heading).toBeTruthy()
-    expect(heading?.textContent).toBe("Test Modal Title")
+  it("displays title and slot content", () => {
+    mountModal({ title: "Custom Title" })
+    expect(document.querySelector("h3")?.textContent).toBe("Custom Title")
+    expect(document.querySelector(".modal-content")?.innerHTML).toContain("Modal content")
   })
 
-  it("does not display title when not provided", () => {
-    wrapper = mount(Modal, {
-      props: {
-        modelValue: true,
-      },
-      attachTo: document.body,
-    })
-
-    const heading = document.querySelector("h3")
-    expect(heading).toBeFalsy()
+  it("hides title when not provided", () => {
+    mountModal({ title: undefined })
+    expect(document.querySelector("h3")).toBeFalsy()
   })
 
-  it("renders slot content", () => {
-    wrapper = mount(Modal, {
-      props: {
-        modelValue: true,
-      },
-      slots: {
-        default: "<p>Modal content</p>",
-      },
-      attachTo: document.body,
-    })
-
-    const modalContent = document.querySelector(".modal-content")
-    expect(modalContent?.innerHTML).toContain("Modal content")
-  })
-
-  it("displays custom confirm text", () => {
-    wrapper = mount(Modal, {
-      props: {
-        modelValue: true,
-        confirmText: "Save Changes",
-      },
-      attachTo: document.body,
-    })
-
-    const confirmButton = document.querySelector(".btn-primary")
-    expect(confirmButton?.textContent).toBe("Save Changes")
-  })
-
-  it("displays custom cancel text", () => {
-    wrapper = mount(Modal, {
-      props: {
-        modelValue: true,
-        cancelText: "Go Back",
-      },
-      attachTo: document.body,
-    })
-
+  it("displays custom confirm and cancel text, defaults correctly", () => {
+    mountModal({ confirmText: "Save", cancelText: "Go Back" })
+    expect(document.querySelector(".btn-primary")?.textContent).toBe("Save")
     const buttons = document.querySelectorAll("button")
     expect(buttons[0]?.textContent).toBe("Go Back")
+
+    wrapper.unmount()
+    mountModal()
+    const defaultButtons = document.querySelectorAll("button")
+    expect(defaultButtons[0]?.textContent).toBe("Cancel")
+    expect(defaultButtons[1]?.textContent).toBe("Confirm")
   })
 
-  it("displays default confirm and cancel text", () => {
-    wrapper = mount(Modal, {
-      props: {
-        modelValue: true,
-      },
-      attachTo: document.body,
-    })
+  it("hides actions when hideActions is true, shows by default", () => {
+    mountModal({ hideActions: true })
+    expect(document.querySelector(".modal-actions")).toBeFalsy()
 
-    const buttons = document.querySelectorAll("button")
-    expect(buttons[0]?.textContent).toBe("Cancel")
-    expect(buttons[1]?.textContent).toBe("Confirm")
+    wrapper.unmount()
+    mountModal()
+    expect(document.querySelector(".modal-actions")).toBeTruthy()
   })
 
-  it("hides actions when hideActions is true", () => {
-    wrapper = mount(Modal, {
-      props: {
-        modelValue: true,
-        hideActions: true,
-      },
-      attachTo: document.body,
-    })
-
-    const actions = document.querySelector(".modal-actions")
-    expect(actions).toBeFalsy()
-  })
-
-  it("shows actions by default", () => {
-    wrapper = mount(Modal, {
-      props: {
-        modelValue: true,
-      },
-      attachTo: document.body,
-    })
-
-    const actions = document.querySelector(".modal-actions")
-    expect(actions).toBeTruthy()
-  })
-
-  it("emits update:modelValue and cancel when clicking outside modal", async () => {
-    wrapper = mount(Modal, {
-      props: {
-        modelValue: true,
-      },
-      attachTo: document.body,
-    })
-
-    const backdrop = document.querySelector(".modal-backdrop") as HTMLElement
-    backdrop.click()
-
+  it("emits close on backdrop click", async () => {
+    mountModal()
+    ;(document.querySelector(".modal-backdrop") as HTMLElement).click()
     await wrapper.vm.$nextTick()
 
-    expect(wrapper.emitted("update:modelValue")).toBeTruthy()
-    expect(wrapper.emitted("update:modelValue")![0]).toEqual([false])
+    expect(wrapper.emitted("update:modelValue")?.[0]).toEqual([false])
     expect(wrapper.emitted("cancel")).toBeTruthy()
   })
 
-  it("emits update:modelValue and cancel when clicking cancel button", async () => {
-    wrapper = mount(Modal, {
-      props: {
-        modelValue: true,
-      },
-      attachTo: document.body,
-    })
-
-    const buttons = document.querySelectorAll("button")
-    ;(buttons[0] as HTMLElement).click()
-
+  it("emits close on cancel button click", async () => {
+    mountModal()
+    ;(document.querySelectorAll("button")[0] as HTMLElement).click()
     await wrapper.vm.$nextTick()
 
-    expect(wrapper.emitted("update:modelValue")).toBeTruthy()
-    expect(wrapper.emitted("update:modelValue")![0]).toEqual([false])
+    expect(wrapper.emitted("update:modelValue")?.[0]).toEqual([false])
     expect(wrapper.emitted("cancel")).toBeTruthy()
   })
 
-  it("emits confirm when clicking confirm button", async () => {
-    wrapper = mount(Modal, {
-      props: {
-        modelValue: true,
-      },
-      attachTo: document.body,
-    })
-
-    const confirmButton = document.querySelector(".btn-primary") as HTMLElement
-    confirmButton.click()
-
+  it("emits confirm on confirm button click", async () => {
+    mountModal()
+    ;(document.querySelector(".btn-primary") as HTMLElement).click()
     await wrapper.vm.$nextTick()
 
     expect(wrapper.emitted("confirm")).toBeTruthy()
   })
 
-  it("does not emit update:modelValue when clicking confirm button", async () => {
-    wrapper = mount(Modal, {
-      props: {
-        modelValue: true,
-      },
-      attachTo: document.body,
-    })
-
-    const confirmButton = document.querySelector(".btn-primary") as HTMLElement
-    confirmButton.click()
-
+  it("does not close when clicking modal content", async () => {
+    mountModal()
+    ;(document.querySelector(".modal-content") as HTMLElement).click()
     await wrapper.vm.$nextTick()
 
-    // Should only emit confirm, not update:modelValue
-    // Parent component should close modal after handling confirm
-    expect(wrapper.emitted("confirm")).toBeTruthy()
-    expect(wrapper.emitted("update:modelValue")).toBeFalsy()
-  })
-
-  it("does not close modal when clicking inside modal content", async () => {
-    wrapper = mount(Modal, {
-      props: {
-        modelValue: true,
-      },
-      attachTo: document.body,
-    })
-
-    const modalContent = document.querySelector(".modal-content") as HTMLElement
-    modalContent.click()
-
-    await wrapper.vm.$nextTick()
-
-    // Should not emit update:modelValue when clicking inside content
     expect(wrapper.emitted("update:modelValue")).toBeFalsy()
   })
 })

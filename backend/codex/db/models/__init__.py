@@ -26,6 +26,10 @@ from .notebook import (
 
 # Re-export system models
 from .system import (
+    Agent,
+    AgentActionLog,
+    AgentCredential,
+    AgentSession,
     IntegrationArtifact,
     Notebook,
     NotebookPluginConfig,
@@ -54,6 +58,11 @@ __all__ = [
     "PluginSecret",
     "PluginAPILog",
     "IntegrationArtifact",
+    # Agent models
+    "Agent",
+    "AgentCredential",
+    "AgentSession",
+    "AgentActionLog",
     # Notebook models
     "FileMetadata",
     "Tag",

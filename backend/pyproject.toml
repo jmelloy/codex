@@ -2,7 +2,7 @@
 name = "codex"
 version = "0.1.0"
 description = "A hierarchical digital laboratory journal system for tracking experiments, iterations, and investigations"
-requires-python = ">=3.12"
+requires-python = ">=3.11"
 license = {text = "MIT"}
 authors = [
     {name = "Jeffrey Melloy", email = "jmelloy@gmail.com"}
@@ -27,6 +27,8 @@ dependencies = [
     "python-ulid[pydantic]>=3.1.0",
     "pillow-heif>=1.1.1",
     "httpx>=0.27.0",
+    "litellm>=1.30.0",
+    "cryptography>=42.0.0",
 ]
 
 [project.optional-dependencies]

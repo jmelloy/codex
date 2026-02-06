@@ -2,8 +2,9 @@
 
 **Author:** Claude
 **Date:** 2026-01-30
-**Status:** Draft
+**Status:** Phase 1 & 2 Backend Complete
 **Reviewers:** TBD
+**Last Updated:** 2026-02-06
 
 ## Overview
 
@@ -414,146 +415,70 @@ class ToolRouter:
         # ...
 ```
 
-#### 4. Provider Adapter
+#### 4. Provider Adapter (LiteLLM)
 
-Abstracts AI model providers behind a common interface:
+> **Implementation Note (2026-02-06):** The original design proposed separate
+> `ProviderAdapter` subclasses per provider (Anthropic, OpenAI, Ollama). During
+> implementation this was replaced with a single **LiteLLM-based adapter** that
+> supports 100+ providers through one interface. This eliminated ~300 lines of
+> per-provider glue code and removed the need for direct `anthropic`, `openai`,
+> or `ollama` SDK dependencies.
+
+The provider layer uses [LiteLLM](https://github.com/BerriAI/litellm) to make
+provider-agnostic `acompletion()` calls with OpenAI-format tool definitions:
 
 ```python
-# backend/codex/agents/providers/base.py
+# backend/codex/agents/provider.py  (implemented)
 
-from abc import ABC, abstractmethod
-from typing import AsyncIterator
-from pydantic import BaseModel
+class LiteLLMProvider:
+    """Provider adapter using LiteLLM for model-agnostic completions."""
 
+    def __init__(
+        self,
+        model: str,           # e.g. "gpt-4o", "claude-sonnet-4-20250514", "ollama/llama3"
+        api_key: str | None = None,
+        api_base: str | None = None,
+        **extra_params,
+    ): ...
 
+    async def complete(
+        self,
+        messages: list[Message],
+        tools: list[dict] | None = None,   # OpenAI function-calling format
+        max_tokens: int = 4000,
+    ) -> AgentResponse: ...
+```
+
+Supporting data classes (also in `provider.py`):
+
+```python
 class Message(BaseModel):
-    role: str  # "system", "user", "assistant", "tool"
-    content: str
+    role: str                              # "system", "user", "assistant", "tool"
+    content: str | None = None
     tool_calls: list[dict] | None = None
     tool_call_id: str | None = None
-
 
 class ToolCall(BaseModel):
     id: str
     name: str
     arguments: dict
 
-
 class AgentResponse(BaseModel):
-    content: str | None
-    tool_calls: list[ToolCall]
-    finish_reason: str  # "stop", "tool_calls", "length", "error"
-    usage: dict[str, int]
-
-
-class ProviderAdapter(ABC):
-    """Abstract base for AI provider adapters."""
-
-    @abstractmethod
-    async def complete(
-        self,
-        messages: list[Message],
-        tools: list[ToolDefinition],
-        max_tokens: int = 4000,
-    ) -> AgentResponse:
-        """Generate a completion with optional tool use."""
-        pass
-
-    @abstractmethod
-    async def stream(
-        self,
-        messages: list[Message],
-        tools: list[ToolDefinition],
-    ) -> AsyncIterator[str]:
-        """Stream a response (future enhancement)."""
-        pass
-
-
-# backend/codex/agents/providers/anthropic.py
-
-class AnthropicAdapter(ProviderAdapter):
-    """Adapter for Anthropic Claude API."""
-
-    def __init__(self, api_key: str, model: str = "claude-sonnet-4-20250514"):
-        self.client = anthropic.AsyncAnthropic(api_key=api_key)
-        self.model = model
-
-    async def complete(
-        self,
-        messages: list[Message],
-        tools: list[ToolDefinition],
-        max_tokens: int = 4000,
-    ) -> AgentResponse:
-        # Convert tools to Anthropic format
-        anthropic_tools = [
-            {
-                "name": t.name,
-                "description": t.description,
-                "input_schema": t.parameters,
-            }
-            for t in tools
-        ]
-
-        response = await self.client.messages.create(
-            model=self.model,
-            max_tokens=max_tokens,
-            messages=[{"role": m.role, "content": m.content} for m in messages],
-            tools=anthropic_tools if anthropic_tools else None,
-        )
-
-        # Parse response
-        content = None
-        tool_calls = []
-
-        for block in response.content:
-            if block.type == "text":
-                content = block.text
-            elif block.type == "tool_use":
-                tool_calls.append(ToolCall(
-                    id=block.id,
-                    name=block.name,
-                    arguments=block.input,
-                ))
-
-        return AgentResponse(
-            content=content,
-            tool_calls=tool_calls,
-            finish_reason="tool_calls" if tool_calls else "stop",
-            usage={
-                "input_tokens": response.usage.input_tokens,
-                "output_tokens": response.usage.output_tokens,
-            }
-        )
-
-
-# backend/codex/agents/providers/openai.py
-
-class OpenAIAdapter(ProviderAdapter):
-    """Adapter for OpenAI API."""
-
-    def __init__(self, api_key: str, model: str = "gpt-4o"):
-        self.client = openai.AsyncOpenAI(api_key=api_key)
-        self.model = model
-
-    async def complete(self, messages, tools, max_tokens=4000):
-        # Convert to OpenAI format and call API
-        # ...
-
-
-# backend/codex/agents/providers/ollama.py
-
-class OllamaAdapter(ProviderAdapter):
-    """Adapter for local Ollama models."""
-
-    def __init__(self, base_url: str = "http://localhost:11434", model: str = "llama3"):
-        self.base_url = base_url
-        self.model = model
-
-    async def complete(self, messages, tools, max_tokens=4000):
-        # Call Ollama API
-        # Note: Tool use support varies by model
-        # ...
+    content: str | None = None
+    tool_calls: list[ToolCall] = []
+    finish_reason: str = "stop"            # "stop", "tool_calls", "length", "error"
+    usage: dict[str, int] = {}
 ```
+
+**Model string examples:**
+
+| Provider  | Model string                   |
+|-----------|-------------------------------|
+| OpenAI    | `gpt-4o`                      |
+| Anthropic | `claude-sonnet-4-20250514`           |
+| Ollama    | `ollama/llama3`               |
+| Azure     | `azure/gpt-4`                 |
+| Bedrock   | `bedrock/anthropic.claude-3`  |
 
 #### 5. Agent Execution Engine
 
@@ -960,28 +885,45 @@ export const useAgentStore = defineStore('agent', {
 
 ## Implementation Phases
 
-### Phase 1: Foundation (2 weeks)
+### Phase 1: Foundation -- COMPLETE (2026-02-06)
 
 **Backend:**
-- [ ] Add database models (Agent, AgentCredential, AgentSession, AgentActionLog)
-- [ ] Create Alembic migrations
-- [ ] Implement ScopeGuard
-- [ ] Create basic CRUD endpoints for agents
-- [ ] Add credential encryption utilities
+- [x] Add database models (Agent, AgentCredential, AgentSession, AgentActionLog)
+- [x] Create Alembic migration (009_add_agent_tables)
+- [x] Implement ScopeGuard (`backend/codex/agents/scope.py`)
+- [x] Create basic CRUD endpoints for agents (`backend/codex/api/routes/agents.py`)
+- [x] Add credential encryption utilities (`backend/codex/agents/crypto.py` -- Fernet)
+- [x] Add Workspace.agents relationship
 
 **Frontend:**
 - [ ] Add agent service to API client
 - [ ] Create AgentConfig component
 - [ ] Add agent management page
 
-### Phase 2: Execution Engine (2 weeks)
+### Phase 2: Execution Engine -- BACKEND COMPLETE (2026-02-06)
 
 **Backend:**
-- [ ] Implement ProviderAdapter interface
-- [ ] Add Anthropic adapter (primary)
-- [ ] Add OpenAI adapter
-- [ ] Build ToolRouter with file operations
-- [ ] Create AgentEngine orchestration
+- [x] Implement LiteLLM provider adapter (replaces per-provider adapters)
+      - `backend/codex/agents/provider.py` -- single `LiteLLMProvider` class
+      - Supports OpenAI, Anthropic, Ollama, Azure, Bedrock, and 100+ others
+- [x] Build ToolRouter with file operations (`backend/codex/agents/tools.py`)
+      - Tools: read_file, write_file, create_file, delete_file, list_files, search_content, get_file_metadata
+      - `get_tool_definitions_for_litellm()` outputs OpenAI function-calling format
+- [x] Create AgentEngine orchestration (`backend/codex/agents/engine.py`)
+      - Tool-use loop with iteration limit (default 20)
+      - Auto-generates system prompt from agent scope
+      - Token usage and API call tracking
+- [x] Create session message endpoint (`POST /sessions/{id}/message`)
+- [x] 40 passing tests (`backend/tests/test_agents.py`)
+
+**Changes from original design:**
+- Replaced abstract `ProviderAdapter` + 3 subclasses with single `LiteLLMProvider`
+- Removed `anthropic`, `openai` SDK dependencies; added `litellm`, `cryptography`
+- Added `delete_file` tool (not in original design)
+- Removed `update_file_properties` tool (deferred -- requires frontmatter integration)
+- Tools output OpenAI function-calling format rather than raw `ToolDefinition` objects
+- Agent model gained `system_prompt` field for user-customizable system prompts
+- Models use SQLModel (project convention) instead of raw SQLAlchemy Mapped columns
 
 **Frontend:**
 - [ ] Create AgentChat component
@@ -991,10 +933,11 @@ export const useAgentStore = defineStore('agent', {
 ### Phase 3: Integration & Polish (1 week)
 
 **Backend:**
-- [ ] Add rate limiting middleware
-- [ ] Implement action logging
-- [ ] Add session management endpoints
+- [ ] Add rate limiting middleware (fields exist on model, enforcement not yet wired)
+- [x] Implement action logging (AgentActionLog persisted after each session)
+- [x] Add session management endpoints (start, cancel, get, list, logs)
 - [ ] WebSocket support for real-time updates (optional)
+- [ ] `POST /sessions/{id}/confirm` endpoint (confirmation modeled but auto-confirmed in engine loop)
 
 **Frontend:**
 - [ ] AgentActivityLog component
@@ -1003,12 +946,14 @@ export const useAgentStore = defineStore('agent', {
 
 ### Phase 4: Extensions (Future)
 
-- [ ] Ollama adapter for local models
+- [x] Ollama support via LiteLLM (use model string `ollama/llama3`, set `api_base` credential)
 - [ ] Code execution sandbox
-- [ ] Integration with external plugins
+- [ ] Integration with external plugins (`can_access_integrations` flag exists but not wired)
 - [ ] Multi-agent workflows
-- [ ] Streaming responses
+- [ ] Streaming responses (LiteLLM supports streaming; needs API + WebSocket plumbing)
 - [ ] Agent templates/presets
+- [ ] `update_file_properties` tool (frontmatter/metadata editing)
+- [ ] Per-agent rate limit enforcement middleware
 
 ---
 
@@ -1054,6 +999,19 @@ export const useAgentStore = defineStore('agent', {
 
 **Trade-off:** Cannot be fully disabled without code changes.
 
+### 6. LiteLLM vs Per-Provider SDKs (NEW -- decided during implementation)
+
+**Decision:** Use LiteLLM as a single provider adapter instead of writing separate Anthropic, OpenAI, and Ollama adapters.
+
+**Rationale:**
+- Eliminates 300+ lines of per-provider translation code
+- Removes direct `anthropic` and `openai` SDK dependencies (only `litellm` needed)
+- Gives immediate access to 100+ providers (Azure, Bedrock, Vertex AI, Together, Groq, etc.)
+- LiteLLM handles format translation, retries, and provider quirks
+- All providers use the same OpenAI function-calling tool format
+
+**Trade-off:** Adds `litellm` as a dependency (~80 transitive packages). Less control over provider-specific features (e.g. Anthropic's extended thinking). If LiteLLM has a bug with a specific provider, we depend on upstream fixes.
+
 ---
 
 ## Open Questions
@@ -1098,9 +1056,81 @@ Run agent logic in the browser with user's API keys.
 
 ---
 
+## Implementation Notes (2026-02-06)
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `backend/codex/agents/__init__.py` | Module init with public exports |
+| `backend/codex/agents/scope.py` | `ScopeGuard`, `ScopeViolation` -- access boundary enforcement |
+| `backend/codex/agents/tools.py` | `ToolRouter`, `ToolDefinition` -- tool dispatch with scope checks |
+| `backend/codex/agents/provider.py` | `LiteLLMProvider`, `Message`, `ToolCall`, `AgentResponse` |
+| `backend/codex/agents/engine.py` | `AgentEngine` -- tool-use loop orchestration |
+| `backend/codex/agents/crypto.py` | Fernet encrypt/decrypt for credential storage |
+| `backend/codex/api/schemas_agent.py` | Pydantic request/response schemas |
+| `backend/codex/api/routes/agents.py` | REST API routes (`router` + `session_router`) |
+| `backend/codex/migrations/workspace/versions/20260206_000000_009_add_agent_tables.py` | DB migration |
+| `backend/tests/test_agents.py` | 40 tests (scope, tools, crypto, API integration) |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `backend/codex/db/models/system.py` | Added `Agent`, `AgentCredential`, `AgentSession`, `AgentActionLog` models; added `Workspace.agents` relationship |
+| `backend/codex/db/models/__init__.py` | Added new model exports |
+| `backend/codex/main.py` | Registered `/api/v1/agents/` and `/api/v1/sessions/` routers |
+| `backend/pyproject.toml` | Added `litellm>=1.30.0` and `cryptography>=42.0.0` dependencies; relaxed Python to `>=3.11` |
+
+### API Endpoint Summary
+
+```
+POST   /api/v1/agents/?workspace_id=N          Create agent
+GET    /api/v1/agents/?workspace_id=N          List agents
+GET    /api/v1/agents/{id}                     Get agent
+PUT    /api/v1/agents/{id}                     Update agent
+DELETE /api/v1/agents/{id}                     Delete agent
+POST   /api/v1/agents/{id}/activate?active=T   Toggle active
+
+POST   /api/v1/agents/{id}/credentials         Set credential (encrypted)
+GET    /api/v1/agents/{id}/credentials         List credential keys
+DELETE /api/v1/agents/{id}/credentials/{key}   Delete credential
+
+POST   /api/v1/agents/{id}/sessions            Start session
+GET    /api/v1/agents/{id}/sessions            List sessions
+
+GET    /api/v1/sessions/{id}                   Get session
+POST   /api/v1/sessions/{id}/message           Send message (runs agent)
+POST   /api/v1/sessions/{id}/cancel            Cancel session
+GET    /api/v1/sessions/{id}/logs              Get action audit logs
+```
+
+### Test Coverage
+
+40 tests in `test_agents.py`:
+- **ScopeGuard** (9 tests): read/write permissions, path traversal, folder/file-type restrictions, notebook access, wildcard
+- **ToolRouter** (10 tests): tool availability by permission, LiteLLM format, file CRUD, search, confirmation, path escape
+- **LiteLLMProvider** (1 test): message format conversion
+- **Crypto** (2 tests): encrypt/decrypt roundtrip, uniqueness
+- **Agent API** (8 tests): CRUD, toggle active, auth required
+- **Credential API** (3 tests): set, list, delete
+- **Session API** (7 tests): start, list, get, cancel, inactive agent rejection, empty logs
+
+### Known Gaps / Future Work
+
+1. **Rate limiting not enforced** -- `max_requests_per_hour` and `max_tokens_per_request` are stored but not checked at runtime. Needs middleware or pre-call check in `AgentEngine`.
+2. **Confirmation endpoint not implemented** -- `POST /sessions/{id}/confirm` is in the design but not yet built. The engine auto-confirms tool calls. Frontend will need this for the pending-action UI.
+3. **`update_file_properties` tool deferred** -- Requires integration with the frontmatter/metadata system.
+4. **Frontend not started** -- Vue components, Pinia store, and agent service client are designed but not implemented.
+5. **WebSocket streaming** -- LiteLLM supports async streaming; needs WebSocket plumbing to deliver incremental responses to the frontend.
+6. **No per-workspace agent isolation in queries** -- `list_agents` filters by `workspace_id` query param but doesn't cross-check the current user's workspace permissions.
+
+---
+
 ## References
 
+- [LiteLLM Documentation](https://docs.litellm.ai/)
+- [LiteLLM Supported Providers](https://docs.litellm.ai/docs/providers)
 - [Anthropic Claude API Documentation](https://docs.anthropic.com/claude/reference/)
 - [OpenAI API Documentation](https://platform.openai.com/docs/)
-- [LangChain Tool Use Patterns](https://python.langchain.com/docs/modules/agents/)
 - [Codex System Architecture](../architecture.md)

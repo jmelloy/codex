@@ -13,6 +13,7 @@ from sqlmodel import select
 from ulid import ULID
 
 from codex.api.routes import (
+    agents,
     files,
     folders,
     integrations,
@@ -213,6 +214,8 @@ app.include_router(query.router, prefix="/api/v1/query", tags=["query"])
 app.include_router(integrations.router, prefix="/api/v1/plugins/integrations", tags=["integrations"])
 app.include_router(plugins.router, prefix="/api/v1/plugins", tags=["plugins"])
 app.include_router(ws.router, prefix="/api/v1/ws", tags=["websocket"])
+app.include_router(agents.router, prefix="/api/v1/agents", tags=["agents"])
+app.include_router(agents.session_router, prefix="/api/v1/sessions", tags=["agent-sessions"])
 
 if __name__ == "__main__":
     import uvicorn

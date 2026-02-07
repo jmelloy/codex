@@ -1612,9 +1612,7 @@ cream_theme = loader.get_plugin("cream")
 
 ### Related Documents
 
-- [Dynamic Views Design](/docs/design/dynamic-views.md)
-- [Markdown Extensions](/docs/MARKDOWN_EXTENSIONS.md)
-- [API Documentation](/docs/api.md) (to be created)
+- [Dynamic Views Design](./dynamic-views.md)
 
 ### External Resources
 

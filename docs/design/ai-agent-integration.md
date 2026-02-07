@@ -1164,4 +1164,3 @@ The agent chat is integrated into the main HomeView and accessible via the setti
 - [LiteLLM Supported Providers](https://docs.litellm.ai/docs/providers)
 - [Anthropic Claude API Documentation](https://docs.anthropic.com/claude/reference/)
 - [OpenAI API Documentation](https://platform.openai.com/docs/)
-- [Codex System Architecture](../architecture.md)

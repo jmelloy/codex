@@ -2,100 +2,109 @@
 
 ## Repository Overview
 
-**Codex** is a hierarchical digital laboratory journal system for tracking computational experiments, creative iterations, and technical investigations with full provenance and reproducibility. It's structured as Workspace → Notebook → Page → Entry.
+**Codex** is a hierarchical digital laboratory journal system for tracking computational experiments, creative iterations, and technical investigations. It uses a **Workspace → Notebook → Files** hierarchy with SQLite for metadata indexing and filesystem-based content storage.
 
 **Important Repository Notes:**
 
-- The primary storage mode uses SQLite + content-addressable storage (not markdown-first)
-- The `cli.markdown_cli` module provides an alternative markdown-based CLI (experimental)
-- See [AGENT_SYSTEM.md](AGENT_SYSTEM.md) for the implemented task/sandbox system
-- See [agents.md](agents.md) for planned AI agent features (mostly not implemented yet)
+- The system uses a two-database pattern: system database for users/workspaces, and per-notebook databases for file metadata
+- File content is stored in the filesystem with SQLite for indexing and metadata
+- Alembic migrations are split into workspace and notebook migration paths
 
 **Tech Stack:**
 
-- **Backend**: Python 3.14+ with FastAPI, SQLAlchemy, SQLite, Alembic migrations
+- **Backend**: Python 3.13+ with FastAPI, SQLModel, SQLite, Alembic migrations
 - **Frontend**: Vue.js 3, TypeScript, Vite
-- **CLI**: Click-based command-line interface
 - **Deployment**: Docker Compose with production/development configurations
-- **Size**: ~115MB repository with 56 Python files, 30 frontend files
 
-**Project Type**: Full-stack web application with REST API, CLI tools, and web UI
+**Project Type**: Full-stack web application with REST API and web UI
 
 ## Build, Test, and Validation Steps
 
 ### Python Backend
 
-**Python Version Required**: 3.14+ (3.14 in CI)
+**Python Version Required**: 3.13+
 
-**Installation Steps (Always run in this order):**
+**Installation Steps:**
 
 ```bash
-# 1. Install dependencies (ALWAYS run before testing or building)
+# Install dependencies from backend directory
+cd backend
 pip install -e ".[dev]"
 
-# 2. Run tests (expected: 251 passed)
-pytest tests/ -v
+# Run tests
+pytest -v
 
-# 3. Lint code (will show some existing issues - only fix what you change)
-ruff check backend/
+# Run single test file
+pytest tests/test_api.py -v
+
+# Run with coverage (as CI does)
+pytest -v --cov=. --cov-report=term-missing
+
+# Start backend server
+python -m codex.main
+# Or with uvicorn directly:
+uvicorn codex.main:app --reload --port 8000
+
+# Lint
+ruff check .
+
+# Format
+black .
+
+# Type check
+mypy .
 ```
 
 ### Frontend
 
-**Node Version Required**: 24+ (tested with 24.0.0)
+**Node Version Required**: 20+
 
 **Build Steps:**
 
 ```bash
 cd frontend
 
-# 1. Install dependencies (takes ~4 seconds)
+# Install dependencies
 npm install
 
-# 2. Build for production (takes ~2 seconds, creates dist/ folder)
+# Development server (port 5173)
+npm run dev
+
+# Build for production
 npm run build
 
-# 3. Type check
-npm run type-check
+# Run tests
+npm test -- --run
 
-# 4. Development server
-npm run dev  # Runs on port 5174
+# Type check
+npm run build  # vue-tsc runs as part of build
 ```
-
-**Frontend Linting Note**: ESLint is configured in package.json but `npm run lint` will fail because there's no ESLint config file in the repository. Skip linting for frontend changes unless you add an ESLint configuration first.
 
 ### Docker Deployment
-
-**Validate Docker Setup (ALWAYS run before docker compose):**
-
-```bash
-./validate-docker.sh
-```
-
-This checks all required files exist and Docker Compose configs are valid.
 
 **Development Deployment:**
 
 ```bash
 docker compose up -d
-# Frontend: http://localhost:5174
-# Backend API: http://localhost:8765
-# API Docs: http://localhost:8765/docs
+# Backend: http://localhost:8765
+# Frontend: http://localhost:8065
 ```
 
 **Production Deployment:**
 
 ```bash
 docker compose -f docker-compose.prod.yml up -d
-# Frontend: http://localhost
-# Backend API: http://localhost:8765
 ```
 
 ### Database Migrations
 
-The project uses Alembic for database migrations. The migration system automatically runs when initializing a workspace. Database files are stored in `.lab/db/index.db` within each workspace.
+The project uses Alembic for database migrations with two separate migration paths:
 
-**No manual migration commands needed** - migrations run automatically on workspace initialization.
+1. **System Database** (`codex_system.db`): Stores users, workspaces, workspace permissions, tasks, and notebook registrations. Managed by Alembic migrations in `backend/codex/migrations/workspace/`.
+
+2. **Notebook Databases** (`.codex/notebook.db` per notebook): Stores file metadata, tags, and search indexes for each notebook. Managed by separate Alembic migrations in `backend/codex/migrations/notebook/`.
+
+Both migration paths are configured in a single unified `backend/alembic.ini` file with named sections `[alembic:workspace]` and `[alembic:notebook]`.
 
 ## Project Layout
 
@@ -103,237 +112,195 @@ The project uses Alembic for database migrations. The migration system automatic
 
 ```
 /
-├── .github/workflows/test.yml    # CI: Python 3.14, pip install, pytest
-├── backend/                       # Main Python package directory
-│   ├── api/                      # FastAPI application
-│   │   ├── main.py              # API entry point
-│   │   ├── auth.py              # Authentication utilities
-│   │   ├── routes/              # REST endpoints (notebooks, pages, search, markdown, auth, workspace)
-│   │   └── websocket/           # WebSocket support (basic)
-│   ├── cli/                     # CLI commands
-│   │   ├── main.py              # Main CLI entry point (codex command)
-│   │   ├── markdown_cli.py      # Alternative markdown-based CLI
-│   │   └── commands/            # CLI subcommands directory
-│   ├── core/                    # Core business logic
-│   │   ├── workspace.py         # Workspace management
-│   │   ├── notebook.py          # Notebook operations
-│   │   ├── page.py              # Page operations
-│   │   ├── storage.py           # Content-addressable storage
-│   │   ├── git_hooks.py         # Git hook integration
-│   │   ├── git_manager.py       # Git operations
-│   │   ├── mac_windows.py       # macOS window tracking
-│   │   ├── markdown.py          # Markdown parsing utilities
-│   │   ├── markdown_indexer.py  # Markdown file indexing
-│   │   ├── markdown_renderers.py # Frontmatter rendering plugins
-│   │   ├── markdown_storage.py  # Alternative markdown storage
-│   │   ├── folder_config.py     # Folder configuration system
-│   │   ├── sandbox.py           # Agent sandbox for safe file operations
-│   │   └── tasks.py             # Task management system
-│   ├── db/                      # Database layer
-│   │   ├── models.py            # SQLAlchemy ORM models
-│   │   ├── operations.py        # Database operations
-│   │   ├── migrate.py           # Migration utilities
-│   │   └── migrations/          # Alembic migrations
-│   └── tests/                   # Python tests (pytest)
-├── frontend/                    # Vue.js web application
-│       └── custom.py            # Custom text entries
-├── frontend/                    # Vue.js web application
+├── .github/
+│   ├── workflows/          # CI/CD pipelines
+│   └── copilot-instructions.md  # This file
+├── backend/                # Python backend package
+│   ├── codex/             # Main package
+│   │   ├── main.py        # FastAPI app entry point
+│   │   ├── api/           # API layer
+│   │   │   ├── auth.py    # Authentication utilities
+│   │   │   ├── schemas.py # API schemas
+│   │   │   └── routes/    # REST endpoints
+│   │   ├── core/          # Core business logic
+│   │   │   ├── watcher.py       # Filesystem watcher
+│   │   │   ├── metadata.py      # Metadata parsing
+│   │   │   ├── git_manager.py   # Git operations
+│   │   │   └── websocket.py     # WebSocket support
+│   │   ├── db/            # Database layer
+│   │   │   ├── database.py      # Session management
+│   │   │   ├── migrations.py    # Migration utilities
+│   │   │   └── models/          # SQLModel ORM models
+│   │   │       ├── system.py    # User, Workspace, Task models
+│   │   │       └── notebook.py  # FileMetadata, Tag models
+│   │   ├── migrations/    # Alembic migrations
+│   │   │   ├── workspace/ # System DB migrations
+│   │   │   └── notebook/  # Notebook DB migrations
+│   │   ├── agents/        # Agent system
+│   │   ├── plugins/       # Plugin system
+│   │   └── scripts/       # Utility scripts
+│   ├── tests/             # Python tests (pytest)
+│   ├── pyproject.toml     # Python package configuration
+│   ├── alembic.ini        # Alembic configuration
+│   └── Dockerfile         # Backend Docker image
+├── frontend/              # Vue.js web application
 │   ├── src/
-│   │   ├── views/               # Page components (NotebooksView, PageDetailView, etc.)
-│   │   ├── components/          # Reusable components
-│   │   ├── stores/              # Pinia state management
-│   │   └── router/              # Vue Router configuration
-│   ├── Dockerfile               # Production build
-│   ├── Dockerfile.dev.frontend  # Development with hot reload
-│   ├── nginx.conf               # Nginx configuration for production
-│   ├── package.json             # Node dependencies and scripts
-│   └── vite.config.ts           # Vite bundler configuration
-├── tests/                       # Python tests (pytest)
-│   ├── test_core.py             # Core functionality tests
-│   ├── test_db_crud.py          # Database CRUD tests
-│   ├── test_integrations.py    # Integration tests
-│   ├── test_migrations.py       # Migration tests
-│   └── test_*.py                # Other test modules
-├── scripts/mac/                 # macOS-specific scripts for window tracking
-├── pyproject.toml               # Python package configuration and dependencies
-├── mise.toml                    # Development tool versions (Python 3.14, black)
-├── build.sh                     # Build script (frontend build + pip install)
-├── validate-docker.sh           # Docker validation script
-├── docker-compose.yml           # Development Docker setup
-├── docker-compose.prod.yml      # Production Docker setup
-└── .env.example                 # Environment variable template
+│   │   ├── main.ts        # Vue app entry point
+│   │   ├── router/        # Vue Router configuration
+│   │   ├── stores/        # Pinia state management
+│   │   ├── services/      # API client services
+│   │   ├── views/         # Page components
+│   │   └── components/    # Reusable components
+│   ├── package.json       # Node dependencies and scripts
+│   ├── vite.config.ts     # Vite bundler configuration
+│   └── Dockerfile         # Frontend Docker image
+├── plugins/               # Plugin directory
+├── docs/                  # Documentation
+├── docker-compose.yml     # Development Docker setup
+└── README.md              # Project README
 ```
 
 ### Key Configuration Files
 
-- **pyproject.toml**: Python dependencies, project metadata, ruff linting config, pytest config
-- **mise.toml**: Specifies Python 3.14 and black for development
-- **package.json**: Frontend dependencies and build scripts
-- **.gitignore**: Excludes `.lab/`, `frontend/dist/`, `frontend/node_modules/`, Python cache files
+- **backend/pyproject.toml**: Python dependencies, project metadata, ruff linting config, pytest config
+- **backend/alembic.ini**: Alembic configuration with workspace and notebook sections
+- **frontend/package.json**: Frontend dependencies and build scripts
+- **frontend/vite.config.ts**: Vite configuration including dev server (port 5173) and proxy settings
 
 ### CI/CD Pipeline
 
-**GitHub Actions** (`.github/workflows/test.yml`):
+**GitHub Actions**:
 
-- **Triggers**: Push/PR to main or develop branches, manual dispatch
-- **Environment**: Ubuntu latest, Python 3.14
+- **Tests**: Run on push/PR to main or develop branches
+- **Environment**: Ubuntu latest, Python 3.13+
 - **Steps**:
   1. Checkout code
-  2. Setup Python 3.14
+  2. Setup Python
   3. Install dependencies: `pip install -e ".[dev]"`
-  4. Run tests: `pytest tests/ -v`
-- **Expected Result**: 251 tests pass, 63 deprecation warnings (these are acceptable)
+  4. Run tests: `pytest -v`
 
-### Data Model
+## Architecture
 
-The system stores data in SQLite (`.lab/db/index.db`) with these main tables:
+### Two-Database Pattern
 
-- **users**: User accounts for authentication
-- **refresh_tokens**: JWT refresh tokens
-- **notebooks**: Project-level containers
-- **pages**: Session-level grouping with narrative fields
-- **markdown_files**: Indexed markdown files with metadata
-- **tags**: Tag system for categorization
-- **notebook_tags**: Many-to-many relationship for notebook tags
-- **page_tags**: Many-to-many relationship for page tags
+The system uses two types of SQLite databases:
 
-**Note**: The current implementation uses markdown files for content storage with SQLite indexing. See [MARKDOWN_STORAGE.md](../MARKDOWN_STORAGE.md) for the alternative pure-markdown approach.
+1. **System Database** (`codex_system.db`): Stores users, workspaces, workspace permissions, tasks, and notebook registrations. Managed by Alembic migrations in `backend/codex/migrations/workspace/`.
 
-### Important Implementation Details
+2. **Notebook Databases** (`.codex/notebook.db` per notebook): Stores file metadata, tags, and search indexes for each notebook. Managed by separate Alembic migrations in `backend/codex/migrations/notebook/`.
 
-1. **Markdown + SQLite Hybrid**: The system uses markdown files for content with SQLite for indexing and metadata (see MarkdownFile model).
+### Key Backend Components
 
-2. **Git Integration**: The system optionally integrates with Git via post-commit hooks to log commits to daily notes.
+- `backend/codex/main.py` - FastAPI app entry point with lifespan management for file watchers
+- `backend/codex/api/routes/` - REST API endpoints (files, folders, notebooks, workspaces, search, tasks, query)
+- `backend/codex/core/watcher.py` - Filesystem watcher that syncs file changes to notebook databases
+- `backend/codex/core/metadata.py` - Parses metadata from frontmatter, JSON/XML/MD sidecars
+- `backend/codex/db/models/system.py` - User, Workspace, WorkspacePermission, Task, Notebook models
+- `backend/codex/db/models/notebook.py` - FileMetadata, Tag, FileTag, SearchIndex models
+- `backend/codex/db/database.py` - Database session management for both system and notebook DBs
 
-3. **Authentication**: JWT-based authentication with bcrypt password hashing. Each user has their own workspace.
+### Key Frontend Components
 
-4. **Workspace Initialization**: Always use `codex init <path>` to create a workspace before other operations.
+- `frontend/src/main.ts` - Vue app entry point
+- `frontend/src/router/index.ts` - Vue Router configuration
+- `frontend/src/stores/` - Pinia stores (auth, workspace, theme)
+- `frontend/src/services/api.ts` - Axios-based API client
+- `frontend/src/services/codex.ts` - Codex-specific API service
 
-5. **Agent System**: Task management, sandboxing, and folder configuration for AI agents (see AGENT_SYSTEM.md).
+### API Routes Pattern
 
-6. **Content Storage**: Files stored in workspace directories, optionally with content-addressable blob storage.
+All API routes are prefixed with `/api/v1/`:
 
-## Common Commands
+- `/api/v1/users/token` - Authentication
+- `/api/v1/users/register` - User registration
+- `/api/v1/users/me` - Current user profile
+- `/api/v1/workspaces/` - Workspace CRUD
+- `/api/v1/notebooks/` - Notebook CRUD
+- `/api/v1/files/` - File operations
+- `/api/v1/folders/` - Folder operations and metadata
+- `/api/v1/search/` - Full-text search
+- `/api/v1/tasks/` - Task queue for agents
+- `/api/v1/query/` - Advanced query interface
+
+## Testing
+
+Backend tests are in `backend/tests/`. Key test files:
+
+- `test_api.py` - Main API integration tests
+- `test_workspaces.py` - Workspace operations
+- `test_users.py` - User authentication
+- `test_tasks.py` - Task queue
+- `test_notebook_migrations.py` - Database migrations
+
+Frontend tests are in `frontend/src/__tests__/` using Vitest.
+
+## Code Style
+
+- Python: Use black for formatting, ruff for linting (line length 120)
+- TypeScript/Vue: Use prettier for formatting
+- Python target version: 3.13
+- Tests use pytest-asyncio with `asyncio_mode = "auto"`
+
+## Common Development Commands
 
 ```bash
-# Initialize workspace
-codex init ~/my-lab --name "My Laboratory"
+# Backend server (from backend directory)
+cd backend
+python -m codex.main
+# Or with uvicorn:
+uvicorn codex.main:app --reload --port 8000
 
-# Create notebook
-codex notebook create "AI Experiments" --description "ML experiments"
+# Frontend dev server (from frontend directory)
+cd frontend
+npm run dev  # Runs on http://localhost:5173
 
-# Create page
-codex page create "Initial Tests" --notebook "AI Experiments"
-
-# Search entries
-codex search --query "experiment"
-
-# Start API server
-uvicorn api.main:app --reload --port 8765
-
-# Start full stack (dev)
+# Full stack with Docker
 docker compose up -d
+# Backend: http://localhost:8765
+# Frontend: http://localhost:8065
 
-# View help for any command
-codex <command> --help
+# Run tests
+cd backend
+pytest -v
+
+# Create test data
+python -m codex.scripts.seed_test_data
+# Test accounts: demo/demo123456, testuser/testpass123, scientist/lab123456
 ```
 
-## Known Issues and Workarounds
+## Best Practices for Development
 
-1. **Frontend ESLint**: No ESLint config file exists. Skip `npm run lint` or add configuration first.
-
-2. **Python 3.12 vs 3.14**: Local development may use Python 3.12, but CI uses 3.14. Both work fine.
-
-3. **Docker Build Context**: When building, the frontend must be built separately inside its Dockerfile (see Dockerfile.dev.frontend).
-
-4. **Ruff Linting**: Some existing linting issues in `git_hooks.py` and `mac_windows.py`. Only fix issues in code you're modifying.
-
-## Best Practices for Agents
-
-1. **Always install dependencies first** before running tests or making changes: `pip install -e ".[dev]"`
-
-2. **Test your changes** by running the relevant test files: `pytest tests/test_<module>.py -v`
-
-3. **Check Docker validation** if modifying Docker files: `./validate-docker.sh`
-
-4. **For frontend changes**, run `npm run build` to ensure the build succeeds.
-
-5. **Database changes** require Alembic migrations in `backend/codex/db/migrations/versions/`.
-
-6. **Integration changes** must implement the `IntegrationBase` class and register with `IntegrationRegistry`.
-
-7. **Do NOT commit**: `.lab/` directories, `frontend/dist/`, `frontend/node_modules/`, `__pycache__/`, `.venv/`
-
-## Agent Efficiency Tips
-
-- **Use these instructions first** before searching the codebase. Only search if the information here is incomplete or incorrect.
-- **Key entry points**: `backend/codex/api/main.py` (API), `backend/codex/cli/main.py` (CLI)
-- **Database schema**: `backend/codex/db/models.py`
-- **Frontend entry**: `frontend/src/main.ts`, routing in `frontend/src/router/`
-- **Tests are comprehensive**: Check `tests/` for examples of how to use the system
-- **README.md has detailed architecture**: Refer to it for conceptual understanding
-
-## MCP Server Configuration
-
-The Codex repository includes an MCP (Model Context Protocol) server that enables AI assistants like GitHub Copilot to interact with the application, including the ability to screenshot the frontend.
-
-### Setup
-
-1. **Install dependencies** (includes MCP SDK and Playwright):
-
+1. **Always install dependencies first** before running tests or making changes:
    ```bash
+   cd backend
    pip install -e ".[dev]"
-   playwright install chromium  # Install browser for screenshots
    ```
 
-2. **Configure MCP client** (e.g., in GitHub Copilot settings):
-   - Point to the configuration file: `.github/mcp-server.json`
-   - The MCP server will be available as "codex"
+2. **Test your changes** by running the relevant test files:
+   ```bash
+   pytest tests/test_<module>.py -v
+   ```
 
-### Available MCP Tools
+3. **For frontend changes**, run `npm run build` to ensure the build succeeds.
 
-- **start_frontend**: Start the frontend dev server on port 5173
-- **start_backend**: Start the backend API server on port 8000
-- **take_screenshot**: Take a screenshot of the frontend (default) or any URL
-  - Parameters: `url` (default: http://localhost:5173), `path` (default: screenshot.png)
-- **navigate_and_screenshot**: Navigate to a URL and screenshot, optionally waiting for a CSS selector
-  - Parameters: `url` (required), `selector` (optional), `path` (default: screenshot.png)
-- **cleanup**: Stop all servers and clean up resources
+4. **Database changes** require Alembic migrations:
+   - System DB migrations: `backend/codex/migrations/workspace/`
+   - Notebook DB migrations: `backend/codex/migrations/notebook/`
 
-### Example Usage
+5. **File watching**: The backend includes a filesystem watcher that automatically syncs file changes to the notebook database.
 
-```python
-# Using the MCP tools via an MCP client:
-# 1. Start the frontend
-await call_tool("start_frontend", {})
+## Key Entry Points
 
-# 2. Take a screenshot
-await call_tool("take_screenshot", {
-    "url": "http://localhost:5173",
-    "path": "frontend-screenshot.png"
-})
+- **Backend**: `backend/codex/main.py` - FastAPI app entry point
+- **Frontend**: `frontend/src/main.ts` - Vue app entry point
+- **Database models**: 
+  - `backend/codex/db/models/system.py` - System database models
+  - `backend/codex/db/models/notebook.py` - Notebook database models
+- **API routes**: `backend/codex/api/routes/` - All REST endpoints
+- **Tests**: `backend/tests/` - Comprehensive test suite
 
-# 3. Navigate to a specific page and screenshot
-await call_tool("navigate_and_screenshot", {
-    "url": "http://localhost:5173/notebooks",
-    "selector": ".notebook-list",
-    "path": "notebooks-page.png"
-})
+## Additional Resources
 
-# 4. Clean up when done
-await call_tool("cleanup", {})
-```
-
-### Manual Testing
-
-To test the MCP server manually:
-
-```bash
-# Run the MCP server
-python -m codex.mcp_server
-
-# The server will communicate via stdio (standard input/output)
-# You can send MCP protocol messages to interact with it
-```
-
-Use black and prettier to format files.
+- **README.md**: Detailed architecture and project overview
+- **CLAUDE.md**: Quick reference for Claude Code users
+- **docs/**: Additional documentation on migrations, plugins, and architecture

@@ -8,7 +8,7 @@ Codex is a hierarchical digital laboratory journal system for tracking computati
 
 ## Build and Development Commands
 
-### Backend (Python 3.14+)
+### Backend (Python 3.13+)
 
 ```bash
 # Install dependencies (always run first)

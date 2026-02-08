@@ -1,6 +1,6 @@
 # Plugin System Design Document
 
-**Version:** 1.1 | **Date:** 2026-01-28 | **Status:** Partially Implemented | **Inspired by:** Obsidian Plugin System
+**Version:** 1.1 | **Date:** 2026-01-28 | **Status:** ✅ Implemented (Phases 1-3) | **Inspired by:** Obsidian Plugin System
 
 ## Overview
 
@@ -1612,9 +1612,7 @@ cream_theme = loader.get_plugin("cream")
 
 ### Related Documents
 
-- [Dynamic Views Design](/docs/design/dynamic-views.md)
-- [Markdown Extensions](/docs/MARKDOWN_EXTENSIONS.md)
-- [API Documentation](/docs/api.md) (to be created)
+- [Dynamic Views Design](./dynamic-views.md)
 
 ### External Resources
 

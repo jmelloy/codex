@@ -2,7 +2,7 @@
 
 **Author:** Claude
 **Date:** 2026-01-30
-**Status:** Phase 1 & 2 Backend Complete
+**Status:** ✅ Implemented (Phase 1 & 2 Complete)
 **Reviewers:** TBD
 **Last Updated:** 2026-02-06
 
@@ -1056,9 +1056,20 @@ Run agent logic in the browser with user's API keys.
 
 ---
 
-## Implementation Notes (2026-02-06)
+## Implementation Status (2026-02-06)
+
+### Phase 1 & 2: ✅ Complete
+- ✅ Backend agent engine and API endpoints
+- ✅ Database models and migrations
+- ✅ Scope guard and tool routing
+- ✅ Provider integration (LiteLLM)
+- ✅ Credential encryption
+- ✅ Frontend Vue components and chat interface
+- ✅ Comprehensive test coverage (40 tests)
 
 ### Files Created
+
+**Backend:**
 
 | File | Purpose |
 |------|---------|
@@ -1072,6 +1083,16 @@ Run agent logic in the browser with user's API keys.
 | `backend/codex/api/routes/agents.py` | REST API routes (`router` + `session_router`) |
 | `backend/codex/migrations/workspace/versions/20260206_000000_009_add_agent_tables.py` | DB migration |
 | `backend/tests/test_agents.py` | 40 tests (scope, tools, crypto, API integration) |
+
+**Frontend:**
+
+| File | Purpose |
+|------|---------|
+| `frontend/src/components/agent/AgentChat.vue` | Main chat interface for agent interactions |
+| `frontend/src/components/agent/AgentConfig.vue` | Agent configuration and settings UI |
+| `frontend/src/components/agent/AgentActivityLog.vue` | Display of agent action audit logs |
+| `frontend/src/components/agent/AgentActionCard.vue` | Individual action display card |
+| `frontend/src/components/agent/AgentScopeEditor.vue` | UI for editing agent scope and permissions |
 
 ### Files Modified
 
@@ -1121,9 +1142,19 @@ GET    /api/v1/sessions/{id}/logs              Get action audit logs
 1. **Rate limiting not enforced** -- `max_requests_per_hour` and `max_tokens_per_request` are stored but not checked at runtime. Needs middleware or pre-call check in `AgentEngine`.
 2. **Confirmation endpoint not implemented** -- `POST /sessions/{id}/confirm` is in the design but not yet built. The engine auto-confirms tool calls. Frontend will need this for the pending-action UI.
 3. **`update_file_properties` tool deferred** -- Requires integration with the frontmatter/metadata system.
-4. **Frontend not started** -- Vue components, Pinia store, and agent service client are designed but not implemented.
-5. **WebSocket streaming** -- LiteLLM supports async streaming; needs WebSocket plumbing to deliver incremental responses to the frontend.
-6. **No per-workspace agent isolation in queries** -- `list_agents` filters by `workspace_id` query param but doesn't cross-check the current user's workspace permissions.
+4. **WebSocket streaming** -- LiteLLM supports async streaming; needs WebSocket plumbing to deliver incremental responses to the frontend.
+5. **No per-workspace agent isolation in queries** -- `list_agents` filters by `workspace_id` query param but doesn't cross-check the current user's workspace permissions.
+
+### Frontend Components Implemented
+
+The following Vue components are implemented in `frontend/src/components/agent/`:
+- **AgentChat.vue** - Main chat interface for interacting with agents
+- **AgentConfig.vue** - Agent configuration and settings UI
+- **AgentActivityLog.vue** - Display of agent action logs
+- **AgentActionCard.vue** - Individual action display card
+- **AgentScopeEditor.vue** - UI for editing agent scope and permissions
+
+The agent chat is integrated into the main HomeView and accessible via the settings dialog.
 
 ---
 
@@ -1133,4 +1164,3 @@ GET    /api/v1/sessions/{id}/logs              Get action audit logs
 - [LiteLLM Supported Providers](https://docs.litellm.ai/docs/providers)
 - [Anthropic Claude API Documentation](https://docs.anthropic.com/claude/reference/)
 - [OpenAI API Documentation](https://platform.openai.com/docs/)
-- [Codex System Architecture](../architecture.md)

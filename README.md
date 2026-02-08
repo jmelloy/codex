@@ -294,20 +294,18 @@ date: 2024-01-01
 
 ### Design Documents
 
-- **[File-Based Pages Architecture](docs/design/FILE_BASED_PAGES.md)** - Pure file-based approach for organizing content into pages with ordered blocks
-- **[Notebook Migrations](docs/NOTEBOOK_MIGRATIONS.md)** - Database migration strategy
-- **[Filename Resolution](docs/FILENAME_RESOLUTION.md)** - File naming and resolution logic
-- **[Markdown Extensions](docs/MARKDOWN_EXTENSIONS.md)** - Custom markdown features
+Comprehensive design documents are available in the `/docs/design/` directory:
+
+- **[Dynamic Views](docs/design/dynamic-views.md)** - Query-based dynamic views and visualizations with plugin-provided components
+- **[Plugin System](docs/design/plugin-system.md)** - Extensible plugin architecture for custom views, themes, and integrations
+- **[AI Agent Integration](docs/design/ai-agent-integration.md)** - Scoped AI agents for automated assistance and task execution
+
+See the [Design Documents README](docs/design/README.md) for implementation status and details.
 
 ### Additional Resources
 
 - [Test Credentials](TEST_CREDENTIALS.md) - Test user accounts and sample data
-- [Performance Improvements](PERFORMANCE_IMPROVEMENTS.md) - Optimization notes
 - [Claude Instructions](CLAUDE.md) - Development guidelines for AI assistants
-  Comprehensive design documents are available in the `/docs/design/` directory:
-
-- **[Dynamic Views](docs/design/dynamic-views.md)** - Query-based dynamic views and visualizations
-- **[Plugin System](docs/design/plugin-system.md)** - Extensible plugin architecture for views, themes, and integrations
 
 ## License
 

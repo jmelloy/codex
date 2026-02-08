@@ -46,7 +46,7 @@ def test_weather_integration_is_loaded(client):
     assert weather is not None
     assert weather["name"] == "Weather API Integration"
     assert weather["api_type"] == "rest"
-    assert weather["base_url"] == "https://api.openweathermap.org/data/2.5"
+    assert weather["base_url"] == "https://api.openweathermap.org"
     assert weather["auth_method"] == "api_key"
 
 

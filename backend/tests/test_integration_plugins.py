@@ -339,6 +339,8 @@ class TestIntegrationPluginAPI:
                     "name": "Weather API Integration",
                     "version": "1.0.0",
                     "type": "integration",
+                    "description": "Display current weather and forecasts from OpenWeatherMap",
+                    "author": "Codex Team",
                     "integration": {
                         "api_type": "rest",
                         "base_url": "https://api.openweathermap.org",
@@ -353,7 +355,14 @@ class TestIntegrationPluginAPI:
                             "path": "/geo/1.0/direct",
                         }
                     ],
-                    "blocks": [{"id": "weather", "name": "Weather Block"}],
+                    "blocks": [
+                        {
+                            "id": "weather",
+                            "name": "Weather Block",
+                            "description": "Display current weather for a location",
+                            "icon": "☀️",
+                        }
+                    ],
                 },
             },
             headers=headers,

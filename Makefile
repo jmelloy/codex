@@ -14,7 +14,7 @@
 .PHONY: install-backend install-frontend install-plugins
 .PHONY: build-plugins build-plugin build-frontend
 .PHONY: dev-backend dev-frontend dev-docker
-.PHONY: test-backend test-frontend
+.PHONY: test-backend test-frontend test-e2e test-e2e-local
 .PHONY: lint lint-backend lint-frontend
 .PHONY: typecheck typecheck-backend typecheck-frontend typecheck-plugins
 .PHONY: clean-plugins clean-frontend clean-backend
@@ -184,6 +184,16 @@ test-frontend:
 	@echo "Running frontend tests..."
 	cd frontend && npm test -- --run
 
+test-e2e:
+	@echo "Running E2E tests via Docker Compose..."
+	docker compose -f docker-compose.e2e.yml up --build --abort-on-container-exit --exit-code-from playwright
+	docker compose -f docker-compose.e2e.yml down -v
+
+test-e2e-local:
+	@echo "Running E2E tests against local Docker Compose..."
+	@echo "Make sure 'docker compose up' is running first."
+	cd e2e && npm install && npx playwright install chromium && npx playwright test
+
 test-coverage:
 	@echo "Running tests with coverage..."
 	cd backend && pytest -v --cov=. --cov-report=term-missing
@@ -307,6 +317,8 @@ help:
 	@echo "Testing:"
 	@echo "  make test         Run all tests"
 	@echo "  make test-coverage Run tests with coverage"
+	@echo "  make test-e2e     Run Chromium E2E tests (Docker)"
+	@echo "  make test-e2e-local  Run E2E tests against running containers"
 	@echo ""
 	@echo "Quality:"
 	@echo "  make lint         Run all linters"

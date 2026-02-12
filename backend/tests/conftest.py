@@ -273,7 +273,7 @@ def cleanup_workspace_dirs():
             for watcher in get_active_watchers()[:]:
                 try:
                     # Check if watcher's path is within the directory we're deleting
-                    watcher_path = Path(watcher.base_path).resolve()
+                    watcher_path = Path(watcher.notebook_path).resolve()
                     new_dir_path = new_dir.resolve()
                     if watcher_path == new_dir_path or new_dir_path in watcher_path.parents:
                         watcher.stop()

@@ -15,7 +15,7 @@ export function generateTestUser(): TestUser {
   return {
     username: `e2euser_${id}`,
     password: `TestPass_${id}!`,
-    email: `e2e_${id}@test.local`,
+    email: `e2e_${id}@example.com`,
   };
 }
 
@@ -53,7 +53,7 @@ export async function loginUser(page: Page, user: TestUser): Promise<void> {
  */
 export async function registerUserViaAPI(
   page: Page,
-  user: TestUser
+  user: TestUser,
 ): Promise<string> {
   const baseURL = page.url().startsWith("http")
     ? new URL(page.url()).origin
@@ -76,7 +76,7 @@ export async function registerUserViaAPI(
         username: user.username,
         password: user.password,
       },
-    }
+    },
   );
 
   const tokenData = await tokenResponse.json();
@@ -88,7 +88,7 @@ export async function registerUserViaAPI(
  */
 export async function injectAuthToken(
   page: Page,
-  token: string
+  token: string,
 ): Promise<void> {
   await page.goto("/login"); // need a page loaded to set localStorage
   await page.evaluate((t) => {
@@ -119,12 +119,12 @@ export const test = base.extend<{ authedPage: Page; testUser: TestUser }>({
           email: testUser.email,
           password: testUser.password,
         },
-      }
+      },
     );
 
     if (!regResponse.ok()) {
       throw new Error(
-        `Registration failed: ${regResponse.status()} ${await regResponse.text()}`
+        `Registration failed: ${regResponse.status()} ${await regResponse.text()}`,
       );
     }
 
@@ -136,7 +136,7 @@ export const test = base.extend<{ authedPage: Page; testUser: TestUser }>({
           username: testUser.username,
           password: testUser.password,
         },
-      }
+      },
     );
 
     const tokenData = await tokenResponse.json();

@@ -269,7 +269,8 @@ def cleanup_workspace_dirs():
         # Stop watchers for directories we're about to delete
         for new_dir in new_dirs:
             # Find and stop watchers for this directory and its subdirectories
-            for watcher in get_active_watchers()[:]:  # Copy list to avoid mutation
+            # Copy list to avoid mutation during iteration as unregister_watcher modifies the underlying list
+            for watcher in get_active_watchers()[:]:
                 try:
                     # Check if watcher's path is within the directory we're deleting
                     watcher_path = Path(watcher.base_path).resolve()

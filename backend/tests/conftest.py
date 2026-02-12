@@ -16,6 +16,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from codex.db.database import init_system_db, system_engine, async_session_maker
 from codex.db.models import Plugin
 from codex.main import app
+from codex.core.watcher import get_active_watchers, unregister_watcher
 
 
 # Test plugin manifests (matching what the frontend would register)
@@ -264,6 +265,23 @@ def cleanup_workspace_dirs():
     if workspace_dir.exists():
         current_dirs = set(workspace_dir.iterdir())
         new_dirs = current_dirs - existing_dirs
+        
+        # Stop watchers for directories we're about to delete
+        for new_dir in new_dirs:
+            # Find and stop watchers for this directory and its subdirectories
+            for watcher in get_active_watchers()[:]:  # Copy list to avoid mutation
+                try:
+                    # Check if watcher's path is within the directory we're deleting
+                    watcher_path = Path(watcher.base_path).resolve()
+                    new_dir_path = new_dir.resolve()
+                    if watcher_path == new_dir_path or new_dir_path in watcher_path.parents:
+                        watcher.stop()
+                        unregister_watcher(watcher)
+                except Exception:
+                    # Ignore errors when stopping watchers during cleanup
+                    pass
+        
+        # Now delete the directories
         for new_dir in new_dirs:
             shutil.rmtree(new_dir, ignore_errors=True)
 

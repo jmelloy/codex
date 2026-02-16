@@ -52,7 +52,7 @@ async def get_notebook_path(
         raise HTTPException(status_code=404, detail="Notebook not found")
 
     # Get notebook path
-    workspace_path = Path(workspace.path)
+    workspace_path = Path(workspace.path).resolve()  # Convert to absolute path
     notebook_path = workspace_path / notebook.path
 
     if not notebook_path.exists():
@@ -82,7 +82,7 @@ async def get_notebook_path_nested(
     notebook = await get_notebook_by_slug_or_id(notebook_identifier, workspace, session)
 
     # Get notebook path
-    workspace_path = Path(workspace.path)
+    workspace_path = Path(workspace.path).resolve()  # Convert to absolute path
     notebook_path = workspace_path / notebook.path
 
     if not notebook_path.exists():

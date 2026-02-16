@@ -167,7 +167,7 @@ async def create_workspace(
     else:
         # No path provided - auto-generate from workspace name in data directory
         base_slug = slugify(name)
-        base_path = Path(DATA_DIRECTORY) / "workspaces"
+        base_path = Path(DATA_DIRECTORY).resolve() / "workspaces"
         workspace_path = base_path / base_slug
         final_slug = base_slug
 

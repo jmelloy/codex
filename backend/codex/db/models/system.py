@@ -294,6 +294,32 @@ class AgentActionLog(SQLModel, table=True):
     created_at: datetime = Field(default_factory=utc_now)
 
 
+class PersonalAccessToken(SQLModel, table=True):
+    """Personal access tokens for API authentication.
+
+    Tokens are prefixed with 'cdx_' for identification. The token_hash stores
+    a SHA-256 hash of the full token; the plain token is only shown at creation.
+    """
+
+    __tablename__ = "personal_access_tokens"  # type: ignore[assignment]
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="users.id", index=True)
+    name: str  # Human-readable label, e.g. "pre-commit hook"
+    token_hash: str = Field(unique=True, index=True)  # SHA-256 of the full token
+    token_prefix: str  # First 8 chars of the token for identification
+    scopes: str | None = None  # Comma-separated scopes, e.g. "snippets:write"
+    workspace_id: int | None = Field(default=None, foreign_key="workspaces.id")  # Optional scope to workspace
+    notebook_id: int | None = Field(default=None, foreign_key="notebooks.id")  # Optional scope to notebook
+    last_used_at: datetime | None = None
+    expires_at: datetime | None = None
+    is_active: bool = Field(default=True)
+    created_at: datetime = Field(default_factory=utc_now)
+
+    # Relationships
+    user: User = Relationship()
+
+
 class IntegrationArtifact(SQLModel, table=True):
     """Cached API responses for integration blocks.
 

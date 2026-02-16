@@ -33,6 +33,7 @@ from .system import (
     IntegrationArtifact,
     Notebook,
     NotebookPluginConfig,
+    PersonalAccessToken,
     Plugin,
     PluginAPILog,
     PluginConfig,
@@ -58,6 +59,8 @@ __all__ = [
     "PluginSecret",
     "PluginAPILog",
     "IntegrationArtifact",
+    # Token models
+    "PersonalAccessToken",
     # Agent models
     "Agent",
     "AgentCredential",

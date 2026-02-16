@@ -74,6 +74,32 @@ docker compose -f docker-compose.prod.yml up -d
 
 ## Architecture
 
+### Overview
+
+Codex uses a layered architecture with clear separation of concerns:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     Presentation Layer                       │
+│  Vue.js SPA ◄──WebSocket──► FastAPI REST API               │
+└─────────────────────────────────────────────────────────────┘
+                              │
+┌─────────────────────────────────────────────────────────────┐
+│                   Business Logic Layer                       │
+│  Core Services │ Agent System │ Plugin System               │
+└─────────────────────────────────────────────────────────────┘
+                              │
+┌─────────────────────────────────────────────────────────────┐
+│                    Data Access Layer                         │
+│  System DB Models │ Notebook DB Models                      │
+└─────────────────────────────────────────────────────────────┘
+                              │
+┌─────────────────────────────────────────────────────────────┐
+│                  Infrastructure Layer                        │
+│  SQLite │ Filesystem (watched) │ External APIs              │
+└─────────────────────────────────────────────────────────────┘
+```
+
 ### Two-Database Pattern
 
 The system uses two types of SQLite databases:
@@ -83,6 +109,34 @@ The system uses two types of SQLite databases:
 2. **Notebook Databases** (`.codex/notebook.db` per notebook): Stores file metadata, tags, and search indexes for each notebook. Managed by separate Alembic migrations in `backend/codex/migrations/notebook/`.
 
 Both migration paths are configured in a single unified `backend/alembic.ini` file with named sections `[alembic:workspace]` and `[alembic:notebook]`.
+
+### Architectural Patterns
+
+**Clean Architecture**: Business logic separated from infrastructure concerns
+- API routes handle HTTP concerns
+- Core services contain business logic
+- Database layer handles persistence
+- Models define both schema and serialization
+
+**Event-Driven Synchronization**: Real-time file change detection
+- Watchdog observers monitor filesystem
+- Changes batched in queue (5-second intervals)
+- Metadata parsed from frontmatter/sidecars
+- Database updated, WebSocket notifications sent
+- Frontend updates reactively
+
+**Plugin Architecture**: Three types of extensibility
+- **View Plugins**: Custom visualization components (Vue.js)
+- **Theme Plugins**: Visual styling packages
+- **Integration Plugins**: External API connections
+
+**Agent System**: Scoped AI assistance with security boundaries
+- LiteLLM multi-provider support
+- ScopeGuard enforces permissions
+- Encrypted credential storage
+- Comprehensive action logging
+
+For comprehensive architecture documentation, see [docs/ARCHITECTURE.md](../ARCHITECTURE.md).
 
 ### Key Backend Components
 

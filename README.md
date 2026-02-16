@@ -4,9 +4,22 @@ A hierarchical digital laboratory journal system for tracking computational expe
 
 ## Architecture
 
+Codex uses a modern, layered architecture with clear separation of concerns:
+
 - **Backend**: Python 3.13+ with FastAPI + SQLModel
 - **Frontend**: Vue.js 3 with TypeScript and Vite
-- **Hierarchy**: Workspace → Notebook → Files
+- **Database**: Two-database pattern (system + per-notebook SQLite)
+- **Hierarchy**: User → Workspace → Notebook → Files
+
+### Key Architectural Features
+
+- **Two-Database Pattern**: System database for global metadata, per-notebook databases for file metadata and search indexes
+- **Real-Time Synchronization**: File system watcher with WebSocket notifications
+- **Plugin Architecture**: Extensible views, themes, and integrations
+- **Scoped AI Agents**: LLM-powered assistants with permission boundaries
+- **Type Safety**: Full TypeScript frontend and Pydantic backend models
+
+For detailed architecture documentation, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Features
 
@@ -291,6 +304,11 @@ date: 2024-01-01
 ```
 
 ## Documentation
+
+### Architecture
+
+- **[Architecture Overview](docs/ARCHITECTURE.md)** - Comprehensive architecture documentation including patterns, components, security, and recommendations
+- **[Architecture Diagrams](docs/ARCHITECTURE_DIAGRAMS.md)** - Visual diagrams of system structure, data flow, and deployment
 
 ### Design Documents
 

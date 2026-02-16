@@ -21,7 +21,9 @@ from codex.api.routes import (
     plugins,
     query,
     search,
+    snippets,
     tasks,
+    tokens,
     users,
     workspaces,
     ws,
@@ -216,6 +218,8 @@ app.include_router(plugins.router, prefix="/api/v1/plugins", tags=["plugins"])
 app.include_router(ws.router, prefix="/api/v1/ws", tags=["websocket"])
 app.include_router(agents.router, prefix="/api/v1/agents", tags=["agents"])
 app.include_router(agents.session_router, prefix="/api/v1/sessions", tags=["agent-sessions"])
+app.include_router(tokens.router, prefix="/api/v1/tokens", tags=["tokens"])
+app.include_router(snippets.router, prefix="/api/v1/snippets", tags=["snippets"])
 
 if __name__ == "__main__":
     import uvicorn

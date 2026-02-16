@@ -8,7 +8,9 @@ from . import (
     plugins,
     query,
     search,
+    snippets,
     tasks,
+    tokens,
     users,
     workspaces,
 )
@@ -21,7 +23,9 @@ __all__ = [
     "plugins",
     "query",
     "search",
+    "snippets",
     "tasks",
+    "tokens",
     "users",
     "workspaces",
 ]

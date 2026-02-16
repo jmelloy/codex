@@ -14,10 +14,12 @@ from ulid import ULID
 
 from codex.api.routes import (
     agents,
+    calendar,
     files,
     folders,
     integrations,
     notebooks,
+    oauth,
     plugins,
     query,
     search,
@@ -220,6 +222,8 @@ app.include_router(agents.router, prefix="/api/v1/agents", tags=["agents"])
 app.include_router(agents.session_router, prefix="/api/v1/sessions", tags=["agent-sessions"])
 app.include_router(tokens.router, prefix="/api/v1/tokens", tags=["tokens"])
 app.include_router(snippets.router, prefix="/api/v1/snippets", tags=["snippets"])
+app.include_router(oauth.router, prefix="/api/v1/oauth", tags=["oauth"])
+app.include_router(calendar.router, prefix="/api/v1/calendar", tags=["calendar"])
 
 if __name__ == "__main__":
     import uvicorn

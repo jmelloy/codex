@@ -4,6 +4,8 @@ import HomeView from "../views/HomeView.vue"
 import LoginView from "../views/LoginView.vue"
 import RegisterView from "../views/RegisterView.vue"
 import PageDetailView from "../views/PageDetailView.vue"
+import OAuthCallbackView from "../views/OAuthCallbackView.vue"
+import CalendarView from "../views/CalendarView.vue"
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -30,6 +32,18 @@ const router = createRouter({
       path: "/page/:notebookId/:pagePath+",
       name: "page-detail",
       component: PageDetailView,
+      meta: { requiresAuth: true },
+    },
+    {
+      path: "/calendar",
+      name: "calendar",
+      component: CalendarView,
+      meta: { requiresAuth: true },
+    },
+    {
+      path: "/oauth/callback",
+      name: "oauth-callback",
+      component: OAuthCallbackView,
       meta: { requiresAuth: true },
     },
     {

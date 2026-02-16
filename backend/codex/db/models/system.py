@@ -320,6 +320,31 @@ class PersonalAccessToken(SQLModel, table=True):
     user: User = Relationship()
 
 
+class OAuthConnection(SQLModel, table=True):
+    """OAuth connections linking users to external providers (e.g., Google).
+
+    Stores encrypted access/refresh tokens for each provider connection.
+    """
+
+    __tablename__ = "oauth_connections"  # type: ignore[assignment]
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="users.id", index=True)
+    provider: str = Field(index=True)  # "google", etc.
+    provider_user_id: str | None = None  # External user ID from provider
+    provider_email: str | None = None  # Email from the provider
+    access_token: str  # Encrypted access token
+    refresh_token: str | None = None  # Encrypted refresh token
+    token_expires_at: datetime | None = None
+    scopes: str | None = None  # Comma-separated OAuth scopes granted
+    is_active: bool = Field(default=True)
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+    # Relationships
+    user: User = Relationship()
+
+
 class IntegrationArtifact(SQLModel, table=True):
     """Cached API responses for integration blocks.
 

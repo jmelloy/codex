@@ -4,6 +4,24 @@ This directory contains comprehensive documentation for the Codex project.
 
 ## Architecture Documentation
 
+### [Architecture Quick Reference](ARCHITECTURE_QUICK_REFERENCE.md) 🔖
+**Status**: Current  
+**Last Updated**: 2026-02-16
+
+Quick lookup guide for developers:
+- System structure and database pattern at a glance
+- Authentication and real-time sync flows
+- Plugin and agent system summaries
+- API routes and security checklist
+- Common issues and debugging tips
+- Performance optimization guidelines
+
+**Use this for:**
+- Quick reference during development
+- Onboarding new team members
+- Troubleshooting common issues
+- Finding the right file to modify
+
 ### [Architecture Review Summary](ARCHITECTURE_REVIEW_SUMMARY.md)
 **Status**: Complete  
 **Review Date**: 2026-02-16
@@ -129,6 +147,7 @@ Interactive API documentation available when running the backend:
 
 | Document | Type | Status | Version | Last Updated |
 |----------|------|--------|---------|--------------|
+| [ARCHITECTURE_QUICK_REFERENCE.md](ARCHITECTURE_QUICK_REFERENCE.md) | Reference | Current | 1.0 | 2026-02-16 |
 | [ARCHITECTURE_REVIEW_SUMMARY.md](ARCHITECTURE_REVIEW_SUMMARY.md) | Review | Complete | 1.0 | 2026-02-16 |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Architecture | Current | 1.0 | 2026-02-16 |
 | [ARCHITECTURE_DIAGRAMS.md](ARCHITECTURE_DIAGRAMS.md) | Architecture | Current | 1.0 | 2026-02-16 |

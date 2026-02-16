@@ -4,6 +4,23 @@ This directory contains comprehensive documentation for the Codex project.
 
 ## Architecture Documentation
 
+### [Architecture Review Summary](ARCHITECTURE_REVIEW_SUMMARY.md)
+**Status**: Complete  
+**Review Date**: 2026-02-16
+
+Executive summary of the architecture review:
+- Overall assessment and grading
+- Key architectural patterns identified
+- Security assessment and recommendations
+- Performance considerations and scalability limits
+- Code quality and documentation assessment
+- Prioritized recommendations (immediate, medium-term, long-term)
+
+**Read this first for:**
+- Quick overview of architecture strengths and weaknesses
+- Prioritized action items
+- Decision-making on architectural changes
+
 ### [Architecture Overview](ARCHITECTURE.md)
 **Status**: Current  
 **Last Updated**: 2026-02-16
@@ -112,6 +129,7 @@ Interactive API documentation available when running the backend:
 
 | Document | Type | Status | Version | Last Updated |
 |----------|------|--------|---------|--------------|
+| [ARCHITECTURE_REVIEW_SUMMARY.md](ARCHITECTURE_REVIEW_SUMMARY.md) | Review | Complete | 1.0 | 2026-02-16 |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Architecture | Current | 1.0 | 2026-02-16 |
 | [ARCHITECTURE_DIAGRAMS.md](ARCHITECTURE_DIAGRAMS.md) | Architecture | Current | 1.0 | 2026-02-16 |
 | [dynamic-views.md](design/dynamic-views.md) | Design | ✅ Implemented | 1.1 | 2026-01-24 |

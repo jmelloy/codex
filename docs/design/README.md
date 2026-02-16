@@ -2,7 +2,16 @@
 
 This directory contains design documents and technical specifications for Codex features.
 
-## Available Documents
+## Core Architecture Documentation
+
+For comprehensive system architecture information, see the parent docs directory:
+
+- **[Architecture Guide](../ARCHITECTURE.md)** - Complete system architecture overview
+- **[Database Schema](../DATABASE_SCHEMA.md)** - Detailed database documentation
+- **[Deployment Guide](../DEPLOYMENT.md)** - Production deployment instructions
+- **[Architecture Review](../ARCHITECTURE_REVIEW.md)** - Architecture assessment and recommendations
+
+## Feature Design Documents
 
 ### [Dynamic Views](./dynamic-views.md)
 **Status**: Implemented (v1)  

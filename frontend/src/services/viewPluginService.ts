@@ -7,7 +7,7 @@
  */
 
 import { defineAsyncComponent, h, type Component } from "vue"
-import { getAvailableViews } from "./pluginLoader"
+import { getAvailableViews, getAvailableBlockTypes } from "./pluginLoader"
 
 export interface ViewPlugin {
   id: string
@@ -17,24 +17,6 @@ export interface ViewPlugin {
   plugin_id: string
   plugin_name: string
   config_schema?: Record<string, any>
-}
-
-// Map view types to their source paths for development fallback
-const VIEW_FALLBACK_PATHS: Record<string, string> = {
-  kanban: "tasks/components/KanbanView.vue",
-  "task-list": "tasks/components/TaskListView.vue",
-  rollup: "rollup/components/RollupView.vue",
-  gallery: "gallery/components/GalleryView.vue",
-  corkboard: "corkboard/components/CorkboardView.vue",
-}
-
-// Map view types to their expected component names in dist/
-const VIEW_DIST_NAMES: Record<string, string> = {
-  kanban: "kanban-view",
-  "task-list": "task-list-view",
-  rollup: "rollup-view",
-  gallery: "gallery-view",
-  corkboard: "corkboard-view",
 }
 
 // Base path for plugins
@@ -176,49 +158,37 @@ class ViewPluginService {
       }
     }
 
-    // Production path: try to load from dist/ first
-    const distName = VIEW_DIST_NAMES[viewId] || `${viewId}-view`
+    // Production path: look up the compiled component file from the plugin manifest
+    // The plugin loader's block types map includes view components (keyed by view ID)
+    const blockTypes = await getAvailableBlockTypes()
+    const blockEntry = blockTypes.find((b) => b.blockType === viewId)
+
+    if (blockEntry) {
+      // Found in plugin manifest's component map — use the file path directly
+      try {
+        const { loadPluginComponent } = await import("./pluginLoader")
+        const component = loadPluginComponent(viewId)
+        // loadPluginComponent returns an async component wrapper; resolve it
+        return component
+      } catch (err) {
+        console.warn(`Failed to load view via plugin component map for ${viewId}:`, err)
+      }
+    }
+
+    // Fallback: construct URL from view metadata (plugin_id + naming convention)
+    const view = this.availableViews.get(viewId)
+    const pluginId = view?.plugin_id || viewId
+    const distName = `${viewId}-view`
     try {
-      const moduleUrl = `${PLUGINS_BASE}/${this.getPluginIdForView(viewId)}/dist/${distName}.js`
+      const moduleUrl = `${PLUGINS_BASE}/${pluginId}/dist/${distName}.js`
       const module = await import(/* @vite-ignore */ moduleUrl)
       return module.default || module
     } catch (err) {
       console.warn(`Failed to load compiled view component for ${viewId}:`, err)
     }
 
-    // Fallback: try to load from source files (for development without build)
-    const fallbackPath = VIEW_FALLBACK_PATHS[viewId]
-    if (fallbackPath) {
-      try {
-        const module = await import(/* @vite-ignore */ `${PLUGINS_BASE}/${fallbackPath}`)
-        return module.default || module
-      } catch (err) {
-        console.warn(`Failed to load fallback view component for ${viewId}:`, err)
-      }
-    }
-
     // Return fallback component
     return createFallbackComponent(viewId)
-  }
-
-  /**
-   * Get the plugin ID for a view
-   */
-  private getPluginIdForView(viewId: string): string {
-    const view = this.availableViews.get(viewId)
-    if (view) {
-      return view.plugin_id
-    }
-    // Fallback mapping for common views
-    const viewToPlugin: Record<string, string> = {
-      kanban: "tasks",
-      "task-list": "tasks",
-      rollup: "rollup",
-      gallery: "gallery",
-      corkboard: "corkboard",
-      dashboard: "core",
-    }
-    return viewToPlugin[viewId] || viewId
   }
 
   /**
@@ -253,9 +223,8 @@ class ViewPluginService {
     if (viewId === "dashboard") {
       return true
     }
-    // Check if we have a fallback path or it's in the available views
-    // In dev mode, availableViews is populated from the dev manifest via getAvailableViews()
-    return viewId in VIEW_FALLBACK_PATHS || this.availableViews.has(viewId)
+    // Check if the view is registered from the plugin manifest
+    return this.availableViews.has(viewId)
   }
 }
 

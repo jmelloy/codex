@@ -245,6 +245,9 @@ async function discoverComponents(): Promise<ComponentEntry[]> {
       continue;
     }
 
+    // Track which component files have been mapped to avoid duplicates
+    const mappedComponents = new Set<string>();
+
     // If plugin has blocks defined, map them to components
     if (manifest.blocks && manifest.blocks.length > 0) {
       for (const block of manifest.blocks) {
@@ -280,6 +283,7 @@ async function discoverComponents(): Promise<ComponentEntry[]> {
         }
 
         if (componentFile) {
+          mappedComponents.add(componentFile);
           entries.push({
             pluginId,
             pluginDir: directory,
@@ -294,20 +298,54 @@ async function discoverComponents(): Promise<ComponentEntry[]> {
           });
         }
       }
-    } else {
-      // No blocks defined, build all Vue components found
+    }
+
+    // If plugin has views defined, map view IDs to their Vue components
+    // This ensures the plugins.json components map uses view IDs (e.g., "kanban")
+    // rather than generic kebab-cased names (e.g., "kanban-view")
+    if (manifest.views && manifest.views.length > 0) {
+      for (const view of manifest.views) {
+        // Convert view ID to likely component name: "kanban" -> "KanbanView"
+        const viewComponentName = `${pascalCase(view.id)}View`;
+        const componentFile = components.get(viewComponentName);
+
+        if (componentFile && !mappedComponents.has(componentFile)) {
+          mappedComponents.add(componentFile);
+          entries.push({
+            pluginId,
+            pluginDir: directory,
+            pluginName: manifest.name,
+            pluginVersion: manifest.version,
+            blockId: view.id,
+            blockName: view.name,
+            componentFile,
+            outputFile: `${view.id}-view.js`,
+            icon: view.icon,
+            description: view.description,
+          });
+        }
+      }
+    }
+
+    // For plugins with neither blocks nor views, build all Vue components found
+    if (
+      (!manifest.blocks || manifest.blocks.length === 0) &&
+      (!manifest.views || manifest.views.length === 0)
+    ) {
       for (const [componentName, componentPath] of components) {
-        const blockId = kebabCase(componentName.replace(/Block$/, ""));
-        entries.push({
-          pluginId,
-          pluginDir: directory,
-          pluginName: manifest.name,
-          pluginVersion: manifest.version,
-          blockId,
-          blockName: componentName,
-          componentFile: componentPath,
-          outputFile: `${blockId}.js`,
-        });
+        if (!mappedComponents.has(componentPath)) {
+          const blockId = kebabCase(componentName.replace(/Block$/, ""));
+          entries.push({
+            pluginId,
+            pluginDir: directory,
+            pluginName: manifest.name,
+            pluginVersion: manifest.version,
+            blockId,
+            blockName: componentName,
+            componentFile: componentPath,
+            outputFile: `${blockId}.js`,
+          });
+        }
       }
     }
   }

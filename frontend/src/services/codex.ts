@@ -348,14 +348,31 @@ export const pageService = {
    * Create a new page directory with .page metadata file.
    * Note: This requires backend support for creating directories and files.
    */
-  async create(_notebookId: number, _workspaceId: number, _title: string, _description?: string): Promise<Page> {
-    // Future implementation would:
-    // 1. Create slug from title
-    // 2. Create directory with .page suffix
-    // 3. Create .page file with metadata
-    
-    // TODO: Need backend endpoint to create directory and file
-    throw new Error("Creating pages requires backend directory creation support")
+  async create(notebookId: number, workspaceId: number, title: string, description?: string): Promise<Page> {
+    const slug = this._slugify(title)
+    const dirPath = `${slug}.page`
+
+    // Create .page metadata file
+    const now = new Date().toISOString()
+    const metadata = {
+      title,
+      description: description || "",
+      created_time: now,
+      last_edited_time: now,
+    }
+    await fileService.create(notebookId, workspaceId, `${dirPath}/.page`, JSON.stringify(metadata, null, 2))
+
+    // Create initial content block
+    const initialContent = `# ${title}\n\nStart writing here...`
+    await fileService.create(notebookId, workspaceId, `${dirPath}/001-content.md`, initialContent)
+
+    return {
+      directory_path: dirPath,
+      title,
+      description,
+      created_at: now,
+      updated_at: now,
+    }
   },
 
   /**

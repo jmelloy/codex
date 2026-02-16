@@ -811,12 +811,27 @@
           :workspace-id="workspaceStore.currentWorkspace.id"
           v-model="selectedTemplate"
           @select="handleTemplateSelect"
+          @update:mode="handleModeChange"
         />
       </div>
 
-      <!-- Filename input -->
+      <!-- Input section -->
       <div class="border-t border-border-light pt-4 mt-4">
-        <FormGroup v-if="selectedTemplate" label="Filename" v-slot="{ inputId }">
+        <!-- Page title input (page mode) -->
+        <FormGroup v-if="createMode === 'page'" label="Page Title" v-slot="{ inputId }">
+          <input
+            :id="inputId"
+            v-model="customTitle"
+            placeholder="My New Page"
+            class="w-full px-3 py-2 border border-border-medium rounded-md bg-bg-primary text-text-primary"
+          />
+          <p class="text-sm text-text-secondary mt-1">
+            Creates a page folder with an initial content block
+          </p>
+        </FormGroup>
+
+        <!-- Template filename input -->
+        <FormGroup v-else-if="selectedTemplate" label="Filename" v-slot="{ inputId }">
           <div class="flex items-center gap-2">
             <input
               :id="inputId"
@@ -831,6 +846,7 @@
           </p>
         </FormGroup>
 
+        <!-- Blank file filename input -->
         <FormGroup v-else label="Filename" v-slot="{ inputId }">
           <input
             :id="inputId"
@@ -854,7 +870,7 @@
           Cancel
         </button>
         <button
-          v-if="!selectedTemplate && newFileName.endsWith('.cdx')"
+          v-if="createMode === 'file' && !selectedTemplate && newFileName.endsWith('.cdx')"
           type="button"
           @click="switchToViewCreator"
           class="notebook-button px-4 py-2 text-white border-none rounded cursor-pointer transition"
@@ -899,7 +915,7 @@ import { useRouter, useRoute } from "vue-router"
 import { useAuthStore } from "../stores/auth"
 import { useWorkspaceStore } from "../stores/workspace"
 import type { Workspace, Notebook, FileMetadata, Template } from "../services/codex"
-import { templateService, searchService } from "../services/codex"
+import { templateService, searchService, pageService } from "../services/codex"
 import { getDisplayType } from "../utils/contentType"
 import Modal from "../components/Modal.vue"
 import FormGroup from "../components/FormGroup.vue"
@@ -941,6 +957,7 @@ const newFileName = ref("")
 const createFileNotebook = ref<Notebook | null>(null)
 const selectedTemplate = ref<Template | null>(null)
 const customTitle = ref("")
+const createMode = ref<"page" | "file" | "template">("page")
 
 // View state
 const showPropertiesPanel = ref(false)
@@ -1628,6 +1645,36 @@ async function handleCreateFile() {
   if (!createFileNotebook.value || !workspaceStore.currentWorkspace) return
 
   try {
+    // Page creation mode
+    if (createMode.value === "page") {
+      const title = customTitle.value.trim() || "Untitled"
+      const page = await pageService.create(
+        createFileNotebook.value.id,
+        workspaceStore.currentWorkspace.id,
+        title,
+      )
+
+      // Refresh file list and select the initial content block
+      await workspaceStore.fetchFiles(createFileNotebook.value.id)
+
+      // Try to select the initial content file
+      const files = workspaceStore.getFilesForNotebook(createFileNotebook.value.id)
+      const contentFile = files.find(
+        (f) => f.path === `${page.directory_path}/001-content.md`,
+      )
+      if (contentFile) {
+        await workspaceStore.selectFile(contentFile)
+      }
+
+      showCreateFile.value = false
+      newFileName.value = ""
+      customTitle.value = ""
+      selectedTemplate.value = null
+      createFileNotebook.value = null
+      showToast({ message: "Page created!" })
+      return
+    }
+
     // If a template is selected, use the template service
     if (selectedTemplate.value) {
       const filename = customTitle.value
@@ -1719,15 +1766,21 @@ function startCreateFile(notebook: Notebook) {
   newFileName.value = ""
   selectedTemplate.value = null
   customTitle.value = ""
+  createMode.value = "page"
   showCreateFile.value = true
 }
 
 function handleTemplateSelect(template: Template | null) {
   selectedTemplate.value = template
   if (template) {
+    createMode.value = "template"
     // Clear custom filename when a template is selected
     customTitle.value = ""
   }
+}
+
+function handleModeChange(mode: "page" | "file" | "template") {
+  createMode.value = mode
 }
 
 function getFilenamePlaceholder(): string {

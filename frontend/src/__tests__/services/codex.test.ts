@@ -321,12 +321,12 @@ describe("Codex Services", () => {
       mockGet.mockResolvedValue({ data: mockResults })
 
       expect(await searchService.search(1, "test query")).toEqual(mockResults)
-      expect(mockGet).toHaveBeenCalledWith("/api/v1/workspaces/1/search/?q=test query")
+      expect(mockGet).toHaveBeenCalledWith("/api/v1/workspaces/1/search/?q=test%20query")
 
       const tagResults = { results: [{ id: 1, title: "Tagged File" }] }
       mockGet.mockResolvedValue({ data: tagResults })
       expect(await searchService.searchByTags(1, ["tag1", "tag2"])).toEqual(tagResults)
-      expect(mockGet).toHaveBeenCalledWith("/api/v1/workspaces/1/search/tags?tags=tag1,tag2")
+      expect(mockGet).toHaveBeenCalledWith("/api/v1/workspaces/1/search/tags?tags=tag1%2Ctag2")
     })
   })
 })

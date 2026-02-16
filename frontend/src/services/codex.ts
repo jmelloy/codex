@@ -775,7 +775,9 @@ export const searchService = {
    * Search files and content across all notebooks in a workspace.
    */
   async search(workspaceId: number | string, query: string): Promise<any> {
-    const response = await apiClient.get(`/api/v1/workspaces/${workspaceId}/search/?q=${query}`)
+    const response = await apiClient.get(
+      `/api/v1/workspaces/${workspaceId}/search/?q=${encodeURIComponent(query)}`
+    )
     return response.data
   },
 
@@ -784,7 +786,7 @@ export const searchService = {
    */
   async searchInNotebook(workspaceId: number | string, notebookId: number | string, query: string): Promise<any> {
     const response = await apiClient.get(
-      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/search/?q=${query}`
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/search/?q=${encodeURIComponent(query)}`
     )
     return response.data
   },
@@ -794,7 +796,7 @@ export const searchService = {
    */
   async searchByTags(workspaceId: number | string, tags: string[]): Promise<any> {
     const response = await apiClient.get(
-      `/api/v1/workspaces/${workspaceId}/search/tags?tags=${tags.join(",")}`
+      `/api/v1/workspaces/${workspaceId}/search/tags?tags=${encodeURIComponent(tags.join(","))}`
     )
     return response.data
   },
@@ -808,7 +810,7 @@ export const searchService = {
     tags: string[]
   ): Promise<any> {
     const response = await apiClient.get(
-      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/search/tags?tags=${tags.join(",")}`
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/search/tags?tags=${encodeURIComponent(tags.join(","))}`
     )
     return response.data
   },

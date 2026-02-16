@@ -163,8 +163,6 @@ def expand_template_pattern(pattern: str, title: str = "untitled") -> str:
     for key, value in replacements.items():
         result = result.replace(key, value)
 
-    result = now.strftime(result)
-
     return result
 
 
@@ -392,7 +390,7 @@ async def get_file_content_by_path(
             resolved_path = file_path.resolve()
             resolved_notebook = notebook_path.resolve()
             # Ensure the file is within the notebook directory
-            if not str(resolved_path).startswith(str(resolved_notebook)):
+            if not resolved_path.is_relative_to(resolved_notebook):
                 raise HTTPException(status_code=403, detail="Access denied: Invalid file path")
         except (OSError, ValueError) as e:
             logger.error(f"Path validation error: {e}")
@@ -532,7 +530,7 @@ async def get_file_content(
             resolved_path = file_path.resolve()
             resolved_notebook = notebook_path.resolve()
             # Ensure the file is within the notebook directory
-            if not str(resolved_path).startswith(str(resolved_notebook)):
+            if not resolved_path.is_relative_to(resolved_notebook):
                 raise HTTPException(status_code=403, detail="Access denied: Invalid file path")
         except (OSError, ValueError) as e:
             logger.error(f"Path validation error: {e}")
@@ -1029,7 +1027,7 @@ async def get_file_content_by_path_nested(
             resolved_path = file_path.resolve()
             resolved_notebook = notebook_path.resolve()
             # Ensure the file is within the notebook directory
-            if not str(resolved_path).startswith(str(resolved_notebook)):
+            if not resolved_path.is_relative_to(resolved_notebook):
                 raise HTTPException(status_code=403, detail="Access denied: Invalid file path")
         except (OSError, ValueError) as e:
             logger.error(f"Path validation error: {e}")
@@ -1186,7 +1184,7 @@ async def get_file_content_nested(
             resolved_path = file_path.resolve()
             resolved_notebook = notebook_path.resolve()
             # Ensure the file is within the notebook directory
-            if not str(resolved_path).startswith(str(resolved_notebook)):
+            if not resolved_path.is_relative_to(resolved_notebook):
                 raise HTTPException(status_code=403, detail="Access denied: Invalid file path")
         except (OSError, ValueError) as e:
             logger.error(f"Path validation error: {e}")

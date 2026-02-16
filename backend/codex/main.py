@@ -88,15 +88,11 @@ def _start_notebook_watchers_sync():
     try:
         # Select notebooks with their workspace relationship to get full paths
         result = session.exec(select(Notebook, Workspace).join(Workspace, Notebook.workspace_id == Workspace.id))
-        notebooks = result.scalars().all()
-        logger.info(f"Found {len(notebooks)} notebooks in database")
+        rows = result.all()
+        logger.info(f"Found {len(rows)} notebooks in database")
 
-        for nb in notebooks:
+        for nb, workspace in rows:
             try:
-                workspace = nb.workspace
-                if not workspace:
-                    logger.warning(f"Notebook {nb.name} (id={nb.id}) has no associated workspace, skipping")
-                    continue
                 # Compute full notebook path
                 notebook_path = (Path(workspace.path) / nb.path).resolve()  # Convert to absolute path
                 codex_db_path = notebook_path / ".codex" / "notebook.db"

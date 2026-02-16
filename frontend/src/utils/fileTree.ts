@@ -390,9 +390,9 @@ export function moveNode(tree: FileTreeNode[], oldPath: string, newPath: string)
 
   // Update path and insert at new location
   if (node.type === "file" && node.file) {
-    node.file = { ...node.file, path: newPath, filename: newPath.split("/").pop()! }
+    node.file = { ...node.file, path: newPath, filename: newPath.split("/").pop() || newPath }
     node.path = newPath
-    node.name = newPath.split("/").pop()!
+    node.name = newPath.split("/").pop() || newPath
     insertFileNode(tree, node.file)
   } else {
     // For folders, need to recursively update all child paths
@@ -400,9 +400,13 @@ export function moveNode(tree: FileTreeNode[], oldPath: string, newPath: string)
     const newPrefix = newPath
 
     function updatePaths(n: FileTreeNode) {
-      n.path = n.path.replace(oldPrefix, newPrefix)
+      if (n.path === oldPrefix) {
+        n.path = newPrefix
+      } else if (n.path.startsWith(oldPrefix + "/")) {
+        n.path = newPrefix + n.path.substring(oldPrefix.length)
+      }
       if (n.file) {
-        n.file = { ...n.file, path: n.path, filename: n.path.split("/").pop()! }
+        n.file = { ...n.file, path: n.path, filename: n.path.split("/").pop() || n.path }
       }
       if (n.children) {
         n.children.forEach(updatePaths)

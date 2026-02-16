@@ -102,7 +102,7 @@
         </h3>
         <div
           v-for="event in dayEvents"
-          :key="event.id"
+          :key="event.id ?? undefined"
           class="event-card notebook-page p-3 rounded mb-2 cursor-pointer hover:shadow-md transition-shadow"
           @click="event.html_link && openEvent(event.html_link)"
         >
@@ -146,7 +146,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue"
-import { oauthService, type OAuthConnection } from "../services/oauth"
+import { oauthService } from "../services/oauth"
 import { calendarService, type Calendar, type CalendarEvent } from "../services/calendar"
 
 const loading = ref(true)
@@ -177,11 +177,10 @@ function initDateRange() {
 const groupedEvents = computed(() => {
   const groups: Record<string, CalendarEvent[]> = {}
   for (const event of events.value) {
-    const dateStr = event.start
-      ? event.all_day
-        ? event.start
-        : event.start.split("T")[0]
-      : "unknown"
+    let dateStr = "unknown"
+    if (event.start) {
+      dateStr = event.all_day ? event.start : event.start.split("T")[0]
+    }
     if (!groups[dateStr]) {
       groups[dateStr] = []
     }

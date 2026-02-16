@@ -1,10 +1,12 @@
 """API routes package."""
 
 from . import (
+    calendar,
     files,
     folders,
     integrations,
     notebooks,
+    oauth,
     plugins,
     query,
     search,
@@ -16,10 +18,12 @@ from . import (
 )
 
 __all__ = [
+    "calendar",
     "files",
     "folders",
     "integrations",
     "notebooks",
+    "oauth",
     "plugins",
     "query",
     "search",

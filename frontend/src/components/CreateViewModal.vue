@@ -264,7 +264,7 @@ const sortBy = ref("created_at desc")
 const kanbanStatusProperty = ref("status")
 const galleryColumns = ref(4)
 
-const selectedViewType = computed(() => viewTypes.find((t) => t.id === selectedType.value))
+const selectedViewType = computed(() => viewTypes.value.find((t: { id: string }) => t.id === selectedType.value))
 
 function ensureExtension() {
   if (filename.value && !filename.value.endsWith(".cdx")) {

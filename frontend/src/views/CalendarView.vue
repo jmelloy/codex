@@ -179,12 +179,15 @@ const groupedEvents = computed(() => {
   for (const event of events.value) {
     let dateStr = "unknown"
     if (event.start) {
-      dateStr = event.all_day ? event.start : event.start.split("T")[0]
+      const parts = event.start.split("T")
+      dateStr = event.all_day ? event.start : (parts[0] ?? event.start)
     }
-    if (!groups[dateStr]) {
-      groups[dateStr] = []
+    const existing = groups[dateStr]
+    if (existing) {
+      existing.push(event)
+    } else {
+      groups[dateStr] = [event]
     }
-    groups[dateStr].push(event)
   }
   return groups
 })

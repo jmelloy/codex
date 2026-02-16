@@ -115,8 +115,8 @@ async def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
 
-    # Try cookie first, then Authorization header
-    jwt_token = access_token or token
+    # Authorization header takes priority over cookie
+    jwt_token = token or access_token
 
     if not jwt_token:
         raise credentials_exception

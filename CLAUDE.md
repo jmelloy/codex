@@ -8,7 +8,7 @@ Codex is a hierarchical digital laboratory journal system for tracking computati
 
 ## Build and Development Commands
 
-### Backend (Python 3.13+)
+### Backend (Python 3.11+)
 
 ```bash
 # Install dependencies (always run first)
@@ -133,7 +133,7 @@ Frontend tests are in `frontend/src/__tests__/` using Vitest.
 
 - Python: Use black for formatting, ruff for linting (line length 120)
 - TypeScript/Vue: Use prettier for formatting
-- Python target version: 3.13
+- Python target version: 3.11
 - Tests use pytest-asyncio with `asyncio_mode = "auto"`
 
 ## Test Data

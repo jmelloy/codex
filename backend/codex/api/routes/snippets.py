@@ -73,31 +73,6 @@ def _generate_snippet_filename(title: str | None, extension: str = ".md") -> str
     return f"{date_str}-{time_str}-snippet{extension}"
 
 
-def _build_markdown_content(content: str, title: str | None, tags: list[str], file_type: str | None, properties: dict | None) -> str:
-    """Build markdown content with YAML frontmatter."""
-    frontmatter = {}
-
-    if title:
-        frontmatter["title"] = title
-
-    now = datetime.now(UTC)
-    frontmatter["date"] = now.strftime("%Y-%m-%dT%H:%M:%SZ")
-
-    if tags:
-        frontmatter["tags"] = tags
-
-    if file_type:
-        frontmatter["type"] = file_type
-
-    if properties:
-        frontmatter.update(properties)
-
-    if frontmatter:
-        return MetadataParser.write_frontmatter(content, frontmatter)
-
-    return content
-
-
 async def _resolve_workspace_and_notebook(
     workspace_identifier: str,
     notebook_identifier: str,
@@ -171,10 +146,19 @@ async def post_snippet(
     else:
         rel_path = filename
 
-    # Build content with frontmatter
-    full_content = _build_markdown_content(
-        request.content, request.title, request.tags, request.file_type, request.properties
-    )
+    # Build frontmatter properties
+    frontmatter_props: dict = {}
+    if request.title:
+        frontmatter_props["title"] = request.title
+    frontmatter_props["date"] = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    if request.tags:
+        frontmatter_props["tags"] = request.tags
+    if request.file_type:
+        frontmatter_props["type"] = request.file_type
+    if request.properties:
+        frontmatter_props.update(request.properties)
+
+    full_content = MetadataParser.write_frontmatter(request.content, frontmatter_props)
 
     file_path = notebook_path / rel_path
 

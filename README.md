@@ -292,6 +292,34 @@ date: 2024-01-01
 
 ## Documentation
 
+### Core Documentation
+
+- **[Architecture Guide](docs/ARCHITECTURE.md)** - Comprehensive system architecture overview
+  - System design and components
+  - Backend and frontend architecture
+  - Two-database pattern explained
+  - API design patterns
+  - Security architecture
+  - Plugin system
+  - Scalability and performance
+  - Key design decisions and recommendations
+
+- **[Database Schema](docs/DATABASE_SCHEMA.md)** - Complete database documentation
+  - System database (users, workspaces, tasks, agents)
+  - Notebook databases (files, tags, search)
+  - Entity relationship diagrams
+  - Migration patterns
+  - Query optimization
+
+- **[Deployment Guide](docs/DEPLOYMENT.md)** - Production deployment instructions
+  - Local development setup
+  - Docker deployment
+  - Cloud deployments (AWS, GCP, Azure, DigitalOcean)
+  - Kubernetes configuration
+  - Security hardening
+  - Monitoring and maintenance
+  - Backup and recovery
+
 ### Design Documents
 
 Comprehensive design documents are available in the `/docs/design/` directory:
@@ -306,6 +334,27 @@ See the [Design Documents README](docs/design/README.md) for implementation stat
 
 - [Test Credentials](TEST_CREDENTIALS.md) - Test user accounts and sample data
 - [Claude Instructions](CLAUDE.md) - Development guidelines for AI assistants
+
+## Architecture Highlights
+
+Codex follows a three-tier architecture with a unique **two-database pattern**:
+
+- **System Database**: Global entities (users, workspaces, tasks, agents)
+- **Notebook Databases**: Per-notebook isolation for files, tags, and search
+
+This design enables:
+- **Horizontal Scalability**: Notebooks can be distributed independently
+- **Data Isolation**: Issues in one notebook don't affect others
+- **Simplified Management**: Clear separation of concerns
+
+**Key Technologies:**
+- Python 3.13+ with FastAPI (async-first backend)
+- Vue.js 3 with TypeScript (reactive frontend)
+- SQLite/PostgreSQL (flexible database options)
+- WebSocket for real-time updates
+- Plugin-based extensibility
+
+For detailed information, see the [Architecture Guide](docs/ARCHITECTURE.md).
 
 ## License
 

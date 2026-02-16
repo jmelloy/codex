@@ -153,9 +153,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue"
+import { ref, computed, onMounted, watch } from "vue"
 import Modal from "./Modal.vue"
 import FormGroup from "./FormGroup.vue"
+import { viewPluginService } from "@/services/viewPluginService"
 
 const props = defineProps<{
   modelValue: boolean
@@ -166,8 +167,8 @@ const emit = defineEmits<{
   (e: "create", data: { filename: string; content: string }): void
 }>()
 
-// View type definitions
-const viewTypes = [
+// Fallback view types used when the plugin service hasn't loaded yet
+const fallbackViewTypes = [
   {
     id: "kanban",
     name: "Kanban Board",
@@ -205,6 +206,51 @@ const viewTypes = [
     description: "Compose multiple views into a single dashboard",
   },
 ]
+
+// Dynamically loaded view types from plugins
+const pluginViewTypes = ref<Array<{ id: string; name: string; icon: string; description: string }>>([])
+
+// Merge plugin views with fallbacks: plugin views take priority, then add any
+// fallback entries not already covered by plugins
+const viewTypes = computed(() => {
+  if (pluginViewTypes.value.length === 0) {
+    return fallbackViewTypes
+  }
+  const pluginIds = new Set(pluginViewTypes.value.map((v) => v.id))
+  const extras = fallbackViewTypes.filter((v) => !pluginIds.has(v.id))
+  return [...pluginViewTypes.value, ...extras]
+})
+
+async function loadViewTypes() {
+  try {
+    await viewPluginService.initialize()
+    const views = viewPluginService.getAvailableViews()
+    if (views.length > 0) {
+      pluginViewTypes.value = views.map((v) => ({
+        id: v.id,
+        name: v.name,
+        icon: v.icon || "📄",
+        description: v.description || "",
+      }))
+    }
+  } catch (err) {
+    console.warn("Failed to load view types from plugins, using defaults:", err)
+  }
+}
+
+// Load view types when modal opens
+watch(
+  () => props.modelValue,
+  (isOpen) => {
+    if (isOpen) {
+      loadViewTypes()
+    }
+  },
+)
+
+onMounted(() => {
+  loadViewTypes()
+})
 
 // Form state
 const selectedType = ref("")

@@ -10,8 +10,12 @@
       @input="handleInput"
       @keydown="handleKeydown"
       @paste="handlePaste"
+      @drop="handleDrop"
+      @dragover="handleDragOver"
+      @dragleave="handleDragLeave"
       @blur="handleBlur"
       :data-placeholder="placeholder"
+      :class="{ 'drag-over': isDragOver }"
     ></div>
   </div>
 </template>
@@ -26,6 +30,7 @@ const themeStore = useThemeStore()
 interface Props {
   modelValue: string
   placeholder?: string
+  onImageUpload?: (file: File) => Promise<string | null>
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -43,6 +48,12 @@ const emit = defineEmits<{
 const editorRef = ref<HTMLDivElement | null>(null)
 const isComposing = ref(false)
 const lastContent = ref("")
+const isDragOver = ref(false)
+
+// Image MIME types we accept
+const IMAGE_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml"]
+
+const isImageFile = (file: File): boolean => IMAGE_TYPES.includes(file.type)
 
 // Block type patterns - detect markdown syntax at start of line
 const blockPatterns = [
@@ -624,9 +635,19 @@ const toggleInlineFormat = (format: "bold" | "italic" | "code") => {
   emitContent()
 }
 
-// Handle paste - convert to plain text
+// Handle paste - convert to plain text, or upload images
 const handlePaste = (e: ClipboardEvent) => {
   e.preventDefault()
+
+  // Check for image files in clipboard
+  const files = e.clipboardData?.files
+  if (files && files.length > 0 && props.onImageUpload) {
+    const imageFiles = Array.from(files).filter(isImageFile)
+    if (imageFiles.length > 0) {
+      uploadAndInsertImages(imageFiles)
+      return
+    }
+  }
 
   const text = e.clipboardData?.getData("text/plain") || ""
   document.execCommand("insertText", false, text)
@@ -634,6 +655,92 @@ const handlePaste = (e: ClipboardEvent) => {
   nextTick(() => {
     emitContent()
   })
+}
+
+// Handle drag over - show visual feedback
+const handleDragOver = (e: DragEvent) => {
+  if (!e.dataTransfer) return
+  // Only react to files being dragged (not internal text drags)
+  if (e.dataTransfer.types.includes("Files")) {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = "copy"
+    isDragOver.value = true
+  }
+}
+
+// Handle drag leave
+const handleDragLeave = () => {
+  isDragOver.value = false
+}
+
+// Handle drop - upload image files
+const handleDrop = (e: DragEvent) => {
+  isDragOver.value = false
+  if (!e.dataTransfer) return
+
+  const files = e.dataTransfer.files
+  if (files.length === 0 || !props.onImageUpload) return
+
+  const imageFiles = Array.from(files).filter(isImageFile)
+  if (imageFiles.length === 0) return
+
+  e.preventDefault()
+
+  // Place cursor at drop position
+  const range = document.caretRangeFromPoint(e.clientX, e.clientY)
+  if (range) {
+    const selection = window.getSelection()
+    selection?.removeAllRanges()
+    selection?.addRange(range)
+  }
+
+  uploadAndInsertImages(imageFiles)
+}
+
+// Upload image files and insert markdown links at cursor
+const uploadAndInsertImages = async (files: File[]) => {
+  if (!props.onImageUpload) return
+
+  for (const file of files) {
+    // Insert a placeholder while uploading
+    const placeholder = `![Uploading ${file.name}...]()`
+    document.execCommand("insertText", false, placeholder)
+    emitContent()
+
+    try {
+      const filename = await props.onImageUpload(file)
+      if (filename) {
+        // Replace the placeholder with the actual image link
+        const markdown = blocksToMarkdown()
+        const updated = markdown.replace(placeholder, `![${file.name}](${filename})`)
+        lastContent.value = updated
+        emit("update:modelValue", updated)
+        emit("change", updated)
+        // Re-render editor with updated content
+        if (editorRef.value) {
+          const html = markdownToBlocks(updated)
+          editorRef.value.innerHTML = html
+          // Place cursor at end
+          const lastBlock = editorRef.value.querySelector(".block:last-child")
+          if (lastBlock) {
+            placeCursorAtEnd(lastBlock)
+          }
+        }
+      }
+    } catch (err) {
+      // Replace placeholder with error indicator
+      const markdown = blocksToMarkdown()
+      const updated = markdown.replace(placeholder, `![Failed to upload ${file.name}]()`)
+      lastContent.value = updated
+      emit("update:modelValue", updated)
+      emit("change", updated)
+      if (editorRef.value) {
+        const html = markdownToBlocks(updated)
+        editorRef.value.innerHTML = html
+      }
+      console.error("Image upload failed:", err)
+    }
+  }
 }
 
 // Handle blur
@@ -852,6 +959,13 @@ defineExpose({
 /* Focus state */
 .live-editor-content:focus {
   outline: none;
+}
+
+/* Drag-over state */
+.live-editor-content.drag-over {
+  background: color-mix(in srgb, var(--color-primary) 5%, var(--color-bg-primary));
+  outline: 2px dashed var(--color-primary);
+  outline-offset: -4px;
 }
 
 /* Placeholder for empty blocks */

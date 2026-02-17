@@ -185,7 +185,7 @@ watch(() => props.modelValue, (isOpen) => {
 })
 
 onMounted(async () => {
-  await workspaceStore.loadWorkspaces()
+  await workspaceStore.fetchWorkspaces()
 })
 </script>
 

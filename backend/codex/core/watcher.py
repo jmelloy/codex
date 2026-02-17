@@ -439,7 +439,7 @@ def deduplicate_file_metadata(session, notebook_id: int, rel_path: str) -> FileM
     
     if len(all_results) > 1:
         # Keep the first one (oldest by ID), delete the rest
-        logger.warning(f"Found {len(all_results)} duplicate entries for {rel_path}, removing duplicates")
+        logger.warning(f'Found {len(all_results)} duplicate entries for path "{rel_path}", removing duplicates')
         file_meta = all_results[0]
         for duplicate in all_results[1:]:
             session.delete(duplicate)

@@ -696,6 +696,18 @@
         </div>
       </div>
 
+      <!-- Page Unified View Mode (.page directories) -->
+      <div v-else-if="workspaceStore.currentFolder && isPageFolder" class="flex-1 flex overflow-hidden p-4">
+        <PageUnifiedView
+          :folder="workspaceStore.currentFolder"
+          :workspace-id="workspaceStore.currentWorkspace?.id ?? 0"
+          class="flex-1"
+          @select-file="selectFile"
+          @select-folder="handleSelectSubfolder"
+          @toggle-properties="toggleProperties"
+        />
+      </div>
+
       <!-- Folder View Mode -->
       <div v-else-if="workspaceStore.currentFolder" class="flex-1 flex overflow-hidden p-4">
         <FolderView
@@ -926,6 +938,7 @@ import ViewRenderer from "../components/views/ViewRenderer.vue"
 import FilePropertiesPanel from "../components/FilePropertiesPanel.vue"
 import FolderPropertiesPanel from "../components/FolderPropertiesPanel.vue"
 import FolderView from "../components/FolderView.vue"
+import PageUnifiedView from "../components/PageUnifiedView.vue"
 import FileHeader from "../components/FileHeader.vue"
 import FileTreeItem from "../components/FileTreeItem.vue"
 import CreateViewModal from "../components/CreateViewModal.vue"
@@ -1042,6 +1055,12 @@ const currentContentUrl = computed(() => {
 const displayType = computed(() => {
   if (!workspaceStore.currentFile) return "markdown"
   return getDisplayType(workspaceStore.currentFile.content_type)
+})
+
+// Check if the current folder is a .page directory (should show unified page view)
+const isPageFolder = computed(() => {
+  if (!workspaceStore.currentFolder) return false
+  return workspaceStore.currentFolder.path.endsWith(".page")
 })
 
 // Open file in a new tab

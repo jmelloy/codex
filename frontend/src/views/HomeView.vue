@@ -533,6 +533,8 @@
             v-model="editContent"
             :frontmatter="workspaceStore.currentFile.properties"
             :autosave="false"
+            :workspace-id="workspaceStore.currentWorkspace?.id"
+            :notebook-id="workspaceStore.currentFile.notebook_id"
             @save="handleSaveFile"
             @cancel="handleCancelEdit"
             class="flex-1"

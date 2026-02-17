@@ -55,6 +55,7 @@
         ref="liveEditorRef"
         v-model="localContent"
         :placeholder="placeholder"
+        :on-image-upload="workspaceId && notebookId ? handleImageUpload : undefined"
         @change="handleLiveChange"
       />
     </div>
@@ -101,6 +102,7 @@ import { ref, computed, watch, nextTick } from "vue"
 import MarkdownViewer, { type MarkdownExtension } from "./MarkdownViewer.vue"
 import MarkdownLiveEditor from "./MarkdownLiveEditor.vue"
 import { useThemeStore } from "../stores/theme"
+import { fileService } from "../services/codex"
 
 const themeStore = useThemeStore()
 
@@ -116,6 +118,8 @@ interface Props {
   autosaveDelay?: number
   extensions?: MarkdownExtension[]
   defaultMode?: EditMode
+  workspaceId?: number | string
+  notebookId?: number | string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -201,6 +205,18 @@ const handleLiveChange = (content: string) => {
       emit("save", content)
     }, props.autosaveDelay)
   }
+}
+
+// Handle image upload from drag-and-drop or paste
+const handleImageUpload = async (file: File): Promise<string | null> => {
+  if (!props.workspaceId || !props.notebookId) return null
+
+  const uploaded = await fileService.upload(
+    props.notebookId,
+    props.workspaceId,
+    file,
+  )
+  return uploaded.filename
 }
 
 const handleInput = () => {

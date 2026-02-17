@@ -172,42 +172,35 @@ async def health():
 app.include_router(users.router, prefix="/api/v1/users", tags=["users"])
 app.include_router(workspaces.router, prefix="/api/v1/workspaces", tags=["workspaces"])
 app.include_router(notebooks.router, prefix="/api/v1/notebooks", tags=["notebooks"])
-# New nested notebook routes under workspaces
 app.include_router(
     notebooks.nested_router,
     prefix="/api/v1/workspaces/{workspace_identifier}/notebooks",
-    tags=["notebooks"]
+    tags=["notebooks"],
 )
-app.include_router(files.router, prefix="/api/v1/files", tags=["files"])
-# New nested file routes under workspaces/notebooks
 app.include_router(
     files.nested_router,
     prefix="/api/v1/workspaces/{workspace_identifier}/notebooks/{notebook_identifier}/files",
-    tags=["files"]
+    tags=["files"],
 )
-# New nested folder routes under workspaces/notebooks
 app.include_router(
     folders.nested_router,
     prefix="/api/v1/workspaces/{workspace_identifier}/notebooks/{notebook_identifier}/folders",
-    tags=["folders"]
+    tags=["folders"],
 )
-# New nested search routes under workspaces
 app.include_router(
     search.nested_router,
     prefix="/api/v1/workspaces/{workspace_identifier}/search",
-    tags=["search"]
+    tags=["search"],
 )
-# New nested search routes under workspaces/notebooks
 app.include_router(
     search.notebook_nested_router,
     prefix="/api/v1/workspaces/{workspace_identifier}/notebooks/{notebook_identifier}/search",
-    tags=["search"]
+    tags=["search"],
 )
-# New nested integration routes under workspaces/notebooks
 app.include_router(
     integrations.nested_router,
     prefix="/api/v1/workspaces/{workspace_identifier}/notebooks/{notebook_identifier}/integrations",
-    tags=["integrations"]
+    tags=["integrations"],
 )
 app.include_router(tasks.router, prefix="/api/v1/tasks", tags=["tasks"])
 app.include_router(query.router, prefix="/api/v1/query", tags=["query"])

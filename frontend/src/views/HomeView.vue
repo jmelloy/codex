@@ -546,6 +546,8 @@
             :frontmatter="workspaceStore.currentFile.properties"
             :autosave="isMarkdownFile"
             :autosave-delay="1500"
+            :workspace-id="workspaceStore.currentWorkspace?.id"
+            :notebook-id="workspaceStore.currentFile.notebook_id"
             @save="isMarkdownFile ? handleAutoSave($event) : handleSaveFile($event)"
             @cancel="handleCancelEdit"
             class="flex-1"

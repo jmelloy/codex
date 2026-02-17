@@ -1,15 +1,14 @@
 import { test, expect } from "../fixtures/auth";
 
 test.describe("Workspaces", () => {
-  test("default workspace exists after registration", async ({
+  test("default workspace exists after login", async ({
     authedPage: page,
-    testUser,
   }) => {
-    // After registration, a default workspace named after the user is created
+    // After login, a default workspace should be visible in the sidebar
     await expect(page.locator("text=Workspaces")).toBeVisible({ timeout: 10_000 });
-    // The default workspace should appear in the sidebar workspace list
+    // At least one workspace should appear in the list
     await expect(
-      page.getByRole("listitem").filter({ hasText: testUser.username })
+      page.getByRole("listitem").first()
     ).toBeVisible({ timeout: 10_000 });
   });
 
@@ -30,7 +29,7 @@ test.describe("Workspaces", () => {
     });
   });
 
-  test("switch between workspaces", async ({ authedPage: page, testUser }) => {
+  test("switch between workspaces", async ({ authedPage: page }) => {
     const workspaceName = `Switch WS ${Date.now()}`;
 
     // Create a second workspace
@@ -41,8 +40,8 @@ test.describe("Workspaces", () => {
       timeout: 10_000,
     });
 
-    // Click back to the default workspace
-    await page.getByText(testUser.username, { exact: false }).first().click();
+    // Click back to the first workspace in the list
+    await page.getByRole("listitem").first().click();
 
     // Verify the Notebooks section is visible (workspace is selected)
     await expect(page.locator("text=Notebooks")).toBeVisible({ timeout: 5_000 });

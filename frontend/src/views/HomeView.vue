@@ -1049,12 +1049,6 @@ const displayType = computed(() => {
 // Check if the current file is a markdown file (for auto-edit behavior)
 const isMarkdownFile = computed(() => displayType.value === "markdown")
 
-// Check if the current folder is a .page directory (should show unified page view)
-const isPageFolder = computed(() => {
-  if (!workspaceStore.currentFolder) return false
-  return workspaceStore.currentFolder.path.endsWith(".page")
-})
-
 // Open file in a new tab
 function openInNewTab() {
   if (currentContentUrl.value) {
@@ -1074,20 +1068,17 @@ watch(
 )
 
 // Auto-enter live edit mode for markdown files when they finish loading
-watch(
-  [() => workspaceStore.currentFile, () => workspaceStore.fileLoading],
-  ([file, loading]) => {
-    if (
-      file &&
-      !loading &&
-      file.content !== undefined &&
-      getDisplayType(file.content_type) === "markdown" &&
-      !workspaceStore.isEditing
-    ) {
-      startEdit()
-    }
-  },
-)
+watch([() => workspaceStore.currentFile, () => workspaceStore.fileLoading], ([file, loading]) => {
+  if (
+    file &&
+    !loading &&
+    file.content !== undefined &&
+    getDisplayType(file.content_type) === "markdown" &&
+    !workspaceStore.isEditing
+  ) {
+    startEdit()
+  }
+})
 
 // Watch for route changes to restore file/folder selection from URL (path-based)
 watch(

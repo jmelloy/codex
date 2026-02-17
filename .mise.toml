@@ -4,7 +4,7 @@ pnpm = "latest"
 node = "latest"
 
 [env]
-_.python.venv = { path = "backend/.venv", create = true }
+_.python.venv = { path = "backend/.venv" }
 
 [tasks.install]
 run = """

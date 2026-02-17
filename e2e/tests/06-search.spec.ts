@@ -1,15 +1,4 @@
-import { test, expect } from "../fixtures/auth";
-
-/** Ensure a notebook is expanded in the sidebar (handles auto-expansion). */
-async function ensureNotebookExpanded(page: import("@playwright/test").Page, notebookName: string) {
-  const notebookRow = page.locator(".notebook-item").filter({ hasText: notebookName });
-  await expect(notebookRow).toBeVisible({ timeout: 10_000 });
-  const arrow = await notebookRow.locator("span").first().textContent();
-  if (arrow?.trim() !== "▼") {
-    await notebookRow.click();
-  }
-  return notebookRow;
-}
+import { test, expect, ensureNotebookExpanded } from "../fixtures/auth";
 
 test.describe("Search", () => {
   test("search for files by name", async ({ authedPage: page }) => {
@@ -54,12 +43,11 @@ test.describe("Search", () => {
       );
     }
 
-    // Reload and wait for full initialization
+    // Reload and wait for sidebar to be ready
     await page.reload();
-    await page.waitForLoadState("networkidle");
     await expect(page.locator("text=Notebooks")).toBeVisible({ timeout: 10_000 });
 
-    // Ensure notebook is expanded (watcher auto-expands first notebook on load)
+    // Ensure notebook is expanded
     await ensureNotebookExpanded(page, notebookName);
     await expect(page.getByText("alpha-report")).toBeVisible({ timeout: 10_000 });
 
@@ -71,13 +59,12 @@ test.describe("Search", () => {
     await page.getByPlaceholder("Search files...").fill("beta");
     await page.getByRole("button", { name: "Search" }).last().click();
 
-    // Should find the beta file (use .first() — name appears in both title and path)
+    // Should find the beta file
     await expect(page.getByText("beta-analysis").first()).toBeVisible({
       timeout: 10_000,
     });
 
-    // The other files should not be visible in search results
-    // (they may still be in the sidebar, so we check within the search results area)
+    // Check search results exist
     const searchPanel = page.locator(".search-result-item");
     const resultCount = await searchPanel.count();
     expect(resultCount).toBeGreaterThanOrEqual(1);

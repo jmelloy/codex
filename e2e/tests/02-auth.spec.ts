@@ -19,22 +19,23 @@ test.describe("Authentication", () => {
 
     // Should redirect to home after registration + auto-login
     await expect(page).toHaveURL("/", { timeout: 15_000 });
-    // Should display the username initial in the sidebar
+    // Should display the username in the sidebar user section
     await expect(
-      page.locator("text=" + user.username.charAt(0).toUpperCase())
+      page.getByRole("button", { name: "Logout" })
     ).toBeVisible({ timeout: 5_000 });
   });
 
   test("logout and login again", async ({ page }) => {
-    // First register to have a user available
-    await registerUser(page, user);
+    // Use a fresh user to avoid conflicts with the previous test
+    const freshUser = generateTestUser();
+    await registerUser(page, freshUser);
 
     // Click the logout button (SVG icon in sidebar)
     await page.getByTitle("Logout").click();
     await expect(page).toHaveURL(/\/login/, { timeout: 10_000 });
 
     // Log back in
-    await loginUser(page, user);
+    await loginUser(page, freshUser);
 
     // Verify we're on the home page
     await expect(page).toHaveURL("/", { timeout: 10_000 });

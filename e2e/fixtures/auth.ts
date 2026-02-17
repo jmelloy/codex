@@ -32,7 +32,8 @@ export async function registerUser(page: Page, user: TestUser): Promise<void> {
   await page.getByRole("button", { name: "Register" }).click();
 
   // After registration the app auto-logs in and redirects to home
-  await expect(page).toHaveURL("/", { timeout: 15_000 });
+  // Wait for navigation to complete (registration may take a moment)
+  await page.waitForURL("/", { timeout: 15_000 });
 }
 
 /**

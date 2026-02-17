@@ -1,5 +1,16 @@
 import { test, expect } from "../fixtures/auth";
 
+/** Ensure a notebook is expanded in the sidebar (handles auto-expansion). */
+async function ensureNotebookExpanded(page: import("@playwright/test").Page, notebookName: string) {
+  const notebookRow = page.locator(".notebook-item").filter({ hasText: notebookName });
+  await expect(notebookRow).toBeVisible({ timeout: 10_000 });
+  const arrow = await notebookRow.locator("span").first().textContent();
+  if (arrow?.trim() !== "▼") {
+    await notebookRow.click();
+  }
+  return notebookRow;
+}
+
 test.describe("Search", () => {
   test("search for files by name", async ({ authedPage: page }) => {
     const notebookName = `Search NB ${Date.now()}`;
@@ -43,12 +54,13 @@ test.describe("Search", () => {
       );
     }
 
-    // Reload to see the files
+    // Reload and wait for full initialization
     await page.reload();
+    await page.waitForLoadState("networkidle");
     await expect(page.locator("text=Notebooks")).toBeVisible({ timeout: 10_000 });
 
-    // Expand the notebook so files are loaded
-    await page.getByText(notebookName).click();
+    // Ensure notebook is expanded (watcher auto-expands first notebook on load)
+    await ensureNotebookExpanded(page, notebookName);
     await expect(page.getByText("alpha-report")).toBeVisible({ timeout: 10_000 });
 
     // Switch to Search tab
@@ -59,8 +71,8 @@ test.describe("Search", () => {
     await page.getByPlaceholder("Search files...").fill("beta");
     await page.getByRole("button", { name: "Search" }).last().click();
 
-    // Should find the beta file
-    await expect(page.getByText("beta-analysis")).toBeVisible({
+    // Should find the beta file (use .first() — name appears in both title and path)
+    await expect(page.getByText("beta-analysis").first()).toBeVisible({
       timeout: 10_000,
     });
 

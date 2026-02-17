@@ -3,7 +3,7 @@ FROM node:25-slim AS builder
 WORKDIR /app
 
 # Build arguments
-ARG VITE_API_BASE_URL=/api
+ARG VITE_API_BASE_URL=
 ARG PLUGINS_DIR=/plugins
 
 # Install pnpm via npm

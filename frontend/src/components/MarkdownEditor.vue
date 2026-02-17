@@ -55,6 +55,7 @@
         ref="liveEditorRef"
         v-model="localContent"
         :placeholder="placeholder"
+        :on-image-upload="workspaceId && notebookId ? handleImageUpload : undefined"
         @change="handleLiveChange"
       />
     </div>
@@ -87,8 +88,9 @@
         <span>{{ characterCount }} characters</span>
         <span>{{ wordCount }} words</span>
         <span>{{ lineCount }} lines</span>
+        <span v-if="autosave" class="autosave-indicator">{{ autosaveStatus }}</span>
       </div>
-      <div class="editor-actions">
+      <div class="editor-actions" v-if="!autosave">
         <button @click="handleCancel" class="btn-cancel">Cancel</button>
         <button @click="handleSave" class="btn-save">Save</button>
       </div>
@@ -101,6 +103,7 @@ import { ref, computed, watch, nextTick } from "vue"
 import MarkdownViewer, { type MarkdownExtension } from "./MarkdownViewer.vue"
 import MarkdownLiveEditor from "./MarkdownLiveEditor.vue"
 import { useThemeStore } from "../stores/theme"
+import { fileService } from "../services/codex"
 
 const themeStore = useThemeStore()
 
@@ -116,6 +119,8 @@ interface Props {
   autosaveDelay?: number
   extensions?: MarkdownExtension[]
   defaultMode?: EditMode
+  workspaceId?: number | string
+  notebookId?: number | string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -142,6 +147,8 @@ const liveEditorRef = ref<InstanceType<typeof MarkdownLiveEditor> | null>(null)
 const showPreview = ref(false)
 const showEditor = ref(true)
 const autosaveTimer = ref<number | null>(null)
+const autosaveStatusTimer = ref<number | null>(null)
+const autosaveStatus = ref("")
 const editMode = ref<EditMode>(props.defaultMode)
 
 // Computed
@@ -169,11 +176,19 @@ watch(localContent, (newValue) => {
 
   // Handle autosave
   if (props.autosave) {
+    autosaveStatus.value = "Unsaved changes"
     if (autosaveTimer.value) {
       clearTimeout(autosaveTimer.value)
     }
     autosaveTimer.value = window.setTimeout(() => {
       emit("save", newValue)
+      autosaveStatus.value = "Saved"
+      if (autosaveStatusTimer.value) {
+        clearTimeout(autosaveStatusTimer.value)
+      }
+      autosaveStatusTimer.value = window.setTimeout(() => {
+        autosaveStatus.value = ""
+      }, 2000)
     }, props.autosaveDelay)
   }
 })
@@ -201,6 +216,18 @@ const handleLiveChange = (content: string) => {
       emit("save", content)
     }, props.autosaveDelay)
   }
+}
+
+// Handle image upload from drag-and-drop or paste
+const handleImageUpload = async (file: File): Promise<string | null> => {
+  if (!props.workspaceId || !props.notebookId) return null
+
+  const uploaded = await fileService.upload(
+    props.notebookId,
+    props.workspaceId,
+    file,
+  )
+  return uploaded.filename
 }
 
 const handleInput = () => {
@@ -496,5 +523,10 @@ defineExpose({
 
 .btn-save:hover {
   background: var(--color-primary-hover);
+}
+
+.autosave-indicator {
+  font-style: italic;
+  color: var(--color-text-tertiary);
 }
 </style>

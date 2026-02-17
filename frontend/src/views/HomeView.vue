@@ -509,18 +509,30 @@
             @rename="handleRenameFile"
           >
             <template #actions>
-              <button
-                @click="handleSaveFile(editContent)"
-                class="notebook-button-primary px-4 py-2 rounded cursor-pointer text-sm transition"
-              >
-                Save
-              </button>
-              <button
-                @click="handleCancelEdit"
-                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
-              >
-                Cancel
-              </button>
+              <!-- Markdown files: autosave is on, just show Done + Properties -->
+              <template v-if="isMarkdownFile">
+                <button
+                  @click="handleCancelEdit"
+                  class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
+                >
+                  Done
+                </button>
+              </template>
+              <!-- Non-markdown files: show explicit Save/Cancel -->
+              <template v-else>
+                <button
+                  @click="handleSaveFile(editContent)"
+                  class="notebook-button-primary px-4 py-2 rounded cursor-pointer text-sm transition"
+                >
+                  Save
+                </button>
+                <button
+                  @click="handleCancelEdit"
+                  class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
+                >
+                  Cancel
+                </button>
+              </template>
               <button
                 @click="toggleProperties"
                 class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
@@ -532,8 +544,11 @@
           <MarkdownEditor
             v-model="editContent"
             :frontmatter="workspaceStore.currentFile.properties"
-            :autosave="false"
-            @save="handleSaveFile"
+            :autosave="isMarkdownFile"
+            :autosave-delay="1500"
+            :workspace-id="workspaceStore.currentWorkspace?.id"
+            :notebook-id="workspaceStore.currentFile.notebook_id"
+            @save="isMarkdownFile ? handleAutoSave($event) : handleSaveFile($event)"
             @cancel="handleCancelEdit"
             class="flex-1"
           />
@@ -1031,6 +1046,15 @@ const displayType = computed(() => {
   return getDisplayType(workspaceStore.currentFile.content_type)
 })
 
+// Check if the current file is a markdown file (for auto-edit behavior)
+const isMarkdownFile = computed(() => displayType.value === "markdown")
+
+// Check if the current folder is a .page directory (should show unified page view)
+const isPageFolder = computed(() => {
+  if (!workspaceStore.currentFolder) return false
+  return workspaceStore.currentFolder.path.endsWith(".page")
+})
+
 // Open file in a new tab
 function openInNewTab() {
   if (currentContentUrl.value) {
@@ -1047,6 +1071,22 @@ watch(
     }
   },
   { immediate: true },
+)
+
+// Auto-enter live edit mode for markdown files when they finish loading
+watch(
+  [() => workspaceStore.currentFile, () => workspaceStore.fileLoading],
+  ([file, loading]) => {
+    if (
+      file &&
+      !loading &&
+      file.content !== undefined &&
+      getDisplayType(file.content_type) === "markdown" &&
+      !workspaceStore.isEditing
+    ) {
+      startEdit()
+    }
+  },
 )
 
 // Watch for route changes to restore file/folder selection from URL (path-based)
@@ -1510,6 +1550,14 @@ async function handleSaveFile(content: string) {
   try {
     await workspaceStore.saveFile(content)
     showToast({ message: "File saved successfully" })
+  } catch {
+    // Error handled in store
+  }
+}
+
+async function handleAutoSave(content: string) {
+  try {
+    await workspaceStore.saveFile(content, undefined, true)
   } catch {
     // Error handled in store
   }

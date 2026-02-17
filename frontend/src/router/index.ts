@@ -3,7 +3,6 @@ import { useAuthStore } from "../stores/auth"
 import HomeView from "../views/HomeView.vue"
 import LoginView from "../views/LoginView.vue"
 import RegisterView from "../views/RegisterView.vue"
-import PageDetailView from "../views/PageDetailView.vue"
 import OAuthCallbackView from "../views/OAuthCallbackView.vue"
 import CalendarView from "../views/CalendarView.vue"
 
@@ -28,13 +27,7 @@ const router = createRouter({
       component: HomeView,
       meta: { requiresAuth: true },
     },
-    {
-      path: "/page/:notebookId/:pagePath+",
-      name: "page-detail",
-      component: PageDetailView,
-      meta: { requiresAuth: true },
-    },
-    {
+{
       path: "/calendar",
       name: "calendar",
       component: CalendarView,

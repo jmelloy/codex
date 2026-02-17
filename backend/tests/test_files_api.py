@@ -70,13 +70,13 @@ def test_create_file_in_subdirectory(test_client, auth_headers, workspace_and_no
     assert data["filename"] == "file.md"
 
 
-def test_create_duplicate_file_fails(test_client, auth_headers, workspace_and_notebook):
-    """Test that creating a duplicate file returns an error."""
+def test_create_duplicate_file_appends_suffix(test_client, auth_headers, workspace_and_notebook):
+    """Test that creating a duplicate file auto-appends a numeric suffix."""
     headers = auth_headers[0]
     workspace, notebook = workspace_and_notebook
 
     # Create first file
-    test_client.post(
+    resp1 = test_client.post(
         f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/files/",
         json={
             "path": "duplicate.md",
@@ -84,9 +84,11 @@ def test_create_duplicate_file_fails(test_client, auth_headers, workspace_and_no
         },
         headers=headers,
     )
+    assert resp1.status_code == 200
+    assert resp1.json()["path"] == "duplicate.md"
 
-    # Try to create duplicate
-    response = test_client.post(
+    # Create duplicate — should succeed with suffix -1
+    resp2 = test_client.post(
         f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/files/",
         json={
             "path": "duplicate.md",
@@ -94,8 +96,21 @@ def test_create_duplicate_file_fails(test_client, auth_headers, workspace_and_no
         },
         headers=headers,
     )
-    assert response.status_code == 400
-    assert "already exists" in response.json()["detail"]
+    assert resp2.status_code == 200
+    assert resp2.json()["path"] == "duplicate-1.md"
+    assert resp2.json()["filename"] == "duplicate-1.md"
+
+    # Create another duplicate — should succeed with suffix -2
+    resp3 = test_client.post(
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/files/",
+        json={
+            "path": "duplicate.md",
+            "content": "Third file",
+        },
+        headers=headers,
+    )
+    assert resp3.status_code == 200
+    assert resp3.json()["path"] == "duplicate-2.md"
 
 
 def test_list_files(test_client, auth_headers, workspace_and_notebook):
@@ -501,6 +516,64 @@ def test_resolve_link(test_client, auth_headers, workspace_and_notebook):
     assert response.status_code == 200
     data = response.json()
     assert data["path"] == "target.md"
+
+
+def test_create_duplicate_file_in_subdirectory(test_client, auth_headers, workspace_and_notebook):
+    """Test that duplicate suffix works for files in subdirectories."""
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
+
+    # Create first file in subdir
+    resp1 = test_client.post(
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/files/",
+        json={
+            "path": "subdir/page.md",
+            "content": "First",
+        },
+        headers=headers,
+    )
+    assert resp1.status_code == 200
+    assert resp1.json()["path"] == "subdir/page.md"
+
+    # Create duplicate in same subdir
+    resp2 = test_client.post(
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/files/",
+        json={
+            "path": "subdir/page.md",
+            "content": "Second",
+        },
+        headers=headers,
+    )
+    assert resp2.status_code == 200
+    assert resp2.json()["path"] == "subdir/page-1.md"
+
+
+def test_create_duplicate_file_no_extension(test_client, auth_headers, workspace_and_notebook):
+    """Test that duplicate suffix works for files without an extension."""
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
+
+    resp1 = test_client.post(
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/files/",
+        json={
+            "path": "README",
+            "content": "First",
+        },
+        headers=headers,
+    )
+    assert resp1.status_code == 200
+    assert resp1.json()["path"] == "README"
+
+    resp2 = test_client.post(
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/files/",
+        json={
+            "path": "README",
+            "content": "Second",
+        },
+        headers=headers,
+    )
+    assert resp2.status_code == 200
+    assert resp2.json()["path"] == "README-1"
 
 
 def test_resolve_nonexistent_link(test_client, auth_headers, workspace_and_notebook):

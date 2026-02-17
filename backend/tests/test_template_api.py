@@ -119,7 +119,7 @@ def test_create_from_template_invalid_template(test_client, auth_headers, worksp
 
 
 def test_create_from_template_duplicate_file(test_client, auth_headers, workspace_and_notebook):
-    """Test that creating from a template when file exists returns 400."""
+    """Test that creating from a template when file exists appends a numeric suffix."""
     headers = auth_headers[0]
     workspace, notebook = workspace_and_notebook
 
@@ -145,8 +145,9 @@ This is the template definition file.
         headers=headers,
     )
     assert response1.status_code == 200
+    assert response1.json()["path"] == "duplicate-test.md"
 
-    # Try to create same file again
+    # Create same file again — should succeed with suffix -1
     response2 = test_client.post(
         f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/files/from-template",
         json={
@@ -155,8 +156,8 @@ This is the template definition file.
         },
         headers=headers,
     )
-    assert response2.status_code == 400
-    assert "already exists" in response2.json()["detail"].lower()
+    assert response2.status_code == 200
+    assert response2.json()["path"] == "duplicate-test-1.md"
 
 
 def test_create_from_template_with_nested_path(test_client, auth_headers, workspace_and_notebook):

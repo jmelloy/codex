@@ -14,11 +14,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from codex.api.auth import get_current_active_user
-from codex.api.routes.notebooks import get_notebook_by_slug_or_id
-from codex.api.routes.workspaces import get_workspace_by_slug_or_id
+from codex.api.routes.helpers import get_notebook_path_nested
 from codex.core.metadata import MetadataParser
 from codex.db.database import get_notebook_session, get_system_session
-from codex.db.models import FileMetadata, Notebook, User, Workspace
+from codex.db.models import FileMetadata, User
 from codex.core.watcher import get_watcher_for_notebook
 
 
@@ -29,66 +28,6 @@ FOLDER_METADATA_FILE = ".metadata"
 
 # Default pagination limit for folder contents
 DEFAULT_FOLDER_PAGINATION_LIMIT = 100
-
-
-async def get_notebook_path(
-    notebook_id: int, workspace_id: int, current_user: User, session: AsyncSession
-) -> tuple[Path, Notebook]:
-    """Helper to get and verify notebook path (deprecated - use get_notebook_path_nested)."""
-    # Verify workspace access
-    result = await session.execute(
-        select(Workspace).where(Workspace.id == workspace_id, Workspace.owner_id == current_user.id)
-    )
-    workspace = result.scalar_one_or_none()
-    if not workspace:
-        raise HTTPException(status_code=404, detail="Workspace not found")
-
-    # Get notebook from system database
-    result = await session.execute(
-        select(Notebook).where(Notebook.id == notebook_id, Notebook.workspace_id == workspace_id)
-    )
-    notebook = result.scalar_one_or_none()
-    if not notebook:
-        raise HTTPException(status_code=404, detail="Notebook not found")
-
-    # Get notebook path
-    workspace_path = Path(workspace.path).resolve()  # Convert to absolute path
-    notebook_path = workspace_path / notebook.path
-
-    if not notebook_path.exists():
-        raise HTTPException(status_code=404, detail="Notebook path not found")
-
-    return notebook_path, notebook
-
-
-async def get_notebook_path_nested(
-    workspace_identifier: str,
-    notebook_identifier: str,
-    current_user: User,
-    session: AsyncSession,
-) -> tuple[Path, Notebook, Workspace]:
-    """Helper to get and verify notebook path using workspace and notebook identifiers.
-
-    Returns:
-        Tuple of (notebook_path, notebook_model, workspace_model)
-
-    Raises:
-        HTTPException if workspace or notebook not found
-    """
-    # Get workspace by slug or ID
-    workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
-
-    # Get notebook by slug or ID
-    notebook = await get_notebook_by_slug_or_id(notebook_identifier, workspace, session)
-
-    # Get notebook path
-    workspace_path = Path(workspace.path).resolve()  # Convert to absolute path
-    notebook_path = workspace_path / notebook.path
-
-    if not notebook_path.exists():
-        raise HTTPException(status_code=404, detail="Notebook path not found")
-
-    return notebook_path, notebook, workspace
 
 
 class UpdateFolderPropertiesRequest(BaseModel):

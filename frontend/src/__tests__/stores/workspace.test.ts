@@ -440,6 +440,7 @@ describe("Workspace Store", () => {
       const store = useWorkspaceStore()
       store.currentWorkspace = { id: 1 } as any
       const notebook = { id: 1, name: "Notebook" } as any
+      store.notebooks = [notebook]
 
       store.toggleNotebookExpansion(notebook)
 

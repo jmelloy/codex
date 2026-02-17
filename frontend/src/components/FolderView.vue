@@ -365,9 +365,8 @@ function isImageFile(file: FileMetadata): boolean {
 
 // Get thumbnail URL for an image file
 function getThumbnailUrl(file: FileMetadata): string {
-  const workspaceId = workspaceStore.currentWorkspace?.id || workspaceStore.currentWorkspace?.slug
-  const notebookId = workspaceStore.currentNotebook?.id || workspaceStore.currentNotebook?.slug
-  return `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/${file.id}/content`
+  const workspaceId = workspaceStore.currentWorkspace?.id
+  return `/api/v1/workspaces/${workspaceId}/notebooks/${props.folder.notebook_id}/files/${file.id}/content`
 }
 
 defineEmits<{

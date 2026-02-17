@@ -1,5 +1,5 @@
 import { defineStore } from "pinia"
-import { ref, computed } from "vue"
+import { ref, computed, type ComputedRef } from "vue"
 import {
   workspaceService,
   notebookService,
@@ -33,7 +33,6 @@ export const useWorkspaceStore = defineStore("workspace", () => {
 
   // File state - now using tree structure
   const fileTrees = ref<Map<number, FileTreeNode[]>>(new Map()) // notebook_id -> file tree
-  const currentNotebook = ref<Notebook | null>(null)
   const currentFile = ref<FileWithContent | null>(null)
   const isEditing = ref(false)
   const expandedNotebooks = ref<Set<number>>(new Set())
@@ -66,6 +65,19 @@ export const useWorkspaceStore = defineStore("workspace", () => {
       flatMap.set(notebookId, getAllFiles(tree))
     }
     return flatMap
+  })
+
+  // Derived from current file/folder context or first expanded notebook
+  const currentNotebook: ComputedRef<Notebook | null> = computed(() => {
+    const notebookId = currentFile.value?.notebook_id ?? currentFolder.value?.notebook_id
+    if (notebookId) {
+      return notebooks.value.find((n) => n.id === notebookId) ?? null
+    }
+    if (expandedNotebooks.value.size > 0) {
+      const firstExpandedId = [...expandedNotebooks.value][0]
+      return notebooks.value.find((n) => n.id === firstExpandedId) ?? null
+    }
+    return null
   })
 
   async function fetchWorkspaces() {
@@ -134,7 +146,6 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     websocketService.disconnectAll()
     wsConnected.value.clear()
     // Clear file and folder state when switching workspaces
-    currentNotebook.value = null
     currentFile.value = null
     currentFolder.value = null
     isEditing.value = false
@@ -338,7 +349,6 @@ export const useWorkspaceStore = defineStore("workspace", () => {
       // Connect WebSocket for real-time updates
       websocketService.connect(notebookId)
     }
-    currentNotebook.value = notebook
   }
 
   /**

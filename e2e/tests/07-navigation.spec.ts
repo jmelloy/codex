@@ -1,5 +1,16 @@
 import { test, expect } from "../fixtures/auth";
 
+/** Ensure a notebook is expanded in the sidebar (handles auto-expansion). */
+async function ensureNotebookExpanded(page: import("@playwright/test").Page, notebookName: string) {
+  const notebookRow = page.locator(".notebook-item").filter({ hasText: notebookName });
+  await expect(notebookRow).toBeVisible({ timeout: 10_000 });
+  const arrow = await notebookRow.locator("span").first().textContent();
+  if (arrow?.trim() !== "▼") {
+    await notebookRow.click();
+  }
+  return notebookRow;
+}
+
 test.describe("Navigation & URL Routing", () => {
   test("page title updates when viewing a file", async ({
     authedPage: page,
@@ -42,12 +53,13 @@ test.describe("Navigation & URL Routing", () => {
       }
     );
 
-    // Reload and navigate
+    // Reload and wait for full initialization
     await page.reload();
+    await page.waitForLoadState("networkidle");
     await expect(page.locator("text=Notebooks")).toBeVisible({ timeout: 10_000 });
 
-    // Expand notebook by clicking the row div and click file
-    await page.locator(".notebook-item").filter({ hasText: notebookName }).click();
+    // Ensure notebook is expanded (watcher auto-expands first notebook on load)
+    await ensureNotebookExpanded(page, notebookName);
     await expect(page.getByText("nav-test")).toBeVisible({ timeout: 10_000 });
     await page.getByText("nav-test").click();
 

@@ -1,5 +1,16 @@
 import { test, expect } from "../fixtures/auth";
 
+/** Ensure a notebook is expanded in the sidebar (handles auto-expansion). */
+async function ensureNotebookExpanded(page: import("@playwright/test").Page, notebookName: string) {
+  const notebookRow = page.locator(".notebook-item").filter({ hasText: notebookName });
+  await expect(notebookRow).toBeVisible({ timeout: 10_000 });
+  const arrow = await notebookRow.locator("span").first().textContent();
+  if (arrow?.trim() !== "▼") {
+    await notebookRow.click();
+  }
+  return notebookRow;
+}
+
 test.describe("File Operations", () => {
   test("create a markdown file in a notebook", async ({
     authedPage: page,
@@ -18,26 +29,20 @@ test.describe("File Operations", () => {
     await page.getByRole("button", { name: "Create" }).click();
     await expect(page.getByText(notebookName)).toBeVisible({ timeout: 10_000 });
 
-    // Notebook may be auto-expanded after creation — ensure it's expanded
-    const notebookRow = page.locator(".notebook-item").filter({ hasText: notebookName });
-    const arrow = await notebookRow.locator("span").first().textContent();
-    if (arrow?.trim() !== "▼") {
-      await notebookRow.click();
-    }
+    // Ensure notebook is expanded (may be auto-expanded after creation)
+    await ensureNotebookExpanded(page, notebookName);
     await expect(page.getByText("No files yet")).toBeVisible({ timeout: 5_000 });
 
     // Click the "+" button to create a file (appears on hover)
-    // The button is inside the notebook row, title="New File"
     await page.getByTitle("New File").click();
 
-    // Fill in the filename — select "Blank File" mode first (default is "Page")
+    // Default mode is "Page" — create a page with the given title
     await expect(page.getByText("Create File")).toBeVisible();
-    await page.getByText("Blank File").click();
-    await page.getByPlaceholder("example.md").fill(fileName);
+    await page.getByPlaceholder("My New Page").fill("hello");
     await page.getByRole("button", { name: "Create" }).click();
 
-    // The file should appear in the sidebar
-    await expect(page.getByText("hello")).toBeVisible({ timeout: 10_000 });
+    // The new page should appear in the sidebar
+    await expect(page.getByText("hello.page")).toBeVisible({ timeout: 10_000 });
   });
 
   test("view a markdown file content", async ({ authedPage: page }) => {
@@ -88,10 +93,8 @@ test.describe("File Operations", () => {
     await page.waitForLoadState("networkidle");
     await expect(page.locator("text=Notebooks")).toBeVisible({ timeout: 10_000 });
 
-    // Expand the notebook by clicking the row div
-    const viewRow = page.locator(".notebook-item").filter({ hasText: notebookName });
-    await expect(viewRow).toBeVisible({ timeout: 10_000 });
-    await viewRow.click();
+    // Ensure notebook is expanded (watcher auto-expands first notebook on load)
+    await ensureNotebookExpanded(page, notebookName);
     await expect(page.getByText("readme")).toBeVisible({ timeout: 10_000 });
 
     // Click the file
@@ -149,9 +152,9 @@ test.describe("File Operations", () => {
     await page.reload();
     await page.waitForLoadState("networkidle");
     await expect(page.locator("text=Notebooks")).toBeVisible({ timeout: 10_000 });
-    const editRow = page.locator(".notebook-item").filter({ hasText: notebookName });
-    await expect(editRow).toBeVisible({ timeout: 10_000 });
-    await editRow.click();
+
+    // Ensure notebook is expanded
+    await ensureNotebookExpanded(page, notebookName);
     await expect(page.getByText("editable")).toBeVisible({ timeout: 10_000 });
     await page.getByText("editable").click();
 
@@ -163,15 +166,16 @@ test.describe("File Operations", () => {
     // Click Edit button
     await page.getByRole("button", { name: "Edit" }).click();
 
-    // The editor should appear — find the textarea/editor area and modify content
-    const editor = page.locator("textarea, [contenteditable=true], .cm-content").first();
-    await expect(editor).toBeVisible({ timeout: 5_000 });
+    // Switch to Raw mode for plain text editing
+    await page.getByRole("button", { name: "Raw" }).click();
 
-    // Clear and type new content
+    // Find the textarea and modify content
+    const editor = page.locator("textarea.markdown-textarea");
+    await expect(editor).toBeVisible({ timeout: 5_000 });
     await editor.fill("# Updated Content\n\nEdited via E2E test.");
 
-    // Save
-    await page.getByRole("button", { name: "Save" }).click();
+    // Save (use the editor's Save button, not the header bar's)
+    await page.locator(".btn-save").click();
 
     // Verify updated content is displayed
     await expect(page.locator("main")).toContainText("Updated Content", {

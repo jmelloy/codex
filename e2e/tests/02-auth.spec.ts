@@ -26,15 +26,16 @@ test.describe("Authentication", () => {
   });
 
   test("logout and login again", async ({ page }) => {
-    // First register to have a user available
-    await registerUser(page, user);
+    // Use a fresh user to avoid conflicts with the previous test
+    const freshUser = generateTestUser();
+    await registerUser(page, freshUser);
 
     // Click the logout button (SVG icon in sidebar)
     await page.getByTitle("Logout").click();
     await expect(page).toHaveURL(/\/login/, { timeout: 10_000 });
 
     // Log back in
-    await loginUser(page, user);
+    await loginUser(page, freshUser);
 
     // Verify we're on the home page
     await expect(page).toHaveURL("/", { timeout: 10_000 });

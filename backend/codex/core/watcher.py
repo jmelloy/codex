@@ -416,16 +416,21 @@ def should_ignore_path(path: str) -> bool:
 def deduplicate_file_metadata(session, notebook_id: int, rel_path: str) -> FileMetadata | None:
     """Get file metadata and remove duplicates if they exist.
     
+    This function queries for FileMetadata entries and removes duplicates if found.
+    Note: This function commits the session when duplicates are removed.
+    
     Args:
         session: Database session
         notebook_id: ID of the notebook
         rel_path: Relative path of the file
         
     Returns:
-        The first FileMetadata entry, or None if not found
+        The first FileMetadata entry (oldest by ID), or None if not found
     """
     result = session.execute(
-        select(FileMetadata).where(FileMetadata.notebook_id == notebook_id, FileMetadata.path == rel_path)
+        select(FileMetadata)
+        .where(FileMetadata.notebook_id == notebook_id, FileMetadata.path == rel_path)
+        .order_by(FileMetadata.id)
     )
     all_results = result.scalars().all()
     
@@ -433,7 +438,7 @@ def deduplicate_file_metadata(session, notebook_id: int, rel_path: str) -> FileM
         return None
     
     if len(all_results) > 1:
-        # Keep the first one (usually oldest by ID), delete the rest
+        # Keep the first one (oldest by ID), delete the rest
         logger.warning(f"Found {len(all_results)} duplicate entries for {rel_path}, removing duplicates")
         file_meta = all_results[0]
         for duplicate in all_results[1:]:

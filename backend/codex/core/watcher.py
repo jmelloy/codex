@@ -285,14 +285,8 @@ class FileOperationQueue:
                 old_rel_path = os.path.relpath(del_op.filepath, self.notebook_path)
                 new_rel_path = os.path.relpath(create_op.filepath, self.notebook_path)
 
-                # Find the file record by old path
-                result = session.execute(
-                    select(FileMetadata).where(
-                        FileMetadata.notebook_id == self.notebook_id,
-                        FileMetadata.path == old_rel_path,
-                    )
-                )
-                file_meta = result.scalar_one_or_none()
+                # Find the file record by old path (and clean up duplicates if any)
+                file_meta = deduplicate_file_metadata(session, self.notebook_id, old_rel_path)
 
                 if file_meta:
                     # Update path to new location
@@ -419,6 +413,37 @@ def should_ignore_path(path: str) -> bool:
     return any(pattern in path for pattern in IGNORE_PATTERNS)
 
 
+def deduplicate_file_metadata(session, notebook_id: int, rel_path: str) -> FileMetadata | None:
+    """Get file metadata and remove duplicates if they exist.
+    
+    Args:
+        session: Database session
+        notebook_id: ID of the notebook
+        rel_path: Relative path of the file
+        
+    Returns:
+        The first FileMetadata entry, or None if not found
+    """
+    result = session.execute(
+        select(FileMetadata).where(FileMetadata.notebook_id == notebook_id, FileMetadata.path == rel_path)
+    )
+    all_results = result.scalars().all()
+    
+    if len(all_results) == 0:
+        return None
+    
+    if len(all_results) > 1:
+        # Keep the first one (usually oldest by ID), delete the rest
+        logger.warning(f"Found {len(all_results)} duplicate entries for {rel_path}, removing duplicates")
+        file_meta = all_results[0]
+        for duplicate in all_results[1:]:
+            session.delete(duplicate)
+        session.commit()
+        return file_meta
+    
+    return all_results[0]
+
+
 def update_file_metadata(
     notebook_path: str,
     notebook_id: int,
@@ -449,11 +474,8 @@ def update_file_metadata(
         rel_path = os.path.relpath(filepath, notebook_path)
         filename = os.path.basename(filepath)
 
-        # Check if file exists in database
-        result = session.execute(
-            select(FileMetadata).where(FileMetadata.notebook_id == notebook_id, FileMetadata.path == rel_path)
-        )
-        file_meta = result.scalar_one_or_none()
+        # Check if file exists in database (and clean up duplicates if any)
+        file_meta = deduplicate_file_metadata(session, notebook_id, rel_path)
 
         if event_type == "deleted":
             if file_meta:
@@ -547,13 +569,8 @@ def update_file_metadata(
                     # Handle race condition: another process created the record
                     session.rollback()
                     if "UNIQUE constraint failed" in str(commit_error):
-                        # Re-query and update instead
-                        result = session.execute(
-                            select(FileMetadata).where(
-                                FileMetadata.notebook_id == notebook_id, FileMetadata.path == rel_path
-                            )
-                        )
-                        file_meta = result.scalar_one_or_none()
+                        # Re-query and update instead (deduplicate in case multiple were created)
+                        file_meta = deduplicate_file_metadata(session, notebook_id, rel_path)
                         if file_meta:
                             file_meta.size = file_stats.st_size
                             file_meta.hash = file_hash
@@ -678,11 +695,8 @@ class NotebookFileHandler(FileSystemEventHandler):
             rel_path = os.path.relpath(filepath, self.notebook_path)
             filename = os.path.basename(filepath)
 
-            # Check if file exists in database
-            result = session.execute(
-                select(FileMetadata).where(FileMetadata.notebook_id == self.notebook_id, FileMetadata.path == rel_path)
-            )
-            file_meta = result.scalar_one_or_none()
+            # Check if file exists in database (and clean up duplicates if any)
+            file_meta = deduplicate_file_metadata(session, self.notebook_id, rel_path)
 
             if event_type == "deleted":
                 if file_meta:
@@ -782,13 +796,8 @@ class NotebookFileHandler(FileSystemEventHandler):
                         # Handle race condition: another process created the record
                         session.rollback()
                         if "UNIQUE constraint failed" in str(commit_error):
-                            # Re-query and update instead
-                            result = session.execute(
-                                select(FileMetadata).where(
-                                    FileMetadata.notebook_id == self.notebook_id, FileMetadata.path == rel_path
-                                )
-                            )
-                            file_meta = result.scalar_one_or_none()
+                            # Re-query and update instead (deduplicate in case multiple were created)
+                            file_meta = deduplicate_file_metadata(session, self.notebook_id, rel_path)
                             if file_meta:
                                 file_meta.size = file_stats.st_size
                                 file_meta.hash = file_hash

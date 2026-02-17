@@ -697,7 +697,10 @@
       </div>
 
       <!-- Page Unified View Mode (.page directories) -->
-      <div v-else-if="workspaceStore.currentFolder && isPageFolder" class="flex-1 flex overflow-hidden p-4">
+      <div
+        v-else-if="workspaceStore.currentFolder && isPageFolder"
+        class="flex-1 flex overflow-hidden p-4"
+      >
         <PageUnifiedView
           :folder="workspaceStore.currentFolder"
           :workspace-id="workspaceStore.currentWorkspace?.id ?? 0"
@@ -1678,9 +1681,7 @@ async function handleCreateFile() {
 
       // Try to select the initial content file
       const files = workspaceStore.getFilesForNotebook(createFileNotebook.value.id)
-      const contentFile = files.find(
-        (f) => f.path === `${page.directory_path}/001-content.md`,
-      )
+      const contentFile = files.find((f) => f.path === `${page.directory_path}/001-content.md`)
       if (contentFile) {
         await workspaceStore.selectFile(contentFile)
       }
@@ -1781,11 +1782,6 @@ async function handleCreateView(data: { filename: string; content: string }) {
 }
 
 function startCreateFile(notebook: Notebook) {
-  // Ensure the notebook is selected in the store so workspace context is set
-  workspaceStore.currentNotebook = notebook
-  if (!workspaceStore.expandedNotebooks.has(notebook.id)) {
-    workspaceStore.toggleNotebookExpansion(notebook)
-  }
   createFileNotebook.value = notebook
   newFileName.value = ""
   selectedTemplate.value = null

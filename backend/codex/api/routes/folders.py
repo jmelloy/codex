@@ -305,7 +305,7 @@ async def get_folder(
     try:
         resolved_path = full_folder_path.resolve()
         resolved_notebook = notebook_path.resolve()
-        if not str(resolved_path).startswith(str(resolved_notebook)):
+        if not resolved_path.is_relative_to(resolved_notebook):
             raise HTTPException(status_code=403, detail="Access denied: Invalid folder path")
     except (OSError, ValueError) as e:
         logger.error(f"Path validation error: {e}")
@@ -386,7 +386,7 @@ async def update_folder_properties(
     try:
         resolved_path = full_folder_path.resolve()
         resolved_notebook = notebook_path.resolve()
-        if not str(resolved_path).startswith(str(resolved_notebook)):
+        if not resolved_path.is_relative_to(resolved_notebook):
             raise HTTPException(status_code=403, detail="Access denied: Invalid folder path")
     except (OSError, ValueError) as e:
         logger.error(f"Path validation error: {e}")
@@ -479,7 +479,7 @@ async def delete_folder(
     try:
         resolved_path = full_folder_path.resolve()
         resolved_notebook = notebook_path.resolve()
-        if not str(resolved_path).startswith(str(resolved_notebook)):
+        if not resolved_path.is_relative_to(resolved_notebook):
             raise HTTPException(status_code=403, detail="Access denied: Invalid folder path")
     except (OSError, ValueError) as e:
         logger.error(f"Path validation error: {e}")

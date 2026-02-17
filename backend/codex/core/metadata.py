@@ -194,10 +194,17 @@ class MetadataParser:
         if image_metadata:
             metadata.update(image_metadata)
 
-        # Try frontmatter if content provided and file is markdown
-        if content and filepath.endswith(".md"):
-            fm_metadata, _ = MetadataParser.parse_frontmatter(content)
-            metadata.update(fm_metadata)
+        # Try frontmatter for markdown files - read from disk if content not provided
+        if filepath.endswith(".md"):
+            if content is None:
+                try:
+                    with open(filepath, "r") as f:
+                        content = f.read()
+                except Exception as e:
+                    logger.debug(f"Could not read markdown file {filepath}: {e}")
+            if content:
+                fm_metadata, _ = MetadataParser.parse_frontmatter(content)
+                metadata.update(fm_metadata)
 
         # Try sidecar files (these have highest priority and can override everything)
         json_metadata = MetadataParser.parse_json_sidecar(filepath)
@@ -263,13 +270,13 @@ class MetadataParser:
             
             # file = sidecar
             if filepath.endswith(suffix):
-                regular_file = filepath.rstrip(suffix)
+                regular_file = filepath.removesuffix(suffix)
                 if Path(regular_file).exists():
                     return (regular_file, filepath)
-                
+
             # file = dot-prefixed sidecar
             if Path(filepath).name.startswith(".") and filepath.endswith(suffix):
-                file = Path(filepath).parent / f"{Path(filepath).name.rstrip(suffix).lstrip('.')}"
+                file = Path(filepath).parent / Path(filepath).name.removesuffix(suffix).removeprefix(".")
                 if Path(file).exists():
                     return (str(file), filepath)
 

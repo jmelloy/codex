@@ -1,15 +1,4 @@
-import { test, expect } from "../fixtures/auth";
-
-/** Ensure a notebook is expanded in the sidebar (handles auto-expansion). */
-async function ensureNotebookExpanded(page: import("@playwright/test").Page, notebookName: string) {
-  const notebookRow = page.locator(".notebook-item").filter({ hasText: notebookName });
-  await expect(notebookRow).toBeVisible({ timeout: 10_000 });
-  const arrow = await notebookRow.locator("span").first().textContent();
-  if (arrow?.trim() !== "▼") {
-    await notebookRow.click();
-  }
-  return notebookRow;
-}
+import { test, expect, ensureNotebookExpanded } from "../fixtures/auth";
 
 test.describe("File Operations", () => {
   test("create a markdown file in a notebook", async ({
@@ -88,12 +77,11 @@ test.describe("File Operations", () => {
       }
     );
 
-    // Reload page and wait for full initialization
+    // Reload and wait for sidebar to be ready
     await page.reload();
-    await page.waitForLoadState("networkidle");
     await expect(page.locator("text=Notebooks")).toBeVisible({ timeout: 10_000 });
 
-    // Ensure notebook is expanded (watcher auto-expands first notebook on load)
+    // Ensure notebook is expanded
     await ensureNotebookExpanded(page, notebookName);
     await expect(page.getByText("readme")).toBeVisible({ timeout: 10_000 });
 
@@ -150,7 +138,6 @@ test.describe("File Operations", () => {
 
     // Reload and navigate to the file
     await page.reload();
-    await page.waitForLoadState("networkidle");
     await expect(page.locator("text=Notebooks")).toBeVisible({ timeout: 10_000 });
 
     // Ensure notebook is expanded

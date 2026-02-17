@@ -31,8 +31,6 @@ export async function registerUser(page: Page, user: TestUser): Promise<void> {
   await page.getByLabel("Confirm Password").fill(user.password);
   await page.getByRole("button", { name: "Register" }).click();
 
-  // After registration the app auto-logs in and redirects to home
-  // Wait for navigation to complete (registration may take a moment)
   await page.waitForURL("/", { timeout: 15_000 });
 }
 
@@ -49,107 +47,32 @@ export async function loginUser(page: Page, user: TestUser): Promise<void> {
   await expect(page).toHaveURL("/", { timeout: 15_000 });
 }
 
-/**
- * Register a user via the API directly (faster than UI, useful for setup).
- */
-export async function registerUserViaAPI(
+/** Ensure a notebook is expanded in the sidebar. */
+export async function ensureNotebookExpanded(
   page: Page,
-  user: TestUser,
-): Promise<string> {
-  const baseURL = page.url().startsWith("http")
-    ? new URL(page.url()).origin
-    : "http://localhost:8065";
-
-  // Register
-  await page.request.post(`${baseURL}/api/v1/users/register`, {
-    data: {
-      username: user.username,
-      email: user.email,
-      password: user.password,
-    },
-  });
-
-  // Get token
-  const tokenResponse = await page.request.post(
-    `${baseURL}/api/v1/users/token`,
-    {
-      form: {
-        username: user.username,
-        password: user.password,
-      },
-    },
-  );
-
-  const tokenData = await tokenResponse.json();
-  return tokenData.access_token;
+  notebookName: string,
+) {
+  const notebookRow = page
+    .locator(".notebook-item")
+    .filter({ hasText: notebookName });
+  await expect(notebookRow).toBeVisible({ timeout: 10_000 });
+  const arrow = await notebookRow.locator("span").first().textContent();
+  if (arrow?.trim() !== "▼") {
+    await notebookRow.click();
+  }
+  return notebookRow;
 }
 
 /**
- * Inject an auth token into the browser so the app treats the user as logged in.
+ * Extended test fixture that provides a pre-authenticated page.
+ *
+ * The storageState from global-setup already has the auth token, so
+ * authedPage just navigates to home and waits for the app to be ready.
  */
-export async function injectAuthToken(
-  page: Page,
-  token: string,
-): Promise<void> {
-  await page.goto("/login"); // need a page loaded to set localStorage
-  await page.evaluate((t) => {
-    localStorage.setItem("access_token", t);
-  }, token);
-}
-
-/**
- * Extended test fixture that provides a pre-registered, logged-in page.
- */
-export const test = base.extend<{ authedPage: Page; testUser: TestUser }>({
-  testUser: async ({}, use) => {
-    const user = generateTestUser();
-    await use(user);
-  },
-  authedPage: async ({ page, testUser }, use) => {
-    // Go to the app first so we have a base URL context
-    await page.goto("/login");
-
-    const baseURL = new URL(page.url()).origin;
-
-    // Register via API
-    const regResponse = await page.request.post(
-      `${baseURL}/api/v1/users/register`,
-      {
-        data: {
-          username: testUser.username,
-          email: testUser.email,
-          password: testUser.password,
-        },
-      },
-    );
-
-    if (!regResponse.ok()) {
-      throw new Error(
-        `Registration failed: ${regResponse.status()} ${await regResponse.text()}`,
-      );
-    }
-
-    // Get token
-    const tokenResponse = await page.request.post(
-      `${baseURL}/api/v1/users/token`,
-      {
-        form: {
-          username: testUser.username,
-          password: testUser.password,
-        },
-      },
-    );
-
-    const tokenData = await tokenResponse.json();
-
-    // Inject token into localStorage and navigate to home
-    await page.evaluate((t) => {
-      localStorage.setItem("access_token", t);
-    }, tokenData.access_token);
-
+export const test = base.extend<{ authedPage: Page }>({
+  authedPage: async ({ page }, use) => {
     await page.goto("/");
     await expect(page).toHaveURL("/", { timeout: 15_000 });
-
     await use(page);
   },
 });

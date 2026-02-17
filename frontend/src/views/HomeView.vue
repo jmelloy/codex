@@ -696,21 +696,6 @@
         </div>
       </div>
 
-      <!-- Page Unified View Mode (.page directories) -->
-      <div
-        v-else-if="workspaceStore.currentFolder && isPageFolder"
-        class="flex-1 flex overflow-hidden p-4"
-      >
-        <PageUnifiedView
-          :folder="workspaceStore.currentFolder"
-          :workspace-id="workspaceStore.currentWorkspace?.id ?? 0"
-          class="flex-1"
-          @select-file="selectFile"
-          @select-folder="handleSelectSubfolder"
-          @toggle-properties="toggleProperties"
-        />
-      </div>
-
       <!-- Folder View Mode -->
       <div v-else-if="workspaceStore.currentFolder" class="flex-1 flex overflow-hidden p-4">
         <FolderView
@@ -832,21 +817,8 @@
 
       <!-- Input section -->
       <div class="border-t border-border-light pt-4 mt-4">
-        <!-- Page title input (page mode) -->
-        <FormGroup v-if="createMode === 'page'" label="Page Title" v-slot="{ inputId }">
-          <input
-            :id="inputId"
-            v-model="customTitle"
-            placeholder="My New Page"
-            class="w-full px-3 py-2 border border-border-medium rounded-md bg-bg-primary text-text-primary"
-          />
-          <p class="text-sm text-text-secondary mt-1">
-            Creates a page folder with an initial content block
-          </p>
-        </FormGroup>
-
         <!-- Template filename input -->
-        <FormGroup v-else-if="selectedTemplate" label="Filename" v-slot="{ inputId }">
+        <FormGroup v-if="selectedTemplate" label="Filename" v-slot="{ inputId }">
           <div class="flex items-center gap-2">
             <input
               :id="inputId"
@@ -854,7 +826,7 @@
               :placeholder="getFilenamePlaceholder()"
               class="flex-1 px-3 py-2 border border-border-medium rounded-md bg-bg-primary text-text-primary"
             />
-            <span class="text-text-secondary text-sm">{{ selectedTemplate.file_extension }}</span>
+            <span class="text-text-secondary text-sm">{{ selectedTemplate?.file_extension }}</span>
           </div>
           <p class="text-sm text-text-secondary mt-1">
             Will create: <code class="bg-bg-hover px-1 rounded">{{ getPreviewFilename() }}</code>
@@ -930,7 +902,7 @@ import { useRouter, useRoute } from "vue-router"
 import { useAuthStore } from "../stores/auth"
 import { useWorkspaceStore } from "../stores/workspace"
 import type { Workspace, Notebook, FileMetadata, Template } from "../services/codex"
-import { templateService, searchService, pageService } from "../services/codex"
+import { templateService, searchService } from "../services/codex"
 import { getDisplayType } from "../utils/contentType"
 import Modal from "../components/Modal.vue"
 import FormGroup from "../components/FormGroup.vue"
@@ -941,7 +913,6 @@ import ViewRenderer from "../components/views/ViewRenderer.vue"
 import FilePropertiesPanel from "../components/FilePropertiesPanel.vue"
 import FolderPropertiesPanel from "../components/FolderPropertiesPanel.vue"
 import FolderView from "../components/FolderView.vue"
-import PageUnifiedView from "../components/PageUnifiedView.vue"
 import FileHeader from "../components/FileHeader.vue"
 import FileTreeItem from "../components/FileTreeItem.vue"
 import CreateViewModal from "../components/CreateViewModal.vue"
@@ -973,7 +944,7 @@ const newFileName = ref("")
 const createFileNotebook = ref<Notebook | null>(null)
 const selectedTemplate = ref<Template | null>(null)
 const customTitle = ref("")
-const createMode = ref<"page" | "file" | "template">("page")
+const createMode = ref<"file" | "template">("file")
 
 // View state
 const showPropertiesPanel = ref(false)
@@ -1058,12 +1029,6 @@ const currentContentUrl = computed(() => {
 const displayType = computed(() => {
   if (!workspaceStore.currentFile) return "markdown"
   return getDisplayType(workspaceStore.currentFile.content_type)
-})
-
-// Check if the current folder is a .page directory (should show unified page view)
-const isPageFolder = computed(() => {
-  if (!workspaceStore.currentFolder) return false
-  return workspaceStore.currentFolder.path.endsWith(".page")
 })
 
 // Open file in a new tab
@@ -1667,34 +1632,6 @@ async function handleCreateFile() {
   if (!createFileNotebook.value || !workspaceStore.currentWorkspace) return
 
   try {
-    // Page creation mode
-    if (createMode.value === "page") {
-      const title = customTitle.value.trim() || "Untitled"
-      const page = await pageService.create(
-        createFileNotebook.value.id,
-        workspaceStore.currentWorkspace.id,
-        title,
-      )
-
-      // Refresh file list and select the initial content block
-      await workspaceStore.fetchFiles(createFileNotebook.value.id)
-
-      // Try to select the initial content file
-      const files = workspaceStore.getFilesForNotebook(createFileNotebook.value.id)
-      const contentFile = files.find((f) => f.path === `${page.directory_path}/001-content.md`)
-      if (contentFile) {
-        await workspaceStore.selectFile(contentFile)
-      }
-
-      showCreateFile.value = false
-      newFileName.value = ""
-      customTitle.value = ""
-      selectedTemplate.value = null
-      createFileNotebook.value = null
-      showToast({ message: "Page created!" })
-      return
-    }
-
     // If a template is selected, use the template service
     if (selectedTemplate.value) {
       const filename = customTitle.value
@@ -1786,7 +1723,7 @@ function startCreateFile(notebook: Notebook) {
   newFileName.value = ""
   selectedTemplate.value = null
   customTitle.value = ""
-  createMode.value = "page"
+  createMode.value = "file"
   showCreateFile.value = true
 }
 
@@ -1799,7 +1736,7 @@ function handleTemplateSelect(template: Template | null) {
   }
 }
 
-function handleModeChange(mode: "page" | "file" | "template") {
+function handleModeChange(mode: "file" | "template") {
   createMode.value = mode
 }
 

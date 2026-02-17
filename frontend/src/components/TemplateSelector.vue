@@ -1,43 +1,6 @@
 <template>
   <div class="template-selector">
     <div class="space-y-2">
-      <!-- New Page option (default) -->
-      <div
-        :class="[
-          'template-item flex items-center gap-3 p-3 rounded-md cursor-pointer transition border',
-          createMode === 'page'
-            ? 'border-primary bg-primary/10'
-            : 'border-border-light hover:border-border-medium hover:bg-bg-hover',
-        ]"
-        @click="selectMode('page')"
-      >
-        <span class="text-2xl">📑</span>
-        <div class="flex-1 min-w-0">
-          <div class="font-medium text-text-primary">New Page</div>
-          <div class="text-sm text-text-secondary truncate">
-            Create a page folder with blocks
-          </div>
-        </div>
-        <div
-          v-if="createMode === 'page'"
-          class="w-5 h-5 rounded-full bg-primary flex items-center justify-center"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="12"
-            height="12"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="white"
-            stroke-width="3"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <polyline points="20 6 9 17 4 12"></polyline>
-          </svg>
-        </div>
-      </div>
-
       <!-- Blank File option -->
       <div
         :class="[
@@ -183,14 +146,14 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: "update:modelValue", value: Template | null): void
   (e: "select", template: Template | null): void
-  (e: "update:mode", value: "page" | "file" | "template"): void
+  (e: "update:mode", value: "file" | "template"): void
 }>()
 
 const templates = ref<Template[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
 const selectedTemplate = ref<Template | null>(props.modelValue || null)
-const createMode = ref<"page" | "file" | "template">("page")
+const createMode = ref<"file" | "template">("file")
 const filterExtension = ref<string | null>(null)
 
 // Get unique file extensions from templates
@@ -213,7 +176,7 @@ function expandedFilename(template: Template): string {
   return templateService.expandPattern(template.default_name, "untitled")
 }
 
-function selectMode(mode: "page" | "file") {
+function selectMode(mode: "file") {
   createMode.value = mode
   selectedTemplate.value = null
   emit("update:modelValue", null)
@@ -223,10 +186,10 @@ function selectMode(mode: "page" | "file") {
 
 function selectTemplate(template: Template | null) {
   selectedTemplate.value = template
-  createMode.value = template ? "template" : "page"
+  createMode.value = template ? "template" : "file"
   emit("update:modelValue", template)
   emit("select", template)
-  emit("update:mode", template ? "template" : "page")
+  emit("update:mode", template ? "template" : "file")
 }
 
 async function fetchTemplates() {

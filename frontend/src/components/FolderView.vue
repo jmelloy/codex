@@ -123,8 +123,29 @@
             <line x1="3" y1="18" x2="21" y2="18" />
           </svg>
         </button>
+        <button
+          @click="viewMode = 'rendered'"
+          :class="['view-mode-btn', { active: viewMode === 'rendered' }]"
+          title="Rendered view"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+            <polyline points="10 9 9 9 8 9" />
+          </svg>
+        </button>
       </div>
-      <div class="sort-controls">
+      <div v-if="viewMode !== 'rendered'" class="sort-controls">
         <select v-model="sortBy" class="sort-select">
           <option value="name">Name</option>
           <option value="date">Date Modified</option>
@@ -164,189 +185,287 @@
       </div>
     </div>
 
-    <!-- Files Grid/List -->
-    <div v-if="hasContent" :class="['files-container', viewMode]">
-      <!-- Grid View -->
-      <template v-if="viewMode === 'grid'">
-        <!-- Subfolders -->
-        <div
-          v-for="subfolder in subfolders"
-          :key="'folder-' + subfolder.path"
-          class="file-card folder-card"
-          @click="$emit('selectFolder', subfolder)"
-        >
-          <div class="file-card-icon folder-icon-color">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-            >
-              <path
-                d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"
-              />
-            </svg>
-          </div>
-          <div class="file-card-info">
-            <span class="file-card-name">{{
-              subfolder.properties?.title || subfolder.title || subfolder.name
-            }}</span>
-            <span class="file-card-meta">Folder</span>
-          </div>
-        </div>
-        <!-- Files -->
+    <!-- Rendered View Mode -->
+    <div v-if="viewMode === 'rendered'" class="rendered-container">
+      <div v-if="loadingContent" class="rendered-loading">
+        Loading content...
+      </div>
+      <template v-else>
         <div
           v-for="file in sortedFiles"
           :key="file.id"
-          class="file-card"
-          :class="{ 'has-thumbnail': isImageFile(file) }"
-          @click="$emit('selectFile', file)"
+          class="rendered-block"
         >
-          <div v-if="isImageFile(file)" class="file-card-thumbnail">
+          <!-- Markdown -->
+          <div v-if="getBlockDisplayType(file) === 'markdown'" class="rendered-content rendered-markdown">
+            <MarkdownViewer
+              v-if="renderedContents.get(file.id) != null"
+              :content="renderedContents.get(file.id)!"
+              :frontmatter="file.properties"
+              :workspace-id="workspaceStore.currentWorkspace?.id ?? 0"
+              :notebook-id="folder.notebook_id"
+              :current-file-path="file.path"
+              :show-frontmatter="false"
+              :show-toolbar="false"
+            />
+            <div v-else class="rendered-placeholder" @click="$emit('selectFile', file)">
+              {{ file.filename }}
+            </div>
+          </div>
+
+          <!-- Image -->
+          <div v-else-if="getBlockDisplayType(file) === 'image'" class="rendered-content rendered-image">
             <img
-              :src="getThumbnailUrl(file)"
-              :alt="file.properties?.title || file.title || file.filename"
+              :src="getContentUrl(file)"
+              :alt="file.title || file.filename"
               loading="lazy"
             />
           </div>
-          <div v-else class="file-card-icon">
-            <component :is="getFileIcon(file.content_type)" />
+
+          <!-- Code -->
+          <div v-else-if="getBlockDisplayType(file) === 'code' || getBlockDisplayType(file) === 'json'" class="rendered-content rendered-code">
+            <div class="code-header">{{ file.filename }}</div>
+            <CodeViewer
+              v-if="renderedContents.get(file.id) != null"
+              :content="renderedContents.get(file.id)!"
+              :filename="file.filename"
+              :show-line-numbers="true"
+              :show-toolbar="false"
+            />
+            <div v-else class="rendered-placeholder" @click="$emit('selectFile', file)">
+              {{ file.filename }}
+            </div>
           </div>
-          <div class="file-card-info">
-            <span class="file-card-name">{{
-              file.properties?.title || file.title || file.filename
-            }}</span>
-            <span class="file-card-meta">{{ formatSize(file.size) }}</span>
+
+          <!-- Video -->
+          <div v-else-if="getBlockDisplayType(file) === 'video'" class="rendered-content rendered-video">
+            <video :src="getContentUrl(file)" controls class="rendered-media">
+              Your browser does not support the video element.
+            </video>
+          </div>
+
+          <!-- Audio -->
+          <div v-else-if="getBlockDisplayType(file) === 'audio'" class="rendered-content rendered-audio">
+            <audio :src="getContentUrl(file)" controls class="rendered-media-audio">
+              Your browser does not support the audio element.
+            </audio>
+          </div>
+
+          <!-- PDF -->
+          <div v-else-if="getBlockDisplayType(file) === 'pdf'" class="rendered-content rendered-pdf">
+            <iframe
+              :src="getContentUrl(file)"
+              class="pdf-frame"
+              :title="file.title || file.filename"
+            />
+          </div>
+
+          <!-- Other file types: clickable card -->
+          <div v-else class="rendered-content rendered-file" @click="$emit('selectFile', file)">
+            <div class="rendered-file-info">
+              <span class="rendered-file-name">{{ file.filename }}</span>
+              <span class="rendered-file-type">{{ file.content_type }}</span>
+            </div>
           </div>
         </div>
-      </template>
 
-      <!-- List View -->
-      <template v-else-if="viewMode === 'list'">
-        <!-- Subfolders -->
-        <div
-          v-for="subfolder in subfolders"
-          :key="'folder-' + subfolder.path"
-          class="file-row folder-row"
-          @click="$emit('selectFolder', subfolder)"
-        >
-          <div class="file-row-icon folder-icon-color">
+        <div v-if="sortedFiles.length === 0" class="rendered-empty">
+          <p>No files in this folder.</p>
+        </div>
+      </template>
+    </div>
+
+    <!-- Files Grid/List/Compact -->
+    <template v-else>
+      <div v-if="hasContent" :class="['files-container', viewMode]">
+        <!-- Grid View -->
+        <template v-if="viewMode === 'grid'">
+          <!-- Subfolders -->
+          <div
+            v-for="subfolder in subfolders"
+            :key="'folder-' + subfolder.path"
+            class="file-card folder-card"
+            @click="$emit('selectFolder', subfolder)"
+          >
+            <div class="file-card-icon folder-icon-color">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path
+                  d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"
+                />
+              </svg>
+            </div>
+            <div class="file-card-info">
+              <span class="file-card-name">{{
+                subfolder.properties?.title || subfolder.title || subfolder.name
+              }}</span>
+              <span class="file-card-meta">Folder</span>
+            </div>
+          </div>
+          <!-- Files -->
+          <div
+            v-for="file in sortedFiles"
+            :key="file.id"
+            class="file-card"
+            :class="{ 'has-thumbnail': isImageFile(file) }"
+            @click="$emit('selectFile', file)"
+          >
+            <div v-if="isImageFile(file)" class="file-card-thumbnail">
+              <img
+                :src="getThumbnailUrl(file)"
+                :alt="file.properties?.title || file.title || file.filename"
+                loading="lazy"
+              />
+            </div>
+            <div v-else class="file-card-icon">
+              <component :is="getFileIcon(file.content_type)" />
+            </div>
+            <div class="file-card-info">
+              <span class="file-card-name">{{
+                file.properties?.title || file.title || file.filename
+              }}</span>
+              <span class="file-card-meta">{{ formatSize(file.size) }}</span>
+            </div>
+          </div>
+        </template>
+
+        <!-- List View -->
+        <template v-else-if="viewMode === 'list'">
+          <!-- Subfolders -->
+          <div
+            v-for="subfolder in subfolders"
+            :key="'folder-' + subfolder.path"
+            class="file-row folder-row"
+            @click="$emit('selectFolder', subfolder)"
+          >
+            <div class="file-row-icon folder-icon-color">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path
+                  d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"
+                />
+              </svg>
+            </div>
+            <div class="file-row-name">
+              {{ subfolder.properties?.title || subfolder.title || subfolder.name }}
+            </div>
+            <div class="file-row-type">Folder</div>
+            <div class="file-row-size">-</div>
+            <div class="file-row-date">{{ formatDate(subfolder.updated_at || "") }}</div>
+          </div>
+          <!-- Files -->
+          <div
+            v-for="file in sortedFiles"
+            :key="file.id"
+            class="file-row"
+            @click="$emit('selectFile', file)"
+          >
+            <div class="file-row-icon">
+              <img
+                v-if="isImageFile(file)"
+                :src="getThumbnailUrl(file)"
+                :alt="file.properties?.title || file.title || file.filename"
+                class="file-row-thumbnail"
+                loading="lazy"
+              />
+              <component v-else :is="getFileIcon(file.content_type)" />
+            </div>
+            <div class="file-row-name">
+              {{ file.properties?.title || file.title || file.filename }}
+            </div>
+            <div class="file-row-type">{{ file.content_type }}</div>
+            <div class="file-row-size">{{ formatSize(file.size) }}</div>
+            <div class="file-row-date">{{ formatDate(file.updated_at) }}</div>
+          </div>
+        </template>
+
+        <!-- Compact View -->
+        <template v-else>
+          <!-- Subfolders -->
+          <div
+            v-for="subfolder in subfolders"
+            :key="'folder-' + subfolder.path"
+            class="file-compact folder-compact"
+            @click="$emit('selectFolder', subfolder)"
+          >
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
+              width="16"
+              height="16"
               viewBox="0 0 24 24"
               fill="currentColor"
+              class="file-compact-icon folder-icon-color"
             >
               <path
                 d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"
               />
             </svg>
+            <span class="file-compact-name">{{
+              subfolder.properties?.title || subfolder.title || subfolder.name
+            }}</span>
           </div>
-          <div class="file-row-name">
-            {{ subfolder.properties?.title || subfolder.title || subfolder.name }}
-          </div>
-          <div class="file-row-type">Folder</div>
-          <div class="file-row-size">-</div>
-          <div class="file-row-date">{{ formatDate(subfolder.updated_at || "") }}</div>
-        </div>
-        <!-- Files -->
-        <div
-          v-for="file in sortedFiles"
-          :key="file.id"
-          class="file-row"
-          @click="$emit('selectFile', file)"
-        >
-          <div class="file-row-icon">
+          <!-- Files -->
+          <div
+            v-for="file in sortedFiles"
+            :key="file.id"
+            class="file-compact"
+            @click="$emit('selectFile', file)"
+          >
             <img
               v-if="isImageFile(file)"
               :src="getThumbnailUrl(file)"
               :alt="file.properties?.title || file.title || file.filename"
-              class="file-row-thumbnail"
+              class="file-compact-thumbnail"
               loading="lazy"
             />
-            <component v-else :is="getFileIcon(file.content_type)" />
+            <component v-else :is="getFileIcon(file.content_type)" class="file-compact-icon" />
+            <span class="file-compact-name">{{
+              file.properties?.title || file.title || file.filename
+            }}</span>
           </div>
-          <div class="file-row-name">
-            {{ file.properties?.title || file.title || file.filename }}
-          </div>
-          <div class="file-row-type">{{ file.content_type }}</div>
-          <div class="file-row-size">{{ formatSize(file.size) }}</div>
-          <div class="file-row-date">{{ formatDate(file.updated_at) }}</div>
-        </div>
-      </template>
+        </template>
+      </div>
 
-      <!-- Compact View -->
-      <template v-else>
-        <!-- Subfolders -->
-        <div
-          v-for="subfolder in subfolders"
-          :key="'folder-' + subfolder.path"
-          class="file-compact folder-compact"
-          @click="$emit('selectFolder', subfolder)"
+      <!-- Empty State -->
+      <div v-else class="empty-state">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="64"
+          height="64"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="currentColor"
-            class="file-compact-icon folder-icon-color"
-          >
-            <path
-              d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"
-            />
-          </svg>
-          <span class="file-compact-name">{{
-            subfolder.properties?.title || subfolder.title || subfolder.name
-          }}</span>
-        </div>
-        <!-- Files -->
-        <div
-          v-for="file in sortedFiles"
-          :key="file.id"
-          class="file-compact"
-          @click="$emit('selectFile', file)"
-        >
-          <img
-            v-if="isImageFile(file)"
-            :src="getThumbnailUrl(file)"
-            :alt="file.properties?.title || file.title || file.filename"
-            class="file-compact-thumbnail"
-            loading="lazy"
-          />
-          <component v-else :is="getFileIcon(file.content_type)" class="file-compact-icon" />
-          <span class="file-compact-name">{{
-            file.properties?.title || file.title || file.filename
-          }}</span>
-        </div>
-      </template>
-    </div>
-
-    <!-- Empty State -->
-    <div v-else class="empty-state">
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="64"
-        height="64"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1"
-      >
-        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-      </svg>
-      <p>This folder is empty</p>
-    </div>
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+        </svg>
+        <p>This folder is empty</p>
+      </div>
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, h } from "vue"
+import { ref, computed, h, watch } from "vue"
 import type { FolderWithFiles, FileMetadata, SubfolderMetadata } from "../services/codex"
-import { getDisplayType } from "../utils/contentType"
+import { fileService } from "../services/codex"
+import { getDisplayType, isTextType } from "../utils/contentType"
 import { useWorkspaceStore } from "../stores/workspace"
+import MarkdownViewer from "./MarkdownViewer.vue"
+import CodeViewer from "./CodeViewer.vue"
+
+type ViewMode = "grid" | "list" | "compact" | "rendered"
+type SortField = "name" | "date" | "type" | "size"
 
 interface Props {
   folder: FolderWithFiles
@@ -355,7 +474,105 @@ interface Props {
 const props = defineProps<Props>()
 const workspaceStore = useWorkspaceStore()
 
-// Check if a file is an image
+defineEmits<{
+  selectFile: [file: FileMetadata]
+  selectFolder: [folder: SubfolderMetadata]
+  toggleProperties: []
+}>()
+
+// Initialize view/sort from folder properties, falling back to defaults
+const viewMode = ref<ViewMode>(
+  (props.folder.properties?.view_mode as ViewMode) || "grid"
+)
+const sortBy = ref<SortField>(
+  (props.folder.properties?.sort_by as SortField) || "name"
+)
+const sortAsc = ref(
+  (props.folder.properties?.sort_direction || "asc") === "asc"
+)
+
+// Sync settings when folder changes (user navigated to a different folder)
+watch(
+  () => props.folder.path,
+  () => {
+    viewMode.value = (props.folder.properties?.view_mode as ViewMode) || "grid"
+    sortBy.value = (props.folder.properties?.sort_by as SortField) || "name"
+    sortAsc.value = (props.folder.properties?.sort_direction || "asc") === "asc"
+  },
+)
+
+// Also sync when folder properties are updated externally (e.g. from FolderPropertiesPanel)
+watch(
+  () => props.folder.properties,
+  (newProps) => {
+    if (newProps?.view_mode && newProps.view_mode !== viewMode.value) {
+      viewMode.value = newProps.view_mode as ViewMode
+    }
+    if (newProps?.sort_by && newProps.sort_by !== sortBy.value) {
+      sortBy.value = newProps.sort_by as SortField
+    }
+    if (newProps?.sort_direction) {
+      const newAsc = newProps.sort_direction === "asc"
+      if (newAsc !== sortAsc.value) {
+        sortAsc.value = newAsc
+      }
+    }
+  },
+)
+
+// --- Rendered view content loading ---
+const loadingContent = ref(false)
+const renderedContents = ref<Map<number, string>>(new Map())
+
+function getBlockDisplayType(file: FileMetadata): string {
+  return getDisplayType(file.content_type)
+}
+
+function getContentUrl(file: FileMetadata): string {
+  return fileService.getContentUrl(file.id, workspaceStore.currentWorkspace?.id ?? 0, props.folder.notebook_id)
+}
+
+async function loadRenderedContents() {
+  loadingContent.value = true
+  const contents = new Map<number, string>()
+
+  try {
+    const textFiles = sortedFiles.value.filter((f) => isTextType(f.content_type))
+    const promises = textFiles.map(async (file) => {
+      try {
+        const result = await fileService.getContent(
+          file.id,
+          workspaceStore.currentWorkspace?.id ?? 0,
+          props.folder.notebook_id,
+        )
+        contents.set(file.id, result.content)
+      } catch (e) {
+        console.warn(`Failed to load content for ${file.path}:`, e)
+      }
+    })
+
+    await Promise.all(promises)
+    renderedContents.value = contents
+  } finally {
+    loadingContent.value = false
+  }
+}
+
+// Load content when switching to rendered mode or when folder changes
+watch(
+  [() => viewMode.value, () => props.folder],
+  ([mode]) => {
+    if (mode === "rendered") {
+      loadRenderedContents()
+    } else {
+      renderedContents.value = new Map()
+    }
+  },
+  { immediate: true },
+)
+
+// --- Existing logic ---
+
 function isImageFile(file: FileMetadata): boolean {
   return (
     file.content_type.startsWith("image/") ||
@@ -363,21 +580,10 @@ function isImageFile(file: FileMetadata): boolean {
   )
 }
 
-// Get thumbnail URL for an image file
 function getThumbnailUrl(file: FileMetadata): string {
   const workspaceId = workspaceStore.currentWorkspace?.id
   return `/api/v1/workspaces/${workspaceId}/notebooks/${props.folder.notebook_id}/files/${file.id}/content`
 }
-
-defineEmits<{
-  selectFile: [file: FileMetadata]
-  selectFolder: [folder: SubfolderMetadata]
-  toggleProperties: []
-}>()
-
-const viewMode = ref<"grid" | "list" | "compact">("grid")
-const sortBy = ref<"name" | "date" | "type" | "size">("name")
-const sortAsc = ref(true)
 
 const displayTitle = computed(() => {
   return props.folder.properties?.title || props.folder.title || props.folder.name
@@ -385,7 +591,6 @@ const displayTitle = computed(() => {
 
 const subfolders = computed(() => props.folder.subfolders || [])
 
-// Display all files from folder
 const visibleFiles = computed(() => {
   return props.folder.files
 })
@@ -405,11 +610,12 @@ const sortedFiles = computed(() => {
     let comparison = 0
 
     switch (sortBy.value) {
-      case "name":
+      case "name": {
         const nameA = a.properties?.title || a.title || a.filename
         const nameB = b.properties?.title || b.title || b.filename
         comparison = nameA.localeCompare(nameB)
         break
+      }
       case "date":
         comparison = new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime()
         break
@@ -679,6 +885,131 @@ function getFileIcon(contentType: string) {
   border-color: var(--color-border);
 }
 
+/* --- Rendered View --- */
+.rendered-container {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--spacing-xl);
+}
+
+.rendered-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  color: var(--color-text-tertiary);
+}
+
+.rendered-block {
+  /* Blocks flow seamlessly */
+}
+
+.rendered-content {
+  /* Uniform block rendering */
+}
+
+.rendered-markdown {
+  /* Markdown flows naturally */
+}
+
+.rendered-image img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 1rem 0;
+  border-radius: var(--radius-sm);
+}
+
+.rendered-code {
+  margin: 1rem 0;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.code-header {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary);
+  background: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border-light);
+  font-family: monospace;
+}
+
+.rendered-video .rendered-media {
+  max-width: 100%;
+  max-height: 600px;
+  display: block;
+  margin: 1rem 0;
+  border-radius: var(--radius-sm);
+}
+
+.rendered-audio .rendered-media-audio {
+  width: 100%;
+  margin: 1rem 0;
+}
+
+.rendered-pdf .pdf-frame {
+  width: 100%;
+  height: 600px;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-sm);
+  margin: 1rem 0;
+}
+
+.rendered-file {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  margin: 0.5rem 0;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.rendered-file:hover {
+  background: var(--color-bg-secondary);
+}
+
+.rendered-file-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.rendered-file-name {
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.rendered-file-type {
+  font-size: 0.8rem;
+  color: var(--color-text-tertiary);
+}
+
+.rendered-placeholder {
+  padding: 0.75rem 1rem;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  border: 1px dashed var(--color-border-light);
+  border-radius: var(--radius-sm);
+  margin: 0.5rem 0;
+  transition: background 0.15s;
+}
+
+.rendered-placeholder:hover {
+  background: var(--color-bg-secondary);
+}
+
+.rendered-empty {
+  text-align: center;
+  padding: 3rem;
+  color: var(--color-text-tertiary);
+}
+
+/* --- Grid/List/Compact Views --- */
 .files-container {
   flex: 1 1 0;
   min-height: 0;

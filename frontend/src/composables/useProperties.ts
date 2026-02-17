@@ -1,7 +1,7 @@
 import { ref, computed, type Ref } from "vue"
 
 /** Standard property fields handled separately from custom metadata */
-const STANDARD_FIELDS = ["title", "description", "tags"] as const
+const STANDARD_FIELDS = ["title", "description", "tags", "view_mode", "sort_by", "sort_direction"] as const
 type StandardField = (typeof STANDARD_FIELDS)[number]
 
 interface PropertiesSource {

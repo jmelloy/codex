@@ -44,130 +44,59 @@
           rows="3"
         ></textarea>
       </div>
-      <!-- Tags (editable) -->
+
+      <TagsEditor
+        :tags="tags"
+        v-model:new-tag="newTag"
+        @add="addTag"
+        @remove="removeTag"
+      />
+
+      <CustomPropertiesEditor
+        :metadata="metadata"
+        :editing-property="editingProperty"
+        v-model:edit-property-value="editPropertyValue"
+        v-model:new-property-key="newPropertyKey"
+        v-model:new-property-value="newPropertyValue"
+        @start-edit="startEditProperty"
+        @save-edit="savePropertyEdit"
+        @cancel-edit="cancelPropertyEdit"
+        @remove-property="removeProperty"
+        @add-property="addProperty"
+        @focus-value="focusValueInput"
+      />
+
+      <!-- File Info (read-only) -->
       <div class="property-section">
-        <h4>Tags</h4>
-        <div class="tags-list">
-          <span v-for="tag in tags" :key="tag" class="tag">
-            {{ tag }}
-            <button @click="removeTag(tag)" class="tag-remove" title="Remove tag">×</button>
-          </span>
+        <h4>File Info</h4>
+        <div class="property-row">
+          <span class="property-label">Path</span>
+          <span class="property-value">{{ file.path }}</span>
         </div>
-        <div class="tag-input-wrapper">
-          <input
-            v-model="newTag"
-            @keyup.enter="addTag"
-            class="tag-input"
-            placeholder="Add a tag..."
-          />
-          <button @click="addTag" class="tag-add-btn" :disabled="!newTag.trim()">Add</button>
+        <div class="property-row">
+          <span class="property-label">Filename</span>
+          <span class="property-value">{{ file.filename }}</span>
+        </div>
+        <div class="property-row">
+          <span class="property-label">Type</span>
+          <span class="property-value">{{ file.content_type }}</span>
+        </div>
+        <div class="property-row">
+          <span class="property-label">Size</span>
+          <span class="property-value">{{ formatSize(file.size) }}</span>
         </div>
       </div>
 
-      <!-- Custom Properties (editable) -->
+      <!-- Dates -->
       <div class="property-section">
-        <h4>Custom Properties</h4>
-
-        <!-- Existing custom properties -->
-        <div class="custom-property-row" v-for="(value, key) in metadata" :key="key">
-          <template v-if="editingProperty === key">
-            <!-- Editing mode -->
-            <input
-              v-model="editPropertyValue"
-              @blur="savePropertyEdit(key as string)"
-              @keyup.enter="savePropertyEdit(key as string)"
-              @keyup.escape="cancelPropertyEdit"
-              class="property-edit-input"
-              ref="editInput"
-            />
-            <div class="property-actions-inline">
-              <button
-                @click="savePropertyEdit(key as string)"
-                class="btn-action btn-save"
-                title="Save"
-              >
-                ✓
-              </button>
-              <button @click="cancelPropertyEdit" class="btn-action btn-cancel" title="Cancel">
-                ✕
-              </button>
-            </div>
-          </template>
-          <template v-else>
-            <!-- Display mode -->
-            <span class="property-label">{{ key }}</span>
-            <span
-              class="property-value editable"
-              @click="startEditProperty(key as string, value)"
-              title="Click to edit"
-              >{{ formatMetadataValue(value) }}</span
-            >
-            <button
-              @click="removeProperty(key as string)"
-              class="btn-remove-property"
-              title="Remove property"
-            >
-              ×
-            </button>
-          </template>
+        <h4>Dates</h4>
+        <div class="property-row">
+          <span class="property-label">Created</span>
+          <span class="property-value">{{ formatDate(file.created_at) }}</span>
         </div>
-        <!-- Add new property -->
-        <div class="add-property-form">
-          <input
-            v-model="newPropertyKey"
-            class="property-key-input"
-            placeholder="Property name"
-            @keyup.enter="focusValueInput"
-          />
-          <input
-            v-model="newPropertyValue"
-            class="property-value-input"
-            placeholder="Value"
-            ref="valueInputRef"
-            @keyup.enter="addProperty"
-          />
-          <button
-            @click="addProperty"
-            class="btn-add-property"
-            :disabled="!newPropertyKey.trim()"
-            title="Add property"
-          >
-            +
-          </button>
-        </div>
-
-        <!-- File Info (read-only) -->
-        <div class="property-section">
-          <h4>File Info</h4>
-          <div class="property-row">
-            <span class="property-label">Path</span>
-            <span class="property-value">{{ file.path }}</span>
-          </div>
-          <div class="property-row">
-            <span class="property-label">Filename</span>
-            <span class="property-value">{{ file.filename }}</span>
-          </div>
-          <div class="property-row">
-            <span class="property-label">Type</span>
-            <span class="property-value">{{ file.content_type }}</span>
-          </div>
-          <div class="property-row">
-            <span class="property-label">Size</span>
-            <span class="property-value">{{ formatSize(file.size) }}</span>
-          </div>
-        </div>
-
-        <!-- Dates -->
-        <div class="property-section">
-          <h4>Dates</h4>
-          <div class="property-row">
-            <span class="property-label">Created</span>
-            <span class="property-value">{{ formatDate(file.created_at) }}</span>
-          </div>
-          <div class="property-row">
-            <span class="property-label">Modified</span>
-            <span class="property-value">{{ formatDate(file.updated_at) }}</span>
-          </div>
+        <div class="property-row">
+          <span class="property-label">Modified</span>
+          <span class="property-value">{{ formatDate(file.updated_at) }}</span>
         </div>
       </div>
 
@@ -236,6 +165,10 @@
 import { ref, computed, watch } from "vue"
 import type { FileWithContent, FileHistoryEntry } from "../services/codex"
 import { fileService } from "../services/codex"
+import { useProperties } from "../composables/useProperties"
+import { formatDate, formatCommitDate, formatSize } from "../utils/date"
+import TagsEditor from "./TagsEditor.vue"
+import CustomPropertiesEditor from "./CustomPropertiesEditor.vue"
 
 interface Props {
   file: FileWithContent | null
@@ -263,196 +196,33 @@ const selectedCommit = ref<FileHistoryEntry | null>(null)
 const commitContent = ref<string | null>(null)
 const commitContentLoading = ref(false)
 
-const editableTitle = ref("")
-const editableDescription = ref("")
-const newTag = ref("")
-
-// Custom property editing state
-const newPropertyKey = ref("")
-const newPropertyValue = ref("")
-const editingProperty = ref<string | null>(null)
-const editPropertyValue = ref("")
-const valueInputRef = ref<HTMLInputElement | null>(null)
-
-// Get current properties or empty object
-const currentProperties = computed(() => {
-  return props.file?.properties || {}
-})
+// Use shared properties composable
+const fileRef = computed(() => props.file)
+const {
+  editableTitle,
+  editableDescription,
+  newTag,
+  newPropertyKey,
+  newPropertyValue,
+  editingProperty,
+  editPropertyValue,
+  tags,
+  metadata,
+  syncFromSource,
+  updateTitle,
+  updateDescription,
+  addTag,
+  removeTag,
+  addProperty,
+  focusValueInput,
+  startEditProperty,
+  savePropertyEdit,
+  cancelPropertyEdit,
+  removeProperty,
+} = useProperties(fileRef, (event, properties) => emit(event, properties))
 
 // Sync with prop changes
-watch(
-  () => props.file,
-  (newFile) => {
-    if (newFile) {
-      // Read from properties first, fall back to direct fields
-      editableTitle.value = newFile.properties?.title || newFile.title || ""
-      editableDescription.value = newFile.properties?.description || newFile.description || ""
-    }
-  },
-  { immediate: true },
-)
-
-const tags = computed(() => {
-  if (props.file?.properties?.tags) {
-    return Array.isArray(props.file.properties.tags) ? props.file.properties.tags : []
-  }
-  return []
-})
-
-// Standard property fields that are handled separately
-const STANDARD_FIELDS = ["title", "description", "tags"] as const
-type StandardField = (typeof STANDARD_FIELDS)[number]
-
-// Get all metadata except standard fields (title, description, tags)
-const metadata = computed(() => {
-  if (!props.file?.properties) return {}
-
-  const result: Record<string, unknown> = {}
-  for (const [key, value] of Object.entries(props.file.properties)) {
-    if (!STANDARD_FIELDS.includes(key as StandardField)) {
-      result[key] = value
-    }
-  }
-  return result
-})
-
-function formatDate(dateStr: string): string {
-  try {
-    const date = new Date(dateStr)
-    return date.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    })
-  } catch {
-    return dateStr
-  }
-}
-
-function formatSize(bytes: number): string {
-  if (bytes === 0) return "0 B"
-  const k = 1024
-  const sizes = ["B", "KB", "MB", "GB"]
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i]
-}
-
-function formatMetadataValue(value: unknown): string {
-  if (value === null || value === undefined) return ""
-  if (Array.isArray(value)) return value.join(", ")
-  if (typeof value === "object") return JSON.stringify(value)
-  return String(value)
-}
-
-function emitPropertiesUpdate(updates: Record<string, any>) {
-  const newProperties = {
-    ...currentProperties.value,
-    ...updates,
-  }
-  emit("updateProperties", newProperties)
-}
-
-function updateTitle() {
-  const currentTitle = props.file?.properties?.title || props.file?.title || ""
-  if (props.file && editableTitle.value !== currentTitle) {
-    emitPropertiesUpdate({ title: editableTitle.value })
-  }
-}
-
-function updateDescription() {
-  const currentDescription = props.file?.properties?.description || props.file?.description || ""
-  if (props.file && editableDescription.value !== currentDescription) {
-    emitPropertiesUpdate({ description: editableDescription.value })
-  }
-}
-
-function addTag() {
-  const tagToAdd = newTag.value.trim()
-  if (!tagToAdd) return
-
-  const currentTags = tags.value
-  if (!currentTags.includes(tagToAdd)) {
-    emitPropertiesUpdate({ tags: [...currentTags, tagToAdd] })
-  }
-  newTag.value = ""
-}
-
-function removeTag(tagToRemove: string) {
-  const currentTags = tags.value
-  emitPropertiesUpdate({ tags: currentTags.filter((t) => t !== tagToRemove) })
-}
-
-// Custom property management
-function addProperty() {
-  const key = newPropertyKey.value.trim()
-  if (!key) return
-
-  // Parse value - try to detect type
-  let value: unknown = newPropertyValue.value.trim()
-
-  // Try to parse as JSON (for numbers, booleans, arrays, objects)
-  if (value) {
-    try {
-      const parsed = JSON.parse(value as string)
-      value = parsed
-    } catch {
-      // Keep as string if not valid JSON
-    }
-  }
-
-  emitPropertiesUpdate({ [key]: value })
-  newPropertyKey.value = ""
-  newPropertyValue.value = ""
-}
-
-function focusValueInput() {
-  valueInputRef.value?.focus()
-}
-
-function startEditProperty(key: string, value: unknown) {
-  editingProperty.value = key
-  // Format value for editing
-  if (typeof value === "object") {
-    editPropertyValue.value = JSON.stringify(value)
-  } else {
-    editPropertyValue.value = String(value ?? "")
-  }
-}
-
-function savePropertyEdit(key: string) {
-  if (editingProperty.value !== key) return
-
-  // Parse value - try to detect type
-  let value: unknown = editPropertyValue.value.trim()
-
-  // Try to parse as JSON (for numbers, booleans, arrays, objects)
-  if (value) {
-    try {
-      const parsed = JSON.parse(value as string)
-      value = parsed
-    } catch {
-      // Keep as string if not valid JSON
-    }
-  }
-
-  emitPropertiesUpdate({ [key]: value })
-  editingProperty.value = null
-  editPropertyValue.value = ""
-}
-
-function cancelPropertyEdit() {
-  editingProperty.value = null
-  editPropertyValue.value = ""
-}
-
-function removeProperty(key: string) {
-  // Create new properties object without the removed key
-  const newProperties = { ...currentProperties.value }
-  delete newProperties[key]
-  emit("updateProperties", newProperties)
-}
+watch(() => props.file, () => syncFromSource(), { immediate: true })
 
 function confirmDelete() {
   const displayName = props.file?.properties?.title || props.file?.title || props.file?.filename
@@ -528,33 +298,6 @@ function restoreCommit() {
   }
 }
 
-function formatCommitDate(dateStr: string): string {
-  try {
-    const date = new Date(dateStr)
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-
-    if (diffDays === 0) {
-      return date.toLocaleTimeString("en-US", {
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-    } else if (diffDays === 1) {
-      return "Yesterday"
-    } else if (diffDays < 7) {
-      return `${diffDays} days ago`
-    } else {
-      return date.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-      })
-    }
-  } catch {
-    return dateStr
-  }
-}
-
 // Reset history when file changes
 watch(
   () => props.file?.id,
@@ -563,7 +306,6 @@ watch(
     historyError.value = null
     selectedCommit.value = null
     commitContent.value = null
-    // If we're on the history tab when file changes, reload history
     if (activeTab.value === "history") {
       loadHistory()
     }
@@ -719,82 +461,6 @@ watch(
   word-break: break-all;
 }
 
-.tags-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--spacing-sm);
-}
-
-.tag {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--spacing-xs);
-  padding: var(--spacing-xs) var(--spacing-sm);
-  background: var(--color-bg-tertiary);
-  color: var(--color-text-secondary);
-  border-radius: var(--radius-sm);
-  font-size: var(--text-xs);
-}
-
-.tag-remove {
-  background: none;
-  border: none;
-  color: var(--color-text-placeholder);
-  cursor: pointer;
-  padding: 0;
-  line-height: 1;
-  font-size: var(--text-sm);
-  transition: color 0.2s;
-}
-
-.tag-remove:hover {
-  color: var(--color-error);
-}
-
-.tag-input-wrapper {
-  display: flex;
-  gap: var(--spacing-sm);
-  margin-top: var(--spacing-sm);
-}
-
-.tag-input {
-  flex: 1;
-  padding: var(--spacing-sm);
-  border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-sm);
-  font-size: var(--text-sm);
-  background: var(--color-bg-primary);
-  color: var(--color-text-primary);
-  transition: border-color 0.2s;
-}
-
-.tag-input:focus {
-  outline: none;
-  border-color: var(--color-border-focus);
-}
-
-.tag-add-btn {
-  padding: var(--spacing-sm) var(--spacing-md);
-  background: var(--color-primary);
-  color: var(--color-text-inverse);
-  border: none;
-  border-radius: var(--radius-sm);
-  font-size: var(--text-sm);
-  font-weight: var(--font-medium);
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.tag-add-btn:hover:not(:disabled) {
-  background: var(--color-primary-hover);
-}
-
-.tag-add-btn:disabled {
-  background: var(--color-bg-disabled);
-  color: var(--color-text-disabled);
-  cursor: not-allowed;
-}
-
 .property-actions {
   margin-top: auto;
   padding-top: var(--spacing-lg);
@@ -826,172 +492,6 @@ watch(
   height: 100%;
   color: var(--color-text-placeholder);
   font-size: var(--text-sm);
-}
-
-/* Custom Properties Styles */
-.custom-property-row {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-sm) 0;
-  border-bottom: 1px solid var(--color-bg-secondary);
-}
-
-.custom-property-row .property-label {
-  font-size: var(--text-sm);
-  color: var(--color-text-tertiary);
-  min-width: 80px;
-  flex-shrink: 0;
-}
-
-.custom-property-row .property-value {
-  flex: 1;
-  font-size: var(--text-sm);
-  color: var(--color-text-primary);
-  word-break: break-all;
-  text-align: left;
-}
-
-.custom-property-row .property-value.editable {
-  cursor: pointer;
-  padding: var(--spacing-xs) var(--spacing-sm);
-  border-radius: var(--radius-sm);
-  transition: background 0.2s;
-}
-
-.custom-property-row .property-value.editable:hover {
-  background: var(--color-bg-secondary);
-}
-
-.property-edit-input {
-  flex: 1;
-  padding: var(--spacing-xs) var(--spacing-sm);
-  border: 1px solid var(--color-border-focus);
-  border-radius: var(--radius-sm);
-  font-size: var(--text-sm);
-  color: var(--color-text-primary);
-  background: var(--color-bg-primary);
-}
-
-.property-edit-input:focus {
-  outline: none;
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 20%, transparent);
-}
-
-.property-actions-inline {
-  display: flex;
-  gap: var(--spacing-xs);
-}
-
-.btn-action {
-  background: none;
-  border: none;
-  padding: var(--spacing-xs);
-  cursor: pointer;
-  font-size: var(--text-sm);
-  line-height: 1;
-  border-radius: var(--radius-sm);
-  transition:
-    background 0.2s,
-    color 0.2s;
-}
-
-.btn-save {
-  color: var(--color-success, #22c55e);
-}
-
-.btn-save:hover {
-  background: color-mix(in srgb, var(--color-success, #22c55e) 10%, transparent);
-}
-
-.btn-cancel {
-  color: var(--color-text-tertiary);
-}
-
-.btn-cancel:hover {
-  color: var(--color-text-primary);
-  background: var(--color-bg-secondary);
-}
-
-.btn-remove-property {
-  background: none;
-  border: none;
-  color: var(--color-text-placeholder);
-  cursor: pointer;
-  padding: var(--spacing-xs);
-  line-height: 1;
-  font-size: var(--text-sm);
-  transition: color 0.2s;
-  opacity: 0;
-  flex-shrink: 0;
-}
-
-.custom-property-row:hover .btn-remove-property {
-  opacity: 1;
-}
-
-.btn-remove-property:hover {
-  color: var(--color-error);
-}
-
-.empty-properties {
-  font-size: var(--text-sm);
-  color: var(--color-text-placeholder);
-  font-style: italic;
-  padding: var(--spacing-md) 0;
-}
-
-.add-property-form {
-  display: flex;
-  gap: var(--spacing-sm);
-  margin-top: var(--spacing-md);
-  padding-top: var(--spacing-md);
-  border-top: 1px solid var(--color-bg-secondary);
-}
-
-.property-key-input,
-.property-value-input {
-  flex: 1;
-  padding: var(--spacing-sm);
-  border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-sm);
-  font-size: var(--text-sm);
-  background: var(--color-bg-primary);
-  color: var(--color-text-primary);
-  transition: border-color 0.2s;
-}
-
-.property-key-input {
-  max-width: 40%;
-}
-
-.property-key-input:focus,
-.property-value-input:focus {
-  outline: none;
-  border-color: var(--color-border-focus);
-}
-
-.btn-add-property {
-  padding: var(--spacing-sm) var(--spacing-md);
-  background: var(--color-primary);
-  color: var(--color-text-inverse);
-  border: none;
-  border-radius: var(--radius-sm);
-  font-size: var(--text-lg);
-  font-weight: var(--font-medium);
-  cursor: pointer;
-  transition: background 0.2s;
-  line-height: 1;
-}
-
-.btn-add-property:hover:not(:disabled) {
-  background: var(--color-primary-hover);
-}
-
-.btn-add-property:disabled {
-  background: var(--color-bg-disabled);
-  color: var(--color-text-disabled);
-  cursor: not-allowed;
 }
 
 /* History Tab Styles */

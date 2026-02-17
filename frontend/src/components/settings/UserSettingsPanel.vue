@@ -99,58 +99,9 @@ function applyTheme(themeId: ThemeName) {
 }
 </script>
 
+<style src="./settings-panel.css"></style>
 <style scoped>
-.panel-wrapper {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-
-.panel-header {
-  padding: 2rem 2.5rem;
-  border-bottom: 1px solid var(--color-border-light);
-}
-
-.panel-title {
-  margin: 0 0 0.5rem;
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--color-text-primary);
-}
-
-.panel-subtitle {
-  margin: 0;
-  color: var(--color-text-secondary);
-  font-size: 1rem;
-}
-
-.panel-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 2rem 2.5rem;
-}
-
-.config-section {
-  margin-bottom: 3rem;
-  background: var(--color-bg-secondary);
-  border: 1px solid var(--color-border-medium);
-  border-radius: 8px;
-  padding: 2rem;
-}
-
-.section-heading {
-  margin: 0 0 0.75rem;
-  font-size: 1.375rem;
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-
-.section-description {
-  margin: 0 0 1.75rem;
-  color: var(--color-text-secondary);
-  line-height: 1.5;
-}
-
+/* Theme-specific styles */
 .theme-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
@@ -229,50 +180,9 @@ function applyTheme(themeId: ThemeName) {
 }
 
 .save-notification {
-  padding: 0.875rem 1.125rem;
-  background: #d4edda;
-  border: 1px solid #c3e6cb;
-  border-radius: 6px;
-  color: #155724;
-  font-weight: 500;
   font-size: 0.9375rem;
 }
 
-.form-field {
-  margin-bottom: 1.5rem;
-}
-
-.field-label {
-  display: block;
-  font-weight: 500;
-  margin-bottom: 0.5rem;
-  color: var(--color-text-primary);
-  font-size: 0.9375rem;
-}
-
-.field-input {
-  width: 100%;
-  padding: 0.75rem 1rem;
-  border: 1px solid var(--color-border-medium);
-  border-radius: 6px;
-  font-size: 1rem;
-  background: var(--color-bg-primary);
-  color: var(--color-text-primary);
-}
-
-.field-input-disabled {
-  background: var(--color-bg-tertiary);
-  color: var(--color-text-tertiary);
-  cursor: not-allowed;
-}
-
-.info-text {
-  color: var(--color-text-tertiary);
-  font-size: 0.9375rem;
-  margin: 0;
-}
-
-/* Theme preview classes */
 .theme-cream {
   background-color: var(--page-cream);
   color: var(--pen-black);

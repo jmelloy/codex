@@ -1762,6 +1762,11 @@ async function handleCreateView(data: { filename: string; content: string }) {
 }
 
 function startCreateFile(notebook: Notebook) {
+  // Ensure the notebook is selected in the store so workspace context is set
+  workspaceStore.currentNotebook = notebook
+  if (!workspaceStore.expandedNotebooks.has(notebook.id)) {
+    workspaceStore.toggleNotebookExpansion(notebook)
+  }
   createFileNotebook.value = notebook
   newFileName.value = ""
   selectedTemplate.value = null

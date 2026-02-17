@@ -43,12 +43,15 @@ test.describe("Search", () => {
       );
     }
 
-    // Reload to see the files
+    // Reload and wait for full initialization
     await page.reload();
+    await page.waitForLoadState("networkidle");
     await expect(page.locator("text=Notebooks")).toBeVisible({ timeout: 10_000 });
 
     // Expand the notebook so files are loaded
-    await page.getByText(notebookName).click();
+    const searchRow = page.locator(".notebook-item").filter({ hasText: notebookName });
+    await expect(searchRow).toBeVisible({ timeout: 10_000 });
+    await searchRow.click();
     await expect(page.getByText("alpha-report")).toBeVisible({ timeout: 10_000 });
 
     // Switch to Search tab

@@ -7,9 +7,9 @@ test.describe("Workspaces", () => {
   }) => {
     // After registration, a default workspace named after the user is created
     await expect(page.locator("text=Workspaces")).toBeVisible({ timeout: 10_000 });
-    // The default workspace should appear in the sidebar list
+    // The default workspace should appear in the sidebar workspace list
     await expect(
-      page.locator(`text=${testUser.username}`)
+      page.getByRole("listitem").filter({ hasText: testUser.username })
     ).toBeVisible({ timeout: 10_000 });
   });
 

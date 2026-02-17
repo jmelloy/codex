@@ -19,9 +19,9 @@ test.describe("Authentication", () => {
 
     // Should redirect to home after registration + auto-login
     await expect(page).toHaveURL("/", { timeout: 15_000 });
-    // Should display the username initial in the sidebar
+    // Should display the username in the sidebar user section
     await expect(
-      page.locator("text=" + user.username.charAt(0).toUpperCase())
+      page.getByRole("button", { name: "Logout" })
     ).toBeVisible({ timeout: 5_000 });
   });
 

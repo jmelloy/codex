@@ -18,16 +18,21 @@ test.describe("File Operations", () => {
     await page.getByRole("button", { name: "Create" }).click();
     await expect(page.getByText(notebookName)).toBeVisible({ timeout: 10_000 });
 
-    // Expand the notebook
-    await page.getByText(notebookName).click();
+    // Notebook may be auto-expanded after creation — ensure it's expanded
+    const notebookRow = page.locator(".notebook-item").filter({ hasText: notebookName });
+    const arrow = await notebookRow.locator("span").first().textContent();
+    if (arrow?.trim() !== "▼") {
+      await notebookRow.click();
+    }
     await expect(page.getByText("No files yet")).toBeVisible({ timeout: 5_000 });
 
     // Click the "+" button to create a file (appears on hover)
     // The button is inside the notebook row, title="New File"
     await page.getByTitle("New File").click();
 
-    // Fill in the filename
+    // Fill in the filename — select "Blank File" mode first (default is "Page")
     await expect(page.getByText("Create File")).toBeVisible();
+    await page.getByText("Blank File").click();
     await page.getByPlaceholder("example.md").fill(fileName);
     await page.getByRole("button", { name: "Create" }).click();
 
@@ -78,12 +83,15 @@ test.describe("File Operations", () => {
       }
     );
 
-    // Reload page to see new data
+    // Reload page and wait for full initialization
     await page.reload();
+    await page.waitForLoadState("networkidle");
     await expect(page.locator("text=Notebooks")).toBeVisible({ timeout: 10_000 });
 
-    // Expand the notebook
-    await page.getByText(notebookName).click();
+    // Expand the notebook by clicking the row div
+    const viewRow = page.locator(".notebook-item").filter({ hasText: notebookName });
+    await expect(viewRow).toBeVisible({ timeout: 10_000 });
+    await viewRow.click();
     await expect(page.getByText("readme")).toBeVisible({ timeout: 10_000 });
 
     // Click the file
@@ -139,8 +147,11 @@ test.describe("File Operations", () => {
 
     // Reload and navigate to the file
     await page.reload();
+    await page.waitForLoadState("networkidle");
     await expect(page.locator("text=Notebooks")).toBeVisible({ timeout: 10_000 });
-    await page.getByText(notebookName).click();
+    const editRow = page.locator(".notebook-item").filter({ hasText: notebookName });
+    await expect(editRow).toBeVisible({ timeout: 10_000 });
+    await editRow.click();
     await expect(page.getByText("editable")).toBeVisible({ timeout: 10_000 });
     await page.getByText("editable").click();
 

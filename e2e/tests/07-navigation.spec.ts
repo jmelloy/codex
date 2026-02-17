@@ -46,8 +46,8 @@ test.describe("Navigation & URL Routing", () => {
     await page.reload();
     await expect(page.locator("text=Notebooks")).toBeVisible({ timeout: 10_000 });
 
-    // Expand notebook and click file
-    await page.getByText(notebookName).click();
+    // Expand notebook by clicking the row div and click file
+    await page.locator(".notebook-item").filter({ hasText: notebookName }).click();
     await expect(page.getByText("nav-test")).toBeVisible({ timeout: 10_000 });
     await page.getByText("nav-test").click();
 

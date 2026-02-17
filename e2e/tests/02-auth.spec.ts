@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { generateTestUser, registerUser, loginUser } from "../fixtures/auth";
 
-test.describe("Authentication", () => {
+test.describe.serial("Authentication", () => {
   const user = generateTestUser();
 
   test("register a new user", async ({ page }) => {

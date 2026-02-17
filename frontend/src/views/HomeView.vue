@@ -805,10 +805,10 @@
   <Modal v-model="showCreateFile" title="Create File" confirm-text="Create" hide-actions>
     <form @submit.prevent="handleCreateFile">
       <!-- Template Selection -->
-      <div v-if="createFileNotebook && workspaceStore.currentWorkspace" class="mb-4">
+      <div class="mb-4">
         <TemplateSelector
-          :notebook-id="createFileNotebook.id"
-          :workspace-id="workspaceStore.currentWorkspace.id"
+          :notebook-id="createFileNotebook?.id"
+          :workspace-id="workspaceStore.currentWorkspace?.id"
           v-model="selectedTemplate"
           @select="handleTemplateSelect"
           @update:mode="handleModeChange"

@@ -1,17 +1,6 @@
 <template>
   <div class="template-selector">
-    <!-- Loading state -->
-    <div v-if="loading" class="flex items-center justify-center py-8">
-      <span class="text-text-secondary">Loading templates...</span>
-    </div>
-
-    <!-- Error state -->
-    <div v-else-if="error" class="text-error text-center py-4">
-      {{ error }}
-    </div>
-
-    <!-- Template list -->
-    <div v-else class="space-y-2">
+    <div class="space-y-2">
       <!-- New Page option (default) -->
       <div
         :class="[
@@ -86,62 +75,79 @@
         </div>
       </div>
 
-      <!-- Divider -->
+      <!-- Templates section -->
       <div class="flex items-center gap-2 py-2">
         <div class="flex-1 h-px bg-border-light"></div>
         <span class="text-xs text-text-tertiary uppercase">Templates</span>
         <div class="flex-1 h-px bg-border-light"></div>
       </div>
 
-      <!-- Template items -->
-      <div
-        v-for="template in filteredTemplates"
-        :key="template.id"
-        :class="[
-          'template-item flex items-center gap-3 p-3 rounded-md cursor-pointer transition border',
-          selectedTemplate?.id === template.id
-            ? 'border-primary bg-primary/10'
-            : 'border-border-light hover:border-border-medium hover:bg-bg-hover',
-        ]"
-        @click="selectTemplate(template)"
-      >
-        <span class="text-2xl">{{ template.icon }}</span>
-        <div class="flex-1 min-w-0">
-          <div class="font-medium text-text-primary flex items-center gap-2">
-            {{ template.name }}
-            <span
-              v-if="template.source === 'notebook'"
-              class="text-xs px-1.5 py-0.5 bg-primary/20 text-primary rounded"
-            >
-              Custom
-            </span>
-          </div>
-          <div class="text-sm text-text-secondary truncate">
-            {{ template.description }}
-          </div>
-          <div class="text-xs text-text-tertiary mt-1">
-            {{ expandedFilename(template) }}
-          </div>
-        </div>
-        <div
-          v-if="selectedTemplate?.id === template.id"
-          class="w-5 h-5 rounded-full bg-primary flex items-center justify-center"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="12"
-            height="12"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="white"
-            stroke-width="3"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <polyline points="20 6 9 17 4 12"></polyline>
-          </svg>
-        </div>
+      <!-- Loading state for templates -->
+      <div v-if="loading" class="flex items-center justify-center py-4">
+        <span class="text-sm text-text-secondary">Loading templates...</span>
       </div>
+
+      <!-- Error state for templates -->
+      <div v-else-if="error" class="text-sm text-text-secondary text-center py-2">
+        Could not load templates
+      </div>
+
+      <!-- No templates available -->
+      <div v-else-if="filteredTemplates.length === 0" class="text-sm text-text-secondary text-center py-2">
+        No templates available
+      </div>
+
+      <!-- Template items -->
+      <template v-else>
+        <div
+          v-for="template in filteredTemplates"
+          :key="template.id"
+          :class="[
+            'template-item flex items-center gap-3 p-3 rounded-md cursor-pointer transition border',
+            selectedTemplate?.id === template.id
+              ? 'border-primary bg-primary/10'
+              : 'border-border-light hover:border-border-medium hover:bg-bg-hover',
+          ]"
+          @click="selectTemplate(template)"
+        >
+          <span class="text-2xl">{{ template.icon }}</span>
+          <div class="flex-1 min-w-0">
+            <div class="font-medium text-text-primary flex items-center gap-2">
+              {{ template.name }}
+              <span
+                v-if="template.source === 'notebook'"
+                class="text-xs px-1.5 py-0.5 bg-primary/20 text-primary rounded"
+              >
+                Custom
+              </span>
+            </div>
+            <div class="text-sm text-text-secondary truncate">
+              {{ template.description }}
+            </div>
+            <div class="text-xs text-text-tertiary mt-1">
+              {{ expandedFilename(template) }}
+            </div>
+          </div>
+          <div
+            v-if="selectedTemplate?.id === template.id"
+            class="w-5 h-5 rounded-full bg-primary flex items-center justify-center"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="white"
+              stroke-width="3"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          </div>
+        </div>
+      </template>
     </div>
 
     <!-- Filter by type -->
@@ -169,8 +175,8 @@ import { ref, computed, onMounted, watch } from "vue"
 import { templateService, type Template } from "../services/codex"
 
 const props = defineProps<{
-  notebookId: number
-  workspaceId: number
+  notebookId?: number
+  workspaceId?: number
   modelValue?: Template | null
 }>()
 
@@ -224,6 +230,7 @@ function selectTemplate(template: Template | null) {
 }
 
 async function fetchTemplates() {
+  if (!props.notebookId || !props.workspaceId) return
   loading.value = true
   error.value = null
   try {

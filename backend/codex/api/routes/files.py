@@ -31,6 +31,33 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
+def generate_unique_path(file_path: Path) -> Path:
+    """Generate a unique file path by appending a numeric suffix if the file already exists.
+
+    If ``file_path`` does not exist on disk, it is returned unchanged.
+    Otherwise the function appends ``-1``, ``-2``, … before the file extension
+    (or at the end for files without an extension) until a non-existing path is found.
+
+    Examples:
+        notes.md  → notes-1.md  → notes-2.md
+        image.png → image-1.png → image-2.png
+        README    → README-1    → README-2
+    """
+    if not file_path.exists():
+        return file_path
+
+    stem = file_path.stem
+    suffix = file_path.suffix
+    parent = file_path.parent
+
+    counter = 1
+    while True:
+        candidate = parent / f"{stem}-{counter}{suffix}"
+        if not candidate.exists():
+            return candidate
+        counter += 1
+
+
 async def get_notebook_path(
     notebook_id: int, workspace_id: int, current_user: User, session: AsyncSession
 ) -> tuple[Path, Notebook]:
@@ -263,12 +290,12 @@ async def create_from_template(
     try:
         file_path = notebook_path / filename
 
-        # Check if file already exists
-        if file_path.exists():
-            raise HTTPException(status_code=400, detail="File already exists")
-
         # Create parent directories if needed
         file_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Generate a unique path if file already exists
+        file_path = generate_unique_path(file_path)
+        filename = str(file_path.relative_to(notebook_path))
 
         # Determine content type before creating file
         content_type = get_content_type(str(file_path))
@@ -573,12 +600,12 @@ async def upload_file(
 
         file_path = notebook_path / target_path
 
-        # Check if file already exists
-        if file_path.exists():
-            raise HTTPException(status_code=400, detail="File already exists")
-
         # Create parent directories if needed
         file_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Generate a unique path if file already exists
+        file_path = generate_unique_path(file_path)
+        target_path = str(file_path.relative_to(notebook_path))
 
         # Determine content type
         content_type = get_content_type(str(file_path))
@@ -861,12 +888,12 @@ async def create_file_nested(
 
     file_path = notebook_path / path
 
-    # Check if file already exists
-    if file_path.exists():
-        raise HTTPException(status_code=400, detail="File already exists")
-
     # Create parent directories if needed
     file_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Generate a unique path if file already exists
+    file_path = generate_unique_path(file_path)
+    path = str(file_path.relative_to(notebook_path))
 
     # Write the file to disk first
     with open(file_path, "w") as f:
@@ -1771,12 +1798,12 @@ async def create_from_template_nested(
     try:
         file_path = notebook_path / filename
 
-        # Check if file already exists
-        if file_path.exists():
-            raise HTTPException(status_code=400, detail="File already exists")
-
         # Create parent directories if needed
         file_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Generate a unique path if file already exists
+        file_path = generate_unique_path(file_path)
+        filename = str(file_path.relative_to(notebook_path))
 
         # Determine content type before creating file
         content_type = get_content_type(str(file_path))
@@ -1881,12 +1908,12 @@ async def upload_file_nested(
 
         file_path = notebook_path / target_path
 
-        # Check if file already exists
-        if file_path.exists():
-            raise HTTPException(status_code=400, detail="File already exists")
-
         # Create parent directories if needed
         file_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Generate a unique path if file already exists
+        file_path = generate_unique_path(file_path)
+        target_path = str(file_path.relative_to(notebook_path))
 
         # Determine content type
         content_type = get_content_type(str(file_path))

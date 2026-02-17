@@ -51,3 +51,37 @@ globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
   // For all other requests, use the original fetch
   return originalFetch(input, init)
 }
+
+// Mock document.createElement to prevent theme stylesheet loading during tests
+// This prevents ECONNREFUSED errors when theme store tries to load CSS files
+const originalCreateElement = document.createElement.bind(document)
+document.createElement = function (tagName: string, options?: ElementCreationOptions) {
+  const element = originalCreateElement(tagName, options) as HTMLElement
+  
+  // If creating a link element, intercept href setting to prevent actual loading
+  if (tagName.toLowerCase() === "link") {
+    let _href = ""
+    let _onerror: ((this: GlobalEventHandlers, ev: Event | string) => any) | null = null
+    
+    Object.defineProperty(element, "href", {
+      get: () => _href,
+      set: (value: string) => {
+        _href = value
+        // Don't actually load the stylesheet - just do nothing
+        // This prevents the network request that causes ECONNREFUSED errors
+      },
+      configurable: true,
+    })
+    
+    Object.defineProperty(element, "onerror", {
+      get: () => _onerror,
+      set: (handler: ((this: GlobalEventHandlers, ev: Event | string) => any) | null) => {
+        _onerror = handler
+        // Don't call the error handler since we're preventing the load
+      },
+      configurable: true,
+    })
+  }
+  
+  return element
+}

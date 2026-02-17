@@ -247,7 +247,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     }
   }
 
-  async function saveFile(content: string, properties?: Record<string, any>) {
+  async function saveFile(content: string, properties?: Record<string, any>, keepEditing: boolean = false) {
     if (!currentWorkspace.value || !currentFile.value) return
 
     fileLoading.value = true
@@ -265,7 +265,9 @@ export const useWorkspaceStore = defineStore("workspace", () => {
       )
       // Update currentFile with new content and properties
       currentFile.value = { ...currentFile.value, ...updated, content }
-      isEditing.value = false
+      if (!keepEditing) {
+        isEditing.value = false
+      }
 
       // Update the file node in the tree (incremental update)
       const tree = fileTrees.value.get(currentFile.value.notebook_id)

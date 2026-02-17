@@ -45,14 +45,20 @@ test.describe("Notebooks", () => {
       timeout: 10_000,
     });
 
-    // Click the notebook name to expand it
-    await page.getByText(notebookName).click();
+    const notebookRow = page.locator(".notebook-item").filter({ hasText: notebookName });
+
+    // Notebook may be auto-expanded after creation — ensure it's expanded
+    const arrow = await notebookRow.locator("span").first().textContent();
+    if (arrow?.trim() !== "▼") {
+      // Not expanded yet, click to expand
+      await notebookRow.click();
+    }
 
     // Should show "No files yet" when empty
     await expect(page.getByText("No files yet")).toBeVisible({ timeout: 5_000 });
 
-    // Click again to collapse
-    await page.getByText(notebookName).click();
+    // Click to collapse
+    await notebookRow.click();
 
     // "No files yet" should no longer be visible
     await expect(page.getByText("No files yet")).not.toBeVisible({

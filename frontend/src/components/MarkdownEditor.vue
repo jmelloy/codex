@@ -87,8 +87,9 @@
         <span>{{ characterCount }} characters</span>
         <span>{{ wordCount }} words</span>
         <span>{{ lineCount }} lines</span>
+        <span v-if="autosave" class="autosave-indicator">{{ autosaveStatus }}</span>
       </div>
-      <div class="editor-actions">
+      <div class="editor-actions" v-if="!autosave">
         <button @click="handleCancel" class="btn-cancel">Cancel</button>
         <button @click="handleSave" class="btn-save">Save</button>
       </div>
@@ -142,6 +143,8 @@ const liveEditorRef = ref<InstanceType<typeof MarkdownLiveEditor> | null>(null)
 const showPreview = ref(false)
 const showEditor = ref(true)
 const autosaveTimer = ref<number | null>(null)
+const autosaveStatusTimer = ref<number | null>(null)
+const autosaveStatus = ref("")
 const editMode = ref<EditMode>(props.defaultMode)
 
 // Computed
@@ -169,11 +172,19 @@ watch(localContent, (newValue) => {
 
   // Handle autosave
   if (props.autosave) {
+    autosaveStatus.value = "Unsaved changes"
     if (autosaveTimer.value) {
       clearTimeout(autosaveTimer.value)
     }
     autosaveTimer.value = window.setTimeout(() => {
       emit("save", newValue)
+      autosaveStatus.value = "Saved"
+      if (autosaveStatusTimer.value) {
+        clearTimeout(autosaveStatusTimer.value)
+      }
+      autosaveStatusTimer.value = window.setTimeout(() => {
+        autosaveStatus.value = ""
+      }, 2000)
     }, props.autosaveDelay)
   }
 })
@@ -496,5 +507,10 @@ defineExpose({
 
 .btn-save:hover {
   background: var(--color-primary-hover);
+}
+
+.autosave-indicator {
+  font-style: italic;
+  color: var(--color-text-tertiary);
 }
 </style>

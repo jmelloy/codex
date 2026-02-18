@@ -19,19 +19,19 @@ test.describe("File Operations", () => {
     await expect(page.getByText(notebookName)).toBeVisible({ timeout: 10_000 });
 
     // Ensure notebook is expanded (may be auto-expanded after creation)
-    await ensureNotebookExpanded(page, notebookName);
-    await expect(page.getByText("No files yet")).toBeVisible({ timeout: 5_000 });
+    const notebookRow = await ensureNotebookExpanded(page, notebookName);
+    await expect(notebookRow.getByText("No files yet")).toBeVisible({ timeout: 5_000 });
 
-    // Click the "+" button to create a file (appears on hover)
-    await page.getByTitle("New File").click();
+    // Click the "+" button to create a file within this notebook
+    await notebookRow.getByTitle("New File").click();
 
-    // Default mode is "Page" — create a page with the given title
+    // Fill in the filename in the Create File dialog
     await expect(page.getByText("Create File")).toBeVisible();
-    await page.getByPlaceholder("My New Page").fill("hello");
+    await page.getByPlaceholder("example.md").fill(fileName);
     await page.getByRole("button", { name: "Create" }).click();
 
-    // The new page should appear in the sidebar
-    await expect(page.getByText("hello.page")).toBeVisible({ timeout: 10_000 });
+    // The new file should appear in the sidebar
+    await expect(notebookRow.getByText(fileName)).toBeVisible({ timeout: 10_000 });
   });
 
   test("view a markdown file content", async ({ authedPage: page }) => {
@@ -145,15 +145,12 @@ test.describe("File Operations", () => {
     await expect(page.getByText("editable")).toBeVisible({ timeout: 10_000 });
     await page.getByText("editable").click();
 
-    // Verify original content is displayed
+    // Verify original content is displayed (markdown files open in live edit mode)
     await expect(page.locator("main")).toContainText("Original Content", {
       timeout: 10_000,
     });
 
-    // Click Edit button
-    await page.getByRole("button", { name: "Edit" }).click();
-
-    // Switch to Raw mode for plain text editing
+    // Switch to Raw mode for plain text editing (file opens in edit mode automatically)
     await page.getByRole("button", { name: "Raw" }).click();
 
     // Find the textarea and modify content
@@ -161,10 +158,13 @@ test.describe("File Operations", () => {
     await expect(editor).toBeVisible({ timeout: 5_000 });
     await editor.fill("# Updated Content\n\nEdited via E2E test.");
 
-    // Save (use the editor's Save button, not the header bar's)
-    await page.locator(".btn-save").click();
+    // Wait for autosave to trigger (1.5s delay + buffer)
+    await page.waitForTimeout(3_000);
 
-    // Verify updated content is displayed
+    // Exit edit mode
+    await page.getByRole("button", { name: "Done" }).click();
+
+    // Verify updated content is displayed in the viewer
     await expect(page.locator("main")).toContainText("Updated Content", {
       timeout: 10_000,
     });

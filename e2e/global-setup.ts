@@ -43,7 +43,7 @@ async function globalSetup(config: FullConfig) {
   // Playwright's storageState captures cookies + localStorage per origin.
   // We need a browser context to set localStorage, so use a lightweight approach:
   // write the state file directly in the format Playwright expects.
-  const origin = baseURL.replace(/\/$/, "");
+  const origin = new URL(baseURL).origin;
   const state = {
     cookies: [],
     origins: [

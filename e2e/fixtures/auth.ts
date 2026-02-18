@@ -47,7 +47,9 @@ export async function loginUser(page: Page, user: TestUser): Promise<void> {
   await expect(page).toHaveURL("/", { timeout: 15_000 });
 }
 
-/** Ensure a notebook is expanded in the sidebar. */
+/** Ensure a notebook is expanded in the sidebar.
+ *  Returns the parent `li` container that includes both the header row and file list.
+ */
 export async function ensureNotebookExpanded(
   page: Page,
   notebookName: string,
@@ -60,7 +62,8 @@ export async function ensureNotebookExpanded(
   if (arrow?.trim() !== "▼") {
     await notebookRow.click();
   }
-  return notebookRow;
+  // Return the parent li which contains both the header row and the file list
+  return page.locator("li").filter({ has: notebookRow });
 }
 
 /**

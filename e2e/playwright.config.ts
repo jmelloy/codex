@@ -20,7 +20,6 @@ export default defineConfig({
 
   use: {
     baseURL: process.env.BASE_URL || "http://localhost:8065",
-    storageState: STORAGE_STATE,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: "retain-on-failure",
@@ -36,14 +35,16 @@ export default defineConfig({
       testMatch: /0[12]-.*\.spec\.ts/,
       use: {
         ...devices["Desktop Chrome"],
-        storageState: undefined, // no pre-auth for these
       },
     },
     // All other tests run in parallel with shared auth
     {
       name: "chromium",
       testMatch: /0[3-9]-.*\.spec\.ts/,
-      use: { ...devices["Desktop Chrome"] },
+      use: {
+        ...devices["Desktop Chrome"],
+        storageState: STORAGE_STATE,
+      },
     },
   ],
 });

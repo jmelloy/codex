@@ -2,7 +2,7 @@
   <Teleport to="body">
     <div v-if="modelValue" class="settings-overlay" @click="handleOverlayClick">
       <div class="settings-container" @click.stop>
-        <div class="settings-grid">
+        <div class="settings-grid" :class="{ 'mobile-show-content': mobileShowContent }">
           <!-- Navigation Panel -->
           <nav class="settings-nav-panel">
             <div class="settings-nav-header">
@@ -82,6 +82,9 @@
 
           <!-- Content Panel -->
           <main class="settings-content-panel">
+            <button class="mobile-back-btn" @click="mobileShowContent = false">
+              <span aria-hidden="true">&larr;</span> Settings
+            </button>
             <UserSettingsPanel v-if="activeSection?.type === 'user'" />
             <WorkspaceSettingsPanel 
               v-else-if="activeSection?.type === 'workspace' && activeSection.workspaceId" 
@@ -139,6 +142,7 @@ function handleOpenAgentChat(agent: Agent) {
 
 const workspaceStore = useWorkspaceStore()
 const activeSection = ref<NavigationTarget | null>(null)
+const mobileShowContent = ref(false)
 const workspaceNotebooks = ref<Record<number, any[]>>({})
 
 const availableWorkspaces = computed(() => workspaceStore.workspaces || [])
@@ -153,7 +157,8 @@ function handleOverlayClick() {
 
 function navigateTo(target: NavigationTarget) {
   activeSection.value = target
-  
+  mobileShowContent.value = true
+
   // Load notebooks for workspace if needed
   if (target.type === 'workspace' && target.workspaceId) {
     loadNotebooksForWorkspace(target.workspaceId)
@@ -176,8 +181,10 @@ async function loadNotebooksForWorkspace(workspaceId: number) {
 
 watch(() => props.modelValue, (isOpen) => {
   if (isOpen) {
+    mobileShowContent.value = false
     if (props.initialSection) {
       activeSection.value = props.initialSection
+      mobileShowContent.value = true
     } else if (!activeSection.value) {
       activeSection.value = { type: 'user' }
     }
@@ -369,13 +376,49 @@ onMounted(async () => {
   font-size: 1rem;
 }
 
+.mobile-back-btn {
+  display: none;
+}
+
 @media (max-width: 768px) {
+  .settings-overlay {
+    padding: 0;
+  }
+
+  .settings-container {
+    max-height: 100vh;
+    height: 100%;
+    border-radius: 0;
+  }
+
   .settings-grid {
     grid-template-columns: 1fr;
   }
-  
-  .settings-nav-panel {
+
+  .settings-grid .settings-content-panel {
     display: none;
+  }
+
+  .settings-grid.mobile-show-content .settings-nav-panel {
+    display: none;
+  }
+
+  .settings-grid.mobile-show-content .settings-content-panel {
+    display: block;
+  }
+
+  .mobile-back-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: none;
+    border: none;
+    border-bottom: 1px solid var(--color-border-medium);
+    width: 100%;
+    padding: 0.875rem 1rem;
+    font-size: 1rem;
+    color: var(--notebook-accent, var(--color-text-primary));
+    cursor: pointer;
   }
 }
 </style>

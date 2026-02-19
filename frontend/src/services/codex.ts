@@ -125,6 +125,10 @@ export const workspaceService = {
     const response = await apiClient.patch<Workspace>(`/api/v1/workspaces/${identifier}/theme`, { theme })
     return response.data
   },
+
+  async delete(identifier: number | string): Promise<void> {
+    await apiClient.delete(`/api/v1/workspaces/${identifier}`)
+  },
 }
 
 export const notebookService = {
@@ -151,6 +155,10 @@ export const notebookService = {
       }
     )
     return response.data
+  },
+
+  async delete(workspaceIdentifier: number | string, notebookIdentifier: number | string): Promise<void> {
+    await apiClient.delete(`/api/v1/workspaces/${workspaceIdentifier}/notebooks/${notebookIdentifier}`)
   },
 }
 
@@ -467,6 +475,12 @@ export const folderService = {
     await apiClient.delete(
       `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/folders/${encodedPath}`
     )
+  },
+}
+
+export const userService = {
+  async deleteAccount(): Promise<void> {
+    await apiClient.delete("/api/v1/users/me")
   },
 }
 

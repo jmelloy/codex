@@ -409,7 +409,12 @@ const blocksToMarkdown = (): string => {
     }
   })
 
-  return lines.join("\n")
+  const body = lines.join("\n")
+  // Re-attach frontmatter if it was stripped during rendering
+  if (storedFrontmatter.value) {
+    return storedFrontmatter.value + "\n" + body
+  }
+  return body
 }
 
 // Extract markdown from HTML element (convert inline formatting back)

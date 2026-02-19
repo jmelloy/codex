@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: codex
+  labels:
+    app.kubernetes.io/name: frontend
+    app.kubernetes.io/part-of: codex
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: frontend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: frontend
+        app.kubernetes.io/part-of: codex
+    spec:
+      containers:
+        - name: frontend
+          image: ghcr.io/OWNER/codex-frontend:latest   # replaced by Kustomize overlay
+          ports:
+            - containerPort: 80
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: codex
+  labels:
+    app.kubernetes.io/name: frontend
+    app.kubernetes.io/part-of: codex
+spec:
+  selector:
+    app.kubernetes.io/name: frontend
+  ports:
+    - port: 80
+      targetPort: 80
+      protocol: TCP

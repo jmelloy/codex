@@ -1,0 +1,59 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: codex
+
+resources:
+  - ../../base
+
+# Override the image tags — set by CI or manually
+images:
+  - name: ghcr.io/OWNER/codex-backend
+    newName: ghcr.io/OWNER/codex-backend    # CI replaces OWNER
+    newTag: latest
+  - name: ghcr.io/OWNER/codex-frontend
+    newName: ghcr.io/OWNER/codex-frontend
+    newTag: latest
+
+patches:
+  # Ingress: set staging hostname
+  - target:
+      kind: Ingress
+      name: codex-ingress
+    patch: |
+      - op: replace
+        path: /spec/tls/0/hosts/0
+        value: staging.codex.example.com
+      - op: replace
+        path: /spec/rules/0/host
+        value: staging.codex.example.com
+      - op: replace
+        path: /spec/tls/0/secretName
+        value: codex-staging-tls
+
+  # Backend: single replica, lower resources
+  - target:
+      kind: Deployment
+      name: backend
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+
+  # Frontend: single replica for staging
+  - target:
+      kind: Deployment
+      name: frontend
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+
+  # PVC: smaller volume for staging
+  - target:
+      kind: PersistentVolumeClaim
+      name: codex-data
+    patch: |
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: 5Gi

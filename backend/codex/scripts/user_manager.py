@@ -20,7 +20,7 @@ import httpx
 
 def get_base_url() -> str:
     """Return the API base URL from env or default."""
-    return os.environ.get("CODEX_API_URL", "http://localhost:8000")
+    return os.environ.get("CODEX_API_URL", "http://localhost:8765")
 
 
 def register_user(base_url: str, username: str, email: str, password: str) -> dict:

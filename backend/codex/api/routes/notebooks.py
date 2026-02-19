@@ -1,6 +1,7 @@
 """Notebook routes."""
 
 import re
+import shutil
 from pathlib import Path
 from uuid import uuid4
 
@@ -11,7 +12,7 @@ from sqlmodel import select
 
 from codex.api.auth import get_current_active_user
 from codex.api.routes.workspaces import get_workspace_by_slug_or_id
-from codex.core.watcher import NotebookWatcher
+from codex.core.watcher import NotebookWatcher, get_watcher_for_notebook, unregister_watcher
 from codex.db.database import get_system_session, init_notebook_db
 from codex.db.models import Notebook, NotebookPluginConfig, User, Workspace
 
@@ -395,6 +396,44 @@ async def update_notebook_plugin_config_nested(
     workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
     notebook = await get_notebook_by_slug_or_id(notebook_identifier, workspace, session)
     return await _update_plugin_config(notebook.id, plugin_id, request_data, session)
+
+
+@nested_router.delete("/{notebook_identifier}")
+async def delete_notebook_nested(
+    workspace_identifier: str,
+    notebook_identifier: str,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Delete a notebook and all its contents from disk."""
+    workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
+    notebook = await get_notebook_by_slug_or_id(notebook_identifier, workspace, session)
+
+    # Save path before ORM objects are expired by commit
+    notebook_dir = Path(workspace.path) / notebook.path
+
+    # Stop the file watcher for this notebook (short timeout — we're deleting everything)
+    watcher = get_watcher_for_notebook(str(notebook_dir))
+    if watcher:
+        watcher.stop(queue_timeout=2)
+        unregister_watcher(watcher)
+
+    # Delete related NotebookPluginConfig records
+    result = await session.execute(
+        select(NotebookPluginConfig).where(NotebookPluginConfig.notebook_id == notebook.id)
+    )
+    for config in result.scalars().all():
+        await session.delete(config)
+
+    # Delete the notebook record
+    await session.delete(notebook)
+    await session.commit()
+
+    # Delete the notebook directory from disk
+    if notebook_dir.exists():
+        shutil.rmtree(notebook_dir)
+
+    return {"message": "Notebook deleted successfully"}
 
 
 @nested_router.delete("/{notebook_identifier}/plugins/{plugin_id}")

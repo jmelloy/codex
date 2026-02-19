@@ -17,7 +17,7 @@ from codex.api.auth import (
 from codex.api.routes.workspaces import WorkspaceCreate, create_workspace
 from codex.api.schemas import ThemeUpdate, UserCreate, UserResponse
 from codex.db.database import get_system_session
-from codex.db.models import User
+from codex.db.models import AgentSession, OAuthConnection, PersonalAccessToken, User, Workspace, WorkspacePermission
 
 router = APIRouter()
 
@@ -90,6 +90,64 @@ async def register(user_data: UserCreate, session: AsyncSession = Depends(get_sy
     await session.commit()
 
     return UserResponse.model_validate(new_user)
+
+
+@router.delete("/me")
+async def delete_user(
+    response: Response,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Delete the current user's account.
+
+    The user must delete all owned workspaces first.
+    """
+    # Check if user still owns workspaces
+    ws_result = await session.execute(
+        select(Workspace).where(Workspace.owner_id == current_user.id)
+    )
+    if ws_result.scalars().first():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Delete all workspaces before deleting your account",
+        )
+
+    # Delete personal access tokens
+    pat_result = await session.execute(
+        select(PersonalAccessToken).where(PersonalAccessToken.user_id == current_user.id)
+    )
+    for token in pat_result.scalars().all():
+        await session.delete(token)
+
+    # Delete OAuth connections
+    oauth_result = await session.execute(
+        select(OAuthConnection).where(OAuthConnection.user_id == current_user.id)
+    )
+    for conn in oauth_result.scalars().all():
+        await session.delete(conn)
+
+    # Delete agent sessions owned by user
+    as_result = await session.execute(
+        select(AgentSession).where(AgentSession.user_id == current_user.id)
+    )
+    for agent_session in as_result.scalars().all():
+        await session.delete(agent_session)
+
+    # Delete workspace permissions
+    wp_result = await session.execute(
+        select(WorkspacePermission).where(WorkspacePermission.user_id == current_user.id)
+    )
+    for perm in wp_result.scalars().all():
+        await session.delete(perm)
+
+    # Delete the user record
+    await session.delete(current_user)
+    await session.commit()
+
+    # Clear the auth cookie
+    response.delete_cookie(key="access_token")
+
+    return {"message": "User deleted successfully"}
 
 
 @router.patch("/me/theme")

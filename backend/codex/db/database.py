@@ -148,9 +148,13 @@ async def init_system_db():
 
 
 def get_notebook_engine(notebook_path: str):
-    """Get database engine for a specific notebook."""
+    """Get database engine for a specific notebook.
+
+    The .codex directory must already exist (created by init_notebook_db).
+    This function intentionally does NOT create directories so that
+    background threads cannot resurrect a deleted notebook's directory.
+    """
     db_path = os.path.join(notebook_path, ".codex", "notebook.db")
-    os.makedirs(os.path.dirname(db_path), exist_ok=True)
     return create_engine(f"sqlite:///{db_path}", echo=False)
 
 

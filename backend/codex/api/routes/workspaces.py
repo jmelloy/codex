@@ -2,6 +2,7 @@
 
 import os
 import re
+import shutil
 from pathlib import Path
 from uuid import uuid4
 
@@ -11,8 +12,25 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from codex.api.auth import get_current_active_user
+from codex.core.watcher import get_watcher_for_notebook, unregister_watcher
 from codex.db.database import DATA_DIRECTORY, get_system_session
-from codex.db.models import PluginConfig, User, Workspace
+from codex.db.models import (
+    Agent,
+    AgentActionLog,
+    AgentCredential,
+    AgentSession,
+    IntegrationArtifact,
+    Notebook,
+    NotebookPluginConfig,
+    PersonalAccessToken,
+    PluginAPILog,
+    PluginConfig,
+    PluginSecret,
+    Task,
+    User,
+    Workspace,
+    WorkspacePermission,
+)
 
 # Default plugin enabled state
 DEFAULT_PLUGIN_ENABLED = True
@@ -344,6 +362,124 @@ async def update_workspace_plugin_config(
         "created_at": config.created_at.isoformat() if config.created_at else None,
         "updated_at": config.updated_at.isoformat() if config.updated_at else None,
     }
+
+
+@router.delete("/{workspace_identifier}")
+async def delete_workspace(
+    workspace_identifier: str,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Delete a workspace and all its contents."""
+    workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
+
+    # Save path before ORM object may be expired by subsequent queries
+    workspace_path = workspace.path
+    workspace_id = workspace.id
+
+    # Stop watchers and delete notebook records
+    notebooks_result = await session.execute(
+        select(Notebook).where(Notebook.workspace_id == workspace_id)
+    )
+    for notebook in notebooks_result.scalars().all():
+        notebook_abs_path = str(Path(workspace_path) / notebook.path)
+        watcher = get_watcher_for_notebook(notebook_abs_path)
+        if watcher:
+            watcher.stop(queue_timeout=2)
+            unregister_watcher(watcher)
+
+        # Delete notebook plugin configs
+        npc_result = await session.execute(
+            select(NotebookPluginConfig).where(NotebookPluginConfig.notebook_id == notebook.id)
+        )
+        for config in npc_result.scalars().all():
+            await session.delete(config)
+
+        await session.delete(notebook)
+
+    # Delete workspace permissions
+    wp_result = await session.execute(
+        select(WorkspacePermission).where(WorkspacePermission.workspace_id == workspace_id)
+    )
+    for perm in wp_result.scalars().all():
+        await session.delete(perm)
+
+    # Delete tasks
+    task_result = await session.execute(
+        select(Task).where(Task.workspace_id == workspace_id)
+    )
+    for task in task_result.scalars().all():
+        await session.delete(task)
+
+    # Delete plugin configs and secrets
+    pc_result = await session.execute(
+        select(PluginConfig).where(PluginConfig.workspace_id == workspace_id)
+    )
+    for config in pc_result.scalars().all():
+        await session.delete(config)
+
+    ps_result = await session.execute(
+        select(PluginSecret).where(PluginSecret.workspace_id == workspace_id)
+    )
+    for secret in ps_result.scalars().all():
+        await session.delete(secret)
+
+    pal_result = await session.execute(
+        select(PluginAPILog).where(PluginAPILog.workspace_id == workspace_id)
+    )
+    for log in pal_result.scalars().all():
+        await session.delete(log)
+
+    # Delete integration artifacts
+    ia_result = await session.execute(
+        select(IntegrationArtifact).where(IntegrationArtifact.workspace_id == workspace_id)
+    )
+    for artifact in ia_result.scalars().all():
+        await session.delete(artifact)
+
+    # Delete agents and their related records
+    agents_result = await session.execute(
+        select(Agent).where(Agent.workspace_id == workspace_id)
+    )
+    for agent in agents_result.scalars().all():
+        # Delete agent action logs (via sessions)
+        sessions_result = await session.execute(
+            select(AgentSession).where(AgentSession.agent_id == agent.id)
+        )
+        for agent_session in sessions_result.scalars().all():
+            logs_result = await session.execute(
+                select(AgentActionLog).where(AgentActionLog.session_id == agent_session.id)
+            )
+            for log in logs_result.scalars().all():
+                await session.delete(log)
+            await session.delete(agent_session)
+
+        # Delete agent credentials
+        creds_result = await session.execute(
+            select(AgentCredential).where(AgentCredential.agent_id == agent.id)
+        )
+        for cred in creds_result.scalars().all():
+            await session.delete(cred)
+
+        await session.delete(agent)
+
+    # Delete personal access tokens scoped to this workspace
+    pat_result = await session.execute(
+        select(PersonalAccessToken).where(PersonalAccessToken.workspace_id == workspace_id)
+    )
+    for token in pat_result.scalars().all():
+        await session.delete(token)
+
+    # Delete the workspace record
+    await session.delete(workspace)
+    await session.commit()
+
+    # Delete the workspace directory from disk
+    ws_dir = Path(workspace_path)
+    if ws_dir.exists():
+        shutil.rmtree(ws_dir)
+
+    return {"message": "Workspace deleted successfully"}
 
 
 @router.delete("/{workspace_identifier}/plugins/{plugin_id}")

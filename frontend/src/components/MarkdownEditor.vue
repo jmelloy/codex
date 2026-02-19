@@ -56,6 +56,8 @@
         v-model="localContent"
         :placeholder="placeholder"
         :on-image-upload="workspaceId && notebookId ? handleImageUpload : undefined"
+        :workspace-id="workspaceId"
+        :notebook-id="notebookId"
         @change="handleLiveChange"
       />
     </div>

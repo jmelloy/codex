@@ -21,8 +21,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, nextTick } from "vue"
+import { ref, watch, onMounted, onBeforeUnmount, nextTick, createApp, type App } from "vue"
 import { useThemeStore } from "../stores/theme"
+import {
+  loadPluginComponent,
+  preloadPluginComponents,
+  getAvailableBlockTypes,
+} from "../services/pluginLoader"
 
 const themeStore = useThemeStore()
 
@@ -31,6 +36,8 @@ interface Props {
   modelValue: string
   placeholder?: string
   onImageUpload?: (file: File) => Promise<string | null>
+  workspaceId?: number | string
+  notebookId?: number | string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -49,6 +56,129 @@ const editorRef = ref<HTMLDivElement | null>(null)
 const isComposing = ref(false)
 const lastContent = ref("")
 const isDragOver = ref(false)
+const storedFrontmatter = ref("")
+
+// Dynamic block support
+const knownBlockTypes = ref<Set<string>>(new Set())
+const mountedApps = new Map<string, App>()
+let dynamicBlockCounter = 0
+
+// Load available block types from plugins
+const loadAvailableBlockTypes = async () => {
+  try {
+    await preloadPluginComponents()
+    const blockTypes = await getAvailableBlockTypes()
+    knownBlockTypes.value = new Set(blockTypes.map((bt) => bt.blockType))
+  } catch (e) {
+    console.error("Failed to load available block types:", e)
+  }
+}
+
+// Check if a language is a known dynamic block type (sync check)
+const isDynamicBlockType = (language: string): boolean => {
+  return knownBlockTypes.value.has(language)
+}
+
+// Parse YAML-like config from block content
+const parseBlockConfig = (content: string): Record<string, string> => {
+  const config: Record<string, string> = {}
+  content.split("\n").forEach((line) => {
+    const match = line.match(/^(\w[\w-]*):\s*(.+)$/)
+    if (match && match[1] && match[2]) {
+      config[match[1]] = match[2].trim()
+    }
+  })
+  return config
+}
+
+// Mount a plugin component into a dynamic block container
+const mountDynamicBlock = (blockId: string, blockType: string, config: Record<string, string>) => {
+  // Unmount existing app if any
+  unmountDynamicBlock(blockId)
+
+  nextTick(() => {
+    const mountPoint = document.getElementById(blockId)
+    if (!mountPoint) return
+
+    const renderTarget = mountPoint.querySelector('.dynamic-block-render')
+    if (!renderTarget) return
+
+    try {
+      const component = loadPluginComponent(blockType)
+      const app = createApp(component, {
+        config,
+        workspaceId: props.workspaceId,
+        notebookId: props.notebookId,
+      })
+      app.config.errorHandler = (err) => {
+        console.warn(`Plugin block "${blockType}" error:`, err)
+      }
+      app.mount(renderTarget)
+      mountedApps.set(blockId, app)
+    } catch (e) {
+      console.warn(`Failed to mount dynamic block "${blockType}":`, e)
+      renderTarget.innerHTML = `<div class="dynamic-block-error">Failed to load ${blockType} block</div>`
+    }
+  })
+}
+
+// Unmount a dynamic block app
+const unmountDynamicBlock = (blockId: string) => {
+  const app = mountedApps.get(blockId)
+  if (app) {
+    try {
+      app.unmount()
+    } catch {
+      // Ignore unmount errors
+    }
+    mountedApps.delete(blockId)
+  }
+}
+
+// Unmount all dynamic block apps
+const unmountAllDynamicBlocks = () => {
+  mountedApps.forEach((app) => {
+    try {
+      app.unmount()
+    } catch {
+      // Ignore
+    }
+  })
+  mountedApps.clear()
+}
+
+// Mount all dynamic blocks found in the editor
+const mountAllDynamicBlocks = () => {
+  if (!editorRef.value) return
+
+  const dynamicBlocks = editorRef.value.querySelectorAll('.block-dynamic')
+  dynamicBlocks.forEach((block) => {
+    const blockId = block.id
+    const blockType = block.getAttribute('data-block-type') || ''
+    const configRaw = block.getAttribute('data-block-config') || '{}'
+
+    if (blockId && blockType && !mountedApps.has(blockId)) {
+      try {
+        const config = JSON.parse(configRaw)
+        mountDynamicBlock(blockId, blockType, config)
+      } catch {
+        // Ignore parse errors
+      }
+    }
+  })
+}
+
+// Strip YAML frontmatter from markdown content
+// Returns [frontmatter_string_including_delimiters, body_content]
+const stripFrontmatter = (markdown: string): [string, string] => {
+  if (!markdown.startsWith("---")) return ["", markdown]
+  const endIndex = markdown.indexOf("\n---", 3)
+  if (endIndex === -1) return ["", markdown]
+  const fmEnd = endIndex + 4 // include the closing "---"
+  const frontmatterBlock = markdown.slice(0, fmEnd)
+  const body = markdown.slice(fmEnd).replace(/^\n/, "") // strip leading newline after frontmatter
+  return [frontmatterBlock, body]
+}
 
 // Image MIME types we accept
 const IMAGE_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml"]
@@ -75,7 +205,11 @@ const markdownToBlocks = (markdown: string): string => {
     return '<div class="block block-p" data-type="p"><br></div>'
   }
 
-  const lines = markdown.split("\n")
+  // Strip frontmatter so it's not shown in live mode
+  const [fm, body] = stripFrontmatter(markdown)
+  storedFrontmatter.value = fm
+
+  const lines = body.split("\n")
   const blocks: string[] = []
   let inCodeBlock = false
   let codeContent: string[] = []
@@ -89,10 +223,22 @@ const markdownToBlocks = (markdown: string): string => {
         codeLanguage = line.slice(3).trim()
         codeContent = []
       } else {
-        // End of code block
-        blocks.push(
-          `<div class="block block-code" data-type="code" data-language="${codeLanguage}"><pre><code>${escapeHtml(codeContent.join("\n"))}</code></pre></div>`
-        )
+        // End of code block - check if it's a dynamic block
+        const rawContent = codeContent.join("\n")
+        if (codeLanguage && isDynamicBlockType(codeLanguage)) {
+          const config = parseBlockConfig(rawContent)
+          const blockId = `live-dynamic-block-${++dynamicBlockCounter}`
+          blocks.push(
+            `<div id="${blockId}" class="block block-dynamic" data-type="dynamic" data-block-type="${escapeHtml(codeLanguage)}" data-block-config="${escapeHtml(JSON.stringify(config))}" data-block-raw="${escapeHtml(rawContent)}" contenteditable="false">` +
+              `<div class="dynamic-block-header"><span class="dynamic-block-label">${escapeHtml(codeLanguage)}</span></div>` +
+              `<div class="dynamic-block-render"></div>` +
+            `</div>`
+          )
+        } else {
+          blocks.push(
+            `<div class="block block-code" data-type="code" data-language="${codeLanguage}"><pre><code>${escapeHtml(codeContent.join("\n"))}</code></pre></div>`
+          )
+        }
         inCodeBlock = false
         codeLanguage = ""
       }
@@ -135,9 +281,21 @@ const markdownToBlocks = (markdown: string): string => {
 
   // Handle unclosed code block
   if (inCodeBlock && codeContent.length > 0) {
-    blocks.push(
-      `<div class="block block-code" data-type="code" data-language="${codeLanguage}"><pre><code>${escapeHtml(codeContent.join("\n"))}</code></pre></div>`
-    )
+    const rawContent = codeContent.join("\n")
+    if (codeLanguage && isDynamicBlockType(codeLanguage)) {
+      const config = parseBlockConfig(rawContent)
+      const blockId = `live-dynamic-block-${++dynamicBlockCounter}`
+      blocks.push(
+        `<div id="${blockId}" class="block block-dynamic" data-type="dynamic" data-block-type="${escapeHtml(codeLanguage)}" data-block-config="${escapeHtml(JSON.stringify(config))}" data-block-raw="${escapeHtml(rawContent)}" contenteditable="false">` +
+          `<div class="dynamic-block-header"><span class="dynamic-block-label">${escapeHtml(codeLanguage)}</span></div>` +
+          `<div class="dynamic-block-render"></div>` +
+        `</div>`
+      )
+    } else {
+      blocks.push(
+        `<div class="block block-code" data-type="code" data-language="${codeLanguage}"><pre><code>${escapeHtml(rawContent)}</code></pre></div>`
+      )
+    }
   }
 
   return blocks.join("") || '<div class="block block-p" data-type="p"><br></div>'
@@ -194,6 +352,15 @@ const blocksToMarkdown = (): string => {
   blocks.forEach((block) => {
     const type = block.getAttribute("data-type") || "p"
     let content = ""
+
+    if (type === "dynamic") {
+      const blockType = block.getAttribute("data-block-type") || ""
+      const rawContent = block.getAttribute("data-block-raw") || ""
+      lines.push("```" + blockType)
+      lines.push(rawContent)
+      lines.push("```")
+      return
+    }
 
     if (type === "code") {
       const code = block.querySelector("code")
@@ -718,8 +885,10 @@ const uploadAndInsertImages = async (files: File[]) => {
         emit("change", updated)
         // Re-render editor with updated content
         if (editorRef.value) {
+          unmountAllDynamicBlocks()
           const html = markdownToBlocks(updated)
           editorRef.value.innerHTML = html
+          mountAllDynamicBlocks()
           // Place cursor at end
           const lastBlock = editorRef.value.querySelector(".block:last-child")
           if (lastBlock) {
@@ -735,8 +904,10 @@ const uploadAndInsertImages = async (files: File[]) => {
       emit("update:modelValue", updated)
       emit("change", updated)
       if (editorRef.value) {
+        unmountAllDynamicBlocks()
         const html = markdownToBlocks(updated)
         editorRef.value.innerHTML = html
+        mountAllDynamicBlocks()
       }
       console.error("Image upload failed:", err)
     }
@@ -762,9 +933,11 @@ const emitContent = () => {
 const initializeContent = () => {
   if (!editorRef.value) return
 
+  unmountAllDynamicBlocks()
   const html = markdownToBlocks(props.modelValue)
   editorRef.value.innerHTML = html
   lastContent.value = props.modelValue
+  mountAllDynamicBlocks()
 }
 
 // Watch for external value changes
@@ -778,8 +951,22 @@ watch(
   }
 )
 
+// Watch for workspace/notebook changes to remount blocks with new context
+watch(
+  () => [props.workspaceId, props.notebookId],
+  () => {
+    if (knownBlockTypes.value.size > 0) {
+      unmountAllDynamicBlocks()
+      mountAllDynamicBlocks()
+    }
+  }
+)
+
 // Initialize on mount
-onMounted(() => {
+onMounted(async () => {
+  // Load plugin block types first so dynamic blocks render on initial load
+  await loadAvailableBlockTypes()
+
   initializeContent()
 
   // Focus the editor
@@ -792,6 +979,11 @@ onMounted(() => {
       editorRef.value.focus()
     }
   })
+})
+
+// Clean up mounted apps on unmount
+onBeforeUnmount(() => {
+  unmountAllDynamicBlocks()
 })
 
 // Expose methods
@@ -948,6 +1140,47 @@ defineExpose({
   color: var(--color-primary);
   text-decoration: underline;
   cursor: pointer;
+}
+
+/* Dynamic block styles */
+.live-editor-content :deep(.block-dynamic) {
+  border: 1px solid var(--color-border-medium);
+  border-radius: var(--radius-md);
+  margin: var(--spacing-md) 0;
+  overflow: hidden;
+  cursor: default;
+  user-select: none;
+}
+
+.live-editor-content :deep(.block-dynamic:hover) {
+  border-color: var(--color-primary);
+}
+
+.live-editor-content :deep(.dynamic-block-header) {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-xs) var(--spacing-md);
+  background: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border-light);
+  font-size: var(--text-xs);
+}
+
+.live-editor-content :deep(.dynamic-block-label) {
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-weight: var(--font-medium);
+}
+
+.live-editor-content :deep(.dynamic-block-render) {
+  min-height: 40px;
+}
+
+.live-editor-content :deep(.dynamic-block-error) {
+  padding: var(--spacing-md);
+  color: var(--color-error);
+  font-size: var(--text-sm);
+  font-style: italic;
 }
 
 /* Selection styling */

@@ -1056,13 +1056,16 @@ function openInNewTab() {
   }
 }
 
-// Sync edit content when file changes
+// Sync edit content when file changes (but not during editing, to prevent cursor jumps on autosave)
 watch(
   () => workspaceStore.currentFile,
-  (file) => {
-    if (file) {
-      editContent.value = file.content
-    }
+  (file, oldFile) => {
+    if (!file) return
+    // When actively editing the same file, skip syncing content back from the store.
+    // The editor already has the authoritative content; feeding saved content back
+    // would overwrite any typing since the autosave was triggered and reset the cursor.
+    if (workspaceStore.isEditing && oldFile && file.id === oldFile.id) return
+    editContent.value = file.content
   },
   { immediate: true },
 )

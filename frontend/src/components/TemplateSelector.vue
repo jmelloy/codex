@@ -173,6 +173,7 @@ const filteredTemplates = computed(() => {
 
 // Expand the default filename pattern for preview
 function expandedFilename(template: Template): string {
+  if (!template.default_name) return template.file_extension ? `untitled${template.file_extension}` : "untitled.md"
   return templateService.expandPattern(template.default_name, "untitled")
 }
 

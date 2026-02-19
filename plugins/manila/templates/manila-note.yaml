@@ -1,6 +1,9 @@
 id: manila-note
 name: Manila Note
 description: A vintage-styled note template matching the Manila theme
+icon: "\U0001F4C4"
+file_extension: .md
+default_name: "{title}.md"
 content: |
   ---
   title: {title}

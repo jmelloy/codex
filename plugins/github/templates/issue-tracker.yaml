@@ -1,6 +1,9 @@
 id: github-issue-tracker
 name: GitHub Issue Tracker
 description: Track GitHub issues with embedded issue blocks
+icon: "\U0001F41B"
+file_extension: .md
+default_name: "{title}.md"
 content: |
   ---
   title: {title}

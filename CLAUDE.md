@@ -138,12 +138,45 @@ Frontend tests are in `frontend/src/__tests__/` using Vitest.
 
 ## Test Data
 
-Create test users and sample data:
+The server must be running before using these scripts. All scripts use the HTTP API (no direct DB access).
 
 ```bash
+cd backend
+
+# Seed test users, workspaces, notebooks, and files
 python -m codex.scripts.seed_test_data
+
+# Clean up all test data (deletes users, workspaces, notebooks via API)
+python -m codex.scripts.seed_test_data clean
+
+# User management
+python -m codex.scripts.user_manager register <username> <email> <password>
+python -m codex.scripts.user_manager token <username> <password>
+python -m codex.scripts.user_manager me --token <token>
 ```
 
 Test accounts: `demo`/`demo123456`, `testuser`/`testpass123`, `scientist`/`lab123456`
 
-Clean up: `python -m codex.scripts.seed_test_data clean`
+**Environment variable**: Set `CODEX_API_URL` to override the default server URL (`http://localhost:8765`).
+
+**Cleanup order**: The cleanup deletes all workspaces for each test user (which cascades to notebooks, files, and filesystem directories), then deletes the user account itself.
+
+## Investigation & Debugging
+
+When debugging or investigating issues, propose a hypothesis and a targeted fix within the first 2-3 file reads. Do not spend more than 5 minutes exploring the codebase without offering a concrete diagnosis or solution direction. If uncertain, present your top 2 hypotheses and ask the user which to pursue.
+
+## Languages & Cross-Cutting Concerns
+
+This project uses Python (FastAPI backend) and TypeScript/Vue (frontend). Primary languages: Python for backend/API, TypeScript for frontend components, YAML for configuration/fixtures. Always check both backend and frontend implications for changes.
+
+## Frontend / Plugins
+
+For frontend plugins and shared modules, always place files in the plugins directory (not frontend/src/) and use relative imports instead of ambiguous aliases like @/. Verify import resolution works in both the main frontend dev server and plugin build contexts.
+
+## Frontend / Styling
+
+When fixing CSS/theme issues, always identify which layer (base styles, theme-specific overrides, component scoped styles) is responsible before making changes. Inspect theme-specific CSS files first when a visual bug appears in only some themes.
+
+## Version Control / Git
+
+Before committing, run `git status` and `git diff --staged` to verify only the intended changes are staged. Do not assume the working tree is clean.

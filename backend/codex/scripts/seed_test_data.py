@@ -5,14 +5,13 @@ Seed script to populate test data for screenshots and testing.
 Creates test users with sample workspaces, notebooks, and markdown files
 via the HTTP API. The server must be running.
 
-The 'clean' subcommand uses direct DB access since no DELETE endpoints exist.
+The 'clean' subcommand also uses the HTTP API (DELETE endpoints).
 
 Usage:
     python -m codex.scripts.seed_test_data          # seed via API
-    python -m codex.scripts.seed_test_data clean     # clean via direct DB
+    python -m codex.scripts.seed_test_data clean     # clean via API
 """
 
-import asyncio
 import sys
 
 import httpx
@@ -455,64 +454,65 @@ def seed_data() -> None:
         _log("-" * 50)
 
 
-async def clean_test_data():
-    """Remove all test data (users, workspaces, notebooks).
+def clean_test_data() -> None:
+    """Remove all test data (users, workspaces, notebooks) via the HTTP API.
 
-    Uses direct DB access since no DELETE endpoints exist for these resources.
+    For each test user: authenticates, deletes all workspaces (which cascades
+    to notebooks and files), then deletes the user account.
+    The server must be running.
     """
-    from pathlib import Path
+    base_url = get_base_url()
 
-    from sqlmodel import select
-
-    from codex.db.database import get_system_session, init_system_db
-    from codex.db.models import Notebook, User, Workspace
-
-    print("Cleaning test data...")
-
-    await init_system_db()
-
-    session = await anext(get_system_session())
+    # Health check
     try:
-        import shutil
+        r = httpx.get(f"{base_url}/health")
+        r.raise_for_status()
+    except httpx.ConnectError:
+        _log(f"Cannot connect to {base_url}. Is the server running?")
+        sys.exit(1)
 
-        for user_data in TEST_USERS:
-            result = await session.execute(select(User).where(User.username == user_data["username"]))
-            user = result.scalar_one_or_none()
+    _log("Starting test data cleanup...")
 
-            if user:
-                result = await session.execute(select(Workspace).where(Workspace.owner_id == user.id))
-                workspaces = result.scalars().all()
+    for user_data in TEST_USERS:
+        username = user_data["username"]
 
-                for workspace in workspaces:
-                    result = await session.execute(
-                        select(Notebook).where(Notebook.workspace_id == workspace.id)
-                    )
-                    notebooks = result.scalars().all()
-                    for notebook in notebooks:
-                        await session.delete(notebook)
-                        print(f"    Deleted notebook: {notebook.name}")
+        # Authenticate
+        try:
+            token = get_token(base_url, username, user_data["password"])
+        except httpx.HTTPStatusError:
+            _log(f"  User '{username}' not found or bad password, skipping...")
+            continue
 
-                    workspace_path = Path(workspace.path)
-                    if workspace_path.exists():
-                        shutil.rmtree(workspace_path)
-                        print(f"  Deleted workspace directory: {workspace_path}")
+        headers = _auth_headers(token)
 
-                    await session.delete(workspace)
-                    print(f"  Deleted workspace: {workspace.name}")
+        # List and delete all workspaces (cascades to notebooks, files, etc.)
+        try:
+            workspaces = httpx.get(f"{base_url}/api/v1/workspaces/", headers=headers).json()
+        except Exception as e:
+            _log(f"  Failed to list workspaces for {username}: {e}")
+            continue
 
-                await session.delete(user)
-                print(f"Deleted user: {user.username}")
+        for ws in workspaces:
+            ws_id = ws["id"]
+            ws_name = ws.get("name", ws_id)
+            r = httpx.delete(f"{base_url}/api/v1/workspaces/{ws_id}", headers=headers)
+            if r.is_success:
+                _log(f"  Deleted workspace: {ws_name}")
+            else:
+                _log(f"  Failed to delete workspace '{ws_name}': {r.status_code} {r.text}")
 
-        await session.commit()
-        print("\nTest data cleanup complete!")
+        # Delete the user account
+        r = httpx.delete(f"{base_url}/api/v1/users/me", headers=headers)
+        if r.is_success:
+            _log(f"Deleted user: {username}")
+        else:
+            _log(f"Failed to delete user '{username}': {r.status_code} {r.text}")
 
-    except Exception as e:
-        print(f"Error during cleanup: {e}")
-        raise
+    _log("\nTest data cleanup complete!")
 
 
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "clean":
-        asyncio.run(clean_test_data())
+        clean_test_data()
     else:
         seed_data()

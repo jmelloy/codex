@@ -72,6 +72,19 @@ docker compose up -d
 docker compose -f docker-compose.prod.yml up -d
 ```
 
+### Kubernetes (Linode LKE)
+
+```bash
+# Initial cluster setup (installs ingress-nginx, cert-manager, creates secrets)
+./scripts/setup-lke.sh --domain codex.example.com --email admin@example.com
+
+# Deploy with Kustomize
+kubectl apply -k k8s/overlays/staging      # staging
+kubectl apply -k k8s/overlays/production   # production
+```
+
+CI/CD is handled by `.github/workflows/deploy.yml` which builds images to GHCR and deploys via Kustomize. See `k8s/` for manifests.
+
 ## Architecture
 
 ### Two-Database Pattern

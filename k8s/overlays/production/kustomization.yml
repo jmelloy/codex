@@ -9,7 +9,7 @@ resources:
 # Override the image tags — set by CI or manually
 images:
   - name: ghcr.io/OWNER/codex-backend
-    newName: ghcr.io/OWNER/codex-backend    # CI replaces OWNER
+    newName: ghcr.io/OWNER/codex-backend # CI replaces OWNER
     newTag: latest
   - name: ghcr.io/OWNER/codex-frontend
     newName: ghcr.io/OWNER/codex-frontend
@@ -23,10 +23,10 @@ patches:
     patch: |
       - op: replace
         path: /spec/tls/0/hosts/0
-        value: codex.example.com
+        value: codex.melloy.life
       - op: replace
         path: /spec/rules/0/host
-        value: codex.example.com
+        value: codex.melloy.life
 
   # Backend: production resources
   - target:

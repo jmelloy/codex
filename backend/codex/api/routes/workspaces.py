@@ -3,7 +3,6 @@
 import os
 import re
 import shutil
-import time
 from pathlib import Path
 from uuid import uuid4
 
@@ -386,7 +385,7 @@ async def delete_workspace(
         notebook_abs_path = str(Path(workspace_path) / notebook.path)
         watcher = get_watcher_for_notebook(notebook_abs_path)
         if watcher:
-            watcher.stop()
+            watcher.stop(queue_timeout=2)
             unregister_watcher(watcher)
 
         # Delete notebook plugin configs
@@ -475,16 +474,10 @@ async def delete_workspace(
     await session.delete(workspace)
     await session.commit()
 
-    # Delete the workspace directory from disk.
-    # Retry with sleep because daemon watcher threads may briefly recreate
-    # directories via get_notebook_engine's os.makedirs call.
+    # Delete the workspace directory from disk
     ws_dir = Path(workspace_path)
-    for _ in range(5):
-        if ws_dir.exists():
-            shutil.rmtree(ws_dir, ignore_errors=True)
-            time.sleep(0.05)
-        else:
-            break
+    if ws_dir.exists():
+        shutil.rmtree(ws_dir)
 
     return {"message": "Workspace deleted successfully"}
 

@@ -2,7 +2,6 @@
 
 import re
 import shutil
-import time
 from pathlib import Path
 from uuid import uuid4
 
@@ -413,10 +412,10 @@ async def delete_notebook_nested(
     # Save path before ORM objects are expired by commit
     notebook_dir = Path(workspace.path) / notebook.path
 
-    # Stop the file watcher for this notebook
+    # Stop the file watcher for this notebook (short timeout — we're deleting everything)
     watcher = get_watcher_for_notebook(str(notebook_dir))
     if watcher:
-        watcher.stop()
+        watcher.stop(queue_timeout=2)
         unregister_watcher(watcher)
 
     # Delete related NotebookPluginConfig records
@@ -430,15 +429,9 @@ async def delete_notebook_nested(
     await session.delete(notebook)
     await session.commit()
 
-    # Delete the notebook directory from disk.
-    # Retry with sleep because daemon watcher threads may briefly recreate
-    # directories via get_notebook_engine's os.makedirs call.
-    for _ in range(5):
-        if notebook_dir.exists():
-            shutil.rmtree(notebook_dir, ignore_errors=True)
-            time.sleep(0.05)
-        else:
-            break
+    # Delete the notebook directory from disk
+    if notebook_dir.exists():
+        shutil.rmtree(notebook_dir)
 
     return {"message": "Notebook deleted successfully"}
 

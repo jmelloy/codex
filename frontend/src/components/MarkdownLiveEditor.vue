@@ -229,7 +229,7 @@ const markdownToBlocks = (markdown: string): string => {
           const config = parseBlockConfig(rawContent)
           const blockId = `live-dynamic-block-${++dynamicBlockCounter}`
           blocks.push(
-            `<div id="${blockId}" class="block block-dynamic" data-type="dynamic" data-block-type="${escapeHtml(codeLanguage)}" data-block-config="${escapeHtml(JSON.stringify(config))}" data-block-raw="${escapeHtml(rawContent)}" contenteditable="false">` +
+            `<div id="${blockId}" class="block block-dynamic" data-type="dynamic" data-block-type="${escapeAttr(codeLanguage)}" data-block-config="${escapeAttr(JSON.stringify(config))}" data-block-raw="${escapeAttr(rawContent)}" contenteditable="false">` +
               `<div class="dynamic-block-header"><span class="dynamic-block-label">${escapeHtml(codeLanguage)}</span></div>` +
               `<div class="dynamic-block-render"></div>` +
             `</div>`
@@ -462,6 +462,11 @@ const escapeHtml = (text: string): string => {
   const div = document.createElement("div")
   div.textContent = text
   return div.innerHTML
+}
+
+// Escape for use in HTML attribute values (also escapes quotes)
+const escapeAttr = (text: string): string => {
+  return escapeHtml(text).replace(/"/g, "&quot;").replace(/'/g, "&#39;")
 }
 
 // Handle input events

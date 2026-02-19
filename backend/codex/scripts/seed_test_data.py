@@ -2,22 +2,22 @@
 """
 Seed script to populate test data for screenshots and testing.
 
-Creates test users with sample workspaces, notebooks, and markdown files.
-This makes it easy to test the application and take screenshots past the login page.
+Creates test users with sample workspaces, notebooks, and markdown files
+via the HTTP API. The server must be running.
+
+The 'clean' subcommand uses direct DB access since no DELETE endpoints exist.
 
 Usage:
-    python -m codex.scripts.seed_test_data
+    python -m codex.scripts.seed_test_data          # seed via API
+    python -m codex.scripts.seed_test_data clean     # clean via direct DB
 """
 
 import asyncio
-from pathlib import Path
+import sys
 
-from sqlmodel import select
+import httpx
 
-from codex.api.auth import get_password_hash
-from codex.core.git_manager import GitManager
-from codex.db.database import DATA_DIRECTORY, get_system_session, init_notebook_db, init_system_db
-from codex.db.models import Notebook, User, Workspace
+from codex.scripts.user_manager import get_base_url, get_token, register_user
 
 # Test user credentials (documented for easy reference)
 TEST_USERS = [
@@ -221,13 +221,13 @@ date: 2024-01-12
 ### Materials
 - Acetic acid (5 mL)
 - Ethanol (10 mL)
-- Concentrated H₂SO₄ (1 mL, catalyst)
+- Concentrated H\u2082SO\u2084 (1 mL, catalyst)
 
 ### Procedure
 1. Mix acetic acid and ethanol in round-bottom flask
 2. Add catalyst dropwise while stirring
-3. Heat under reflux for 2 hours at 70°C
-4. Cool and neutralize with NaHCO₃
+3. Heat under reflux for 2 hours at 70\u00b0C
+4. Cool and neutralize with NaHCO\u2083
 5. Extract product with dichloromethane
 
 ### Results
@@ -252,24 +252,24 @@ date: 2024-01-14
 ## NMR Data
 
 Sample: Ethyl acetate
-Solvent: CDCl₃
+Solvent: CDCl\u2083
 
-### ¹H NMR
-- δ 1.26 (t, 3H, CH₃)
-- δ 2.04 (s, 3H, CH₃CO)
-- δ 4.12 (q, 2H, OCH₂)
+### \u00b9H NMR
+- \u03b4 1.26 (t, 3H, CH\u2083)
+- \u03b4 2.04 (s, 3H, CH\u2083CO)
+- \u03b4 4.12 (q, 2H, OCH\u2082)
 
-### ¹³C NMR
-- δ 14.2 (CH₃)
-- δ 20.9 (CH₃CO)
-- δ 60.3 (OCH₂)
-- δ 171.0 (C=O)
+### \u00b9\u00b3C NMR
+- \u03b4 14.2 (CH\u2083)
+- \u03b4 20.9 (CH\u2083CO)
+- \u03b4 60.3 (OCH\u2082)
+- \u03b4 171.0 (C=O)
 
 ## IR Data
 
 Key peaks:
-- 1740 cm⁻¹ (C=O stretch)
-- 1240 cm⁻¹ (C-O stretch)
+- 1740 cm\u207b\u00b9 (C=O stretch)
+- 1240 cm\u207b\u00b9 (C-O stretch)
 
 ## Conclusion
 
@@ -297,13 +297,13 @@ date: 2024-01-16
 ### Week 1 (Jan 8-14)
 
 **Day 1**: Thawed frozen stock
-- Initial density: 1x10⁶ cells/mL
+- Initial density: 1x10\u2076 cells/mL
 - Viability: 92%
 
 **Day 3**: First passage
 - Confluency: 80%
 - Split ratio: 1:3
-- New density: 3x10⁵ cells/mL
+- New density: 3x10\u2075 cells/mL
 
 **Day 6**: Second passage
 - Confluency: 85%
@@ -329,183 +329,190 @@ Cells showing healthy growth and expected morphology. No contamination detected.
 ]
 
 
-def slugify(name: str) -> str:
-    """Convert a name to a filesystem-safe slug."""
-    import re
-
-    slug = re.sub(r"[^\w\s-]", "", name.lower())
-    slug = re.sub(r"[-\s]+", "-", slug).strip("-")
-    return slug or "item"
+def _log(msg: str) -> None:
+    """Print informational message to stderr."""
+    print(msg, file=sys.stderr)
 
 
-async def create_markdown_file(notebook_path: Path, filename: str, content: str):
-    """Create a markdown file in the notebook."""
-    file_path = notebook_path / filename
-    file_path.write_text(content)
+def _auth_headers(token: str) -> dict:
+    return {"Authorization": f"Bearer {token}"}
 
 
-async def seed_data():
-    """Create test users, workspaces, notebooks, and files."""
-    print("🌱 Starting test data seeding...")
+def _find_by_name(items: list[dict], name: str) -> dict | None:
+    """Find an item in a list of dicts by its 'name' key."""
+    for item in items:
+        if item.get("name") == name:
+            return item
+    return None
 
-    # Initialize the system database
-    await init_system_db()
 
-    async for session in get_system_session():
+def seed_data() -> None:
+    """Create test users, workspaces, notebooks, and files via the HTTP API."""
+    base_url = get_base_url()
+
+    # Health check
+    try:
+        r = httpx.get(f"{base_url}/health")
+        r.raise_for_status()
+    except httpx.ConnectError:
+        _log(f"Cannot connect to {base_url}. Is the server running?")
+        sys.exit(1)
+
+    _log("Starting test data seeding...")
+
+    for user_data in TEST_USERS:
+        username = user_data["username"]
+
+        # Register user (idempotent: 400 means already exists)
         try:
-            for user_data in TEST_USERS:
-                # Check if user already exists
-                result = await session.execute(select(User).where(User.username == user_data["username"]))
-                existing_user = result.scalar_one_or_none()
+            register_user(base_url, username, user_data["email"], user_data["password"])
+            _log(f"  Created user: {username}")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 400:
+                _log(f"  User '{username}' already exists, continuing...")
+            else:
+                _log(f"  Registration failed for {username}: {e.response.text}")
+                continue
 
-                if existing_user:
-                    print(f"⏭️  User '{user_data['username']}' already exists, skipping...")
-                    continue
+        # Get token
+        try:
+            token = get_token(base_url, username, user_data["password"])
+        except httpx.HTTPStatusError as e:
+            _log(f"  Cannot authenticate as {username}: {e.response.text}")
+            continue
 
-                # Create user
-                hashed_password = get_password_hash(user_data["password"])
-                user = User(
-                    username=user_data["username"],
-                    email=user_data["email"],
-                    hashed_password=hashed_password,
-                    is_active=True,
+        headers = _auth_headers(token)
+
+        # List existing workspaces for idempotency
+        existing_workspaces = httpx.get(f"{base_url}/api/v1/workspaces/", headers=headers).json()
+
+        for ws_data in user_data["workspaces"]:
+            ws_name = ws_data["name"]
+
+            # Check if workspace already exists
+            existing_ws = _find_by_name(existing_workspaces, ws_name)
+            if existing_ws:
+                _log(f"    Workspace '{ws_name}' already exists, reusing...")
+                ws_id = existing_ws["id"]
+            else:
+                r = httpx.post(
+                    f"{base_url}/api/v1/workspaces/",
+                    headers=headers,
+                    json={"name": ws_name},
                 )
-                session.add(user)
-                await session.commit()
-                await session.refresh(user)
-                print(f"✅ Created user: {user.username} (password: {user_data['password']})")
+                if not r.is_success:
+                    _log(f"    Failed to create workspace '{ws_name}': {r.text}")
+                    continue
+                ws = r.json()
+                ws_id = ws["id"]
+                _log(f"    Created workspace: {ws_name}")
 
-                # Create workspaces for this user
-                for workspace_data in user_data["workspaces"]:
-                    workspace_slug = slugify(workspace_data["name"])
-                    base_path = Path(DATA_DIRECTORY) / "workspaces"
-                    workspace_path = base_path / f"{user.username}-{workspace_slug}"
+            # List existing notebooks in this workspace
+            existing_notebooks = httpx.get(
+                f"{base_url}/api/v1/workspaces/{ws_id}/notebooks/",
+                headers=headers,
+            ).json()
 
-                    # Create workspace directory
-                    workspace_path.mkdir(parents=True, exist_ok=True)
+            for nb_data in ws_data["notebooks"]:
+                nb_name = nb_data["name"]
 
-                    workspace = Workspace(
-                        name=workspace_data["name"],
-                        slug=workspace_slug,
-                        path=str(workspace_path),
-                        owner_id=user.id,
-                        theme_setting="cream"
+                existing_nb = _find_by_name(existing_notebooks, nb_name)
+                if existing_nb:
+                    _log(f"      Notebook '{nb_name}' already exists, reusing...")
+                    nb_slug = existing_nb["slug"]
+                else:
+                    r = httpx.post(
+                        f"{base_url}/api/v1/workspaces/{ws_id}/notebooks/",
+                        headers=headers,
+                        json={"name": nb_name, "description": nb_data.get("description")},
                     )
-                    session.add(workspace)
-                    await session.commit()
-                    await session.refresh(workspace)
-                    print(f"  📁 Created workspace: {workspace.name}")
+                    if not r.is_success:
+                        _log(f"      Failed to create notebook '{nb_name}': {r.text}")
+                        continue
+                    nb = r.json()
+                    nb_slug = nb["slug"]
+                    _log(f"      Created notebook: {nb_name}")
 
-                    # Create notebooks in this workspace
-                    for notebook_data in workspace_data["notebooks"]:
-                        notebook_slug = slugify(notebook_data["name"])
-                        notebook_path = workspace_path / notebook_slug
+                # Create files
+                for file_data in nb_data.get("files", []):
+                    r = httpx.post(
+                        f"{base_url}/api/v1/workspaces/{ws_id}/notebooks/{nb_slug}/files/",
+                        headers=headers,
+                        json={"path": file_data["name"], "content": file_data["content"]},
+                    )
+                    if r.is_success:
+                        _log(f"        Created file: {file_data['name']}")
+                    else:
+                        _log(f"        File '{file_data['name']}': {r.status_code} (may already exist)")
 
-                        # Create notebook directory
-                        notebook_path.mkdir(parents=True, exist_ok=True)
-
-                        # Initialize notebook database
-                        init_notebook_db(str(notebook_path))
-
-                        # Initialize Git repository
-                        git_manager = GitManager(str(notebook_path))
-
-                        # Create notebook record
-                        notebook = Notebook(
-                            workspace_id=workspace.id,
-                            name=notebook_data["name"],
-                            slug=notebook_slug,
-                            path=notebook_slug,
-                            description=notebook_data.get("description"),
-                        )
-                        session.add(notebook)
-                        await session.commit()
-                        await session.refresh(notebook)
-                        print(f"    📓 Created notebook: {notebook.name}")
-
-                        # Create markdown files
-                        for file_data in notebook_data.get("files", []):
-                            await create_markdown_file(notebook_path, file_data["name"], file_data["content"])
-                            print(f"      📄 Created file: {file_data['name']}")
-
-                        # Git commit the files
-                        try:
-                            git_manager.commit_all("Initial notebook setup with sample data")
-                        except Exception as e:
-                            print(f"      ⚠️  Git commit failed (this is okay): {e}")
-
-            print("\n🎉 Test data seeding complete!")
-            print("\n📋 Test User Credentials:")
-            print("=" * 50)
-            for user_data in TEST_USERS:
-                print(f"Username: {user_data['username']}")
-                print(f"Password: {user_data['password']}")
-                print(f"Email: {user_data['email']}")
-                print("-" * 50)
-
-        except Exception as e:
-            print(f"❌ Error during seeding: {e}")
-            raise
-        finally:
-            break  # Exit the async generator after one iteration
+    _log("\nTest data seeding complete!")
+    _log("\nTest User Credentials:")
+    _log("=" * 50)
+    for user_data in TEST_USERS:
+        _log(f"Username: {user_data['username']}")
+        _log(f"Password: {user_data['password']}")
+        _log(f"Email: {user_data['email']}")
+        _log("-" * 50)
 
 
 async def clean_test_data():
-    """Remove all test data (users, workspaces, notebooks)."""
-    print("🧹 Cleaning test data...")
+    """Remove all test data (users, workspaces, notebooks).
+
+    Uses direct DB access since no DELETE endpoints exist for these resources.
+    """
+    from pathlib import Path
+
+    from sqlmodel import select
+
+    from codex.db.database import get_system_session, init_system_db
+    from codex.db.models import Notebook, User, Workspace
+
+    print("Cleaning test data...")
 
     await init_system_db()
 
-    async for session in get_system_session():
-        try:
-            import shutil
+    session = await anext(get_system_session())
+    try:
+        import shutil
 
-            # Delete test users and their data
-            for user_data in TEST_USERS:
-                result = await session.execute(select(User).where(User.username == user_data["username"]))
-                user = result.scalar_one_or_none()
+        for user_data in TEST_USERS:
+            result = await session.execute(select(User).where(User.username == user_data["username"]))
+            user = result.scalar_one_or_none()
 
-                if user:
-                    # Get user's workspaces
-                    result = await session.execute(select(Workspace).where(Workspace.owner_id == user.id))
-                    workspaces = result.scalars().all()
+            if user:
+                result = await session.execute(select(Workspace).where(Workspace.owner_id == user.id))
+                workspaces = result.scalars().all()
 
-                    for workspace in workspaces:
-                        # Delete notebooks for this workspace first
-                        result = await session.execute(select(Notebook).where(Notebook.workspace_id == workspace.id))
-                        notebooks = result.scalars().all()
-                        for notebook in notebooks:
-                            await session.delete(notebook)
-                            print(f"    📓 Deleted notebook: {notebook.name}")
+                for workspace in workspaces:
+                    result = await session.execute(
+                        select(Notebook).where(Notebook.workspace_id == workspace.id)
+                    )
+                    notebooks = result.scalars().all()
+                    for notebook in notebooks:
+                        await session.delete(notebook)
+                        print(f"    Deleted notebook: {notebook.name}")
 
-                        # Delete workspace directory
-                        workspace_path = Path(workspace.path)
-                        if workspace_path.exists():
-                            shutil.rmtree(workspace_path)
-                            print(f"  🗑️  Deleted workspace directory: {workspace_path}")
+                    workspace_path = Path(workspace.path)
+                    if workspace_path.exists():
+                        shutil.rmtree(workspace_path)
+                        print(f"  Deleted workspace directory: {workspace_path}")
 
-                        # Delete workspace record
-                        await session.delete(workspace)
-                        print(f"  📁 Deleted workspace: {workspace.name}")
+                    await session.delete(workspace)
+                    print(f"  Deleted workspace: {workspace.name}")
 
-                    # Delete user
-                    await session.delete(user)
-                    print(f"✅ Deleted user: {user.username}")
+                await session.delete(user)
+                print(f"Deleted user: {user.username}")
 
-            await session.commit()
-            print("\n🎉 Test data cleanup complete!")
+        await session.commit()
+        print("\nTest data cleanup complete!")
 
-        except Exception as e:
-            print(f"❌ Error during cleanup: {e}")
-            raise
-        finally:
-            break
+    except Exception as e:
+        print(f"Error during cleanup: {e}")
+        raise
 
 
 if __name__ == "__main__":
-    import sys
-
     if len(sys.argv) > 1 and sys.argv[1] == "clean":
         asyncio.run(clean_test_data())
     else:
-        asyncio.run(seed_data())
+        seed_data()

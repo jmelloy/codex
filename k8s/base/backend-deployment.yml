@@ -9,7 +9,7 @@ metadata:
 spec:
   replicas: 1
   strategy:
-    type: Recreate          # SQLite requires single-writer; use Recreate
+    type: Recreate # SQLite requires single-writer; use Recreate
   selector:
     matchLabels:
       app.kubernetes.io/name: backend
@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
         - name: backend
-          image: ghcr.io/OWNER/codex-backend:latest   # replaced by Kustomize overlay
+          image: ghcr.io/OWNER/codex-backend:latest # replaced by Kustomize overlay
           ports:
             - containerPort: 8000
               protocol: TCP
@@ -38,7 +38,12 @@ spec:
               mountPath: /app/data
             - name: plugins
               mountPath: /app/plugins
-          command: ["sh", "-c", "alembic upgrade head && uvicorn codex.main:app --host 0.0.0.0 --port 8000 --workers 2 --log-config /dev/null"]
+          command:
+            [
+              "sh",
+              "-c",
+              "alembic upgrade head && uvicorn codex.main:app --host 0.0.0.0 --port 8000 --workers 2",
+            ]
           readinessProbe:
             httpGet:
               path: /health

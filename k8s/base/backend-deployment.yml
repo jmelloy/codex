@@ -42,7 +42,7 @@ spec:
             [
               "sh",
               "-c",
-              "alembic upgrade head && uvicorn codex.main:app --host 0.0.0.0 --port 8000 --workers 2",
+              "alembic upgrade head && python -m codex.main",
             ]
           readinessProbe:
             httpGet:

@@ -1,5 +1,8 @@
 FROM python:3.13-slim
 
+ARG BUILD_VERSION=dev
+LABEL org.opencontainers.image.version=${BUILD_VERSION}
+
 WORKDIR /app
 
 # Install build dependencies
@@ -23,6 +26,7 @@ EXPOSE 8000
 
 # Set Python to run in unbuffered mode for proper logging in Docker
 ENV PYTHONUNBUFFERED=1
+ENV BUILD_VERSION=${BUILD_VERSION}
 
 # Health check endpoint
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \

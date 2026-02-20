@@ -5,6 +5,7 @@ WORKDIR /app
 # Build arguments
 ARG VITE_API_BASE_URL=
 ARG PLUGINS_DIR=/plugins
+ARG BUILD_VERSION=dev
 
 # Install pnpm via npm
 RUN npm install -g pnpm
@@ -28,8 +29,11 @@ ENV VITE_PLUGINS_DIR=${PLUGINS_DIR}
 # Build application
 RUN pnpm build
 
-# Production stage (unchanged)
+# Production stage
 FROM nginx:alpine
+
+ARG BUILD_VERSION=dev
+LABEL org.opencontainers.image.version=${BUILD_VERSION}
 
 RUN addgroup -g 1000 -S codex && \
     adduser -u 1000 -S codex -G codex

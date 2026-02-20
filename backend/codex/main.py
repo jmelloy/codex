@@ -159,13 +159,13 @@ app.add_middleware(
 @app.get("/")
 async def root():
     """Root endpoint."""
-    return {"message": "Codex API", "version": "0.1.0", "docs": "/docs"}
+    return {"message": "Codex API", "version": os.environ.get("BUILD_VERSION", "dev"), "docs": "/docs"}
 
 
 @app.get("/health")
 async def health():
     """Health check endpoint for Docker and monitoring."""
-    return {"status": "healthy", "version": "0.1.0"}
+    return {"status": "healthy", "version": os.environ.get("BUILD_VERSION", "dev")}
 
 
 # Include routers

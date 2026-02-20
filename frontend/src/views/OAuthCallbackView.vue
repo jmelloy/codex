@@ -62,7 +62,7 @@ function isLoginFlow(state?: string): boolean {
     // JWT state tokens are base64-encoded; decode the payload to check mode
     const parts = state.split(".")
     if (parts.length === 3) {
-      const payload = JSON.parse(atob(parts[1]))
+      const payload = JSON.parse(atob(parts[1]!))
       return payload.mode === "login"
     }
   } catch {

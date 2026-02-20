@@ -12,4 +12,4 @@ spec:
   # Omitting storageClassName uses the cluster default.
   resources:
     requests:
-      storage: 10Gi
+      storage: 5Gi

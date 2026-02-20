@@ -39,6 +39,12 @@ patches:
       - op: replace
         path: /spec/replicas
         value: 1
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: 64Mi
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: 256Mi
 
   # Frontend: single replica for staging
   - target:
@@ -48,6 +54,12 @@ patches:
       - op: replace
         path: /spec/replicas
         value: 1
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: 64Mi
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: 256Mi
 
   # PVC: smaller volume for staging
   - target:

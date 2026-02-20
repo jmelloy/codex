@@ -1,6 +1,6 @@
 [project]
 name = "codex"
-version = "2026.02.20.f3baa62"
+version = "2026.02.20"
 description = "A hierarchical digital laboratory journal system for tracking experiments, iterations, and investigations"
 requires-python = ">=3.11"
 license = {text = "MIT"}

@@ -48,14 +48,14 @@ jobs:
         # Update frontend package.json if it exists
         if [ -f frontend/package.json ]; then
           python3 << EOF
-import json
-with open('frontend/package.json', 'r') as f:
-    data = json.load(f)
-data['version'] = '${NEW_VERSION}'
-with open('frontend/package.json', 'w') as f:
-    json.dump(data, f, indent=2)
-    f.write('\n')
-EOF
+            import json
+            with open('frontend/package.json', 'r') as f:
+                data = json.load(f)
+            data['version'] = '${NEW_VERSION}'
+            with open('frontend/package.json', 'w') as f:
+                json.dump(data, f, indent=2)
+                f.write('\n')
+            EOF
           echo "Updated frontend/package.json to version ${NEW_VERSION}"
         fi
     

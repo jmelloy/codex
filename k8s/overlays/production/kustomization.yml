@@ -62,7 +62,7 @@ patches:
     patch: |
       - op: replace
         path: /spec/resources/requests/storage
-        value: 5Gi
+        value: 20Gi
 
   # PostgreSQL: production resources
   - target:

@@ -9,7 +9,10 @@ metadata:
 spec:
   replicas: 1
   strategy:
-    type: Recreate # SQLite requires single-writer; use Recreate
+    type: RollingUpdate # PostgreSQL supports concurrent access
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: backend
@@ -19,6 +22,23 @@ spec:
         app.kubernetes.io/name: backend
         app.kubernetes.io/part-of: codex
     spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:16-alpine
+          command:
+            - "sh"
+            - "-c"
+            - |
+              until pg_isready -h postgres -p 5432 -U codex -d codex; do
+                echo "Waiting for PostgreSQL..."
+                sleep 2
+              done
+          env:
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: codex-secrets
+                  key: POSTGRES_PASSWORD
       containers:
         - name: backend
           image: ghcr.io/OWNER/codex-backend:latest # replaced by Kustomize overlay

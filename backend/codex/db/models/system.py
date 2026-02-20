@@ -42,10 +42,7 @@ class Workspace(SQLModel, table=True):
     """Workspace for organizing notebooks and files."""
 
     __tablename__ = "workspaces"  # type: ignore[assignment]
-    __table_args__ = (
-        UniqueConstraint("owner_id", "slug", name="uq_workspaces_owner_slug"),
-        {"sqlite_autoincrement": True},
-    )
+    __table_args__ = (UniqueConstraint("owner_id", "slug", name="uq_workspaces_owner_slug"),)
 
     id: int | None = Field(default=None, primary_key=True)
     name: str = Field(index=True)

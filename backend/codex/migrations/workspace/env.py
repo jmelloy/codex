@@ -33,6 +33,8 @@ target_metadata = SQLModel.metadata
 # Must match the default in backend/db/database.py
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./codex_system.db")
 
+_is_sqlite = DATABASE_URL.startswith("sqlite")
+
 
 def get_url():
     """Get database URL, preferring environment variable."""
@@ -82,9 +84,12 @@ def run_migrations_online() -> None:
     """
     url = get_url()
 
+    connect_args = {"check_same_thread": False} if _is_sqlite else {}
+
     connectable = create_engine(
         url,
         poolclass=pool.NullPool,
+        connect_args=connect_args,
     )
 
     with connectable.connect() as connection:

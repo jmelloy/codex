@@ -6,7 +6,6 @@ metadata:
   labels:
     app.kubernetes.io/part-of: codex
 data:
-  DATABASE_URL: "sqlite:///./data/codex_system.db"
   DEBUG: "false"
   LOG_LEVEL: "INFO"
   LOG_FORMAT: "json"

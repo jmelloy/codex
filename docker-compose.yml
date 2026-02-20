@@ -13,6 +13,9 @@ services:
       - LOG_FORMAT=${LOG_FORMAT:-colored}
       - PYTHONUNBUFFERED=1
       - CODEX_PLUGINS_DIR=/app/plugins
+      - OPENGRAPH_IO_API_KEY=${OPENGRAPH_IO_API_KEY}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
     volumes:
       - ./data:/app/data
       - ./plugins:/app/plugins

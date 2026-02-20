@@ -14,10 +14,13 @@ These models are stored in the system database (codex_system.db):
 
 from datetime import datetime
 
-from sqlalchemy import UniqueConstraint
+from sqlalchemy import DateTime, UniqueConstraint
 from sqlmodel import JSON, Column, Field, Relationship, SQLModel
 
 from .base import utc_now
+
+# All datetime columns must use timezone=True so PostgreSQL uses TIMESTAMPTZ
+TZDateTime = DateTime(timezone=True)
 
 
 class User(SQLModel, table=True):
@@ -31,8 +34,8 @@ class User(SQLModel, table=True):
     hashed_password: str
     is_active: bool = Field(default=True)
     theme_setting: str | None = Field(default="cream")  # User's preferred theme
-    created_at: datetime = Field(default_factory=utc_now)
-    updated_at: datetime = Field(default_factory=utc_now)
+    created_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
+    updated_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
 
     # Relationships
     workspaces: list["Workspace"] = Relationship(back_populates="owner")
@@ -50,8 +53,8 @@ class Workspace(SQLModel, table=True):
     path: str = Field(unique=True)  # Filesystem path
     owner_id: int = Field(foreign_key="users.id")
     theme_setting: str | None = Field(default="cream")  # User's preferred theme
-    created_at: datetime = Field(default_factory=utc_now)
-    updated_at: datetime = Field(default_factory=utc_now)
+    created_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
+    updated_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
 
     # Relationships
     owner: User = Relationship(back_populates="workspaces")
@@ -69,7 +72,7 @@ class WorkspacePermission(SQLModel, table=True):
     workspace_id: int = Field(foreign_key="workspaces.id")
     user_id: int = Field(foreign_key="users.id")
     permission_level: str = Field(default="read")  # read, write, admin
-    created_at: datetime = Field(default_factory=utc_now)
+    created_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
 
     # Relationships
     workspace: Workspace = Relationship(back_populates="permissions")
@@ -86,9 +89,9 @@ class Task(SQLModel, table=True):
     description: str | None = None
     status: str = Field(default="pending")  # pending, in_progress, completed, failed
     assigned_to: str | None = None  # Agent identifier
-    created_at: datetime = Field(default_factory=utc_now)
-    updated_at: datetime = Field(default_factory=utc_now)
-    completed_at: datetime | None = None
+    created_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
+    updated_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
+    completed_at: datetime | None = Field(default=None, sa_type=TZDateTime)
 
 
 class Notebook(SQLModel, table=True):
@@ -102,8 +105,8 @@ class Notebook(SQLModel, table=True):
     slug: str = Field(index=True)  # URL-safe identifier (unique per workspace)
     path: str = Field(index=True)  # Relative path from workspace
     description: str | None = None
-    created_at: datetime = Field(default_factory=utc_now)
-    updated_at: datetime = Field(default_factory=utc_now)
+    created_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
+    updated_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
 
     # Relationships
     workspace: Workspace = Relationship(back_populates="notebooks")
@@ -120,8 +123,8 @@ class Plugin(SQLModel, table=True):
     version: str
     type: str  # 'view', 'theme', 'integration'
     enabled: bool = Field(default=True)
-    installed_at: datetime = Field(default_factory=utc_now)
-    updated_at: datetime = Field(default_factory=utc_now)
+    installed_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
+    updated_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
     manifest: dict = Field(default={}, sa_column=Column(JSON))  # Full plugin manifest
 
     # Relationships
@@ -138,8 +141,8 @@ class PluginConfig(SQLModel, table=True):
     plugin_id: str = Field(foreign_key="plugins.plugin_id", index=True)
     enabled: bool = Field(default=True)  # Workspace-level enable/disable
     config: dict = Field(default={}, sa_column=Column(JSON))
-    created_at: datetime = Field(default_factory=utc_now)
-    updated_at: datetime = Field(default_factory=utc_now)
+    created_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
+    updated_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
 
     # Relationships
     plugin: Plugin = Relationship(back_populates="configs")
@@ -155,8 +158,8 @@ class NotebookPluginConfig(SQLModel, table=True):
     plugin_id: str = Field(foreign_key="plugins.plugin_id", index=True)
     enabled: bool = Field(default=True)  # Notebook-level enable/disable (overrides workspace)
     config: dict = Field(default={}, sa_column=Column(JSON))
-    created_at: datetime = Field(default_factory=utc_now)
-    updated_at: datetime = Field(default_factory=utc_now)
+    created_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
+    updated_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
 
 
 class PluginSecret(SQLModel, table=True):
@@ -169,8 +172,8 @@ class PluginSecret(SQLModel, table=True):
     plugin_id: str = Field(foreign_key="plugins.plugin_id", index=True)
     key: str
     encrypted_value: str
-    created_at: datetime = Field(default_factory=utc_now)
-    updated_at: datetime = Field(default_factory=utc_now)
+    created_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
+    updated_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
 
 
 class PluginAPILog(SQLModel, table=True):
@@ -182,7 +185,7 @@ class PluginAPILog(SQLModel, table=True):
     workspace_id: int = Field(foreign_key="workspaces.id", index=True)
     plugin_id: str = Field(foreign_key="plugins.plugin_id", index=True)
     endpoint_id: str
-    timestamp: datetime = Field(default_factory=utc_now, index=True)
+    timestamp: datetime = Field(default_factory=utc_now, index=True, sa_type=TZDateTime)
     status_code: int | None = None
     error: str | None = None
 
@@ -223,8 +226,8 @@ class Agent(SQLModel, table=True):
     # Status
     is_active: bool = Field(default=True)
     system_prompt: str | None = None
-    created_at: datetime = Field(default_factory=utc_now)
-    updated_at: datetime = Field(default_factory=utc_now)
+    created_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
+    updated_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
 
     # Relationships
     workspace: Workspace = Relationship(back_populates="agents")
@@ -241,7 +244,7 @@ class AgentCredential(SQLModel, table=True):
     agent_id: int = Field(foreign_key="agents.id", index=True)
     key_name: str  # "api_key", "organization_id", etc.
     encrypted_value: str  # Fernet-encrypted
-    created_at: datetime = Field(default_factory=utc_now)
+    created_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
 
     # Relationships
     agent: Agent = Relationship(back_populates="credentials")

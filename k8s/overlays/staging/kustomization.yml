@@ -56,7 +56,7 @@ patches:
     patch: |
       - op: replace
         path: /spec/resources/requests/storage
-        value: 5Gi
+        value: 1Gi
 
   # PostgreSQL: smaller resources for staging
   - target:

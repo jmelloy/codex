@@ -98,7 +98,7 @@
         <span class="flex-1 h-px" style="background: var(--page-border)"></span>
       </div>
 
-      <GoogleAuthButton label="Sign up with Google" @error="error = $event" />
+      <GoogleAuthButton label="Sign up with Google" mode="login" @error="error = $event" />
 
       <div class="login-link text-center mt-6 text-sm" style="color: var(--pen-gray)">
         Already have an account?

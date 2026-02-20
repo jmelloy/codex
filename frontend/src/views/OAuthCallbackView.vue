@@ -43,15 +43,33 @@
 import { ref, onMounted } from "vue"
 import { useRouter, useRoute } from "vue-router"
 import { oauthService } from "../services/oauth"
+import { useAuthStore } from "../stores/auth"
+import { authService } from "../services/auth"
 
 const router = useRouter()
 const route = useRoute()
+const authStore = useAuthStore()
 
 const loading = ref(true)
 const error = ref<string | null>(null)
 const success = ref(false)
 const providerEmail = ref<string | null>(null)
 const title = ref("Connecting Account")
+
+function isLoginFlow(state?: string): boolean {
+  if (!state) return false
+  try {
+    // JWT state tokens are base64-encoded; decode the payload to check mode
+    const parts = state.split(".")
+    if (parts.length === 3) {
+      const payload = JSON.parse(atob(parts[1]!))
+      return payload.mode === "login"
+    }
+  } catch {
+    // Not a valid JWT — fall through
+  }
+  return false
+}
 
 onMounted(async () => {
   const code = route.query.code as string
@@ -72,21 +90,46 @@ onMounted(async () => {
     return
   }
 
-  try {
-    const result = await oauthService.handleGoogleCallback(code, state)
-    success.value = true
-    providerEmail.value = result.provider_email
-    title.value = "Connected"
-    loading.value = false
+  if (isLoginFlow(state)) {
+    // Sign-in / Sign-up flow (unauthenticated)
+    try {
+      const result = await oauthService.handleGoogleLoginCallback(code, state)
+      // Save the JWT token
+      authService.saveToken(result.access_token)
+      await authStore.fetchCurrentUser()
 
-    // Redirect back to calendar view after a short delay
-    setTimeout(() => {
-      router.push("/calendar")
-    }, 1500)
-  } catch (e: any) {
-    loading.value = false
-    error.value = e.response?.data?.detail || "Failed to connect Google account"
-    title.value = "Connection Failed"
+      success.value = true
+      providerEmail.value = result.provider_email
+      title.value = "Signed In"
+      loading.value = false
+
+      // Redirect to home
+      setTimeout(() => {
+        router.push("/")
+      }, 1000)
+    } catch (e: any) {
+      loading.value = false
+      error.value = e.response?.data?.detail || "Failed to sign in with Google"
+      title.value = "Sign-In Failed"
+    }
+  } else {
+    // Connect flow (authenticated — linking Google account)
+    try {
+      const result = await oauthService.handleGoogleCallback(code, state)
+      success.value = true
+      providerEmail.value = result.provider_email
+      title.value = "Connected"
+      loading.value = false
+
+      // Redirect back to calendar view after a short delay
+      setTimeout(() => {
+        router.push("/calendar")
+      }, 1500)
+    } catch (e: any) {
+      loading.value = false
+      error.value = e.response?.data?.detail || "Failed to connect Google account"
+      title.value = "Connection Failed"
+    }
   }
 })
 </script>

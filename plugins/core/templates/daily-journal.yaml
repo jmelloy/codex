@@ -3,11 +3,10 @@ name: Daily Journal
 description: A journal entry with today's date
 icon: "\U0001F4D4"
 file_extension: .md
-default_name: "{yyyy}/{mm} {mon}/{yyyy}-{mm}-{dd}-journal.md"
+default_name: "{yyyy}/{mm} {month}/{yyyy}-{mm}-{dd}-journal.md"
 content: |
   ---
-  title: {Mon} {dd}, {YYYY} - %A
-  date: {yyyy}-{mm}-{dd}
+  title: "{Month} {dd}, {yyyy} - {Day}"
   tags:
     - journal
   ---

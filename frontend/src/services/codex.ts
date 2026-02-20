@@ -424,14 +424,25 @@ export const templateService = {
     ] as const
     const month = monthNames[now.getMonth()] ?? "January"
     const mon = month.slice(0, 3)
+    const dayNames: readonly string[] = [
+      "Sunday",
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+    ] as const
+    const day = dayNames[now.getDay()] ?? "Sunday"
 
     return pattern
-      .replace(/{yyyy}/g, yyyy)
-      .replace(/{yy}/g, yy)
-      .replace(/{mm}/g, mm)
-      .replace(/{dd}/g, dd)
-      .replace(/{month}/g, month)
-      .replace(/{mon}/g, mon)
+      .replace(/{yyyy}/gi, yyyy)
+      .replace(/{yy}/gi, yy)
+      .replace(/{mm}/gi, mm)
+      .replace(/{dd}/gi, dd)
+      .replace(/{month}/gi, month)
+      .replace(/{mon}/gi, mon)
+      .replace(/{day}/gi, day)
       .replace(/{title}/g, title)
   },
 }

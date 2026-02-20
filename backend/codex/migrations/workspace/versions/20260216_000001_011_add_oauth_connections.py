@@ -42,7 +42,7 @@ def upgrade() -> None:
             sa.Column("refresh_token", sqlmodel.sql.sqltypes.AutoString(), nullable=True),
             sa.Column("token_expires_at", sa.DateTime(), nullable=True),
             sa.Column("scopes", sqlmodel.sql.sqltypes.AutoString(), nullable=True),
-            sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.text("1")),
+            sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.text("true")),
             sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
             sa.Column("updated_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
         )

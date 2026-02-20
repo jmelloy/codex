@@ -43,7 +43,7 @@ def upgrade() -> None:
             sa.Column("notebook_id", sa.Integer(), sa.ForeignKey("notebooks.id"), nullable=True),
             sa.Column("last_used_at", sa.DateTime(), nullable=True),
             sa.Column("expires_at", sa.DateTime(), nullable=True),
-            sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.text("1")),
+            sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.text("true")),
             sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
         )
         op.create_index("ix_personal_access_tokens_user_id", "personal_access_tokens", ["user_id"])

@@ -11,15 +11,25 @@ from sqlmodel import Session, create_engine
 # System database (users, workspaces, permissions, tasks)
 SYSTEM_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./codex_system.db")
 
-# Data directory for workspaces (derived from database path or env var)
-_default_data_dir = os.path.dirname(SYSTEM_DATABASE_URL.replace("sqlite:///", "")) or "./data"
-DATA_DIRECTORY = os.getenv("DATA_DIRECTORY", _default_data_dir)
-SYSTEM_DATABASE_URL_ASYNC = SYSTEM_DATABASE_URL.replace("sqlite:///", "sqlite+aiosqlite:///")
+_is_sqlite = SYSTEM_DATABASE_URL.startswith("sqlite")
 
-system_engine = create_async_engine(SYSTEM_DATABASE_URL_ASYNC, echo=False, connect_args={"check_same_thread": False})
+if _is_sqlite:
+    SYSTEM_DATABASE_URL_ASYNC = SYSTEM_DATABASE_URL.replace("sqlite:///", "sqlite+aiosqlite:///")
+    _connect_args = {"check_same_thread": False}
+    # Data directory derived from SQLite database path
+    _default_data_dir = os.path.dirname(SYSTEM_DATABASE_URL.replace("sqlite:///", "")) or "./data"
+else:
+    # PostgreSQL (or other non-SQLite databases)
+    SYSTEM_DATABASE_URL_ASYNC = SYSTEM_DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+    _connect_args = {}
+    _default_data_dir = "./data"
+
+DATA_DIRECTORY = os.getenv("DATA_DIRECTORY", _default_data_dir)
+
+system_engine = create_async_engine(SYSTEM_DATABASE_URL_ASYNC, echo=False, connect_args=_connect_args)
 
 # Synchronous engine for use in thread pools (e.g., notebook watchers)
-system_engine_sync = create_engine(SYSTEM_DATABASE_URL, echo=False, connect_args={"check_same_thread": False})
+system_engine_sync = create_engine(SYSTEM_DATABASE_URL, echo=False, connect_args=_connect_args)
 
 async_session_maker = sessionmaker(system_engine, class_=AsyncSession, expire_on_commit=False)
 
@@ -56,6 +66,9 @@ def run_alembic_migrations():
 
     # Set the script location relative to alembic.ini
     alembic_cfg.set_main_option("script_location", str(backend_dir / "codex" / "migrations" / "workspace"))
+
+    # Override the database URL so Alembic uses the same URL as the app
+    alembic_cfg.set_main_option("sqlalchemy.url", SYSTEM_DATABASE_URL)
 
     # Run upgrade to head
     command.upgrade(alembic_cfg, "head")
@@ -134,14 +147,15 @@ async def init_system_db():
     For new databases, this creates all tables. For existing databases, this applies
     any pending migrations.
     """
-    # Ensure data directory exists
-    db_path = SYSTEM_DATABASE_URL.replace("sqlite:///", "")
-    db_dir = os.path.dirname(db_path)
-    if db_dir and not os.path.exists(db_dir):
-        try:
-            os.makedirs(db_dir, exist_ok=True)
-        except FileExistsError:
-            pass
+    if _is_sqlite:
+        # Ensure data directory exists for SQLite
+        db_path = SYSTEM_DATABASE_URL.replace("sqlite:///", "")
+        db_dir = os.path.dirname(db_path)
+        if db_dir and not os.path.exists(db_dir):
+            try:
+                os.makedirs(db_dir, exist_ok=True)
+            except FileExistsError:
+                pass
 
     # Run Alembic migrations
     run_alembic_migrations()

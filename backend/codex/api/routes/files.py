@@ -106,13 +106,14 @@ def get_default_templates(loader) -> list[dict]:
 def expand_template_pattern(pattern: str, title: str = "untitled") -> str:
     """Expand date patterns and title in a template string.
 
-    Supported patterns:
-    - {yyyy}: 4-digit year
-    - {yy}: 2-digit year
-    - {mm}: 2-digit month
-    - {dd}: 2-digit day
-    - {month}: Full month name
-    - {mon}: Abbreviated month name
+    Supported patterns (case-insensitive):
+    - {yyyy}/{YYYY}: 4-digit year
+    - {yy}/{YY}: 2-digit year
+    - {mm}/{MM}: 2-digit month
+    - {dd}/{DD}: 2-digit day
+    - {month}/{Month}: Full month name
+    - {mon}/{Mon}: Abbreviated month name
+    - {day}/{Day}: Full day-of-week name
     - {title}: The provided title
     """
     from datetime import datetime
@@ -121,11 +122,19 @@ def expand_template_pattern(pattern: str, title: str = "untitled") -> str:
 
     replacements = {
         "{yyyy}": now.strftime("%Y"),
+        "{YYYY}": now.strftime("%Y"),
         "{yy}": now.strftime("%y"),
+        "{YY}": now.strftime("%y"),
         "{mm}": now.strftime("%m"),
+        "{MM}": now.strftime("%m"),
         "{dd}": now.strftime("%d"),
+        "{DD}": now.strftime("%d"),
         "{month}": now.strftime("%B"),
+        "{Month}": now.strftime("%B"),
         "{mon}": now.strftime("%b"),
+        "{Mon}": now.strftime("%b"),
+        "{day}": now.strftime("%A"),
+        "{Day}": now.strftime("%A"),
         "{title}": title,
     }
 

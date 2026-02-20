@@ -19,8 +19,9 @@
 import { ref } from "vue"
 import { oauthService } from "../services/oauth"
 
-defineProps<{
+const props = defineProps<{
   label: string
+  mode?: "login" | "connect"
 }>()
 
 const emit = defineEmits<{
@@ -32,7 +33,10 @@ const loading = ref(false)
 async function handleClick() {
   loading.value = true
   try {
-    const { authorization_url } = await oauthService.getGoogleAuthUrl()
+    const useLogin = props.mode === "login"
+    const { authorization_url } = useLogin
+      ? await oauthService.getGoogleLoginUrl()
+      : await oauthService.getGoogleAuthUrl()
     window.location.href = authorization_url
   } catch (e: any) {
     emit("error", e.response?.data?.detail || "Failed to connect to Google")

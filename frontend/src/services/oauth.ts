@@ -20,7 +20,30 @@ export interface OAuthCallbackResponse {
   connected: boolean
 }
 
+export interface OAuthLoginCallbackResponse {
+  access_token: string
+  token_type: string
+  provider_email: string | null
+}
+
 export const oauthService = {
+  // --- Unauthenticated: Sign in / Sign up with Google ---
+
+  async getGoogleLoginUrl(): Promise<OAuthAuthorizeResponse> {
+    const response = await apiClient.get<OAuthAuthorizeResponse>("/api/v1/oauth/google/login")
+    return response.data
+  },
+
+  async handleGoogleLoginCallback(code: string, state?: string): Promise<OAuthLoginCallbackResponse> {
+    const response = await apiClient.post<OAuthLoginCallbackResponse>("/api/v1/oauth/google/login/callback", {
+      code,
+      state,
+    })
+    return response.data
+  },
+
+  // --- Authenticated: Connect Google account ---
+
   async getGoogleAuthUrl(): Promise<OAuthAuthorizeResponse> {
     const response = await apiClient.get<OAuthAuthorizeResponse>("/api/v1/oauth/google/authorize")
     return response.data

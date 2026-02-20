@@ -55,7 +55,7 @@
         <span class="px-3 text-xs" style="color: var(--pen-gray)">or</span>
         <span class="flex-1 h-px" style="background: var(--page-border)"></span>
       </div>
-      <GoogleAuthButton label="Sign in with Google" @error="authStore.error = $event" />
+      <GoogleAuthButton label="Sign in with Google" mode="login" @error="authStore.error = $event" />
       <div class="register-link text-center mt-6 text-sm" style="color: var(--pen-gray)">
         Don't have an account?
         <router-link

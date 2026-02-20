@@ -37,7 +37,6 @@ const router = createRouter({
       path: "/oauth/callback",
       name: "oauth-callback",
       component: OAuthCallbackView,
-      meta: { requiresAuth: true },
     },
     {
       path: "/login",

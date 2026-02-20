@@ -12,10 +12,12 @@ to the system database (not a foreign key, since it's in a different database).
 
 from datetime import datetime
 
-from sqlalchemy import UniqueConstraint
+from sqlalchemy import DateTime, UniqueConstraint
 from sqlmodel import Field, Relationship, SQLModel
 
 from .base import utc_now
+
+TZDateTime = DateTime(timezone=True)
 
 
 class FileTag(SQLModel, table=True):
@@ -53,10 +55,10 @@ class FileMetadata(SQLModel, table=True):
     sidecar_path: str | None = None
 
     # Timestamps
-    created_at: datetime = Field(default_factory=utc_now)
-    updated_at: datetime = Field(default_factory=utc_now)
-    file_created_at: datetime | None = None
-    file_modified_at: datetime | None = None
+    created_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
+    updated_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
+    file_created_at: datetime | None = Field(default=None, sa_type=TZDateTime)
+    file_modified_at: datetime | None = Field(default=None, sa_type=TZDateTime)
 
     # Git tracking
     git_tracked: bool = Field(default=True)
@@ -75,7 +77,7 @@ class Tag(SQLModel, table=True):
     notebook_id: int  # Reference to notebook in system database (not a foreign key)
     name: str = Field(index=True)
     color: str | None = None
-    created_at: datetime = Field(default_factory=utc_now)
+    created_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
 
     # Relationships
     files: list[FileMetadata] = Relationship(back_populates="tags", link_model=FileTag)
@@ -89,4 +91,4 @@ class SearchIndex(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     file_id: int = Field(foreign_key="file_metadata.id", index=True)
     content: str  # Full text content for searching
-    updated_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)

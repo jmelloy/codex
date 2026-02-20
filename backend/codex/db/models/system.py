@@ -268,8 +268,8 @@ class AgentSession(SQLModel, table=True):
     api_calls_made: int = Field(default=0)
     files_modified: list = Field(default=[], sa_column=Column(JSON))
 
-    started_at: datetime = Field(default_factory=utc_now)
-    completed_at: datetime | None = None
+    started_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
+    completed_at: datetime | None = Field(default=None, sa_type=TZDateTime)
     error_message: str | None = None
 
     # Relationships
@@ -291,7 +291,7 @@ class AgentActionLog(SQLModel, table=True):
 
     was_allowed: bool = Field(default=True)  # Did scope guard permit this?
     execution_time_ms: int = Field(default=0)
-    created_at: datetime = Field(default_factory=utc_now)
+    created_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
 
 
 class PersonalAccessToken(SQLModel, table=True):
@@ -311,10 +311,10 @@ class PersonalAccessToken(SQLModel, table=True):
     scopes: str | None = None  # Comma-separated scopes, e.g. "snippets:write"
     workspace_id: int | None = Field(default=None, foreign_key="workspaces.id")  # Optional scope to workspace
     notebook_id: int | None = Field(default=None, foreign_key="notebooks.id")  # Optional scope to notebook
-    last_used_at: datetime | None = None
-    expires_at: datetime | None = None
+    last_used_at: datetime | None = Field(default=None, sa_type=TZDateTime)
+    expires_at: datetime | None = Field(default=None, sa_type=TZDateTime)
     is_active: bool = Field(default=True)
-    created_at: datetime = Field(default_factory=utc_now)
+    created_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
 
     # Relationships
     user: User = Relationship()
@@ -335,11 +335,11 @@ class OAuthConnection(SQLModel, table=True):
     provider_email: str | None = None  # Email from the provider
     access_token: str  # Encrypted access token
     refresh_token: str | None = None  # Encrypted refresh token
-    token_expires_at: datetime | None = None
+    token_expires_at: datetime | None = Field(default=None, sa_type=TZDateTime)
     scopes: str | None = None  # Comma-separated OAuth scopes granted
     is_active: bool = Field(default=True)
-    created_at: datetime = Field(default_factory=utc_now)
-    updated_at: datetime = Field(default_factory=utc_now)
+    created_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
+    updated_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
 
     # Relationships
     user: User = Relationship()
@@ -365,5 +365,5 @@ class IntegrationArtifact(SQLModel, table=True):
     parameters_hash: str = Field(index=True)  # Hash of request parameters for cache key
     artifact_path: str  # Relative path to artifact file within workspace
     content_type: str = Field(default="application/json")  # MIME type of the artifact
-    fetched_at: datetime = Field(default_factory=utc_now)
-    expires_at: datetime | None = None  # Optional expiration time for cache
+    fetched_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
+    expires_at: datetime | None = Field(default=None, sa_type=TZDateTime)  # Optional expiration time for cache

@@ -42,31 +42,12 @@ jobs:
         sed -i "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" backend/pyproject.toml
         echo "Updated backend/pyproject.toml to version ${NEW_VERSION}"
     
-    - name: Update package.json
-      run: |
-        NEW_VERSION="${{ steps.version.outputs.new_version }}"
-        # Update frontend package.json if it exists
-        if [ -f frontend/package.json ]; then
-          python3 << EOF
-            import json
-            with open('frontend/package.json', 'r') as f:
-                data = json.load(f)
-            data['version'] = '${NEW_VERSION}'
-            with open('frontend/package.json', 'w') as f:
-                json.dump(data, f, indent=2)
-                f.write('\n')
-            EOF
-          echo "Updated frontend/package.json to version ${NEW_VERSION}"
-        fi
     
     - name: Commit and Push Changes
       run: |
         NEW_VERSION="${{ steps.version.outputs.new_version }}"
         git add backend/pyproject.toml
-        if [ -f frontend/package.json ]; then
-          git add frontend/package.json
-        fi
-        
+    
         # Check if there are changes to commit
         if git diff --staged --quiet; then
           echo "No version changes to commit"

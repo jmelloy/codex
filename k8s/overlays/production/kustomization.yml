@@ -55,7 +55,7 @@ patches:
         path: /spec/replicas
         value: 2
 
-  # PVC: larger volume for production
+  # PVC: production volume size for codex-data (20Gi)
   - target:
       kind: PersistentVolumeClaim
       name: codex-data
@@ -64,7 +64,7 @@ patches:
         path: /spec/resources/requests/storage
         value: 20Gi
 
-  # PostgreSQL: production resources
+  # PostgreSQL: production resources and postgres-data volume size (10Gi)
   - target:
       kind: StatefulSet
       name: postgres

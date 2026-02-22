@@ -159,6 +159,12 @@ jobs:
       - name: Set up kubectl
         uses: azure/setup-kubectl@v4
 
+      - name: Install SOPS
+        run: |
+          curl -LO https://github.com/getsops/sops/releases/download/v3.9.4/sops-v3.9.4.linux.amd64
+          chmod +x sops-v3.9.4.linux.amd64
+          sudo mv sops-v3.9.4.linux.amd64 /usr/local/bin/sops
+
       - name: Configure kubeconfig
         run: |
           mkdir -p ~/.kube
@@ -184,6 +190,13 @@ jobs:
           BUILD_VERSION="$(date -u +'%Y.%m.%d.%H%M').$(git rev-parse --short HEAD)"
           echo "build_version=${BUILD_VERSION}" >> "$GITHUB_OUTPUT"
 
+      - name: Decrypt secrets with SOPS
+        env:
+          SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
+        run: |
+          OVERLAY=${{ steps.env.outputs.overlay }}
+          sops -d k8s/secrets/${OVERLAY}.yml > k8s/secrets/${OVERLAY}.decrypted.yml
+
       - name: Deploy with Kustomize
         run: |
           OVERLAY=${{ steps.env.outputs.overlay }}
@@ -207,6 +220,10 @@ jobs:
           # Wait for rollout
           kubectl -n codex rollout status deployment/backend --timeout=180s
           kubectl -n codex rollout status deployment/frontend --timeout=120s
+
+      - name: Clean up decrypted secrets
+        if: always()
+        run: rm -f k8s/secrets/*.decrypted.yml
 
       - name: Verify deployment
         run: |

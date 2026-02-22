@@ -85,6 +85,35 @@ kubectl apply -k k8s/overlays/production   # production
 
 CI/CD is handled by `.github/workflows/deploy.yml` which builds images to GHCR and deploys via Kustomize. See `k8s/` for manifests.
 
+### Secrets Management (SOPS + AGE)
+
+Kubernetes secrets are encrypted at rest using [SOPS](https://github.com/getsops/sops) with [AGE](https://age-encryption.org) keys. Encrypted files live in `k8s/secrets/` and are safe to commit.
+
+```bash
+# Prerequisites: install sops and age
+# macOS: brew install sops age
+# Linux: see https://github.com/getsops/sops/releases
+
+# Place your AGE private key (ask a team member) at:
+#   ~/.config/sops/age/keys.txt
+
+# Edit secrets in your $EDITOR (decrypts on open, re-encrypts on save)
+sops k8s/secrets/staging.yml
+sops k8s/secrets/production.yml
+
+# Decrypt to stdout (for inspection)
+sops -d k8s/secrets/staging.yml
+
+# Local deploy: decrypt into the file kustomize expects, then apply
+sops -d k8s/secrets/staging.yml > k8s/secrets/staging.decrypted.yml
+kubectl apply -k k8s/overlays/staging
+rm k8s/secrets/staging.decrypted.yml
+```
+
+**CI/CD**: The deploy workflow decrypts secrets automatically using the `SOPS_AGE_KEY` GitHub Actions secret. To set this up, add the AGE private key (the line starting with `AGE-SECRET-KEY-...`) as a repository secret named `SOPS_AGE_KEY`.
+
+**Key rotation**: To add or rotate keys, update the `age` recipients in `.sops.yaml` and run `sops updatekeys k8s/secrets/<env>.yml` for each file.
+
 ## Architecture
 
 ### Two-Database Pattern

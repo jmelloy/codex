@@ -286,3 +286,8 @@ plugins/*/package-lock.json
 plugins/components.json
 plugins/plugins.json
 .env.production
+
+# SOPS — never commit decrypted secrets or AGE private keys
+k8s/secrets/*.decrypted.yml
+*.age-key
+keys.txt

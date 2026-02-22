@@ -1,0 +1,24 @@
+# SOPS configuration for Codex secrets
+# See: https://github.com/getsops/sops
+#
+# Encryption backend: AGE (https://age-encryption.org)
+#
+# To decrypt, you need the AGE private key at one of:
+#   - ~/.config/sops/age/keys.txt (default)
+#   - $SOPS_AGE_KEY_FILE (env override)
+#   - $SOPS_AGE_KEY (inline key)
+#
+# Usage:
+#   sops k8s/secrets/staging.yml          # edit in $EDITOR
+#   sops -d k8s/secrets/staging.yml       # decrypt to stdout
+#   sops -e k8s/secrets/staging.yml       # re-encrypt (after adding new key)
+
+creation_rules:
+  # Kubernetes secret files — only encrypt data/stringData values
+  - path_regex: k8s/secrets/.*\.yml$
+    encrypted_regex: "^(data|stringData)$"
+    age: age15eetmfpjrl5lttgfn0f7qwsy39gzasds35f68rpc76ujfvz8ts6qt9w2mw
+
+  # .env-style secret files
+  - path_regex: \.env\.enc(\..+)?$
+    age: age15eetmfpjrl5lttgfn0f7qwsy39gzasds35f68rpc76ujfvz8ts6qt9w2mw

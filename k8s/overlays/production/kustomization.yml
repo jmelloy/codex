@@ -5,6 +5,7 @@ namespace: codex
 
 resources:
   - ../../base
+  - ../../secrets/production.decrypted.yml
 
 # Override the image tags — set by CI or manually
 images:

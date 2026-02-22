@@ -6,7 +6,8 @@ namespace: codex
 resources:
   - namespace.yml
   - configmap.yml
-  - secrets.yml
+  # secrets.yml removed — secrets are now per-environment via SOPS.
+  # Each overlay includes a decrypted secrets file at deploy time.
   - pvc.yml
   - postgres-deployment.yml
   - backend-deployment.yml

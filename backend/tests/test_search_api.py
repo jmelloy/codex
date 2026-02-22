@@ -166,3 +166,46 @@ def test_search_tags_requires_tags_parameter(test_client, auth_headers, workspac
         headers=headers,
     )
     assert response.status_code == 422  # Validation error
+
+
+# ---- Notebook-level search tests ----
+
+
+def test_search_notebook(test_client, auth_headers, workspace_and_notebook):
+    """Test searching within a specific notebook."""
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
+
+    response = test_client.get(
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/search/?q=hello",
+        headers=headers,
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["query"] == "hello"
+    assert data["notebook_slug"] == notebook["slug"]
+    assert "results" in data
+
+
+def test_search_notebook_by_tags(test_client, auth_headers, workspace_and_notebook):
+    """Test searching by tags within a specific notebook."""
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
+
+    response = test_client.get(
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/search/tags?tags=docs",
+        headers=headers,
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["tags"] == ["docs"]
+    assert data["notebook_slug"] == notebook["slug"]
+    assert "results" in data
+
+
+def test_search_notebook_requires_auth(test_client):
+    """Test that notebook search requires authentication."""
+    response = test_client.get(
+        "/api/v1/workspaces/any-ws/notebooks/any-nb/search/?q=test",
+    )
+    assert response.status_code == 401

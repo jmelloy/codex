@@ -70,6 +70,22 @@ templates:
     default_name: "{title}.md"
     file_extension: .md
 
+  - id: adhd-daily-log
+    name: ADHD Daily Log
+    file: templates/adhd-daily-log.yaml
+    description: Structured daily log with dashboard, schedule, tasks, and journal sections designed for ADHD
+    icon: 🧠
+    default_name: "{yyyy}-{mm}-{dd}-adhd-log.md"
+    file_extension: .md
+
+  - id: adhd-dashboard
+    name: ADHD Dashboard
+    file: templates/adhd-dashboard.yaml
+    description: Overview dashboard for ADHD daily logs with tasks and activity
+    icon: 📊
+    default_name: adhd-dashboard.cdx
+    file_extension: .cdx
+
   - id: data-file
     name: Data File
     file: templates/data-file.yaml

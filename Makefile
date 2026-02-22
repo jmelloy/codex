@@ -19,6 +19,7 @@
 .PHONY: typecheck typecheck-backend typecheck-frontend typecheck-plugins
 .PHONY: clean-plugins clean-frontend clean-backend
 .PHONY: deploy docker-build docker-up docker-down docker-logs
+.PHONY: dev-k8s k3d-up k3d-down k3d-stop k3d-start
 
 # Default target - production deployment
 all: deploy
@@ -92,6 +93,33 @@ docker-rebuild: build-plugins docker-build
 	@echo "Rebuilding and restarting..."
 	docker compose up -d --force-recreate
 	@echo "Rebuild complete!"
+
+# =============================================================================
+# Kubernetes Local Development (k3d + Tilt)
+# =============================================================================
+
+# One-command setup: create cluster + start Tilt
+dev-k8s: k3d-up
+	tilt up
+
+# Create/start the k3d cluster (idempotent)
+k3d-up:
+	@./scripts/setup-k3d.sh
+
+# Delete the k3d cluster entirely
+k3d-down:
+	@echo "Deleting k3d cluster..."
+	k3d cluster delete codex-dev
+
+# Stop the cluster without deleting (preserves PVCs)
+k3d-stop:
+	@echo "Stopping k3d cluster..."
+	k3d cluster stop codex-dev
+
+# Resume a stopped cluster
+k3d-start:
+	@echo "Starting k3d cluster..."
+	k3d cluster start codex-dev
 
 # =============================================================================
 # Installation (for local development without Docker)
@@ -302,6 +330,13 @@ help:
 	@echo "  make docker-logs  View container logs"
 	@echo "  make docker-restart  Restart after plugin changes"
 	@echo "  make docker-rebuild  Full rebuild and restart"
+	@echo ""
+	@echo "Kubernetes (k3d + Tilt):"
+	@echo "  make dev-k8s      Create k3d cluster + start Tilt"
+	@echo "  make k3d-up       Create/start k3d cluster only"
+	@echo "  make k3d-down     Delete k3d cluster"
+	@echo "  make k3d-stop     Stop cluster (preserves data)"
+	@echo "  make k3d-start    Resume stopped cluster"
 	@echo ""
 	@echo "Build:"
 	@echo "  make build        Build plugins + frontend"

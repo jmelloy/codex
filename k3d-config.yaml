@@ -1,0 +1,42 @@
+# k3d cluster configuration for local Codex development.
+#
+# Creates a single-node k3s cluster with:
+# - Port mappings for ingress (8080/8443)
+# - A local container registry (codex-registry.localhost:5111)
+# - Traefik disabled (we use nginx-ingress for production parity)
+#
+# Usage:
+#   k3d cluster create --config k3d-config.yaml
+#   k3d cluster delete codex-dev
+#
+apiVersion: k3d.io/v1alpha5
+kind: Simple
+metadata:
+  name: codex-dev
+servers: 1
+agents: 0
+image: rancher/k3s:v1.31.4-k3s1
+ports:
+  # localhost:8080 → cluster ingress HTTP
+  - port: 8080:80
+    nodeFilters:
+      - loadbalancer
+  # localhost:8443 → cluster ingress HTTPS
+  - port: 8443:443
+    nodeFilters:
+      - loadbalancer
+registries:
+  # Local registry avoids pushing to GHCR during development.
+  # Tilt builds images and pushes to this registry; k3d nodes
+  # pull from it automatically.
+  create:
+    name: codex-registry.localhost
+    host: "0.0.0.0"
+    hostPort: "5111"
+options:
+  k3s:
+    extraArgs:
+      # Disable Traefik — we install nginx-ingress for prod parity
+      - arg: --disable=traefik
+        nodeFilters:
+          - server:*

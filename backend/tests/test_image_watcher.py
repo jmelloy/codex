@@ -16,21 +16,27 @@ from codex.db.models import FileMetadata
 
 @pytest.fixture
 def temp_notebook():
-    """Create a temporary directory for notebook tests."""
+    """Create a temporary directory for notebook tests.
+
+    Only starts the queue processor (no filesystem observer or background
+    indexing) so that tests can control exactly which operations are
+    processed via enqueue_operation(..., wait=True).
+    """
     temp_dir = tempfile.mkdtemp()
 
-    # Initialize the notebook database
+    # Initialize the notebook database (applies migrations including unique constraint)
     init_notebook_db(temp_dir)
 
     watcher = NotebookWatcher(temp_dir, notebook_id=1)
     watcher.queue.BATCH_INTERVAL = 0.1  # Speed up tests
-    watcher.start()
+    # Only start the queue processor, not the observer or background indexing
+    watcher.queue.start()
 
     yield temp_dir, watcher
 
-    # Cleanup - stop watcher first
+    # Cleanup - stop queue
     try:
-        watcher.stop(queue_timeout=1.0)
+        watcher.queue.stop(timeout=1.0)
     except Exception:
         pass
 
@@ -55,10 +61,11 @@ def test_watcher_extracts_image_metadata(temp_notebook):
     watcher.enqueue_operation(img_path, None, "created", wait=True)
 
     # Query the database to verify metadata was stored
+    rel_path = os.path.relpath(img_path, temp_dir)
     session = get_notebook_session(temp_dir)
     try:
         result = session.execute(
-            select(FileMetadata).where(FileMetadata.notebook_id == 1, FileMetadata.filename == photo_name)
+            select(FileMetadata).where(FileMetadata.notebook_id == 1, FileMetadata.path == rel_path)
         )
         file_meta = result.scalar_one_or_none()
 
@@ -92,10 +99,11 @@ def test_watcher_extracts_jpeg_metadata(temp_notebook):
     # Wait for watcher to process (synchronously)
     watcher.enqueue_operation(img_path, None, "created", wait=True)
     # Query the database to verify metadata was stored
+    rel_path = os.path.relpath(img_path, temp_dir)
     session = get_notebook_session(temp_dir)
     try:
         result = session.execute(
-            select(FileMetadata).where(FileMetadata.notebook_id == 1, FileMetadata.filename == photo_name)
+            select(FileMetadata).where(FileMetadata.notebook_id == 1, FileMetadata.path == rel_path)
         )
         file_meta = result.scalar_one_or_none()
 
@@ -125,10 +133,11 @@ def test_watcher_extracts_rgba_image_metadata(temp_notebook):
     watcher.enqueue_operation(img_path, None, "created", wait=True)
 
     # Query the database to verify metadata was stored
+    rel_path = os.path.relpath(img_path, temp_dir)
     session = get_notebook_session(temp_dir)
     try:
         result = session.execute(
-            select(FileMetadata).where(FileMetadata.notebook_id == 1, FileMetadata.filename == photo_name)
+            select(FileMetadata).where(FileMetadata.notebook_id == 1, FileMetadata.path == rel_path)
         )
         file_meta = result.scalar_one_or_none()
 
@@ -155,10 +164,11 @@ def test_watcher_non_image_no_image_metadata(temp_notebook):
     watcher.enqueue_operation(text_path, None, "created", wait=True)
 
     # Query the database to verify metadata was stored
+    rel_path = os.path.relpath(text_path, temp_dir)
     session = get_notebook_session(temp_dir)
     try:
         result = session.execute(
-            select(FileMetadata).where(FileMetadata.notebook_id == 1, FileMetadata.filename == "document.txt")
+            select(FileMetadata).where(FileMetadata.notebook_id == 1, FileMetadata.path == rel_path)
         )
         file_meta = result.scalar_one_or_none()
 
@@ -192,10 +202,11 @@ def test_watcher_image_with_sidecar_metadata(temp_notebook):
     # Wait for watcher to process (synchronously)
     watcher.enqueue_operation(img_path, sidecar_path, "created", wait=True)
     # Query the database to verify metadata was stored
+    rel_path = os.path.relpath(img_path, temp_dir)
     session = get_notebook_session(temp_dir)
     try:
         result = session.execute(
-            select(FileMetadata).where(FileMetadata.notebook_id == 1, FileMetadata.filename == "artwork.png")
+            select(FileMetadata).where(FileMetadata.notebook_id == 1, FileMetadata.path == rel_path)
         )
         file_meta = result.scalar_one_or_none()
 

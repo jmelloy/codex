@@ -335,6 +335,99 @@ class TestQueryAPI:
         # Expect 401 since we don't have auth, but shows endpoint exists
         assert response.status_code == 401
 
+    def test_query_api_nonexistent_workspace(self, test_client, auth_headers):
+        """Test query API with nonexistent workspace returns 404."""
+        headers = auth_headers[0]
+        response = test_client.post(
+            "/api/v1/query/?workspace_id=99999",
+            json={"limit": 10},
+            headers=headers,
+        )
+        assert response.status_code == 404
+
+    def test_query_api_returns_files(self, test_client, auth_headers, workspace_and_notebook):
+        """Test query API returns files from a workspace."""
+        headers = auth_headers[0]
+        workspace, notebook = workspace_and_notebook
+
+        # Create some files first
+        for i in range(3):
+            test_client.post(
+                f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/files/",
+                json={"path": f"query_test_{i}.md", "content": f"# Query Test {i}"},
+                headers=headers,
+            )
+
+        response = test_client.post(
+            f"/api/v1/query/?workspace_id={workspace['id']}",
+            json={"limit": 10},
+            headers=headers,
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert "files" in data
+        assert "total" in data
+        assert data["total"] >= 3
+
+    def test_query_api_with_content_type_filter(self, test_client, auth_headers, workspace_and_notebook):
+        """Test query API with content_type filter."""
+        headers = auth_headers[0]
+        workspace, notebook = workspace_and_notebook
+
+        # Create files
+        test_client.post(
+            f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/files/",
+            json={"path": "ct_test.md", "content": "# Markdown"},
+            headers=headers,
+        )
+
+        response = test_client.post(
+            f"/api/v1/query/?workspace_id={workspace['id']}",
+            json={"content_types": ["text/markdown"], "limit": 10},
+            headers=headers,
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert all(f["content_type"] == "text/markdown" for f in data["files"])
+
+    def test_query_api_pagination(self, test_client, auth_headers, workspace_and_notebook):
+        """Test query API pagination with limit and offset."""
+        headers = auth_headers[0]
+        workspace, notebook = workspace_and_notebook
+
+        # Create 5 files
+        for i in range(5):
+            test_client.post(
+                f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/files/",
+                json={"path": f"pag_test_{i}.md", "content": f"Content {i}"},
+                headers=headers,
+            )
+
+        # Get first page
+        resp1 = test_client.post(
+            f"/api/v1/query/?workspace_id={workspace['id']}",
+            json={"limit": 2, "offset": 0},
+            headers=headers,
+        )
+        assert resp1.status_code == 200
+        data1 = resp1.json()
+        assert len(data1["files"]) == 2
+        assert data1["total"] >= 5
+
+        # Get second page
+        resp2 = test_client.post(
+            f"/api/v1/query/?workspace_id={workspace['id']}",
+            json={"limit": 2, "offset": 2},
+            headers=headers,
+        )
+        assert resp2.status_code == 200
+        data2 = resp2.json()
+        assert len(data2["files"]) == 2
+        # Verify different files
+        ids1 = {f["id"] for f in data1["files"]}
+        ids2 = {f["id"] for f in data2["files"]}
+        assert ids1.isdisjoint(ids2)
+
     def test_query_model_validation(self):
         """Test ViewQuery model validation."""
         from codex.api.routes.query import ViewQuery

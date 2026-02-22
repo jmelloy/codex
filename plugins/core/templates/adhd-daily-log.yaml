@@ -1,0 +1,137 @@
+id: adhd-daily-log
+name: ADHD Daily Log
+description: Structured daily log with dashboard, schedule, tasks, and journal sections designed for ADHD
+icon: "\U0001F9E0"
+file_extension: .md
+default_name: "{yyyy}/{mm} {month}/{yyyy}-{mm}-{dd}-adhd-log.md"
+content: |
+  ---
+  title: "ADHD Daily Log - {Month} {dd}, {yyyy}"
+  date: "{yyyy}-{mm}-{dd}"
+  type: adhd-log
+  tags:
+    - adhd
+    - daily-log
+    - journal
+  energy: null
+  focus: null
+  mood: null
+  medication_taken: false
+  sleep_hours: null
+  ---
+
+  # {Day}, {Month} {dd}
+
+  ---
+
+  ## Dashboard
+
+  | Metric        | Value |
+  |---------------|-------|
+  | Sleep          |  hrs |
+  | Medication     | &#x2610; taken |
+  | Energy         | /5    |
+  | Focus          | /5    |
+  | Mood           | /5    |
+
+  ### Today's Schedule
+
+  | Time  | Event                |
+  |-------|----------------------|
+  | 07:00 |                      |
+  | 08:00 |                      |
+  | 09:00 |                      |
+  | 10:00 |                      |
+  | 11:00 |                      |
+  | 12:00 |                      |
+  | 13:00 |                      |
+  | 14:00 |                      |
+  | 15:00 |                      |
+  | 16:00 |                      |
+  | 17:00 |                      |
+  | 18:00 |                      |
+
+  ### Top 3 Priorities
+
+  - [ ] **1.**
+  - [ ] **2.**
+  - [ ] **3.**
+
+  ---
+
+  ## Tasks
+
+  ### Must Do (Non-negotiable)
+
+  - [ ]
+  - [ ]
+  - [ ]
+
+  ### Should Do (Important)
+
+  - [ ]
+  - [ ]
+
+  ### Could Do (If Energy Permits)
+
+  - [ ]
+  - [ ]
+
+  ### Waiting On
+
+  - [ ]
+
+  ---
+
+  ## Journal
+
+  ### Brain Dump
+
+  > Get everything out of your head. No filtering, no organizing, just write.
+
+
+
+  ### Focus Log
+
+  **What am I working on right now?**
+
+
+  **What keeps pulling my attention away?**
+
+
+  **What helped me refocus?**
+
+
+  ### Wins
+
+  > Even small ones count. Did you start something? That's a win.
+
+  1.
+  2.
+  3.
+
+  ### Challenges
+
+  > No judgment. What got in the way today?
+
+  -
+  -
+
+  ### Notes & Ideas
+
+  > Stray thoughts, things to look up later, random sparks.
+
+  -
+
+  ---
+
+  ## End of Day
+
+  **One thing I'm proud of today:**
+
+
+  **One thing to do differently tomorrow:**
+
+
+  **Tomorrow's single most important task:**
+

@@ -1,0 +1,80 @@
+id: adhd-dashboard
+name: ADHD Dashboard
+description: Overview dashboard for ADHD daily logs with tasks, recent entries, and activity
+icon: "\U0001F4CA"
+file_extension: .cdx
+default_name: adhd-dashboard.cdx
+content: |
+  ---
+  type: view
+  view_type: dashboard
+  title: ADHD Dashboard
+  description: Central dashboard for ADHD daily logs, tasks, and tracking
+  layout:
+    - type: row
+      components:
+        - type: mini-view
+          span: 8
+          view:
+            type: view
+            view_type: task-list
+            title: Open Tasks
+            description: Incomplete tasks from ADHD daily logs
+            query:
+              tags:
+                - adhd
+              file_types:
+                - adhd-log
+              properties:
+                has_open_tasks: true
+              sort: updated_at desc
+              limit: 15
+            config:
+              compact: true
+              show_details: true
+              editable: true
+        - type: mini-view
+          span: 4
+          view:
+            type: view
+            view_type: rollup
+            title: This Week
+            description: ADHD logs from this week
+            query:
+              tags:
+                - adhd
+              created_after: "{{ startOfWeek }}"
+              sort: created_at desc
+            config:
+              group_by: created_at
+              group_format: day
+              show_stats: true
+    - type: row
+      components:
+        - type: mini-view
+          span: 12
+          view:
+            type: view
+            view_type: task-list
+            title: Recent ADHD Logs
+            description: Latest daily log entries
+            query:
+              tags:
+                - adhd
+                - daily-log
+              sort: created_at desc
+              limit: 7
+            config:
+              compact: false
+              show_details: true
+  ---
+
+  # ADHD Dashboard
+
+  Your central command center for tracking focus, tasks, and daily patterns.
+
+  ## Sections
+
+  - **Open Tasks** (left): Incomplete items pulled from your daily logs
+  - **This Week** (right): Summary of this week's logs and activity
+  - **Recent Logs** (bottom): Your last 7 daily log entries for quick reference

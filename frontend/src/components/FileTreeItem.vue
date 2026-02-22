@@ -18,7 +18,7 @@
         isFolderExpanded ? "▼" : "▶"
       }}</span>
       <span class="mr-2 text-sm">📁</span>
-      <span class="overflow-hidden text-ellipsis whitespace-nowrap">{{ node.name }}</span>
+      <span class="overflow-hidden text-ellipsis whitespace-nowrap">{{ node.folderMeta?.title || node.name }}</span>
     </div>
 
     <!-- Folder contents -->

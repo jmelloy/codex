@@ -17,6 +17,9 @@ export interface FileTreeNode {
   }
 }
 
+/** Hidden metadata filenames that should not appear in the tree */
+const HIDDEN_FILENAMES = new Set([".metadata"])
+
 /**
  * Build a hierarchical tree structure from a flat list of files
  */
@@ -26,8 +29,10 @@ export function buildFileTree(files: FileMetadata[]): FileTreeNode[] {
   // Create a map to track folders we've already created
   const folderMap = new Map<string, FileTreeNode>()
 
-  // Sort files by path
-  const sortedFiles = [...files].sort((a, b) => a.path.localeCompare(b.path))
+  // Sort files by path, filtering out hidden metadata files
+  const sortedFiles = [...files]
+    .filter((f) => !HIDDEN_FILENAMES.has(f.filename))
+    .sort((a, b) => a.path.localeCompare(b.path))
 
   for (const file of sortedFiles) {
     const pathParts = file.path.split("/").filter((part) => part !== "")
@@ -142,6 +147,9 @@ export function findParentNode(tree: FileTreeNode[], path: string): FileTreeNode
  * Insert a file node into the tree at the correct position
  */
 export function insertFileNode(tree: FileTreeNode[], file: FileMetadata): void {
+  // Skip hidden metadata files
+  if (HIDDEN_FILENAMES.has(file.filename)) return
+
   const pathParts = file.path.split("/").filter((p) => p !== "")
   if (pathParts.length === 0) return
 
@@ -339,8 +347,10 @@ export function mergeFolderContents(
     }
   }
 
-  // Add files
+  // Add files (filtering out hidden metadata files)
   for (const file of folderData.files) {
+    if (HIDDEN_FILENAMES.has(file.filename)) continue
+
     const existingFile = targetChildren.find((n) => n.path === file.path && n.type === "file")
     if (existingFile) {
       existingFile.file = file

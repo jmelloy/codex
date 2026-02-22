@@ -538,20 +538,30 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     folderLoading.value = true
     error.value = null
     try {
+      const oldPath = currentFolder.value.path
       const updated = await folderService.updateProperties(
         currentFolder.value.path,
         currentFolder.value.notebook_id,
         currentWorkspace.value.id,
         properties,
       )
-      // Update currentFolder with new properties
+
+      // Check if the folder was renamed (path changed)
+      const pathChanged = updated.path !== oldPath
+
+      // Update currentFolder with new properties and potentially new path
       currentFolder.value = { ...currentFolder.value, ...updated }
 
       // Update the folder node in the tree (incremental update)
       const tree = fileTrees.value.get(currentFolder.value.notebook_id)
       if (tree) {
+        if (pathChanged) {
+          // Folder was renamed on disk - move the node in the tree
+          moveNode(tree, oldPath, updated.path)
+        }
         const folderNode = findNode(tree, currentFolder.value.path)
         if (folderNode && folderNode.type === "folder") {
+          folderNode.name = updated.name || currentFolder.value.path.split("/").pop() || ""
           folderNode.folderMeta = {
             ...folderNode.folderMeta,
             title: updated.title,
@@ -560,6 +570,8 @@ export const useWorkspaceStore = defineStore("workspace", () => {
           }
         }
       }
+
+      return { pathChanged, oldPath, newPath: updated.path }
     } catch (e: any) {
       error.value = e.response?.data?.detail || "Failed to save folder properties"
       throw e

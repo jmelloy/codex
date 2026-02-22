@@ -198,16 +198,26 @@ def test_update_folder_properties(test_client, auth_headers, workspace_and_noteb
     assert data["title"] == "My Documentation"
     assert data["description"] == "This folder contains documentation"
     assert data["properties"]["custom_field"] == "custom_value"
+    # Folder should have been renamed on disk to match the title
+    assert data["path"] == "My Documentation"
+    assert data["name"] == "My Documentation"
 
-    # Verify properties persist
+    # Verify properties persist at the new path
     get_response = test_client.get(
-        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/folders/props_folder",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/folders/My%20Documentation",
         headers=headers,
     )
     assert get_response.status_code == 200
     get_data = get_response.json()
     assert get_data["title"] == "My Documentation"
     assert get_data["properties"]["custom_field"] == "custom_value"
+
+    # Old path should no longer exist
+    old_response = test_client.get(
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/folders/props_folder",
+        headers=headers,
+    )
+    assert old_response.status_code == 404
 
 
 def test_delete_folder(test_client, auth_headers, workspace_and_notebook):

@@ -328,7 +328,7 @@
                         }}</span>
                         <span class="mr-2 text-sm">📁</span>
                         <span class="overflow-hidden text-ellipsis whitespace-nowrap">{{
-                          node.name
+                          node.folderMeta?.title || node.name
                         }}</span>
                       </div>
 
@@ -1628,7 +1628,37 @@ async function handleRenameFile(newFilename: string) {
 async function handleUpdateFolderProperties(properties: Record<string, any>) {
   if (workspaceStore.currentFolder) {
     try {
-      await workspaceStore.saveFolderProperties(properties)
+      const notebookId = workspaceStore.currentFolder.notebook_id
+      const result = await workspaceStore.saveFolderProperties(properties)
+
+      // If the folder was renamed (path changed), update expanded folders and URL
+      if (result?.pathChanged && result.oldPath && result.newPath) {
+        // Update expanded folders set
+        const folders = expandedFolders.value.get(notebookId)
+        if (folders) {
+          // Update any expanded folder paths that start with the old path
+          const toRemove: string[] = []
+          const toAdd: string[] = []
+          for (const p of folders) {
+            if (p === result.oldPath) {
+              toRemove.push(p)
+              toAdd.push(result.newPath)
+            } else if (p.startsWith(result.oldPath + "/")) {
+              toRemove.push(p)
+              toAdd.push(result.newPath + p.substring(result.oldPath.length))
+            }
+          }
+          toRemove.forEach((p) => folders.delete(p))
+          toAdd.forEach((p) => folders.add(p))
+        }
+
+        // Update the URL to the new path
+        const newUrl = buildFolderUrl(result.newPath, notebookId)
+        if (newUrl !== "/" && route.path !== newUrl) {
+          router.replace(newUrl)
+        }
+      }
+
       showToast({ message: "Folder properties updated" })
     } catch {
       // Error handled in store

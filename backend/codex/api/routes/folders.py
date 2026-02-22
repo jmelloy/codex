@@ -208,6 +208,19 @@ def get_subfolders(folder_path: str, notebook_path: Path) -> list[dict]:
     return subfolders
 
 
+def _sanitize_folder_name(name: str) -> str:
+    """Sanitize a title for use as a folder name on disk.
+
+    Strips leading/trailing whitespace and dots, removes characters
+    that are not safe in directory names.
+    """
+    # Remove characters not allowed in most filesystems
+    safe = name.replace("/", "-").replace("\\", "-").replace("\0", "")
+    # Strip leading/trailing whitespace and dots (hidden dirs)
+    safe = safe.strip().strip(".")
+    return safe
+
+
 # New nested router for workspace/notebook-based folder routes
 nested_router = APIRouter()
 
@@ -362,21 +375,85 @@ async def update_folder_properties(
             git_manager = GitManager(str(notebook_path))
             git_manager.commit(f"Update folder properties: {folder_path}", [str(metadata_file)])
 
+        # If the title changed, rename the folder on disk to match
+        new_title = request.properties.get("title")
+        current_name = os.path.basename(folder_path) if folder_path else ""
+        actual_folder_path = folder_path  # May be updated if rename happens
+
+        if new_title and new_title != current_name and folder_path:
+            # Sanitize the new name for filesystem use
+            safe_name = _sanitize_folder_name(new_title)
+            if safe_name and safe_name != current_name:
+                # Compute the new folder path
+                parent_dir = os.path.dirname(folder_path)
+                new_folder_path = f"{parent_dir}/{safe_name}" if parent_dir else safe_name
+                new_full_folder_path = notebook_path / new_folder_path
+
+                # Check that the target doesn't already exist
+                if not new_full_folder_path.exists():
+                    # Rename the directory on disk
+                    full_folder_path.rename(new_full_folder_path)
+
+                    # Update all file paths in the notebook database
+                    nb_session_rename = get_notebook_session(str(notebook_path))
+                    try:
+                        old_prefix = f"{folder_path}/"
+                        new_prefix = f"{new_folder_path}/"
+                        files_result = nb_session_rename.execute(
+                            select(FileMetadata).where(
+                                FileMetadata.notebook_id == notebook.id,
+                                FileMetadata.path.startswith(old_prefix),
+                            )
+                        )
+                        for f in files_result.scalars().all():
+                            f.path = new_prefix + f.path[len(old_prefix) :]
+                        # Also update any file whose path is exactly the .metadata in the old folder
+                        meta_files = nb_session_rename.execute(
+                            select(FileMetadata).where(
+                                FileMetadata.notebook_id == notebook.id,
+                                FileMetadata.path == f"{folder_path}/{FOLDER_METADATA_FILE}",
+                            )
+                        )
+                        for f in meta_files.scalars().all():
+                            f.path = f"{new_folder_path}/{FOLDER_METADATA_FILE}"
+                        nb_session_rename.commit()
+                    finally:
+                        nb_session_rename.close()
+
+                    # Git commit the rename
+                    if watcher:
+                        watcher.enqueue_operation(
+                            filepath=str(new_full_folder_path / FOLDER_METADATA_FILE),
+                            sidecar_path=None,
+                            operation="modified",
+                            comment=f"Rename folder: {folder_path} -> {new_folder_path}",
+                            wait=False,
+                        )
+                    else:
+                        from codex.core.git_manager import GitManager
+
+                        git_manager = GitManager(str(notebook_path))
+                        git_manager.commit(f"Rename folder: {folder_path} -> {new_folder_path}", [])
+
+                    actual_folder_path = new_folder_path
+                    full_folder_path = new_full_folder_path
+                    logger.info(f"Renamed folder: {folder_path} -> {new_folder_path}")
+
         # Get folder stats
         folder_stats = full_folder_path.stat()
-        folder_name = os.path.basename(folder_path) if folder_path else ""
+        folder_name = os.path.basename(actual_folder_path) if actual_folder_path else ""
 
         # Count files
         nb_session = get_notebook_session(str(notebook_path))
         try:
             files, file_count = get_folder_files(
-                folder_path, notebook.id, notebook_path, nb_session, skip=0, limit=DEFAULT_FOLDER_PAGINATION_LIMIT
+                actual_folder_path, notebook.id, notebook_path, nb_session, skip=0, limit=DEFAULT_FOLDER_PAGINATION_LIMIT
             )
         finally:
             nb_session.close()
 
         result = {
-            "path": folder_path,
+            "path": actual_folder_path,
             "name": folder_name,
             "notebook_id": notebook.id,
             "notebook_slug": notebook.slug,

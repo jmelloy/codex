@@ -250,7 +250,10 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   async function saveFile(content: string, properties?: Record<string, any>, keepEditing: boolean = false) {
     if (!currentWorkspace.value || !currentFile.value) return
 
-    fileLoading.value = true
+    // Don't set fileLoading during autosave (keepEditing) — it unmounts the editor and resets the cursor
+    if (!keepEditing) {
+      fileLoading.value = true
+    }
     error.value = null
     try {
       if (!currentFile.value.notebook_id) {
@@ -278,7 +281,9 @@ export const useWorkspaceStore = defineStore("workspace", () => {
       error.value = e.response?.data?.detail || "Failed to save file"
       throw e
     } finally {
-      fileLoading.value = false
+      if (!keepEditing) {
+        fileLoading.value = false
+      }
     }
   }
 

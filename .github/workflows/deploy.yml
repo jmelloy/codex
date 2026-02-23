@@ -14,7 +14,6 @@ on:
         default: production
         type: choice
         options:
-          - staging
           - production
       skip_tests:
         description: "Skip test jobs (deploy only)"

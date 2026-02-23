@@ -35,6 +35,7 @@ from codex.core.websocket import connection_manager
 from codex.db.database import get_system_session_sync, init_notebook_db, init_system_db
 from codex.db.models import Notebook, Workspace
 from codex.plugins.loader import PluginLoader
+from codex.plugins.service_client import PluginServiceClient
 
 request_id_var: ContextVar[str] = ContextVar("request_id", default="")
 
@@ -63,6 +64,33 @@ async def lifespan(app: FastAPI):
         logger.info(f"Loaded plugins from {plugins_dir}")
     except Exception as e:
         logger.error(f"Error loading plugins: {e}", exc_info=True)
+
+    # Initialize plugin service client (if configured)
+    plugin_service_url = os.getenv("PLUGIN_SERVICE_URL")
+    if plugin_service_url:
+        try:
+            client = PluginServiceClient(
+                service_url=plugin_service_url,
+                plugins_dir=plugins_dir,
+            )
+            app.state.plugin_service_client = client
+            logger.info(f"Plugin service client configured: {plugin_service_url}")
+
+            # Optionally auto-sync on startup
+            if os.getenv("PLUGIN_AUTO_SYNC", "false").lower() == "true":
+                logger.info("Auto-syncing plugins from service...")
+                result = await client.sync_plugins()
+                logger.info(
+                    f"Plugin sync: {len(result['installed'])} installed, "
+                    f"{len(result['updated'])} updated, "
+                    f"{len(result['skipped'])} up-to-date, "
+                    f"{len(result['failed'])} failed"
+                )
+                # Reload plugins after sync
+                if result["installed"] or result["updated"]:
+                    loader.load_all_plugins()
+        except Exception as e:
+            logger.error(f"Error configuring plugin service client: {e}", exc_info=True)
 
     try:
         # Run blocking file I/O in thread pool

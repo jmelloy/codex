@@ -1,0 +1,10 @@
+creation_rules:
+  # Encrypted environment files
+  - path_regex: \.enc\..*\.ya?ml$
+    age: age1k58frs2xulq70rvttn50rkegf9udexdz4ejfmj772ltqqelm03ssendps6
+    unencrypted_suffix: _unencrypted
+
+  # Kubernetes secret manifests
+  - path_regex: k8s/.*secrets?\.ya?ml$
+    age: age1k58frs2xulq70rvttn50rkegf9udexdz4ejfmj772ltqqelm03ssendps6
+    encrypted_regex: ^(data|stringData)$

@@ -14,6 +14,9 @@ images:
   - name: ghcr.io/OWNER/codex-frontend
     newName: ghcr.io/OWNER/codex-frontend
     newTag: latest
+  - name: ghcr.io/OWNER/codex-plugin-service
+    newName: ghcr.io/OWNER/codex-plugin-service
+    newTag: latest
 
 patches:
   # Ingress: set staging hostname
@@ -60,6 +63,18 @@ patches:
       - op: replace
         path: /spec/template/spec/containers/0/resources/limits/memory
         value: 256Mi
+
+  # Plugin service: lower resources for staging
+  - target:
+      kind: Deployment
+      name: plugin-service
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: 32Mi
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: 128Mi
 
   # PVC: smaller volume for staging
   - target:

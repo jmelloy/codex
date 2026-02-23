@@ -56,8 +56,8 @@ services:
 
   plugin-service:
     build:
-      context: ./plugin-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: plugin-service/Dockerfile
     ports:
       - 8090:8090
     environment:

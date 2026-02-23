@@ -61,16 +61,7 @@ patches:
         path: /spec/template/spec/containers/0/resources/limits/memory
         value: 256Mi
 
-  # PVC: production volume size for codex-data (20Gi)
-  - target:
-      kind: PersistentVolumeClaim
-      name: codex-data
-    patch: |
-      - op: replace
-        path: /spec/resources/requests/storage
-        value: 20Gi
-
-  # PostgreSQL: production resources and postgres-data volume size (10Gi)
+  # PostgreSQL: production resources (storage sized in base: 2Gi postgres + 8Gi data = 10Gi total)
   - target:
       kind: StatefulSet
       name: postgres
@@ -84,6 +75,3 @@ patches:
       - op: replace
         path: /spec/template/spec/containers/0/resources/limits/cpu
         value: "1"
-      - op: replace
-        path: /spec/volumeClaimTemplates/0/spec/resources/requests/storage
-        value: 10Gi

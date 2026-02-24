@@ -61,17 +61,3 @@ patches:
         path: /spec/template/spec/containers/0/resources/limits/memory
         value: 256Mi
 
-  # PostgreSQL: production resources (storage sized in base: 2Gi postgres + 8Gi data = 10Gi total)
-  - target:
-      kind: StatefulSet
-      name: postgres
-    patch: |
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/requests/memory
-        value: 512Mi
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/limits/memory
-        value: 1Gi
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/limits/cpu
-        value: "1"

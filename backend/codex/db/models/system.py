@@ -19,7 +19,7 @@ from sqlmodel import JSON, Column, Field, Relationship, SQLModel
 
 from .base import utc_now
 
-# All datetime columns must use timezone=True so PostgreSQL uses TIMESTAMPTZ
+# Use timezone-aware datetime columns for consistent UTC timestamp handling.
 TZDateTime = DateTime(timezone=True)
 
 

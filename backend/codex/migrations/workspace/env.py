@@ -31,9 +31,12 @@ target_metadata = SQLModel.metadata
 
 # Get database URL from environment or use default
 # Must match the default in backend/db/database.py
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./codex_system.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./data/codex_system.db")
 
 _is_sqlite = DATABASE_URL.startswith("sqlite")
+
+if not _is_sqlite:
+    raise RuntimeError("Codex workspace migrations require a SQLite DATABASE_URL (sqlite:///...)")
 
 
 def get_url():
@@ -84,7 +87,7 @@ def run_migrations_online() -> None:
     """
     url = get_url()
 
-    connect_args = {"check_same_thread": False} if _is_sqlite else {}
+    connect_args = {"check_same_thread": False}
 
     connectable = create_engine(
         url,

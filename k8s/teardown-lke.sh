@@ -46,7 +46,7 @@ echo ""
 if [[ "${SKIP_CONFIRM}" != true ]]; then
   echo "This will DELETE:"
   echo "  - All Codex workloads, services, and ingress"
-  echo "  - PersistentVolumeClaims and their data (codex-data, postgres-data)"
+  echo "  - PersistentVolumeClaims and their data (codex-data)"
   echo "  - The codex namespace and all resources within it"
   if [[ "${KEEP_INFRA}" != true ]]; then
     echo "  - cert-manager (namespace + CRDs)"
@@ -69,11 +69,6 @@ echo ""
 # ── 2. Delete Codex application resources ─────────────────────────────────────
 echo "==> Deleting Codex application (overlay: ${OVERLAY})..."
 kubectl delete -k "${OVERLAY_DIR}" --ignore-not-found --wait=true 2>/dev/null || true
-echo ""
-
-# StatefulSet PVCs are not removed by kustomize delete — clean them up explicitly
-echo "==> Deleting StatefulSet PVCs..."
-kubectl -n codex delete pvc --selector=app.kubernetes.io/name=postgres --ignore-not-found 2>/dev/null || true
 echo ""
 
 # ── 3. Delete the codex namespace (catches anything left behind) ──────────────

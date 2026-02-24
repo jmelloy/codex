@@ -76,7 +76,7 @@ docker compose -f docker-compose.prod.yml up -d
 
 ```bash
 # Initial cluster setup (installs ingress-nginx, cert-manager, creates secrets)
-./scripts/setup-lke.sh --domain codex.example.com --email admin@example.com
+./scripts/setup-lke.sh --domain codex.melloy.life --email admin@melloy.life
 
 # Deploy with Kustomize
 kubectl apply -k k8s/overlays/staging      # staging

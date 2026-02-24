@@ -7,12 +7,12 @@
 #   - helm v3 installed
 #
 # Usage:
-#   ./scripts/setup-lke.sh [--domain codex.example.com] [--email admin@example.com]
+#   ./scripts/setup-lke.sh [--domain codex.melloy.life] [--email admin@melloy.life]
 #
 set -euo pipefail
 
-DOMAIN="${DOMAIN:-codex.example.com}"
-EMAIL="${EMAIL:-admin@example.com}"
+DOMAIN="${DOMAIN:-codex.melloy.life}"
+EMAIL="${EMAIL:-admin@melloy.life}"
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do

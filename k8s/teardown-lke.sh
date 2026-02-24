@@ -12,7 +12,7 @@
 #   - helm v3 installed
 #
 # Usage:
-#   ./scripts/teardown-lke.sh [--overlay staging|production] [--keep-infra] [--yes]
+#   ./scripts/teardown-lke.sh [--keep-infra] [--yes]
 #
 set -euo pipefail
 

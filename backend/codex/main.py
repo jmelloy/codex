@@ -64,6 +64,15 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Error loading plugins: {e}", exc_info=True)
 
+    # Enable S3 versioning if S3 storage is configured
+    try:
+        from codex.core.s3_storage import ensure_versioning, is_s3_configured
+
+        if is_s3_configured():
+            await asyncio.to_thread(ensure_versioning)
+    except Exception as e:
+        logger.warning(f"Could not enable S3 versioning: {e}")
+
     try:
         # Run blocking file I/O in thread pool
         await asyncio.to_thread(_start_notebook_watchers_sync)

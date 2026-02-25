@@ -60,6 +60,11 @@ class FileMetadata(SQLModel, table=True):
     file_created_at: datetime | None = Field(default=None, sa_type=TZDateTime)
     file_modified_at: datetime | None = Field(default=None, sa_type=TZDateTime)
 
+    # S3 storage (for binary files offloaded to S3)
+    s3_bucket: str | None = None
+    s3_key: str | None = None
+    s3_version_id: str | None = None
+
     # Git tracking
     git_tracked: bool = Field(default=True)
     last_commit_hash: str | None = None

@@ -363,6 +363,7 @@ class FileOperationQueue:
     def _batch_git_commit(self, operations: list[FileOperation]):
         """Create a single git commit for all operations in the batch."""
         from codex.core.git_manager import GitManager
+        from codex.core.s3_storage import POINTER_EXT
 
         try:
             git_manager = GitManager(self.notebook_path)
@@ -380,12 +381,20 @@ class FileOperationQueue:
                         files_to_add.append(op.filepath)
                         if op.sidecar_path and os.path.exists(op.sidecar_path):
                             files_to_add.append(op.sidecar_path)
+                    # Also include S3 pointer file if it exists
+                    pointer_path = op.filepath + POINTER_EXT
+                    if os.path.exists(pointer_path):
+                        files_to_add.append(pointer_path)
                     commit_lines.append(f"Create {rel_path}")
                 elif op.operation in ("modified", "scanned"):
                     if os.path.exists(op.filepath):
                         files_to_add.append(op.filepath)
                         if op.sidecar_path and os.path.exists(op.sidecar_path):
                             files_to_add.append(op.sidecar_path)
+                    # Also include S3 pointer file if it exists
+                    pointer_path = op.filepath + POINTER_EXT
+                    if os.path.exists(pointer_path):
+                        files_to_add.append(pointer_path)
                     commit_lines.append(f"Update {rel_path}")
 
             if commit_lines:
@@ -416,6 +425,11 @@ IGNORE_PATTERNS = [".codex", ".git", "__pycache__", ".DS_Store", "node_modules"]
 
 def should_ignore_path(path: str) -> bool:
     """Check if path should be ignored."""
+    from codex.core.s3_storage import POINTER_EXT
+
+    # Ignore S3 pointer files — they are managed by the upload route
+    if path.endswith(POINTER_EXT):
+        return True
     return any(pattern in path for pattern in IGNORE_PATTERNS)
 
 
@@ -471,6 +485,37 @@ def update_file_metadata(
                 content_type = get_content_type(filepath)
                 metadata = MetadataParser.extract_all_metadata(filepath)
 
+                # Upload binary files to S3 when configured
+                s3_meta = None
+                if is_binary:
+                    from codex.core.s3_storage import is_s3_configured, upload_binary, build_s3_key, write_pointer_file
+
+                    if is_s3_configured():
+                        try:
+                            # Derive workspace/notebook slugs from path structure
+                            # notebook_path is e.g. /app/data/workspaces/<ws_slug>/<nb_slug>
+                            nb_path = Path(notebook_path)
+                            nb_slug = nb_path.name
+                            ws_slug = nb_path.parent.name
+
+                            with open(filepath, "rb") as bf:
+                                binary_content = bf.read()
+                            s3_key = build_s3_key(ws_slug, nb_slug, rel_path)
+                            s3_meta = upload_binary(binary_content, s3_key, content_type)
+                            # Write pointer file for git tracking
+                            write_pointer_file(
+                                filepath,
+                                bucket=s3_meta["bucket"],
+                                s3_key=s3_meta["key"],
+                                version_id=s3_meta["version_id"],
+                                size=len(binary_content),
+                                sha256=file_hash,
+                                content_type=content_type,
+                            )
+                        except Exception as s3_err:
+                            logger.warning(f"S3 upload failed for {filepath}, storing locally: {s3_err}")
+                            s3_meta = None
+
                 if file_meta:
                     # Update existing
                     file_meta.size = file_stats.st_size
@@ -479,6 +524,11 @@ def update_file_metadata(
                     file_meta.updated_at = datetime.now(UTC)
                     file_meta.file_modified_at = datetime.fromtimestamp(file_stats.st_mtime)
                     file_meta.properties = json.dumps(metadata)
+
+                    if s3_meta:
+                        file_meta.s3_bucket = s3_meta["bucket"]
+                        file_meta.s3_key = s3_meta["key"]
+                        file_meta.s3_version_id = s3_meta["version_id"]
 
                     if sidecar:
                         file_meta.sidecar_path = os.path.relpath(sidecar, notebook_path)
@@ -512,6 +562,11 @@ def update_file_metadata(
                         file_created_at=datetime.fromtimestamp(file_stats.st_ctime),
                         file_modified_at=datetime.fromtimestamp(file_stats.st_mtime),
                     )
+                    if s3_meta:
+                        file_meta.s3_bucket = s3_meta["bucket"]
+                        file_meta.s3_key = s3_meta["key"]
+                        file_meta.s3_version_id = s3_meta["version_id"]
+
                     if "title" in metadata:
                         file_meta.title = metadata["title"]
                     if "description" in metadata:

@@ -285,8 +285,7 @@ async def list_files_nested(
                 except json.JSONDecodeError:
                     properties = None
 
-            file_list.append(
-                {
+            entry = {
                     "id": f.id,
                     "notebook_id": f.notebook_id,
                     "path": f.path,
@@ -302,7 +301,10 @@ async def list_files_nested(
                     "updated_at": f.updated_at.isoformat() if f.updated_at else None,
                     "file_modified_at": f.file_modified_at.isoformat() if f.file_modified_at else None,
                 }
-            )
+            if f.s3_key:
+                entry["s3_key"] = f.s3_key
+                entry["s3_version_id"] = f.s3_version_id
+            file_list.append(entry)
 
         return {
             "files": file_list,
@@ -508,6 +510,15 @@ async def get_file_content_by_path_nested(
             logger.error(f"Path validation error: {e}")
             raise HTTPException(status_code=400, detail="Invalid file path")
 
+        # Serve from S3 if the file is stored there
+        if file_meta.s3_key and file_meta.s3_bucket:
+            from codex.core.s3_storage import generate_presigned_url, is_s3_configured
+            from fastapi.responses import RedirectResponse
+
+            if is_s3_configured():
+                url = generate_presigned_url(file_meta.s3_key, file_meta.s3_version_id, file_meta.s3_bucket)
+                return RedirectResponse(url=url)
+
         if not file_path.exists():
             raise HTTPException(status_code=404, detail="File not found on disk")
 
@@ -553,7 +564,7 @@ async def get_file_by_path_nested(
             except json.JSONDecodeError:
                 properties = None
 
-        return {
+        result = {
             "id": file_meta.id,
             "notebook_id": file_meta.notebook_id,
             "path": file_meta.path,
@@ -569,6 +580,10 @@ async def get_file_by_path_nested(
             "updated_at": file_meta.updated_at.isoformat() if file_meta.updated_at else None,
             "file_modified_at": file_meta.file_modified_at.isoformat() if file_meta.file_modified_at else None,
         }
+        if file_meta.s3_key:
+            result["s3_key"] = file_meta.s3_key
+            result["s3_version_id"] = file_meta.s3_version_id
+        return result
     finally:
         nb_session.close()
 
@@ -604,7 +619,7 @@ async def get_file_nested(
             except json.JSONDecodeError:
                 properties = None
 
-        return {
+        result = {
             "id": file_meta.id,
             "notebook_id": file_meta.notebook_id,
             "path": file_meta.path,
@@ -620,6 +635,10 @@ async def get_file_nested(
             "updated_at": file_meta.updated_at.isoformat() if file_meta.updated_at else None,
             "file_modified_at": file_meta.file_modified_at.isoformat() if file_meta.file_modified_at else None,
         }
+        if file_meta.s3_key:
+            result["s3_key"] = file_meta.s3_key
+            result["s3_version_id"] = file_meta.s3_version_id
+        return result
     finally:
         nb_session.close()
 
@@ -664,6 +683,15 @@ async def get_file_content_nested(
         except (OSError, ValueError) as e:
             logger.error(f"Path validation error: {e}")
             raise HTTPException(status_code=400, detail="Invalid file path")
+
+        # Serve from S3 if the file is stored there
+        if file_meta.s3_key and file_meta.s3_bucket:
+            from codex.core.s3_storage import generate_presigned_url, is_s3_configured
+            from fastapi.responses import RedirectResponse
+
+            if is_s3_configured():
+                url = generate_presigned_url(file_meta.s3_key, file_meta.s3_version_id, file_meta.s3_bucket)
+                return RedirectResponse(url=url)
 
         if not file_path.exists():
             raise HTTPException(status_code=404, detail="File not found on disk")
@@ -994,6 +1022,53 @@ async def delete_file_nested(
     except Exception as e:
         logger.error(f"Error deleting file: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error deleting file: {str(e)}")
+    finally:
+        nb_session.close()
+
+
+@nested_router.get("/{file_id}/versions")
+async def get_file_versions_nested(
+    workspace_identifier: str,
+    notebook_identifier: str,
+    file_id: int,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """List S3 versions for a binary file.
+
+    Returns version history from S3 bucket versioning.  Only applicable
+    to files stored in S3 (``s3_key`` is set).
+    """
+    from codex.core.s3_storage import is_s3_configured, list_versions
+
+    notebook_path, notebook, workspace = await get_notebook_path_nested(
+        workspace_identifier, notebook_identifier, current_user, session
+    )
+
+    nb_session = get_notebook_session(str(notebook_path))
+    try:
+        result = nb_session.execute(
+            select(FileMetadata).where(FileMetadata.id == file_id, FileMetadata.notebook_id == notebook.id)
+        )
+        file_meta = result.scalar_one_or_none()
+
+        if not file_meta:
+            raise HTTPException(status_code=404, detail="File not found")
+
+        if not file_meta.s3_key:
+            return {"versions": [], "message": "File is not stored in S3"}
+
+        if not is_s3_configured():
+            raise HTTPException(status_code=503, detail="S3 storage is not configured")
+
+        versions = list_versions(file_meta.s3_key, file_meta.s3_bucket)
+        return {
+            "file_id": file_meta.id,
+            "path": file_meta.path,
+            "s3_key": file_meta.s3_key,
+            "current_version_id": file_meta.s3_version_id,
+            "versions": versions,
+        }
     finally:
         nb_session.close()
 
@@ -1341,7 +1416,19 @@ async def upload_file_nested(
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_system_session),
 ):
-    """Upload a binary file (nested under workspace/notebook route)."""
+    """Upload a file (nested under workspace/notebook route).
+
+    Binary files are automatically offloaded to S3 when ``CODEX_S3_BUCKET``
+    is configured.  A lightweight ``.s3ref`` pointer file is committed to
+    git so that every version of the binary is tracked.
+    """
+    from codex.core.s3_storage import (
+        build_s3_key,
+        is_s3_configured,
+        upload_binary,
+        write_pointer_file,
+    )
+
     notebook_path, notebook, workspace = await get_notebook_path_nested(
         workspace_identifier, notebook_identifier, current_user, session
     )
@@ -1370,6 +1457,15 @@ async def upload_file_nested(
         content = await file.read()
         file_hash = hashlib.sha256(content).hexdigest()
 
+        # Detect whether this is a binary file
+        is_binary = b"\0" in content[:8192]
+
+        # S3 upload for binary files when configured
+        s3_meta = None
+        if is_binary and is_s3_configured():
+            s3_key = build_s3_key(workspace.slug, notebook.slug, target_path)
+            s3_meta = upload_binary(content, s3_key, content_type)
+
         # Create metadata record
         file_meta = FileMetadata(
             notebook_id=notebook.id,
@@ -1379,6 +1475,11 @@ async def upload_file_nested(
             size=len(content),
             hash=file_hash,
         )
+
+        if s3_meta:
+            file_meta.s3_bucket = s3_meta["bucket"]
+            file_meta.s3_key = s3_meta["key"]
+            file_meta.s3_version_id = s3_meta["version_id"]
 
         # Add and commit the metadata record
         nb_session.add(file_meta)
@@ -1396,6 +1497,13 @@ async def upload_file_nested(
                 file_meta = existing_result.scalar_one_or_none()
                 if not file_meta:
                     raise HTTPException(status_code=500, detail="Race condition: file metadata not found")
+                # Update existing record with S3 info
+                if s3_meta:
+                    file_meta.s3_bucket = s3_meta["bucket"]
+                    file_meta.s3_key = s3_meta["key"]
+                    file_meta.s3_version_id = s3_meta["version_id"]
+                    file_meta.hash = file_hash
+                    file_meta.size = len(content)
             else:
                 raise
 
@@ -1409,10 +1517,31 @@ async def upload_file_nested(
         file_meta.file_created_at = datetime.fromtimestamp(file_stats.st_ctime)
         file_meta.file_modified_at = datetime.fromtimestamp(file_stats.st_mtime)
 
-        # Commit file to git
-        from codex.core.git_manager import GitManager
+        # Commit to git
         git_manager = GitManager(str(notebook_path))
-        commit_hash = git_manager.commit(f"Upload {os.path.basename(target_path)}", [str(file_path)])
+
+        if s3_meta:
+            # Write an S3 pointer file and commit it (instead of the binary)
+            pointer_path = write_pointer_file(
+                str(file_path),
+                bucket=s3_meta["bucket"],
+                s3_key=s3_meta["key"],
+                version_id=s3_meta["version_id"],
+                size=len(content),
+                sha256=file_hash,
+                content_type=content_type,
+            )
+            commit_hash = git_manager.commit_s3_upload(
+                filepath=str(file_path),
+                pointer_path=pointer_path,
+                s3_bucket=s3_meta["bucket"],
+                s3_key=s3_meta["key"],
+                s3_version_id=s3_meta["version_id"],
+                file_size=len(content),
+            )
+        else:
+            commit_hash = git_manager.commit(f"Upload {os.path.basename(target_path)}", [str(file_path)])
+
         if commit_hash:
             file_meta.last_commit_hash = commit_hash
 
@@ -1428,6 +1557,10 @@ async def upload_file_nested(
             "size": file_meta.size,
             "message": "File uploaded successfully",
         }
+
+        if s3_meta:
+            result["s3_version_id"] = s3_meta["version_id"]
+            result["s3_key"] = s3_meta["key"]
 
         return result
     except HTTPException:

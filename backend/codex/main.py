@@ -116,6 +116,8 @@ async def lifespan(app: FastAPI):
     plugins_dir = Path(os.getenv("CODEX_PLUGINS_DIR", default_plugins_dir))
     logger.info(f"Loading plugins from directory: {plugins_dir}")
     loader = PluginLoader(plugins_dir)
+    loader.load_all_plugins()
+    logger.info(f"Loaded {len(loader.plugins)} plugins")
 
     # Store plugin loader and directory in app state for use by API routes
     app.state.plugin_loader = loader

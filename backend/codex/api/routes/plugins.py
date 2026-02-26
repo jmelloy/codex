@@ -4,13 +4,16 @@ This module implements the frontend-led plugin architecture where:
 - Frontend declares which plugins it has via registration endpoints
 - Backend stores plugin manifests in the database
 - Backend provides plugin state (enabled/disabled, config) at workspace/notebook level
+- Plugins can be downloaded and verified from the Codex Plugin Service
 """
 
 import logging
+import os
 import re
 from datetime import datetime, timezone
+from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -19,6 +22,7 @@ from typing import Any
 from codex.api.auth import get_current_user
 from codex.db.database import get_system_session
 from codex.db.models import Plugin, User
+from codex.plugins.service_client import PluginServiceClient, PluginVerificationError
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -387,3 +391,231 @@ async def unregister_plugin(
     await session.commit()
 
     return {"message": f"Plugin {plugin_id} unregistered"}
+
+
+# --- Plugin Service routes ---
+
+
+def _get_service_client(request: Request) -> PluginServiceClient | None:
+    """Get the plugin service client from app state, if configured."""
+    return getattr(request.app.state, "plugin_service_client", None)
+
+
+class RemotePluginResponse(BaseModel):
+    """Schema for a plugin available from the remote service."""
+
+    id: str
+    name: str
+    version: str
+    type: str
+    description: str
+    author: str
+    sha256: str
+    archive_size: int
+
+
+class SyncResultResponse(BaseModel):
+    """Schema for plugin sync results."""
+
+    installed: list[str]
+    updated: list[str]
+    skipped: list[str]
+    failed: list[dict[str, Any]]
+
+
+class InstallPluginRequest(BaseModel):
+    """Schema for installing a plugin from the service."""
+
+    plugin_id: str = Field(..., description="Plugin ID to install")
+    expected_sha256: str | None = Field(None, description="Expected SHA-256 checksum (optional, fetched from catalog if omitted)")
+
+
+class InstallPluginResponse(BaseModel):
+    """Schema for plugin install result."""
+
+    plugin_id: str
+    version: str
+    installed: bool
+    verified: bool
+    message: str
+
+
+@router.get("/service/catalog", response_model=list[RemotePluginResponse])
+async def list_remote_plugins(
+    plugin_type: str | None = None,
+    request: Request = None,
+    current_user: User = Depends(get_current_user),
+):
+    """List plugins available from the remote plugin service.
+
+    Returns available plugins along with their SHA-256 checksums for
+    integrity verification.
+    """
+    client = _get_service_client(request)
+    if not client:
+        raise HTTPException(status_code=503, detail="Plugin service not configured")
+
+    try:
+        remote_plugins = await client.fetch_catalog(plugin_type=plugin_type)
+    except Exception as e:
+        logger.error(f"Failed to fetch plugin catalog: {e}")
+        raise HTTPException(status_code=502, detail=f"Plugin service unavailable: {e}")
+
+    return [
+        RemotePluginResponse(
+            id=p.plugin_id,
+            name=p.name,
+            version=p.version,
+            type=p.plugin_type,
+            description=p.description,
+            author=p.author,
+            sha256=p.sha256,
+            archive_size=p.archive_size,
+        )
+        for p in remote_plugins
+    ]
+
+
+@router.post("/service/install", response_model=InstallPluginResponse)
+async def install_plugin_from_service(
+    install_request: InstallPluginRequest,
+    request: Request = None,
+    session: AsyncSession = Depends(get_system_session),
+    current_user: User = Depends(get_current_user),
+):
+    """Download, verify, and install a plugin from the remote plugin service.
+
+    The plugin archive is verified against its SHA-256 checksum before
+    extraction. After installation, the plugin is registered in the database
+    and loaded into the plugin loader.
+    """
+    client = _get_service_client(request)
+    if not client:
+        raise HTTPException(status_code=503, detail="Plugin service not configured")
+
+    try:
+        # Get plugin info first for the response
+        info = await client.get_plugin_info(install_request.plugin_id)
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=f"Plugin not found in service: {e}")
+
+    try:
+        # Download and verify
+        await client.install_plugin(
+            install_request.plugin_id,
+            install_request.expected_sha256 or info.sha256,
+        )
+    except PluginVerificationError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e:
+        logger.error(f"Failed to install plugin {install_request.plugin_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Installation failed: {e}")
+
+    # Register the plugin in the database
+    now = datetime.now(timezone.utc)
+    stmt = select(Plugin).where(Plugin.plugin_id == info.plugin_id)
+    result = await session.execute(stmt)
+    existing = result.scalar_one_or_none()
+
+    if existing:
+        existing.name = info.name
+        existing.version = info.version
+        existing.type = info.plugin_type
+        existing.manifest = info.manifest
+        existing.updated_at = now
+        session.add(existing)
+    else:
+        plugin = Plugin(
+            plugin_id=info.plugin_id,
+            name=info.name,
+            version=info.version,
+            type=info.plugin_type,
+            enabled=True,
+            manifest=info.manifest,
+            installed_at=now,
+            updated_at=now,
+        )
+        session.add(plugin)
+
+    await session.commit()
+
+    # Reload the plugin in the loader if available
+    loader = getattr(request.app.state, "plugin_loader", None)
+    if loader:
+        try:
+            plugin_dir = client.plugins_dir / info.plugin_id
+            loader.load_plugin(plugin_dir)
+        except Exception as e:
+            logger.warning(f"Plugin installed but failed to load: {e}")
+
+    return InstallPluginResponse(
+        plugin_id=info.plugin_id,
+        version=info.version,
+        installed=True,
+        verified=True,
+        message=f"Plugin {info.plugin_id} v{info.version} installed and verified (SHA-256: {info.sha256[:16]}...)",
+    )
+
+
+@router.post("/service/sync", response_model=SyncResultResponse)
+async def sync_plugins_from_service(
+    request: Request = None,
+    session: AsyncSession = Depends(get_system_session),
+    current_user: User = Depends(get_current_user),
+):
+    """Sync all plugins from the remote plugin service.
+
+    Downloads missing or outdated plugins, verifies their checksums,
+    and registers them in the database.
+    """
+    client = _get_service_client(request)
+    if not client:
+        raise HTTPException(status_code=503, detail="Plugin service not configured")
+
+    try:
+        result = await client.sync_plugins()
+    except Exception as e:
+        logger.error(f"Plugin sync failed: {e}")
+        raise HTTPException(status_code=502, detail=f"Plugin sync failed: {e}")
+
+    # Register all installed/updated plugins in the database
+    now = datetime.now(timezone.utc)
+    all_synced = result["installed"] + result["updated"]
+
+    for plugin_id in all_synced:
+        try:
+            info = await client.get_plugin_info(plugin_id)
+            stmt = select(Plugin).where(Plugin.plugin_id == plugin_id)
+            db_result = await session.execute(stmt)
+            existing = db_result.scalar_one_or_none()
+
+            if existing:
+                existing.name = info.name
+                existing.version = info.version
+                existing.type = info.plugin_type
+                existing.manifest = info.manifest
+                existing.updated_at = now
+                session.add(existing)
+            else:
+                plugin = Plugin(
+                    plugin_id=info.plugin_id,
+                    name=info.name,
+                    version=info.version,
+                    type=info.plugin_type,
+                    enabled=True,
+                    manifest=info.manifest,
+                    installed_at=now,
+                    updated_at=now,
+                )
+                session.add(plugin)
+        except Exception as e:
+            logger.error(f"Failed to register synced plugin {plugin_id}: {e}")
+
+    await session.commit()
+
+    # Reload the plugin loader
+    loader = getattr(request.app.state, "plugin_loader", None)
+    if loader:
+        loader.load_all_plugins()
+
+    return SyncResultResponse(**result)

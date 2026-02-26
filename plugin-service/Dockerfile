@@ -23,11 +23,11 @@ LABEL org.opencontainers.image.version=${BUILD_VERSION}
 WORKDIR /app
 
 # Install the service package
-COPY plugin-service/pyproject.toml ./
+COPY pyproject.toml ./
 RUN pip install --no-cache-dir .
 
 # Copy service code
-COPY plugin-service/codex_plugin_service ./codex_plugin_service
+COPY api ./api
 
 # Copy built plugins from the builder stage (includes dist/ and manifests)
 COPY --from=plugin-builder /plugins /app/plugins

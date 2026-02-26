@@ -10,8 +10,8 @@ import pytest
 import yaml
 from fastapi.testclient import TestClient
 
-from codex_plugin_service.catalog import PluginCatalog
-from codex_plugin_service.main import app
+from api.catalog import PluginCatalog
+from api.main import app
 
 
 @pytest.fixture
@@ -19,27 +19,38 @@ def plugins_dir(tmp_path):
     """Create test plugins directory."""
     theme_dir = tmp_path / "test-theme"
     theme_dir.mkdir()
-    (theme_dir / "manifest.yml").write_text(yaml.dump({
-        "id": "test-theme",
-        "name": "Test Theme",
-        "version": "1.0.0",
-        "type": "theme",
-        "description": "A test theme",
-        "author": "Test Author",
-        "theme": {"display_name": "Test Theme", "category": "light"},
-    }))
+    (theme_dir / "manifest.yml").write_text(
+        yaml.dump(
+            {
+                "id": "test-theme",
+                "name": "Test Theme",
+                "version": "1.0.0",
+                "type": "theme",
+                "description": "A test theme",
+                "author": "Test Author",
+                "theme": {"display_name": "Test Theme", "category": "light"},
+            }
+        )
+    )
 
     int_dir = tmp_path / "test-integration"
     int_dir.mkdir()
-    (int_dir / "manifest.yml").write_text(yaml.dump({
-        "id": "test-integration",
-        "name": "Test Integration",
-        "version": "2.0.0",
-        "type": "integration",
-        "description": "A test integration",
-        "author": "Test Author",
-        "integration": {"api_type": "rest", "base_url": "https://api.example.com"},
-    }))
+    (int_dir / "manifest.yml").write_text(
+        yaml.dump(
+            {
+                "id": "test-integration",
+                "name": "Test Integration",
+                "version": "2.0.0",
+                "type": "integration",
+                "description": "A test integration",
+                "author": "Test Author",
+                "integration": {
+                    "api_type": "rest",
+                    "base_url": "https://api.example.com",
+                },
+            }
+        )
+    )
 
     return tmp_path
 
@@ -136,12 +147,16 @@ def test_refresh_catalog(test_client, plugins_dir):
     # Add a new plugin
     new_dir = plugins_dir / "new-plugin"
     new_dir.mkdir()
-    (new_dir / "manifest.yml").write_text(yaml.dump({
-        "id": "new-plugin",
-        "name": "New Plugin",
-        "version": "1.0.0",
-        "type": "view",
-    }))
+    (new_dir / "manifest.yml").write_text(
+        yaml.dump(
+            {
+                "id": "new-plugin",
+                "name": "New Plugin",
+                "version": "1.0.0",
+                "type": "view",
+            }
+        )
+    )
 
     # Refresh
     response = test_client.post("/api/v1/catalog/refresh")

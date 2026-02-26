@@ -18,6 +18,7 @@ Display images in a grid layout with lightbox.
 **View Type**: `gallery`
 
 **Configuration Options**:
+
 - `layout`: Layout style (grid, masonry)
 - `columns`: Number of columns (1-8, default: 4)
 - `thumbnail_size`: Thumbnail size in pixels (default: 300)
@@ -25,6 +26,7 @@ Display images in a grid layout with lightbox.
 - `lightbox`: Enable lightbox viewer (default: true)
 
 **Example**:
+
 ```yaml
 ---
 type: view
@@ -72,6 +74,7 @@ The plugin includes an example photo gallery that displays all images in the wor
 ### Keyboard Navigation
 
 In lightbox mode:
+
 - **Arrow Keys**: Navigate between images
 - **Escape**: Close lightbox
 - **+/-**: Zoom in/out
@@ -79,6 +82,7 @@ In lightbox mode:
 ## Permissions
 
 This plugin requires the following permissions:
+
 - `read_files`: Read image files
 
 ## License

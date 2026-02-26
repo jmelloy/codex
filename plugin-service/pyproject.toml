@@ -2,7 +2,7 @@
 name = "codex-plugin-service"
 version = "1.0.0"
 description = "Plugin catalog and distribution service for Codex"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 license = {text = "MIT"}
 dependencies = [
     "fastapi>=0.115.0",

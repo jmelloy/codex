@@ -15,7 +15,7 @@ COPY plugins/ ./
 RUN npx tsx build.ts
 
 # Stage 2: Python service
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 ARG BUILD_VERSION=dev
 LABEL org.opencontainers.image.version=${BUILD_VERSION}

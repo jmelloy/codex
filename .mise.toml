@@ -2,9 +2,7 @@
 uv = "latest"
 pnpm = "latest"
 node = "latest"
-
-[env]
-_.python.venv = { path = "backend/.venv" }
+python = "3.12"
 
 [tasks.install]
 run = """

@@ -53,7 +53,7 @@ jobs:
         if: matrix.setup == 'python'
         uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          python-version: "3.12"
           cache: pip
           cache-dependency-path: backend/pyproject.toml
 

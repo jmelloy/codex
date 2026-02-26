@@ -3,6 +3,8 @@
 import asyncio
 import logging
 import os
+import shutil
+import subprocess
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
 from pathlib import Path
@@ -42,6 +44,63 @@ request_id_var: ContextVar[str] = ContextVar("request_id", default="")
 logger = logging.getLogger(__name__)
 
 
+def _start_plugin_build_watch(plugins_dir: Path) -> subprocess.Popen | None:
+    """Start the plugin build:watch subprocess for dev mode.
+
+    Runs `npm run build:watch` in the plugins directory so that plugin
+    component changes are automatically rebuilt and served by the backend.
+    """
+    package_json = plugins_dir / "package.json"
+    if not package_json.exists():
+        logger.debug("No package.json in plugins directory, skipping build:watch")
+        return None
+
+    npm_path = shutil.which("npm")
+    if not npm_path:
+        logger.warning("npm not found in PATH, cannot start plugin build:watch")
+        return None
+
+    # First run a one-shot build to ensure plugins.json exists
+    plugins_json = plugins_dir / "plugins.json"
+    if not plugins_json.exists():
+        logger.info("Running initial plugin build...")
+        try:
+            subprocess.run(
+                [npm_path, "run", "build"],
+                cwd=str(plugins_dir),
+                capture_output=True,
+                timeout=120,
+            )
+        except Exception as e:
+            logger.warning(f"Initial plugin build failed: {e}")
+
+    try:
+        proc = subprocess.Popen(
+            [npm_path, "run", "build:watch"],
+            cwd=str(plugins_dir),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+        )
+        logger.info(f"Started plugin build:watch (pid={proc.pid})")
+        return proc
+    except Exception as e:
+        logger.warning(f"Failed to start plugin build:watch: {e}")
+        return None
+
+
+def _stop_plugin_build_watch(proc: subprocess.Popen) -> None:
+    """Stop the plugin build:watch subprocess."""
+    try:
+        proc.terminate()
+        try:
+            proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+        logger.info("Stopped plugin build:watch")
+    except Exception as e:
+        logger.warning(f"Error stopping plugin build:watch: {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize database and plugins on startup."""
@@ -57,6 +116,16 @@ async def lifespan(app: FastAPI):
     plugins_dir = Path(os.getenv("CODEX_PLUGINS_DIR", default_plugins_dir))
     logger.info(f"Loading plugins from directory: {plugins_dir}")
     loader = PluginLoader(plugins_dir)
+
+    # Store plugin loader and directory in app state for use by API routes
+    app.state.plugin_loader = loader
+    app.state.plugins_dir = plugins_dir
+
+    # In dev mode, start the plugin build:watch subprocess
+    build_watch_process = None
+    debug = os.getenv("DEBUG", "false").lower() == "true"
+    if debug and plugins_dir.exists():
+        build_watch_process = _start_plugin_build_watch(plugins_dir)
 
     # Initialize plugin service client (if configured)
     plugin_service_url = os.getenv("PLUGIN_SERVICE_URL")
@@ -92,6 +161,10 @@ async def lifespan(app: FastAPI):
         logger.error(f"Error starting notebook watcher: {e}", exc_info=True)
 
     yield
+
+    # Stop plugin build:watch subprocess
+    if build_watch_process:
+        _stop_plugin_build_watch(build_watch_process)
 
     # Stop all watchers on shutdown
     stop_all_watchers()

@@ -33,8 +33,8 @@ const originalFetch = globalThis.fetch
 globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
   const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url
 
-  // Mock the plugins manifest request to return an empty plugins list
-  if (url.includes("/plugins/plugins.json")) {
+  // Mock the backend plugin manifest endpoint to return an empty plugins list
+  if (url.includes("/api/v1/plugins/manifest")) {
     return new Response(
       JSON.stringify({
         version: "1.0.0",

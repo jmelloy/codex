@@ -1,11 +1,12 @@
 /**
  * Plugin Component Loader
  *
- * Loads pre-built Vue components from the plugins directory at runtime.
+ * Loads pre-built Vue components from the backend plugin API at runtime.
  * Components are built by the plugin build script (plugins/build.ts)
- * and output to plugins/{plugin}/dist/{component}.js
+ * and served by the backend via /api/v1/plugins/assets/.
  *
- * Plugins are loaded dynamically without needing to be known at build time.
+ * All plugin assets (manifest, JS, CSS) are fetched exclusively through
+ * the backend API — the frontend never accesses the plugins directory directly.
  */
 
 import { defineAsyncComponent, h, type Component } from "vue"
@@ -56,8 +57,8 @@ let flatComponentsCache: Map<string, FlatComponentEntry> | null = null
 // Track which plugin CSS files have been loaded
 const loadedPluginStyles = new Set<string>()
 
-// Base path for plugins (served by Vite middleware in dev, or static files in prod)
-const PLUGINS_BASE = "/plugins"
+// Base path for plugin assets — served by the backend API
+const PLUGINS_ASSETS_BASE = "/api/v1/plugins/assets"
 
 /**
  * Load CSS for a plugin if not already loaded
@@ -70,8 +71,8 @@ function loadPluginStyles(pluginId: string, filePath: string): void {
   // Extract plugin directory from file path (e.g., "weather-api/dist/weather.js" -> "weather-api")
   const pluginDir = filePath.split("/")[0]
 
-  // Try to load the plugin's CSS file
-  const cssUrl = `${PLUGINS_BASE}/${pluginDir}/dist/plugins.css`
+  // Load the plugin's CSS file via backend API
+  const cssUrl = `${PLUGINS_ASSETS_BASE}/${pluginDir}/dist/plugins.css`
 
   // Create a link element
   const link = document.createElement("link")
@@ -94,8 +95,7 @@ function loadPluginStyles(pluginId: string, filePath: string): void {
 }
 
 /**
- * Load the plugins manifest via fetch (runtime loading)
- * In dev mode, loads from glob-based dev loader instead of plugins.json
+ * Load the plugins manifest from the backend API
  */
 async function loadManifest(): Promise<PluginsManifest | null> {
   if (manifestCache) {
@@ -107,21 +107,8 @@ async function loadManifest(): Promise<PluginsManifest | null> {
   }
 
   manifestLoadPromise = (async () => {
-    // In dev mode, use glob-based loader for HMR support
-    if (import.meta.env.DEV) {
-      try {
-        const { getDevManifest, getDevFlatComponents } = await import("./pluginDevLoader")
-        manifestCache = getDevManifest()
-        flatComponentsCache = getDevFlatComponents()
-        console.log(`[dev] Loaded ${manifestCache.plugins.length} plugins via import.meta.glob`)
-        return manifestCache
-      } catch (err) {
-        console.warn("[dev] Failed to load plugins via dev loader, falling back to plugins.json", err)
-      }
-    }
-
     try {
-      const response = await fetch(`${PLUGINS_BASE}/plugins.json`)
+      const response = await fetch("/api/v1/plugins/manifest")
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`)
       }
@@ -144,7 +131,7 @@ async function loadManifest(): Promise<PluginsManifest | null> {
       }
       return manifestCache
     } catch (err) {
-      console.warn("Plugin manifest not found. Run 'npm run build' in plugins directory.", err)
+      console.warn("Plugin manifest not available from backend.", err)
       return null
     }
   })()
@@ -170,7 +157,7 @@ function createFallbackComponent(blockType: string, error?: string): Component {
       return () =>
         h("div", { class: "custom-block plugin-fallback-block" }, [
           h("div", { class: "block-header" }, [
-            h("span", { class: "block-icon" }, "⚠️"),
+            h("span", { class: "block-icon" }, "\u26a0\ufe0f"),
             h("span", { class: "block-title" }, `${blockType} Block`),
           ]),
           h("div", { class: "block-content" }, [
@@ -179,7 +166,7 @@ function createFallbackComponent(blockType: string, error?: string): Component {
                 "em",
                 {},
                 error ||
-                  "Plugin component not available. Run 'npm run build' in the plugins directory.",
+                  "Plugin component not available. Ensure plugins are built and the backend is running.",
               ),
             ]),
             props.config &&
@@ -208,21 +195,6 @@ const LoadingComponent: Component = {
 export function loadPluginComponent(blockType: string): Component {
   return defineAsyncComponent({
     loader: async () => {
-      // In dev mode, use glob loader (full HMR, no build needed)
-      if (import.meta.env.DEV) {
-        try {
-          const { getDevComponentLoader } = await import("./pluginDevLoader")
-          const loader = getDevComponentLoader(blockType)
-          if (loader) {
-            const module = await loader()
-            return (module.default || module) as Component
-          }
-        } catch (err) {
-          console.warn(`[dev] Failed to load component via glob for ${blockType}:`, err)
-        }
-      }
-
-      // Production path: load from manifest + compiled JS
       const componentsMap = await getComponentsMap()
       const entry = componentsMap.get(blockType)
 
@@ -230,8 +202,8 @@ export function loadPluginComponent(blockType: string): Component {
         // Load the plugin's CSS file
         loadPluginStyles(entry.pluginId, entry.file)
 
-        // Load the compiled component via dynamic import with full URL
-        const moduleUrl = `${PLUGINS_BASE}/${entry.file}`
+        // Load the compiled component via dynamic import from backend API
+        const moduleUrl = `${PLUGINS_ASSETS_BASE}/${entry.file}`
         try {
           const module = await import(/* @vite-ignore */ moduleUrl)
           return module.default || module
@@ -286,28 +258,6 @@ export async function isBlockTypeAvailable(blockType: string): Promise<boolean> 
  * Preload all plugin components (for faster rendering)
  */
 export async function preloadPluginComponents(): Promise<void> {
-  // In dev mode, preload via glob loaders (Vite handles CSS from .vue files)
-  if (import.meta.env.DEV) {
-    try {
-      const { getDevFlatComponents, getDevComponentLoader } = await import("./pluginDevLoader")
-      const devComponents = getDevFlatComponents()
-      const loadPromises = Array.from(devComponents.keys()).map(async (blockId) => {
-        const loader = getDevComponentLoader(blockId)
-        if (loader) {
-          try {
-            await loader()
-          } catch {
-            // Ignore failures during preload
-          }
-        }
-      })
-      await Promise.allSettled(loadPromises)
-    } catch (err) {
-      console.warn("Failed to preload plugin components in dev mode:", err)
-    }
-    return
-  }
-
   const componentsMap = await getComponentsMap()
 
   if (componentsMap.size === 0) {
@@ -329,7 +279,7 @@ export async function preloadPluginComponents(): Promise<void> {
 
   // Preload component modules
   const loadPromises = Array.from(componentsMap.values()).map(async (entry) => {
-    const moduleUrl = `${PLUGINS_BASE}/${entry.file}`
+    const moduleUrl = `${PLUGINS_ASSETS_BASE}/${entry.file}`
     try {
       await import(/* @vite-ignore */ moduleUrl)
     } catch {
@@ -438,11 +388,11 @@ export async function getAvailableViews(): Promise<PluginView[]> {
 }
 
 /**
- * Get the stylesheet URL for a theme
+ * Get the stylesheet URL for a theme (served via backend API)
  */
 export function getThemeStylesheetUrl(themeId: string, stylesheet?: string): string {
   if (stylesheet) {
-    return `${PLUGINS_BASE}/${themeId}/${stylesheet}`
+    return `${PLUGINS_ASSETS_BASE}/${themeId}/${stylesheet}`
   }
-  return `${PLUGINS_BASE}/${themeId}/styles/main.css`
+  return `${PLUGINS_ASSETS_BASE}/${themeId}/styles/main.css`
 }

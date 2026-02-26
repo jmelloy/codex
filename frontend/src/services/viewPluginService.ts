@@ -3,11 +3,11 @@
  *
  * Manages dynamic loading of view components from the plugin system.
  * View components are built by the plugin build script (plugins/build.ts)
- * and output to plugins/{plugin}/dist/{view}.js
+ * and served by the backend via /api/v1/plugins/assets/.
  */
 
 import { defineAsyncComponent, h, type Component } from "vue"
-import { getAvailableViews, getAvailableBlockTypes } from "./pluginLoader"
+import { getAvailableViews, getAvailableBlockTypes, loadPluginComponent } from "./pluginLoader"
 
 export interface ViewPlugin {
   id: string
@@ -19,8 +19,8 @@ export interface ViewPlugin {
   config_schema?: Record<string, any>
 }
 
-// Base path for plugins
-const PLUGINS_BASE = "/plugins"
+// Base path for plugin assets — served by the backend API
+const PLUGINS_ASSETS_BASE = "/api/v1/plugins/assets"
 
 /**
  * Create a fallback component for when view plugins fail to load
@@ -33,7 +33,7 @@ function createFallbackComponent(viewType: string, error?: string): Component {
         h("div", { class: "view-fallback p-6 bg-yellow-50 border border-yellow-200 rounded-lg" }, [
           h("h3", { class: "text-yellow-800 font-semibold mb-2" }, `${viewType} View`),
           h("p", { class: "text-yellow-600" },
-            error || "View component not available. Run 'npm run build' in the plugins directory."
+            error || "View component not available. Ensure plugins are built and the backend is running."
           ),
         ])
     },
@@ -129,8 +129,8 @@ class ViewPluginService {
   }
 
   /**
-   * Load a view component dynamically
-   * In dev mode, uses glob loader for HMR. Otherwise tries compiled dist/ first.
+   * Load a view component dynamically.
+   * All loading goes through the backend plugin API.
    */
   async loadViewComponent(viewId: string): Promise<Component> {
     // Ensure service is initialized before loading
@@ -144,32 +144,15 @@ class ViewPluginService {
       return module.default
     }
 
-    // In dev mode, use glob loader for full HMR support
-    if (import.meta.env.DEV) {
-      try {
-        const { getDevComponentLoader } = await import("./pluginDevLoader")
-        const loader = getDevComponentLoader(viewId)
-        if (loader) {
-          const module = await loader()
-          return (module.default || module) as Component
-        }
-      } catch (err) {
-        console.warn(`[dev] Failed to load view component via glob for ${viewId}:`, err)
-      }
-    }
-
-    // Production path: look up the compiled component file from the plugin manifest
-    // The plugin loader's block types map includes view components (keyed by view ID)
+    // Try loading via the plugin manifest's component map
     const blockTypes = await getAvailableBlockTypes()
     const blockEntry = blockTypes.find((b) => b.blockType === viewId)
 
     if (blockEntry) {
-      // Found in plugin manifest's component map — use the file path directly
+      // Found in plugin manifest — use loadPluginComponent which handles
+      // CSS loading and dynamic imports from the backend
       try {
-        const { loadPluginComponent } = await import("./pluginLoader")
-        const component = loadPluginComponent(viewId)
-        // loadPluginComponent returns an async component wrapper; resolve it
-        return component
+        return loadPluginComponent(viewId)
       } catch (err) {
         console.warn(`Failed to load view via plugin component map for ${viewId}:`, err)
       }
@@ -180,7 +163,7 @@ class ViewPluginService {
     const pluginId = view?.plugin_id || viewId
     const distName = `${viewId}-view`
     try {
-      const moduleUrl = `${PLUGINS_BASE}/${pluginId}/dist/${distName}.js`
+      const moduleUrl = `${PLUGINS_ASSETS_BASE}/${pluginId}/dist/${distName}.js`
       const module = await import(/* @vite-ignore */ moduleUrl)
       return module.default || module
     } catch (err) {

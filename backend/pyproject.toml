@@ -13,14 +13,12 @@ dependencies = [
     "uvicorn[standard]>=0.32.0",
     "python-multipart>=0.0.12",
     "pydantic>=2.9.0",
-    "pydantic-settings>=2.6.0",
     "pydantic[email]>=2.9.0",
     "alembic>=1.13.0",
     "watchdog>=5.0.0",
     "gitpython>=3.1.43",
     "python-frontmatter>=1.1.0",
     "python-jose[cryptography]>=3.3.0",
-    "python-dotenv>=1.0.1",
     "aiosqlite>=0.20.0",
     "greenlet>=3.0.0",
     "pyyaml>=6.0.3",
@@ -32,8 +30,6 @@ dependencies = [
     "google-auth>=2.28.0",
     "google-auth-oauthlib>=1.2.0",
     "google-api-python-client>=2.120.0",
-    "asyncpg>=0.29.0",
-    "psycopg2-binary>=2.9.9",
 ]
 
 [project.optional-dependencies]

@@ -14,10 +14,10 @@ spec:
   ingressClassName: nginx
   tls:
     - hosts:
-        - codex.example.com          # override in overlay
+        - codex.melloy.life # override in overlay
       secretName: codex-tls
   rules:
-    - host: codex.example.com        # override in overlay
+    - host: codex.melloy.life # override in overlay
       http:
         paths:
           # API routes go to backend

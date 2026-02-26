@@ -9,20 +9,15 @@ from sqlalchemy.orm import sessionmaker
 from sqlmodel import Session, create_engine
 
 # System database (users, workspaces, permissions, tasks)
-SYSTEM_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./codex_system.db")
+SYSTEM_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./data/codex_system.db")
 
-_is_sqlite = SYSTEM_DATABASE_URL.startswith("sqlite")
+if not SYSTEM_DATABASE_URL.startswith("sqlite"):
+    raise RuntimeError("Codex requires a SQLite DATABASE_URL (sqlite:///...)")
 
-if _is_sqlite:
-    SYSTEM_DATABASE_URL_ASYNC = SYSTEM_DATABASE_URL.replace("sqlite:///", "sqlite+aiosqlite:///")
-    _connect_args = {"check_same_thread": False}
-    # Data directory derived from SQLite database path
-    _default_data_dir = os.path.dirname(SYSTEM_DATABASE_URL.replace("sqlite:///", "")) or "./data"
-else:
-    # PostgreSQL (or other non-SQLite databases)
-    SYSTEM_DATABASE_URL_ASYNC = SYSTEM_DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
-    _connect_args = {}
-    _default_data_dir = "./data"
+SYSTEM_DATABASE_URL_ASYNC = SYSTEM_DATABASE_URL.replace("sqlite:///", "sqlite+aiosqlite:///")
+_connect_args = {"check_same_thread": False}
+# Data directory derived from SQLite database path
+_default_data_dir = os.path.dirname(SYSTEM_DATABASE_URL.replace("sqlite:///", "")) or "./data"
 
 DATA_DIRECTORY = os.getenv("DATA_DIRECTORY", _default_data_dir)
 
@@ -147,15 +142,14 @@ async def init_system_db():
     For new databases, this creates all tables. For existing databases, this applies
     any pending migrations.
     """
-    if _is_sqlite:
-        # Ensure data directory exists for SQLite
-        db_path = SYSTEM_DATABASE_URL.replace("sqlite:///", "")
-        db_dir = os.path.dirname(db_path)
-        if db_dir and not os.path.exists(db_dir):
-            try:
-                os.makedirs(db_dir, exist_ok=True)
-            except FileExistsError:
-                pass
+    # Ensure data directory exists for SQLite
+    db_path = SYSTEM_DATABASE_URL.replace("sqlite:///", "")
+    db_dir = os.path.dirname(db_path)
+    if db_dir and not os.path.exists(db_dir):
+        try:
+            os.makedirs(db_dir, exist_ok=True)
+        except FileExistsError:
+            pass
 
     # Run Alembic migrations
     run_alembic_migrations()

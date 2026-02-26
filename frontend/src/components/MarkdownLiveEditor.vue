@@ -199,6 +199,72 @@ const blockPatterns = [
   { pattern: /^```/, type: "code", prefix: "```" },
 ]
 
+// Check if a line is a table row (starts and ends with |)
+const isTableLine = (line: string): boolean => {
+  const trimmed = line.trim()
+  return trimmed.startsWith("|") && trimmed.endsWith("|") && trimmed.length > 1
+}
+
+// Check if a line is a table separator (| --- | --- |)
+const isTableSeparator = (line: string): boolean => {
+  return /^\|[\s:]*-{3,}[\s:]*(\|[\s:]*-{3,}[\s:]*)*\|$/.test(line.trim())
+}
+
+// Parse table row into cells
+const parseTableRow = (line: string): string[] => {
+  const trimmed = line.trim()
+  return trimmed.slice(1, -1).split("|").map((cell) => cell.trim())
+}
+
+// Render a group of table lines as an HTML table block
+const renderTableBlock = (tableLines: string[]): string => {
+  if (tableLines.length === 0) return ""
+
+  const hasSeparator =
+    tableLines.length >= 2 && isTableSeparator(tableLines[1]!)
+
+  let html = '<div class="block block-table" data-type="table"><table>'
+
+  if (hasSeparator) {
+    // Header row
+    const headerCells = parseTableRow(tableLines[0]!)
+    html += "<thead><tr>"
+    headerCells.forEach((cell) => {
+      html += `<th>${formatInlineContent(cell) || "<br>"}</th>`
+    })
+    html += "</tr></thead>"
+
+    // Body rows (skip separator at index 1)
+    if (tableLines.length > 2) {
+      html += "<tbody>"
+      for (let j = 2; j < tableLines.length; j++) {
+        const cells = parseTableRow(tableLines[j]!)
+        html += "<tr>"
+        cells.forEach((cell) => {
+          html += `<td>${formatInlineContent(cell) || "<br>"}</td>`
+        })
+        html += "</tr>"
+      }
+      html += "</tbody>"
+    }
+  } else {
+    // No header, all body rows
+    html += "<tbody>"
+    tableLines.forEach((line) => {
+      const cells = parseTableRow(line)
+      html += "<tr>"
+      cells.forEach((cell) => {
+        html += `<td>${formatInlineContent(cell) || "<br>"}</td>`
+      })
+      html += "</tr>"
+    })
+    html += "</tbody>"
+  }
+
+  html += "</table></div>"
+  return html
+}
+
 // Convert markdown to HTML blocks for live editing
 const markdownToBlocks = (markdown: string): string => {
   if (!markdown.trim()) {
@@ -215,7 +281,10 @@ const markdownToBlocks = (markdown: string): string => {
   let codeContent: string[] = []
   let codeLanguage = ""
 
-  for (const line of lines) {
+  let i = 0
+  while (i < lines.length) {
+    const line = lines[i]!
+
     // Handle code blocks
     if (line.startsWith("```")) {
       if (!inCodeBlock) {
@@ -242,11 +311,24 @@ const markdownToBlocks = (markdown: string): string => {
         inCodeBlock = false
         codeLanguage = ""
       }
+      i++
       continue
     }
 
     if (inCodeBlock) {
       codeContent.push(line)
+      i++
+      continue
+    }
+
+    // Handle table blocks (consecutive lines starting/ending with |)
+    if (isTableLine(line)) {
+      const tableLines: string[] = []
+      while (i < lines.length && isTableLine(lines[i]!)) {
+        tableLines.push(lines[i]!)
+        i++
+      }
+      blocks.push(renderTableBlock(tableLines))
       continue
     }
 
@@ -277,6 +359,8 @@ const markdownToBlocks = (markdown: string): string => {
         blocks.push('<div class="block block-p" data-type="p"><br></div>')
       }
     }
+
+    i++
   }
 
   // Handle unclosed code block
@@ -369,6 +453,52 @@ const blocksToMarkdown = (): string => {
       lines.push("```" + language)
       lines.push(content)
       lines.push("```")
+      return
+    }
+
+    if (type === "table") {
+      const table = block.querySelector("table")
+      if (table) {
+        const rows: string[][] = []
+        let hasHeader = false
+
+        const thead = table.querySelector("thead")
+        if (thead) {
+          hasHeader = true
+          const headerRow = thead.querySelector("tr")
+          if (headerRow) {
+            const cells = Array.from(headerRow.querySelectorAll("th")).map(
+              (th) => extractMarkdownFromElement(th as HTMLElement)
+            )
+            rows.push(cells)
+          }
+        }
+
+        const tbody = table.querySelector("tbody")
+        if (tbody) {
+          const bodyRows = tbody.querySelectorAll("tr")
+          bodyRows.forEach((tr) => {
+            const cells = Array.from(tr.querySelectorAll("td")).map((td) =>
+              extractMarkdownFromElement(td as HTMLElement)
+            )
+            rows.push(cells)
+          })
+        }
+
+        if (rows.length > 0) {
+          rows.forEach((row, idx) => {
+            const line =
+              "| " + row.map((cell) => cell || " ").join(" | ") + " |"
+            lines.push(line)
+            // Add separator after header
+            if (idx === 0 && hasHeader) {
+              const sep =
+                "| " + row.map(() => "---").join(" | ") + " |"
+              lines.push(sep)
+            }
+          })
+        }
+      }
       return
     }
 
@@ -627,6 +757,11 @@ const handleEnter = () => {
   // For code blocks, insert newline instead of new block
   if (currentType === "code") {
     document.execCommand("insertText", false, "\n")
+    return
+  }
+
+  // For table blocks, don't create new blocks
+  if (currentType === "table") {
     return
   }
 
@@ -1127,6 +1262,36 @@ defineExpose({
 .live-editor-content :deep(.block-code code) {
   background: transparent;
   padding: 0;
+}
+
+/* Table styles */
+.live-editor-content :deep(.block-table) {
+  margin: var(--spacing-md) 0;
+  overflow-x: auto;
+}
+
+.live-editor-content :deep(.block-table table) {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-sans, sans-serif);
+  font-size: var(--text-sm);
+}
+
+.live-editor-content :deep(.block-table th),
+.live-editor-content :deep(.block-table td) {
+  border: 1px solid var(--color-border-medium);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  text-align: left;
+  min-width: 3em;
+}
+
+.live-editor-content :deep(.block-table th) {
+  background: var(--color-bg-secondary);
+  font-weight: var(--font-semibold);
+}
+
+.live-editor-content :deep(.block-table tbody tr:hover) {
+  background: color-mix(in srgb, var(--color-bg-secondary) 50%, transparent);
 }
 
 /* Inline formatting styles */

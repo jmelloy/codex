@@ -8,11 +8,11 @@ resources:
   - configmap.yml
   - secrets.yml
   - pvc.yml
-  - postgres-deployment.yml
   - plugin-service-deployment.yml
   - backend-deployment.yml
   - frontend-deployment.yml
   - ingress.yml
 
-commonLabels:
-  app.kubernetes.io/managed-by: kustomize
+labels:
+  - pairs:
+      app.kubernetes.io/managed-by: kustomize

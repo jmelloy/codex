@@ -14,7 +14,6 @@ on:
         default: production
         type: choice
         options:
-          - staging
           - production
       skip_tests:
         description: "Skip test jobs (deploy only)"
@@ -166,6 +165,16 @@ jobs:
       packages: read
     steps:
       - uses: actions/checkout@v6
+
+      - name: Install SOPS
+        uses: mdgreenwald/mozilla-sops-action@v1
+        with:
+          version: 3.11.0
+
+      - name: Decrypt SOPS secrets
+        env:
+          SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
+        run: sops decrypt -i k8s/base/secrets.yml
 
       - name: Set up kubectl
         uses: azure/setup-kubectl@v4

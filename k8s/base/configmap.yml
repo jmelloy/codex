@@ -12,4 +12,4 @@ data:
   LOG_FORMAT: "plain"
   CODEX_PLUGINS_DIR: "/app/plugins"
   PLUGIN_SERVICE_URL: "http://plugin-service:8090"
-  PLUGIN_AUTO_SYNC: "false"
+  PLUGIN_AUTO_SYNC: "true"

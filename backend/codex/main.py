@@ -51,19 +51,12 @@ async def lifespan(app: FastAPI):
     # Start WebSocket broadcast loop
     await connection_manager.start_broadcast_loop()
 
-    # Initialize plugin loader
-    try:
-        # Default plugins directory is at the repository root (../../plugins from this file)
-        # or use CODEX_PLUGINS_DIR environment variable to override
-        default_plugins_dir = Path(__file__).parent.parent.parent / "plugins"
-        plugins_dir = Path(os.getenv("CODEX_PLUGINS_DIR", default_plugins_dir))
-        logger.info(f"Loading plugins from directory: {plugins_dir}")
-        loader = PluginLoader(plugins_dir)
-        loader.load_all_plugins()
-        app.state.plugin_loader = loader
-        logger.info(f"Loaded plugins from {plugins_dir}")
-    except Exception as e:
-        logger.error(f"Error loading plugins: {e}", exc_info=True)
+    # Default plugins directory is at the repository root (../../plugins from this file)
+    # or use CODEX_PLUGINS_DIR environment variable to override
+    default_plugins_dir = Path(__file__).parent.parent.parent / "plugins"
+    plugins_dir = Path(os.getenv("CODEX_PLUGINS_DIR", default_plugins_dir))
+    logger.info(f"Loading plugins from directory: {plugins_dir}")
+    loader = PluginLoader(plugins_dir)
 
     # Initialize plugin service client (if configured)
     plugin_service_url = os.getenv("PLUGIN_SERVICE_URL")
@@ -154,6 +147,7 @@ def _start_notebook_watchers_sync():
         session.close()
 
     from codex.core.watcher import get_active_watchers
+
     logger.info(f"Finished starting {len(get_active_watchers())} watchers")
 
 

@@ -51,8 +51,9 @@ class ThemeUpdate(BaseModel):
 
 class PluginConfigUpdate(BaseModel):
     """Request body for updating plugin configuration."""
-    
+
     enabled: bool | None = None
+    version: str | None = None
     config: dict | None = None
 
 
@@ -255,6 +256,7 @@ async def list_workspace_plugins(
     return [
         {
             "plugin_id": config.plugin_id,
+            "version": config.version,
             "enabled": config.enabled,
             "config": config.config,
             "created_at": config.created_at.isoformat() if config.created_at else None,
@@ -293,12 +295,14 @@ async def get_workspace_plugin_config(
     if not config:
         return {
             "plugin_id": plugin_id,
+            "version": None,
             "enabled": DEFAULT_PLUGIN_ENABLED,
             "config": {},
         }
-    
+
     return {
         "plugin_id": config.plugin_id,
+        "version": config.version,
         "enabled": config.enabled,
         "config": config.config,
         "created_at": config.created_at.isoformat() if config.created_at else None,
@@ -338,6 +342,8 @@ async def update_workspace_plugin_config(
         # Update existing config
         if request_data.enabled is not None:
             config.enabled = request_data.enabled
+        if request_data.version is not None:
+            config.version = request_data.version
         if request_data.config is not None:
             config.config = request_data.config
         session.add(config)
@@ -348,15 +354,17 @@ async def update_workspace_plugin_config(
         config = PluginConfig(
             workspace_id=workspace.id,
             plugin_id=plugin_id,
+            version=request_data.version,
             enabled=request_data.enabled if request_data.enabled is not None else DEFAULT_PLUGIN_ENABLED,
             config=request_data.config if request_data.config is not None else {},
         )
         session.add(config)
         await session.commit()
         await session.refresh(config)
-    
+
     return {
         "plugin_id": config.plugin_id,
+        "version": config.version,
         "enabled": config.enabled,
         "config": config.config,
         "created_at": config.created_at.isoformat() if config.created_at else None,

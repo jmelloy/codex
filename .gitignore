@@ -273,6 +273,7 @@ frontend/dist/
 
 # Test workspaces (created during test runs)
 backend/workspaces/
+backend/package-lock.json
 workspaces/
 
 # Screenshots (generated for documentation)

@@ -143,8 +143,10 @@ async function handleToggle(pluginId: string, event: Event) {
     if (existingConfig) {
       existingConfig.enabled = newState
     } else {
+      const pluginVersion = pluginsList.value.find(p => p.id === pluginId)?.version ?? null
       notebookConfigs.value.push({
         plugin_id: pluginId,
+        version: pluginVersion,
         enabled: newState,
         config: {}
       })

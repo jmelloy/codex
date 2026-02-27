@@ -9,7 +9,7 @@ from codex.plugins.models import ThemePlugin
 
 # Get the plugins directory at repository root
 BACKEND_DIR = Path(__file__).parent.parent
-PLUGINS_DIR = BACKEND_DIR.parent / "plugins"
+PLUGINS_DIR = BACKEND_DIR.parent / "plugin-service" / "plugins"
 
 
 def test_plugin_loader_initialization():

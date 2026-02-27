@@ -1,62 +1,14 @@
 /// <reference types="vitest" />
-import { defineConfig, type Plugin } from "vite"
+import { defineConfig } from "vite"
 import vue from "@vitejs/plugin-vue"
 import path from "path"
-import fs from "fs"
-
-// Resolve plugins directory - check multiple locations
-const resolvePluginsDir = () => {
-  // Check environment variable first
-  if (process.env.VITE_PLUGINS_DIR && fs.existsSync(process.env.VITE_PLUGINS_DIR)) {
-    return process.env.VITE_PLUGINS_DIR
-  }
-  // Check parent directory (standard layout: codex/plugins when running from codex/frontend)
-  const parentPlugins = path.resolve(__dirname, "../plugins")
-  if (fs.existsSync(parentPlugins)) {
-    return parentPlugins
-  }
-  // Docker mount location
-  if (fs.existsSync("/plugins")) {
-    return "/plugins"
-  }
-  // Fallback to a local plugins directory
-  return path.resolve(__dirname, "./plugins")
-}
-
-const pluginsDir = resolvePluginsDir()
-
-// Plugin to serve the plugins directory as static files at /plugins/
-function servePluginsPlugin(): Plugin {
-  return {
-    name: "serve-plugins",
-    configureServer(server) {
-      server.middlewares.use("/plugins", (req, res, next) => {
-        const filePath = path.join(pluginsDir, req.url || "")
-        if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
-          const ext = path.extname(filePath)
-          const contentTypes: Record<string, string> = {
-            ".js": "application/javascript; charset=utf-8",
-            ".json": "application/json; charset=utf-8",
-            ".css": "text/css; charset=utf-8",
-            ".vue": "text/plain; charset=utf-8",
-          }
-          res.setHeader("Content-Type", contentTypes[ext] || "application/octet-stream")
-          res.end(fs.readFileSync(filePath))
-        } else {
-          next()
-        }
-      })
-    },
-  }
-}
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [vue(), servePluginsPlugin()],
+  plugins: [vue()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-      "@plugins": pluginsDir,
     },
   },
   server: {
@@ -74,28 +26,8 @@ export default defineConfig({
         changeOrigin: true,
       },
     },
-    // Watch plugins directory for changes
-    fs: {
-      allow: [path.resolve(__dirname, ".."), pluginsDir],
-    },
-  },
-  // Allow importing from plugins directory
-  // In dev mode, plugin .vue files are processed through Vite's module graph.
-  // Plugin-specific deps (e.g., chart.js in chart-example) are resolved from
-  // their own node_modules via Vite's entries config.
-  optimizeDeps: {
-    include: [],
-    exclude: [],
-    // Scan plugin directories so Vite pre-bundles their dependencies
-    entries: [
-      "src/**/*.{ts,vue}",
-      ...(fs.existsSync(pluginsDir)
-        ? [`${path.relative(__dirname, pluginsDir)}/*/components/*.vue`]
-        : []),
-    ],
   },
   build: {
-    // Include plugins in the build
     rollupOptions: {
       external: [],
     },

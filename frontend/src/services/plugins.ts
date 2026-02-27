@@ -11,6 +11,7 @@ export interface PluginData {
 
 export interface PluginConfiguration {
   plugin_id: string
+  version: string | null
   enabled: boolean
   config: any
 }

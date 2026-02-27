@@ -536,13 +536,14 @@ function generatePluginsManifest(
     }
 
     // Build components map for this plugin
+    // Asset paths use {pluginId}/{version}/{file} (no dist/ prefix)
     const components: Record<string, ComponentInfo> = {};
     const pluginComponents = componentsByPlugin.get(pluginId) || [];
     for (const comp of pluginComponents) {
       components[comp.blockId] = {
         blockId: comp.blockId,
         blockName: comp.blockName,
-        file: `${comp.pluginDir}/dist/${comp.outputFile}`,
+        file: `${comp.pluginId}/${comp.pluginVersion}/${comp.outputFile}`,
         icon: comp.icon,
         description: comp.description,
       };

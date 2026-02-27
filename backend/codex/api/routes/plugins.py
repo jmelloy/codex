@@ -25,7 +25,6 @@ from typing import Any
 from codex.api.auth import get_current_user
 from codex.db.database import get_system_session
 from codex.db.models import Plugin, User
-from codex.plugins.service_client import PluginServiceClient, PluginVerificationError
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -418,8 +417,8 @@ async def serve_plugin_asset(file_path: str, request: Request):
     1. Versioned: ``{plugin_id}/{version}/{file}``
        Used for compiled components.  The backend resolves the version
        segment to the plugin's ``dist/`` directory on disk and caches the
-       result.  If the file is missing locally it attempts to sync from
-       the plugin service (when configured).
+       result.  If the file is missing locally it attempts to download
+       from S3 (when configured).
 
     2. Direct: ``{plugin_id}/{relative_path}``
        Used for theme stylesheets and other non-versioned assets
@@ -444,18 +443,21 @@ async def serve_plugin_asset(file_path: str, request: Request):
         if str(candidate).startswith(str(plugins_resolved)) and candidate.is_file():
             resolved = candidate
         else:
-            # File not on disk – try syncing from the plugin service
-            service_client: PluginServiceClient | None = getattr(
-                request.app.state, "plugin_service_client", None
-            )
-            if service_client:
+            # File not on disk – try downloading from S3
+            s3_client = getattr(request.app.state, "s3_plugin_client", None)
+            dynamo_registry = getattr(request.app.state, "dynamo_registry", None)
+            if s3_client and dynamo_registry:
                 try:
-                    await service_client.install_plugin(plugin_id)
-                    candidate = (plugins_dir / plugin_id / "dist" / remainder).resolve()
-                    if str(candidate).startswith(str(plugins_resolved)) and candidate.is_file():
-                        resolved = candidate
+                    import asyncio
+
+                    info = await asyncio.to_thread(dynamo_registry.get_plugin, plugin_id)
+                    if info:
+                        await asyncio.to_thread(s3_client.download_plugin, plugin_id, info.version)
+                        candidate = (plugins_dir / plugin_id / "dist" / remainder).resolve()
+                        if str(candidate).startswith(str(plugins_resolved)) and candidate.is_file():
+                            resolved = candidate
                 except Exception as exc:
-                    logger.debug(f"Plugin service sync failed for {plugin_id}: {exc}")
+                    logger.debug(f"S3 plugin sync failed for {plugin_id}: {exc}")
 
     if resolved is None:
         # Direct path – serve relative to plugins_dir
@@ -531,16 +533,11 @@ async def unregister_plugin(
     return {"message": f"Plugin {plugin_id} unregistered"}
 
 
-# --- Plugin Service routes ---
-
-
-def _get_service_client(request: Request) -> PluginServiceClient | None:
-    """Get the plugin service client from app state, if configured."""
-    return getattr(request.app.state, "plugin_service_client", None)
+# --- S3/DynamoDB Plugin Registry routes ---
 
 
 class RemotePluginResponse(BaseModel):
-    """Schema for a plugin available from the remote service."""
+    """Schema for a plugin available from the registry."""
 
     id: str
     name: str
@@ -548,8 +545,7 @@ class RemotePluginResponse(BaseModel):
     type: str
     description: str
     author: str
-    sha256: str
-    archive_size: int
+    s3_prefix: str
 
 
 class SyncResultResponse(BaseModel):
@@ -562,10 +558,10 @@ class SyncResultResponse(BaseModel):
 
 
 class InstallPluginRequest(BaseModel):
-    """Schema for installing a plugin from the service."""
+    """Schema for installing a plugin from S3."""
 
     plugin_id: str = Field(..., description="Plugin ID to install")
-    expected_sha256: str | None = Field(None, description="Expected SHA-256 checksum (optional, fetched from catalog if omitted)")
+    version: str | None = Field(None, description="Version to install (latest if omitted)")
 
 
 class InstallPluginResponse(BaseModel):
@@ -574,7 +570,6 @@ class InstallPluginResponse(BaseModel):
     plugin_id: str
     version: str
     installed: bool
-    verified: bool
     message: str
 
 
@@ -584,20 +579,24 @@ async def list_remote_plugins(
     request: Request = None,
     current_user: User = Depends(get_current_user),
 ):
-    """List plugins available from the remote plugin service.
+    """List plugins available from the DynamoDB registry.
 
-    Returns available plugins along with their SHA-256 checksums for
-    integrity verification.
+    Returns plugins indexed from S3 uploads.
     """
-    client = _get_service_client(request)
-    if not client:
+    registry = getattr(request.app.state, "dynamo_registry", None)
+    if not registry:
         raise HTTPException(status_code=503, detail="Plugin service not configured")
 
     try:
-        remote_plugins = await client.fetch_catalog(plugin_type=plugin_type)
+        import asyncio
+
+        available = await asyncio.to_thread(registry.list_plugins)
     except Exception as e:
-        logger.error(f"Failed to fetch plugin catalog: {e}")
-        raise HTTPException(status_code=502, detail=f"Plugin service unavailable: {e}")
+        logger.error(f"Failed to scan plugin registry: {e}")
+        raise HTTPException(status_code=502, detail=f"Plugin registry unavailable: {e}")
+
+    if plugin_type:
+        available = [p for p in available if p.plugin_type == plugin_type]
 
     return [
         RemotePluginResponse(
@@ -607,44 +606,46 @@ async def list_remote_plugins(
             type=p.plugin_type,
             description=p.description,
             author=p.author,
-            sha256=p.sha256,
-            archive_size=p.archive_size,
+            s3_prefix=p.s3_prefix,
         )
-        for p in remote_plugins
+        for p in available
     ]
 
 
 @router.post("/service/install", response_model=InstallPluginResponse)
-async def install_plugin_from_service(
+async def install_plugin_from_s3(
     install_request: InstallPluginRequest,
     request: Request = None,
     session: AsyncSession = Depends(get_system_session),
     current_user: User = Depends(get_current_user),
 ):
-    """Download, verify, and install a plugin from the remote plugin service.
+    """Download and install a plugin from S3.
 
-    The plugin archive is verified against its SHA-256 checksum before
-    extraction. After installation, the plugin is registered in the database
-    and loaded into the plugin loader.
+    Downloads plugin files from the S3 bucket, registers in the database,
+    and loads into the plugin loader.
     """
-    client = _get_service_client(request)
-    if not client:
+    registry = getattr(request.app.state, "dynamo_registry", None)
+    s3_client = getattr(request.app.state, "s3_plugin_client", None)
+    if not registry or not s3_client:
         raise HTTPException(status_code=503, detail="Plugin service not configured")
 
-    try:
-        # Get plugin info first for the response
-        info = await client.get_plugin_info(install_request.plugin_id)
-    except Exception as e:
-        raise HTTPException(status_code=404, detail=f"Plugin not found in service: {e}")
+    import asyncio
 
     try:
-        # Download and verify
-        await client.install_plugin(
-            install_request.plugin_id,
-            install_request.expected_sha256 or info.sha256,
-        )
-    except PluginVerificationError as e:
-        raise HTTPException(status_code=422, detail=str(e))
+        if install_request.version:
+            info = await asyncio.to_thread(
+                registry.get_plugin_version, install_request.plugin_id, install_request.version
+            )
+        else:
+            info = await asyncio.to_thread(registry.get_plugin, install_request.plugin_id)
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=f"Plugin not found in registry: {e}")
+
+    if not info:
+        raise HTTPException(status_code=404, detail=f"Plugin not found: {install_request.plugin_id}")
+
+    try:
+        await asyncio.to_thread(s3_client.download_plugin, info.plugin_id, info.version)
     except Exception as e:
         logger.error(f"Failed to install plugin {install_request.plugin_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Installation failed: {e}")
@@ -681,7 +682,7 @@ async def install_plugin_from_service(
     loader = getattr(request.app.state, "plugin_loader", None)
     if loader:
         try:
-            plugin_dir = client.plugins_dir / info.plugin_id
+            plugin_dir = s3_client.plugins_dir / info.plugin_id
             loader.load_plugin(plugin_dir)
         except Exception as e:
             logger.warning(f"Plugin installed but failed to load: {e}")
@@ -690,58 +691,91 @@ async def install_plugin_from_service(
         plugin_id=info.plugin_id,
         version=info.version,
         installed=True,
-        verified=True,
-        message=f"Plugin {info.plugin_id} v{info.version} installed and verified (SHA-256: {info.sha256[:16]}...)",
+        message=f"Plugin {info.plugin_id} v{info.version} installed from S3",
     )
 
 
 @router.post("/service/sync", response_model=SyncResultResponse)
-async def sync_plugins_from_service(
+async def sync_plugins_from_s3(
     request: Request = None,
     session: AsyncSession = Depends(get_system_session),
     current_user: User = Depends(get_current_user),
 ):
-    """Sync all plugins from the remote plugin service.
+    """Sync all plugins from S3 via the DynamoDB registry.
 
-    Downloads missing or outdated plugins, verifies their checksums,
-    and registers them in the database.
+    Downloads missing or outdated plugins and registers them in the database.
     """
-    client = _get_service_client(request)
-    if not client:
+    registry = getattr(request.app.state, "dynamo_registry", None)
+    s3_client = getattr(request.app.state, "s3_plugin_client", None)
+    if not registry or not s3_client:
         raise HTTPException(status_code=503, detail="Plugin service not configured")
 
+    import asyncio
+
     try:
-        result = await client.sync_plugins()
+        available = await asyncio.to_thread(registry.list_plugins)
     except Exception as e:
         logger.error(f"Plugin sync failed: {e}")
         raise HTTPException(status_code=502, detail=f"Plugin sync failed: {e}")
 
+    installed = []
+    updated = []
+    skipped = []
+    failed = []
+
+    plugins_dir = getattr(request.app.state, "plugins_dir", None)
+
+    for info in available:
+        try:
+            local_dir = plugins_dir / info.plugin_id if plugins_dir else None
+            if local_dir and local_dir.exists():
+                # Check if local version matches
+                import yaml
+
+                for mf in ["manifest.yml", "manifest.yaml"]:
+                    mf_path = local_dir / mf
+                    if mf_path.exists():
+                        with open(mf_path) as f:
+                            local_manifest = yaml.safe_load(f)
+                        if local_manifest.get("version") == info.version:
+                            skipped.append(info.plugin_id)
+                            break
+                else:
+                    await asyncio.to_thread(s3_client.download_plugin, info.plugin_id, info.version)
+                    updated.append(info.plugin_id)
+            else:
+                await asyncio.to_thread(s3_client.download_plugin, info.plugin_id, info.version)
+                installed.append(info.plugin_id)
+        except Exception as e:
+            logger.error(f"Failed to sync plugin {info.plugin_id}: {e}")
+            failed.append({"id": info.plugin_id, "error": str(e)})
+
     # Register all installed/updated plugins in the database
     now = datetime.now(timezone.utc)
-    all_synced = result["installed"] + result["updated"]
-
-    for plugin_id in all_synced:
+    for plugin_id in installed + updated:
         try:
-            info = await client.get_plugin_info(plugin_id)
+            p_info = await asyncio.to_thread(registry.get_plugin, plugin_id)
+            if not p_info:
+                continue
             stmt = select(Plugin).where(Plugin.plugin_id == plugin_id)
             db_result = await session.execute(stmt)
             existing = db_result.scalar_one_or_none()
 
             if existing:
-                existing.name = info.name
-                existing.version = info.version
-                existing.type = info.plugin_type
-                existing.manifest = info.manifest
+                existing.name = p_info.name
+                existing.version = p_info.version
+                existing.type = p_info.plugin_type
+                existing.manifest = p_info.manifest
                 existing.updated_at = now
                 session.add(existing)
             else:
                 plugin = Plugin(
-                    plugin_id=info.plugin_id,
-                    name=info.name,
-                    version=info.version,
-                    type=info.plugin_type,
+                    plugin_id=p_info.plugin_id,
+                    name=p_info.name,
+                    version=p_info.version,
+                    type=p_info.plugin_type,
                     enabled=True,
-                    manifest=info.manifest,
+                    manifest=p_info.manifest,
                     installed_at=now,
                     updated_at=now,
                 )
@@ -756,4 +790,4 @@ async def sync_plugins_from_service(
     if loader:
         loader.load_all_plugins()
 
-    return SyncResultResponse(**result)
+    return SyncResultResponse(installed=installed, updated=updated, skipped=skipped, failed=failed)

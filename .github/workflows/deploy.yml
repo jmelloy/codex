@@ -6,6 +6,8 @@ on:
     paths-ignore:
       - "**.md"
       - "docs/**"
+      - "plugins/**"  # Plugin changes handled by plugins.yml workflow
+      - "cloudformation/**"
   workflow_dispatch:
     inputs:
       environment:
@@ -25,7 +27,6 @@ env:
   REGISTRY: ghcr.io
   BACKEND_IMAGE: ghcr.io/${{ github.repository_owner }}/codex-backend
   FRONTEND_IMAGE: ghcr.io/${{ github.repository_owner }}/codex-frontend
-  PLUGIN_SERVICE_IMAGE: ghcr.io/${{ github.repository_owner }}/codex-plugin-service
 
 jobs:
   # ---------------------------------------------------------------------------
@@ -100,9 +101,6 @@ jobs:
           - service: frontend
             context: ./frontend
             dockerfile: frontend/Dockerfile
-          - service: plugin-service
-            context: .
-            dockerfile: plugin-service/Dockerfile
     outputs:
       image_tag: ${{ steps.meta.outputs.version }}
       build_version: ${{ steps.version.outputs.build_version }}
@@ -216,8 +214,7 @@ jobs:
           # Update image references with actual owner and tag
           kustomize edit set image \
             ghcr.io/OWNER/codex-backend=ghcr.io/${OWNER}/codex-backend:${TAG} \
-            ghcr.io/OWNER/codex-frontend=ghcr.io/${OWNER}/codex-frontend:${TAG} \
-            ghcr.io/OWNER/codex-plugin-service=ghcr.io/${OWNER}/codex-plugin-service:${TAG}
+            ghcr.io/OWNER/codex-frontend=ghcr.io/${OWNER}/codex-frontend:${TAG}
 
           # Add build version as annotation (safe for selectors unlike labels)
           kustomize edit add annotation app.kubernetes.io/version:${BUILD_VERSION} --force
@@ -226,7 +223,6 @@ jobs:
           kubectl apply -k .
 
           # Wait for rollout
-          kubectl -n codex rollout status deployment/plugin-service --timeout=120s
           kubectl -n codex rollout status deployment/backend --timeout=180s
           kubectl -n codex rollout status deployment/frontend --timeout=120s
 

@@ -363,7 +363,7 @@ def test_real_world_theme_with_templates():
     from pathlib import Path
 
     # Load the actual manila theme (plugins are at repository root)
-    loader = PluginLoader(Path(__file__).parent.parent.parent / "plugin-service" / "plugins")
+    loader = PluginLoader(Path(__file__).parent.parent.parent / "plugins")
     loader.load_all_plugins()
     
     manila = loader.get_plugin("manila")
@@ -387,7 +387,7 @@ def test_real_world_integration_with_templates():
     from pathlib import Path
 
     # Load the actual github integration (plugins are at repository root)
-    loader = PluginLoader(Path(__file__).parent.parent.parent / "plugin-service" / "plugins")
+    loader = PluginLoader(Path(__file__).parent.parent.parent / "plugins")
     loader.load_all_plugins()
     
     github = loader.get_plugin("github")
@@ -411,7 +411,7 @@ def test_get_plugins_with_templates_includes_theme_and_integration():
     from pathlib import Path
 
     # Plugins are at repository root
-    loader = PluginLoader(Path(__file__).parent.parent.parent / "plugin-service" / "plugins")
+    loader = PluginLoader(Path(__file__).parent.parent.parent / "plugins")
     loader.load_all_plugins()
     
     # Get all plugins with templates

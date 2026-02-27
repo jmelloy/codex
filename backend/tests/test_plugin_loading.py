@@ -21,7 +21,7 @@ from codex.main import app
 # Helpers
 # ---------------------------------------------------------------------------
 
-PLUGINS_DIR = Path(__file__).parent.parent.parent / "plugin-service" / "plugins"
+PLUGINS_DIR = Path(__file__).parent.parent.parent / "plugins"
 
 
 @pytest.fixture(scope="module")

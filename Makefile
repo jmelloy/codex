@@ -19,6 +19,7 @@
 .PHONY: typecheck typecheck-backend typecheck-frontend typecheck-plugins
 .PHONY: clean-plugins clean-frontend clean-backend
 .PHONY: deploy docker-build docker-up docker-down docker-logs
+.PHONY: upload-plugins upload-plugin
 
 # Default target - production deployment
 all: deploy
@@ -157,8 +158,8 @@ watch-plugins:
 dev: dev-backend
 
 dev-backend:
-	@echo "Starting backend server on http://localhost:8000..."
-	cd backend && python -m codex.main
+	@echo "Starting backend server on http://localhost:8000 (plugins dev mode)..."
+	cd backend && CODEX_PLUGINS_DEV=true python -m codex.main
 
 dev-frontend:
 	@echo "Starting frontend dev server on http://localhost:5173..."
@@ -287,6 +288,123 @@ db-clean:
 	cd backend && python -m codex.scripts.seed_test_data clean
 
 # =============================================================================
+# S3 Plugin Upload
+# =============================================================================
+
+# Required: CODEX_PLUGIN_S3_BUCKET environment variable
+PLUGIN_S3_BUCKET ?= $(CODEX_PLUGIN_S3_BUCKET)
+
+# Upload all changed plugins to S3 with auto-versioned paths
+# Version format: {YYYY}.{MM}.{release}.{sha}
+upload-plugins: build-plugins
+	@if [ -z "$(PLUGIN_S3_BUCKET)" ]; then \
+		echo "Error: CODEX_PLUGIN_S3_BUCKET or PLUGIN_S3_BUCKET is required"; \
+		echo "Usage: make upload-plugins PLUGIN_S3_BUCKET=codex-plugins-production"; \
+		exit 1; \
+	fi
+	@YEAR=$$(date -u +'%Y'); \
+	MONTH=$$(date -u +'%m'); \
+	SHA=$$(git rev-parse --short HEAD); \
+	echo "Uploading plugins to s3://$(PLUGIN_S3_BUCKET)/..."; \
+	UPLOADED=0; \
+	cd plugins && for plugin_dir in */; do \
+		plugin_name="$${plugin_dir%/}"; \
+		if [ "$$plugin_name" = "node_modules" ] || [ "$$plugin_name" = "shared" ]; then continue; fi; \
+		manifest="$${plugin_dir}manifest.yml"; \
+		if [ ! -f "$$manifest" ]; then \
+			for alt in manifest.yaml plugin.yaml theme.yaml integration.yaml; do \
+				if [ -f "$${plugin_dir}$$alt" ]; then manifest="$${plugin_dir}$$alt"; break; fi; \
+			done; \
+		fi; \
+		if [ ! -f "$$manifest" ]; then continue; fi; \
+		PLUGIN_HASH=$$(find "$$plugin_dir" -type f -not -path "*/dist/*" -not -path "*/node_modules/*" | sort | xargs sha256sum 2>/dev/null | sha256sum | cut -d' ' -f1); \
+		EXISTING_HASH=$$(aws s3 cp "s3://$(PLUGIN_S3_BUCKET)/$$plugin_name/.latest-hash" - 2>/dev/null || echo ""); \
+		if [ "$$EXISTING_HASH" = "$$PLUGIN_HASH" ]; then \
+			echo "  $$plugin_name: unchanged"; continue; \
+		fi; \
+		RELEASE=1; \
+		PREFIX="$$plugin_name/$$YEAR.$$MONTH."; \
+		EXISTING=$$(aws s3api list-objects-v2 --bucket "$(PLUGIN_S3_BUCKET)" --prefix "$$PREFIX" --delimiter "/" --query "CommonPrefixes[].Prefix" --output text 2>/dev/null || echo ""); \
+		if [ -n "$$EXISTING" ] && [ "$$EXISTING" != "None" ]; then \
+			COUNT=$$(echo "$$EXISTING" | tr '\t' '\n' | grep -c "." || echo "0"); \
+			RELEASE=$$((COUNT + 1)); \
+		fi; \
+		VERSION="$$YEAR.$$MONTH.$$RELEASE.$$SHA"; \
+		echo "  $$plugin_name: v$$VERSION"; \
+		aws s3 cp "$$manifest" "s3://$(PLUGIN_S3_BUCKET)/$$plugin_name/$$VERSION/manifest.yml" --quiet; \
+		for subdir in styles templates examples dist; do \
+			if [ -d "$${plugin_dir}$$subdir" ]; then \
+				aws s3 sync "$${plugin_dir}$$subdir/" "s3://$(PLUGIN_S3_BUCKET)/$$plugin_name/$$VERSION/$$subdir/" --quiet; \
+			fi; \
+		done; \
+		echo -n "$$PLUGIN_HASH" | aws s3 cp - "s3://$(PLUGIN_S3_BUCKET)/$$plugin_name/.latest-hash" --quiet; \
+		UPLOADED=$$((UPLOADED + 1)); \
+	done; \
+	echo ""; \
+	echo "Upload complete: $$UPLOADED plugin(s) published"
+
+# Upload a single plugin to S3
+# Usage: make upload-plugin PLUGIN=weather-api PLUGIN_S3_BUCKET=codex-plugins-production
+upload-plugin: build-plugin
+	@if [ -z "$(PLUGIN_S3_BUCKET)" ]; then \
+		echo "Error: CODEX_PLUGIN_S3_BUCKET or PLUGIN_S3_BUCKET is required"; \
+		exit 1; \
+	fi
+	@if [ -z "$(PLUGIN)" ]; then \
+		echo "Error: PLUGIN variable is required"; \
+		echo "Usage: make upload-plugin PLUGIN=weather-api PLUGIN_S3_BUCKET=my-bucket"; \
+		exit 1; \
+	fi
+	@YEAR=$$(date -u +'%Y'); \
+	MONTH=$$(date -u +'%m'); \
+	SHA=$$(git rev-parse --short HEAD); \
+	RELEASE=1; \
+	PREFIX="$(PLUGIN)/$$YEAR.$$MONTH."; \
+	EXISTING=$$(aws s3api list-objects-v2 --bucket "$(PLUGIN_S3_BUCKET)" --prefix "$$PREFIX" --delimiter "/" --query "CommonPrefixes[].Prefix" --output text 2>/dev/null || echo ""); \
+	if [ -n "$$EXISTING" ] && [ "$$EXISTING" != "None" ]; then \
+		COUNT=$$(echo "$$EXISTING" | tr '\t' '\n' | grep -c "." || echo "0"); \
+		RELEASE=$$((COUNT + 1)); \
+	fi; \
+	VERSION="$$YEAR.$$MONTH.$$RELEASE.$$SHA"; \
+	echo "Uploading $(PLUGIN) v$$VERSION to s3://$(PLUGIN_S3_BUCKET)/"; \
+	cd plugins && \
+	manifest="$(PLUGIN)/manifest.yml"; \
+	if [ ! -f "$$manifest" ]; then \
+		for alt in manifest.yaml plugin.yaml theme.yaml integration.yaml; do \
+			if [ -f "$(PLUGIN)/$$alt" ]; then manifest="$(PLUGIN)/$$alt"; break; fi; \
+		done; \
+	fi; \
+	aws s3 cp "$$manifest" "s3://$(PLUGIN_S3_BUCKET)/$(PLUGIN)/$$VERSION/manifest.yml"; \
+	for subdir in styles templates examples dist; do \
+		if [ -d "$(PLUGIN)/$$subdir" ]; then \
+			aws s3 sync "$(PLUGIN)/$$subdir/" "s3://$(PLUGIN_S3_BUCKET)/$(PLUGIN)/$$VERSION/$$subdir/" --quiet; \
+		fi; \
+	done; \
+	echo "Upload complete: $(PLUGIN) v$$VERSION"
+
+# =============================================================================
+# AWS Infrastructure
+# =============================================================================
+
+cfn-deploy:
+	@echo "Deploying CloudFormation stack..."
+	aws cloudformation deploy \
+		--template-file cloudformation/codex-aws-resources.yml \
+		--stack-name codex-aws-resources \
+		--capabilities CAPABILITY_NAMED_IAM \
+		--parameter-overrides Environment=production
+	@echo "CloudFormation deploy complete!"
+
+cfn-deploy-staging:
+	@echo "Deploying CloudFormation stack (staging)..."
+	aws cloudformation deploy \
+		--template-file cloudformation/codex-aws-resources.yml \
+		--stack-name codex-aws-resources-staging \
+		--capabilities CAPABILITY_NAMED_IAM \
+		--parameter-overrides Environment=staging
+	@echo "CloudFormation deploy complete!"
+
+# =============================================================================
 # Help
 # =============================================================================
 
@@ -324,6 +442,16 @@ help:
 	@echo "  make lint         Run all linters"
 	@echo "  make typecheck    Run type checkers"
 	@echo "  make format       Format code"
+	@echo ""
+	@echo "S3 Plugin Upload:"
+	@echo "  make upload-plugins PLUGIN_S3_BUCKET=<bucket>"
+	@echo "                    Build and upload changed plugins to S3"
+	@echo "  make upload-plugin PLUGIN=<name> PLUGIN_S3_BUCKET=<bucket>"
+	@echo "                    Build and upload a single plugin to S3"
+	@echo ""
+	@echo "AWS Infrastructure:"
+	@echo "  make cfn-deploy   Deploy CloudFormation stack (production)"
+	@echo "  make cfn-deploy-staging  Deploy CloudFormation stack (staging)"
 	@echo ""
 	@echo "Clean:"
 	@echo "  make clean        Clean build artifacts"

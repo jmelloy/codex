@@ -13,18 +13,17 @@ services:
       - LOG_FORMAT=${LOG_FORMAT:-colored}
       - PYTHONUNBUFFERED=1
       - CODEX_PLUGINS_DIR=/app/plugins
+      - CODEX_PLUGINS_DEV=${CODEX_PLUGINS_DEV:-true}
+      - CODEX_PLUGIN_S3_BUCKET=${CODEX_PLUGIN_S3_BUCKET:-}
+      - CODEX_PLUGIN_DYNAMO_TABLE=${CODEX_PLUGIN_DYNAMO_TABLE:-}
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
       - OPENGRAPH_IO_API_KEY=${OPENGRAPH_IO_API_KEY}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI:-http://localhost:8065/oauth/callback}
-      - PLUGIN_SERVICE_URL=${PLUGIN_SERVICE_URL:-http://plugin-service:8090}
-      - PLUGIN_AUTO_SYNC=${PLUGIN_AUTO_SYNC:-true}
     volumes:
       - ./data:/app/data
       - ./plugins:/app/plugins
-    depends_on:
-      plugin-service:
-        condition: service_healthy
     restart: unless-stopped
     command: >
       sh -c "alembic upgrade head && python -m codex.main"
@@ -34,23 +33,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
-
-  plugin-service:
-    build:
-      context: ./plugin-service
-      dockerfile: Dockerfile
-    ports:
-      - 8090:8090
-    environment:
-      - PLUGIN_SERVICE_DIR=/app/plugins
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8090/health')"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 5s
 
   frontend:
     build:

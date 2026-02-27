@@ -35,7 +35,6 @@ from codex.core.websocket import connection_manager
 from codex.db.database import get_system_session_sync, init_notebook_db, init_system_db
 from codex.db.models import Notebook, Workspace
 from codex.plugins.loader import PluginLoader
-from codex.plugins.service_client import PluginServiceClient
 
 request_id_var: ContextVar[str] = ContextVar("request_id", default="")
 
@@ -51,45 +50,61 @@ async def lifespan(app: FastAPI):
     # Start WebSocket broadcast loop
     await connection_manager.start_broadcast_loop()
 
-    # Default plugins directory is under plugin-service/ at the repository root
-    # or use CODEX_PLUGINS_DIR environment variable to override
-    default_plugins_dir = Path(__file__).parent.parent.parent / "plugin-service" / "plugins"
+    # Plugin loading: dev mode serves from local plugins/ directory,
+    # production mode downloads from S3 (with DynamoDB registry).
+    # CODEX_PLUGINS_DEV=true -> serve from local plugins/ folder
+    # CODEX_PLUGIN_S3_BUCKET -> download from S3
+    dev_mode = os.getenv("CODEX_PLUGINS_DEV", "false").lower() == "true"
+    default_plugins_dir = Path(__file__).parent.parent.parent / "plugins"
     plugins_dir = Path(os.getenv("CODEX_PLUGINS_DIR", default_plugins_dir))
-    logger.info(f"Loading plugins from directory: {plugins_dir}")
+    logger.info(f"Loading plugins from directory: {plugins_dir} (dev_mode={dev_mode})")
+
     loader = PluginLoader(plugins_dir)
+
+    # In production with S3 configured, download plugins before loading
+    plugin_s3_bucket = os.getenv("CODEX_PLUGIN_S3_BUCKET")
+    plugin_dynamo_table = os.getenv("CODEX_PLUGIN_DYNAMO_TABLE")
+    aws_region = os.getenv("AWS_DEFAULT_REGION", os.getenv("AWS_REGION"))
+
+    if not dev_mode and plugin_s3_bucket and plugin_dynamo_table:
+        try:
+            from codex.plugins.dynamo_registry import DynamoPluginRegistry
+            from codex.plugins.s3_client import S3PluginClient
+
+            registry = DynamoPluginRegistry(table_name=plugin_dynamo_table, region_name=aws_region)
+            s3_client = S3PluginClient(
+                bucket_name=plugin_s3_bucket,
+                plugins_dir=plugins_dir,
+                region_name=aws_region,
+            )
+
+            # Store in app state for use by API routes
+            app.state.dynamo_registry = registry
+            app.state.s3_plugin_client = s3_client
+
+            # Scan DynamoDB for available plugins and download from S3
+            available = await asyncio.to_thread(registry.list_plugins)
+            logger.info(f"Found {len(available)} plugins in DynamoDB registry")
+
+            for plugin_info in available:
+                try:
+                    await asyncio.to_thread(
+                        s3_client.sync_plugin, plugin_info.plugin_id, plugin_info.version
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to sync plugin {plugin_info.plugin_id}: {e}")
+
+        except Exception as e:
+            logger.error(f"Error initializing S3/DynamoDB plugin system: {e}", exc_info=True)
+    elif not dev_mode and plugin_s3_bucket:
+        logger.warning("CODEX_PLUGIN_S3_BUCKET is set but CODEX_PLUGIN_DYNAMO_TABLE is not; skipping S3 plugin sync")
+
     loader.load_all_plugins()
     logger.info(f"Loaded {len(loader.plugins)} plugins")
 
     # Store plugin loader and directory in app state for use by API routes
     app.state.plugin_loader = loader
     app.state.plugins_dir = plugins_dir
-
-    # Initialize plugin service client (if configured)
-    plugin_service_url = os.getenv("PLUGIN_SERVICE_URL")
-    if plugin_service_url:
-        try:
-            client = PluginServiceClient(
-                service_url=plugin_service_url,
-                plugins_dir=plugins_dir,
-            )
-            app.state.plugin_service_client = client
-            logger.info(f"Plugin service client configured: {plugin_service_url}")
-
-            # Optionally auto-sync on startup
-            if os.getenv("PLUGIN_AUTO_SYNC", "false").lower() == "true":
-                logger.info("Auto-syncing plugins from service...")
-                result = await client.sync_plugins()
-                logger.info(
-                    f"Plugin sync: {len(result['installed'])} installed, "
-                    f"{len(result['updated'])} updated, "
-                    f"{len(result['skipped'])} up-to-date, "
-                    f"{len(result['failed'])} failed"
-                )
-                # Reload plugins after sync
-                if result["installed"] or result["updated"]:
-                    loader.load_all_plugins()
-        except Exception as e:
-            logger.error(f"Error configuring plugin service client: {e}", exc_info=True)
 
     # Enable S3 versioning if S3 storage is configured
     try:

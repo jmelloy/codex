@@ -1,0 +1,353 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Codex AWS Resources - S3 buckets for plugins and documents, DynamoDB table
+  for plugin version tracking, with S3 event notifications to auto-populate
+  the DynamoDB table when new plugin versions are uploaded.
+
+Parameters:
+  Environment:
+    Type: String
+    Default: production
+    AllowedValues:
+      - production
+      - staging
+    Description: Deployment environment
+
+  PluginBucketName:
+    Type: String
+    Default: codex-plugins
+    Description: Name for the plugins S3 bucket
+
+  DocumentBucketName:
+    Type: String
+    Default: codex-documents
+    Description: Name for the documents S3 bucket
+
+Resources:
+  # ===========================================================================
+  # S3 Bucket for Plugins
+  # ===========================================================================
+  PluginsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${PluginBucketName}-${Environment}"
+      VersioningConfiguration:
+        Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: CleanupOldVersions
+            Status: Enabled
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 90
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders: ["*"]
+            AllowedMethods: [GET, HEAD]
+            AllowedOrigins: ["*"]
+            MaxAge: 3600
+      NotificationConfiguration:
+        LambdaConfigurations:
+          - Event: "s3:ObjectCreated:*"
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: suffix
+                    Value: "/manifest.yml"
+            Function: !GetAtt PluginIndexerFunction.Arn
+      Tags:
+        - Key: Project
+          Value: codex
+        - Key: Environment
+          Value: !Ref Environment
+
+  # ===========================================================================
+  # S3 Bucket for Documents
+  # ===========================================================================
+  DocumentsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${DocumentBucketName}-${Environment}"
+      VersioningConfiguration:
+        Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: CleanupOldVersions
+            Status: Enabled
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 90
+      Tags:
+        - Key: Project
+          Value: codex
+        - Key: Environment
+          Value: !Ref Environment
+
+  # ===========================================================================
+  # DynamoDB Table for Plugin Version Tracking
+  # ===========================================================================
+  PluginRegistryTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "codex-plugin-registry-${Environment}"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: plugin_id
+          AttributeType: S
+        - AttributeName: version
+          AttributeType: S
+      KeySchema:
+        - AttributeName: plugin_id
+          KeyType: HASH
+        - AttributeName: version
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: latest-version-index
+          KeySchema:
+            - AttributeName: plugin_id
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      Tags:
+        - Key: Project
+          Value: codex
+        - Key: Environment
+          Value: !Ref Environment
+
+  # ===========================================================================
+  # Lambda Function - Indexes plugin uploads into DynamoDB
+  # ===========================================================================
+  PluginIndexerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "codex-plugin-indexer-role-${Environment}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: PluginIndexerPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "arn:aws:logs:*:*:*"
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:HeadObject
+                Resource: !Sub "${PluginsBucket.Arn}/*"
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                Resource: !GetAtt PluginRegistryTable.Arn
+
+  PluginIndexerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "codex-plugin-indexer-${Environment}"
+      Runtime: python3.12
+      Handler: index.handler
+      Role: !GetAtt PluginIndexerRole.Arn
+      Timeout: 30
+      MemorySize: 128
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref PluginRegistryTable
+          PLUGIN_BUCKET: !Ref PluginsBucket
+      Code:
+        ZipFile: |
+          """Lambda function to index plugin uploads into DynamoDB.
+
+          Triggered by S3 events when manifest.yml files are uploaded.
+          Reads the manifest, extracts metadata, and writes to DynamoDB.
+          """
+          import json
+          import os
+          import urllib.parse
+
+          import boto3
+          import yaml
+
+          dynamodb = boto3.resource("dynamodb")
+          s3 = boto3.client("s3")
+
+
+          def handler(event, context):
+              table_name = os.environ["DYNAMODB_TABLE"]
+              table = dynamodb.Table(table_name)
+
+              for record in event["Records"]:
+                  bucket = record["s3"]["bucket"]["name"]
+                  key = urllib.parse.unquote_plus(record["s3"]["object"]["key"])
+
+                  # Key format: {plugin_id}/{version}/manifest.yml
+                  parts = key.split("/")
+                  if len(parts) < 3 or parts[-1] != "manifest.yml":
+                      print(f"Skipping non-manifest key: {key}")
+                      continue
+
+                  plugin_id = parts[0]
+                  version = parts[1]
+
+                  # Read manifest from S3
+                  try:
+                      response = s3.get_object(Bucket=bucket, Key=key)
+                      manifest_content = response["Body"].read().decode("utf-8")
+                      manifest = yaml.safe_load(manifest_content)
+                  except Exception as e:
+                      print(f"Error reading manifest {key}: {e}")
+                      continue
+
+                  # Compute the S3 prefix for this plugin version
+                  s3_prefix = f"{plugin_id}/{version}/"
+
+                  # Write to DynamoDB
+                  item = {
+                      "plugin_id": manifest.get("id", plugin_id),
+                      "version": version,
+                      "name": manifest.get("name", plugin_id),
+                      "type": manifest.get("type", "unknown"),
+                      "description": manifest.get("description", ""),
+                      "author": manifest.get("author", ""),
+                      "s3_bucket": bucket,
+                      "s3_prefix": s3_prefix,
+                      "manifest": json.dumps(manifest),
+                      "indexed_at": record["eventTime"],
+                  }
+
+                  table.put_item(Item=item)
+                  print(f"Indexed plugin: {plugin_id} v{version}")
+
+              return {"statusCode": 200, "body": "OK"}
+      Tags:
+        - Key: Project
+          Value: codex
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Permission for S3 to invoke the Lambda function
+  PluginIndexerInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt PluginIndexerFunction.Arn
+      Action: lambda:InvokeFunction
+      Principal: s3.amazonaws.com
+      SourceAccount: !Ref AWS::AccountId
+      SourceArn: !GetAtt PluginsBucket.Arn
+
+  # ===========================================================================
+  # IAM User/Role for CI/CD plugin uploads
+  # ===========================================================================
+  PluginUploaderPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub "codex-plugin-uploader-${Environment}"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:PutObject
+              - s3:GetObject
+              - s3:ListBucket
+              - s3:HeadObject
+            Resource:
+              - !GetAtt PluginsBucket.Arn
+              - !Sub "${PluginsBucket.Arn}/*"
+          - Effect: Allow
+            Action:
+              - dynamodb:Scan
+              - dynamodb:Query
+              - dynamodb:GetItem
+            Resource:
+              - !GetAtt PluginRegistryTable.Arn
+              - !Sub "${PluginRegistryTable.Arn}/index/*"
+
+  # ===========================================================================
+  # IAM Policy for Backend (read plugins from S3 + scan DynamoDB)
+  # ===========================================================================
+  BackendPluginPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub "codex-backend-plugins-${Environment}"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:HeadObject
+              - s3:ListBucket
+            Resource:
+              - !GetAtt PluginsBucket.Arn
+              - !Sub "${PluginsBucket.Arn}/*"
+          - Effect: Allow
+            Action:
+              - dynamodb:Scan
+              - dynamodb:Query
+              - dynamodb:GetItem
+            Resource:
+              - !GetAtt PluginRegistryTable.Arn
+              - !Sub "${PluginRegistryTable.Arn}/index/*"
+
+Outputs:
+  PluginsBucketName:
+    Description: S3 bucket name for plugins
+    Value: !Ref PluginsBucket
+    Export:
+      Name: !Sub "${AWS::StackName}-PluginsBucket"
+
+  PluginsBucketArn:
+    Description: S3 bucket ARN for plugins
+    Value: !GetAtt PluginsBucket.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-PluginsBucketArn"
+
+  DocumentsBucketName:
+    Description: S3 bucket name for documents
+    Value: !Ref DocumentsBucket
+    Export:
+      Name: !Sub "${AWS::StackName}-DocumentsBucket"
+
+  DocumentsBucketArn:
+    Description: S3 bucket ARN for documents
+    Value: !GetAtt DocumentsBucket.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-DocumentsBucketArn"
+
+  PluginRegistryTableName:
+    Description: DynamoDB table name for plugin registry
+    Value: !Ref PluginRegistryTable
+    Export:
+      Name: !Sub "${AWS::StackName}-PluginRegistryTable"
+
+  PluginRegistryTableArn:
+    Description: DynamoDB table ARN for plugin registry
+    Value: !GetAtt PluginRegistryTable.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-PluginRegistryTableArn"
+
+  PluginUploaderPolicyArn:
+    Description: IAM policy ARN for CI/CD plugin uploads
+    Value: !Ref PluginUploaderPolicy
+
+  BackendPluginPolicyArn:
+    Description: IAM policy ARN for backend plugin access
+    Value: !Ref BackendPluginPolicy

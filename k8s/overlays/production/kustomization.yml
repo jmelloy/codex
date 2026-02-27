@@ -14,9 +14,6 @@ images:
   - name: ghcr.io/OWNER/codex-frontend
     newName: ghcr.io/OWNER/codex-frontend
     newTag: latest
-  - name: ghcr.io/OWNER/codex-plugin-service
-    newName: ghcr.io/OWNER/codex-plugin-service
-    newTag: latest
 
 patches:
   # Ingress: set production hostname

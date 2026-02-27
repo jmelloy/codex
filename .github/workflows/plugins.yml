@@ -1,0 +1,160 @@
+name: Build & Publish Plugins to S3
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "plugins/**"
+  workflow_dispatch:
+    inputs:
+      force_upload:
+        description: "Force upload all plugins even if unchanged"
+        required: false
+        default: false
+        type: boolean
+
+env:
+  PLUGIN_S3_BUCKET: ${{ vars.CODEX_PLUGIN_S3_BUCKET || 'codex-plugins-production' }}
+  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+jobs:
+  build-and-publish:
+    name: Build & Publish Plugins
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write  # For OIDC-based AWS auth
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0  # Full history for change detection
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "25"
+          cache: npm
+          cache-dependency-path: plugins/package-lock.json
+
+      - name: Install plugin build dependencies
+        working-directory: plugins
+        run: npm ci
+
+      - name: Build all plugins
+        working-directory: plugins
+        run: npx tsx build.ts
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_PLUGIN_UPLOAD_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Generate version and upload changed plugins
+        working-directory: plugins
+        env:
+          FORCE_UPLOAD: ${{ inputs.force_upload || 'false' }}
+        run: |
+          YEAR=$(date -u +'%Y')
+          MONTH=$(date -u +'%m')
+          SHA=$(git rev-parse --short HEAD)
+
+          echo "Scanning plugins for changes..."
+          UPLOADED=0
+
+          for plugin_dir in */; do
+            # Skip non-plugin directories
+            plugin_name="${plugin_dir%/}"
+            if [ "$plugin_name" = "node_modules" ] || [ "$plugin_name" = "shared" ]; then
+              continue
+            fi
+
+            manifest="${plugin_dir}manifest.yml"
+            if [ ! -f "$manifest" ]; then
+              # Try legacy manifest names
+              for alt in "manifest.yaml" "plugin.yaml" "theme.yaml" "integration.yaml"; do
+                if [ -f "${plugin_dir}${alt}" ]; then
+                  manifest="${plugin_dir}${alt}"
+                  break
+                fi
+              done
+            fi
+
+            if [ ! -f "$manifest" ]; then
+              echo "  Skipping $plugin_name (no manifest)"
+              continue
+            fi
+
+            # Compute hash of plugin source files (excluding dist/ and node_modules/)
+            PLUGIN_HASH=$(find "$plugin_dir" -type f \
+              -not -path "*/dist/*" \
+              -not -path "*/node_modules/*" \
+              -not -name ".plugin-hashes" \
+              | sort | xargs sha256sum 2>/dev/null | sha256sum | cut -d' ' -f1)
+
+            # Check if this hash was already uploaded
+            HASH_MARKER="s3://${PLUGIN_S3_BUCKET}/${plugin_name}/.latest-hash"
+            EXISTING_HASH=""
+            if [ "$FORCE_UPLOAD" != "true" ]; then
+              EXISTING_HASH=$(aws s3 cp "$HASH_MARKER" - 2>/dev/null || echo "")
+            fi
+
+            if [ "$EXISTING_HASH" = "$PLUGIN_HASH" ]; then
+              echo "  $plugin_name: unchanged (hash $PLUGIN_HASH)"
+              continue
+            fi
+
+            # Determine release number by counting existing versions this month
+            RELEASE=1
+            PREFIX="${plugin_name}/${YEAR}.${MONTH}."
+            EXISTING_VERSIONS=$(aws s3api list-objects-v2 \
+              --bucket "$PLUGIN_S3_BUCKET" \
+              --prefix "$PREFIX" \
+              --delimiter "/" \
+              --query "CommonPrefixes[].Prefix" \
+              --output text 2>/dev/null || echo "")
+
+            if [ -n "$EXISTING_VERSIONS" ] && [ "$EXISTING_VERSIONS" != "None" ]; then
+              # Count existing releases this month
+              COUNT=$(echo "$EXISTING_VERSIONS" | tr '\t' '\n' | grep -c "." || echo "0")
+              RELEASE=$((COUNT + 1))
+            fi
+
+            VERSION="${YEAR}.${MONTH}.${RELEASE}.${SHA}"
+            echo "  $plugin_name: uploading v${VERSION}"
+
+            # Upload all plugin files to S3 under {plugin_id}/{version}/
+            S3_PREFIX="${plugin_name}/${VERSION}/"
+
+            # Upload manifest
+            aws s3 cp "$manifest" "s3://${PLUGIN_S3_BUCKET}/${S3_PREFIX}manifest.yml"
+
+            # Upload styles directory if it exists
+            if [ -d "${plugin_dir}styles" ]; then
+              aws s3 sync "${plugin_dir}styles/" "s3://${PLUGIN_S3_BUCKET}/${S3_PREFIX}styles/" --quiet
+            fi
+
+            # Upload templates directory if it exists
+            if [ -d "${plugin_dir}templates" ]; then
+              aws s3 sync "${plugin_dir}templates/" "s3://${PLUGIN_S3_BUCKET}/${S3_PREFIX}templates/" --quiet
+            fi
+
+            # Upload examples directory if it exists
+            if [ -d "${plugin_dir}examples" ]; then
+              aws s3 sync "${plugin_dir}examples/" "s3://${PLUGIN_S3_BUCKET}/${S3_PREFIX}examples/" --quiet
+            fi
+
+            # Upload dist directory if it exists (compiled components)
+            if [ -d "${plugin_dir}dist" ]; then
+              aws s3 sync "${plugin_dir}dist/" "s3://${PLUGIN_S3_BUCKET}/${S3_PREFIX}dist/" --quiet
+            fi
+
+            # Store the hash marker for future change detection
+            echo -n "$PLUGIN_HASH" | aws s3 cp - "$HASH_MARKER"
+
+            echo "    Uploaded to s3://${PLUGIN_S3_BUCKET}/${S3_PREFIX}"
+            UPLOADED=$((UPLOADED + 1))
+          done
+
+          echo ""
+          echo "Upload complete: ${UPLOADED} plugin(s) published"

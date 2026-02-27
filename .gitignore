@@ -280,3 +280,9 @@ workspaces/
 screenshots/
 
 .env.production
+
+# Plugins build artifacts
+plugins/node_modules/
+plugins/*/dist/
+plugins/plugins.json
+plugins/.plugin-hashes

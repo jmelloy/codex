@@ -76,7 +76,7 @@ def test_opengraph_integration_available(client, auth_headers):
     """Test that opengraph-unfurl integration is available."""
     # First register the plugin
     
-    manifest_path = Path(__file__).parent.parent.parent / "plugin-service" / "plugins" / "opengraph" / "manifest.yml"
+    manifest_path = Path(__file__).parent.parent.parent / "plugins" / "opengraph" / "manifest.yml"
     with open(manifest_path) as f:
         manifest = yaml.safe_load(f)
     
@@ -171,7 +171,7 @@ async def test_execute_opengraph_endpoint():
     from codex.plugins.loader import PluginLoader
     from pathlib import Path
 
-    loader = PluginLoader(Path(__file__).parent.parent.parent / "plugin-service" / "plugins")
+    loader = PluginLoader(Path(__file__).parent.parent.parent / "plugins")
     plugins = loader.load_all_plugins()  # Load all plugins
     executor = IntegrationExecutor()
     opengraph = plugins.get("opengraph-unfurl")

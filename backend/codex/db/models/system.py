@@ -139,6 +139,7 @@ class PluginConfig(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     workspace_id: int = Field(foreign_key="workspaces.id", index=True)
     plugin_id: str = Field(foreign_key="plugins.plugin_id", index=True)
+    version: str | None = Field(default=None)  # Pinned plugin version (None = latest)
     enabled: bool = Field(default=True)  # Workspace-level enable/disable
     config: dict = Field(default={}, sa_column=Column(JSON))
     created_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
@@ -156,6 +157,7 @@ class NotebookPluginConfig(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     notebook_id: int = Field(foreign_key="notebooks.id", index=True)
     plugin_id: str = Field(foreign_key="plugins.plugin_id", index=True)
+    version: str | None = Field(default=None)  # Pinned plugin version (None = latest)
     enabled: bool = Field(default=True)  # Notebook-level enable/disable (overrides workspace)
     config: dict = Field(default={}, sa_column=Column(JSON))
     created_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)

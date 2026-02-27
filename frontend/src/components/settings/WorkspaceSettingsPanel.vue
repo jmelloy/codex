@@ -116,8 +116,10 @@ async function handlePluginToggle(pluginId: string, event: Event) {
     if (existingConfig) {
       existingConfig.enabled = newState
     } else {
+      const pluginVersion = pluginsList.value.find(p => p.id === pluginId)?.version ?? null
       pluginConfigurations.value.push({
         plugin_id: pluginId,
+        version: pluginVersion,
         enabled: newState,
         config: {}
       })

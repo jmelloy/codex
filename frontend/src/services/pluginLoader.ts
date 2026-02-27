@@ -68,11 +68,14 @@ function loadPluginStyles(pluginId: string, filePath: string): void {
     return
   }
 
-  // Extract plugin directory from file path (e.g., "weather-api/dist/weather.js" -> "weather-api")
-  const pluginDir = filePath.split("/")[0]
+  // Extract plugin path prefix from file path.
+  // Versioned paths: "weather-api/1.0.0/weather.js" → "weather-api/1.0.0"
+  // Legacy paths:    "weather-api/dist/weather.js"   → "weather-api/dist"
+  const parts = filePath.split("/")
+  const pathPrefix = parts.length >= 2 ? parts.slice(0, 2).join("/") : parts[0]
 
   // Load the plugin's CSS file via backend API
-  const cssUrl = `${PLUGINS_ASSETS_BASE}/${pluginDir}/dist/plugins.css`
+  const cssUrl = `${PLUGINS_ASSETS_BASE}/${pathPrefix}/plugins.css`
 
   // Create a link element
   const link = document.createElement("link")

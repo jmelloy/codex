@@ -465,7 +465,7 @@ class TestBuiltManifest:
                         "test-block": {
                             "blockId": "test-block",
                             "blockName": "Test Block",
-                            "file": "test-with-components/dist/test-block.js",
+                            "file": "test-with-components/1.0.0/test-block.js",
                         }
                     },
                 }
@@ -482,7 +482,7 @@ class TestBuiltManifest:
             plugin = data["plugins"][0]
             assert "components" in plugin
             assert "test-block" in plugin["components"]
-            assert plugin["components"]["test-block"]["file"] == "test-with-components/dist/test-block.js"
+            assert plugin["components"]["test-block"]["file"] == "test-with-components/1.0.0/test-block.js"
         finally:
             if had_existing and existing_content is not None:
                 plugins_json_path.write_text(existing_content)
@@ -509,3 +509,137 @@ class TestBuiltManifest:
                     assert asset_resp.status_code != 403, (
                         f"Asset path rejected for {block_id}: {asset_url}"
                     )
+
+
+# ---------------------------------------------------------------------------
+# Versioned Asset Paths
+# ---------------------------------------------------------------------------
+
+
+class TestVersionedAssetPaths:
+    """Versioned asset paths: /assets/{plugin_id}/{version}/{file}."""
+
+    def test_versioned_path_resolves_to_dist(self, client):
+        """A versioned path like cream/1.0.0/test.css should resolve
+        to cream/dist/test.css on disk."""
+        dist_dir = PLUGINS_DIR / "cream" / "dist"
+        dist_dir.mkdir(exist_ok=True)
+        test_file = dist_dir / "version-test.css"
+        try:
+            test_file.write_text("/* versioned */")
+
+            resp = client.get("/api/v1/plugins/assets/cream/1.0.0/version-test.css")
+            assert resp.status_code == 200
+            assert "text/css" in resp.headers["content-type"]
+            assert "versioned" in resp.text
+        finally:
+            test_file.unlink(missing_ok=True)
+            if dist_dir.exists() and not any(dist_dir.iterdir()):
+                dist_dir.rmdir()
+
+    def test_versioned_path_missing_file_returns_404(self, client):
+        """A versioned path to a non-existent file returns 404."""
+        resp = client.get("/api/v1/plugins/assets/cream/99.0.0/nonexistent.js")
+        assert resp.status_code == 404
+
+    def test_versioned_path_disallowed_extension_blocked(self, client):
+        """Extension allowlist is checked before resolving versioned paths."""
+        resp = client.get("/api/v1/plugins/assets/cream/1.0.0/secret.py")
+        assert resp.status_code == 403
+
+    def test_direct_path_still_works(self, client):
+        """Non-versioned (direct) paths still work for theme stylesheets."""
+        resp = client.get("/api/v1/plugins/assets/cream/styles/main.css")
+        assert resp.status_code == 200
+        assert "text/css" in resp.headers["content-type"]
+
+
+# ---------------------------------------------------------------------------
+# Workspace Plugin Config Version
+# ---------------------------------------------------------------------------
+
+
+class TestWorkspacePluginVersion:
+    """Workspace plugin config should include a version field."""
+
+    def test_plugin_config_returns_version(self, client):
+        """Plugin config endpoint should return a version field."""
+        headers = _register_and_login(client)
+
+        # Create a workspace
+        ws_resp = client.post(
+            "/api/v1/workspaces/",
+            json={"name": f"test-ws-{int(time.time() * 1000)}"},
+            headers=headers,
+        )
+        assert ws_resp.status_code in (200, 201)
+        ws_id = ws_resp.json()["id"]
+
+        # Register a plugin
+        plugin_id = f"ver-test-{int(time.time() * 1000)}"
+        client.post(
+            "/api/v1/plugins/register",
+            json={
+                "id": plugin_id,
+                "name": "Version Test Plugin",
+                "version": "2.0.0",
+                "type": "view",
+                "manifest": {"id": plugin_id, "name": "Version Test Plugin", "version": "2.0.0", "type": "view"},
+            },
+            headers=headers,
+        )
+
+        # Enable plugin for workspace with a specific version
+        put_resp = client.put(
+            f"/api/v1/workspaces/{ws_id}/plugins/{plugin_id}",
+            json={"enabled": True, "version": "2.0.0"},
+            headers=headers,
+        )
+        assert put_resp.status_code == 200
+        config = put_resp.json()
+        assert config["version"] == "2.0.0"
+        assert config["enabled"] is True
+
+        # Retrieve and verify version is persisted
+        get_resp = client.get(
+            f"/api/v1/workspaces/{ws_id}/plugins/{plugin_id}",
+            headers=headers,
+        )
+        assert get_resp.status_code == 200
+        assert get_resp.json()["version"] == "2.0.0"
+
+        # List workspace plugins should include version
+        list_resp = client.get(
+            f"/api/v1/workspaces/{ws_id}/plugins",
+            headers=headers,
+        )
+        assert list_resp.status_code == 200
+        configs = list_resp.json()
+        matching = [c for c in configs if c["plugin_id"] == plugin_id]
+        assert len(matching) == 1
+        assert matching[0]["version"] == "2.0.0"
+
+        # Cleanup
+        client.delete(f"/api/v1/workspaces/{ws_id}", headers=headers)
+        client.delete(f"/api/v1/plugins/{plugin_id}", headers=headers)
+
+    def test_default_config_has_null_version(self, client):
+        """When no config exists, the default response should have version=null."""
+        headers = _register_and_login(client)
+
+        ws_resp = client.post(
+            "/api/v1/workspaces/",
+            json={"name": f"test-ws-null-{int(time.time() * 1000)}"},
+            headers=headers,
+        )
+        ws_id = ws_resp.json()["id"]
+
+        get_resp = client.get(
+            f"/api/v1/workspaces/{ws_id}/plugins/some-unconfigured-plugin",
+            headers=headers,
+        )
+        assert get_resp.status_code == 200
+        assert get_resp.json()["version"] is None
+
+        # Cleanup
+        client.delete(f"/api/v1/workspaces/{ws_id}", headers=headers)

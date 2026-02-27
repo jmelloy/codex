@@ -413,26 +413,58 @@ async def get_plugins_manifest(request: Request):
 async def serve_plugin_asset(file_path: str, request: Request):
     """Serve a plugin asset file (JS, CSS, stylesheets, images).
 
-    This endpoint serves compiled plugin files from the plugins directory.
-    The file_path is relative to the plugins directory, e.g.:
-    - weather-api/dist/weather.js
-    - cream/styles/main.css
-    - chart-example/dist/plugins.css
+    Supports two path formats:
+
+    1. Versioned: ``{plugin_id}/{version}/{file}``
+       Used for compiled components.  The backend resolves the version
+       segment to the plugin's ``dist/`` directory on disk and caches the
+       result.  If the file is missing locally it attempts to sync from
+       the plugin service (when configured).
+
+    2. Direct: ``{plugin_id}/{relative_path}``
+       Used for theme stylesheets and other non-versioned assets
+       (e.g. ``cream/styles/main.css``).
     """
     plugins_dir = _get_plugins_dir(request)
 
-    # Validate the file path to prevent directory traversal
-    try:
-        resolved = (plugins_dir / file_path).resolve()
-        if not str(resolved).startswith(str(plugins_dir.resolve())):
-            raise HTTPException(status_code=403, detail="Access denied")
-    except (ValueError, OSError):
-        raise HTTPException(status_code=400, detail="Invalid file path")
-
-    # Check file extension
+    # Check file extension first (cheap, avoids filesystem work)
     ext = os.path.splitext(file_path)[1].lower()
     if ext not in _ALLOWED_EXTENSIONS:
         raise HTTPException(status_code=403, detail=f"File type not allowed: {ext}")
+
+    # Parse the path to detect versioned format: {plugin_id}/{version}/{file}
+    parts = file_path.split("/", 2)
+    resolved: Path | None = None
+
+    if len(parts) >= 3 and re.match(r"^\d+\.\d+\.\d+$", parts[1]):
+        # Versioned path – resolve to {plugin_id}/dist/{file}
+        plugin_id, _version, remainder = parts
+        candidate = (plugins_dir / plugin_id / "dist" / remainder).resolve()
+        plugins_resolved = plugins_dir.resolve()
+        if str(candidate).startswith(str(plugins_resolved)) and candidate.is_file():
+            resolved = candidate
+        else:
+            # File not on disk – try syncing from the plugin service
+            service_client: PluginServiceClient | None = getattr(
+                request.app.state, "plugin_service_client", None
+            )
+            if service_client:
+                try:
+                    await service_client.install_plugin(plugin_id)
+                    candidate = (plugins_dir / plugin_id / "dist" / remainder).resolve()
+                    if str(candidate).startswith(str(plugins_resolved)) and candidate.is_file():
+                        resolved = candidate
+                except Exception as exc:
+                    logger.debug(f"Plugin service sync failed for {plugin_id}: {exc}")
+
+    if resolved is None:
+        # Direct path – serve relative to plugins_dir
+        try:
+            resolved = (plugins_dir / file_path).resolve()
+            if not str(resolved).startswith(str(plugins_dir.resolve())):
+                raise HTTPException(status_code=403, detail="Access denied")
+        except (ValueError, OSError):
+            raise HTTPException(status_code=400, detail="Invalid file path")
 
     if not resolved.is_file():
         raise HTTPException(status_code=404, detail="Asset not found")

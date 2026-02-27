@@ -107,16 +107,16 @@ async function handlePluginToggle(pluginId: string, event: Event) {
   const newState = checkbox.checked
   
   try {
+    const pluginVersion = pluginsList.value.find(p => p.id === pluginId)?.version ?? null
     await api.put(
       `/api/v1/workspaces/${props.workspaceId}/plugins/${pluginId}`,
-      { enabled: newState }
+      { enabled: newState, version: pluginVersion }
     )
     
     const existingConfig = pluginConfigurations.value.find(c => c.plugin_id === pluginId)
     if (existingConfig) {
       existingConfig.enabled = newState
     } else {
-      const pluginVersion = pluginsList.value.find(p => p.id === pluginId)?.version ?? null
       pluginConfigurations.value.push({
         plugin_id: pluginId,
         version: pluginVersion,

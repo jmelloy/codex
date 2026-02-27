@@ -331,12 +331,18 @@ upload-plugins: build-plugins
 		fi; \
 		VERSION="$$YEAR.$$MONTH.$$RELEASE.$$SHA"; \
 		echo "  $$plugin_name: v$$VERSION"; \
-		aws s3 cp "$$manifest" "s3://$(PLUGIN_S3_BUCKET)/$$plugin_name/$$VERSION/manifest.yml" --quiet; \
+		ZIP_FILE=$$(mktemp --suffix=.zip); \
+		STAGING=$$(mktemp -d); \
+		cp "$$manifest" "$$STAGING/manifest.yml"; \
 		for subdir in styles templates examples dist; do \
 			if [ -d "$${plugin_dir}$$subdir" ]; then \
-				aws s3 sync "$${plugin_dir}$$subdir/" "s3://$(PLUGIN_S3_BUCKET)/$$plugin_name/$$VERSION/$$subdir/" --quiet; \
+				cp -r "$${plugin_dir}$$subdir" "$$STAGING/$$subdir"; \
 			fi; \
 		done; \
+		(cd "$$STAGING" && zip -r "$$ZIP_FILE" . -x ".*" --quiet); \
+		rm -rf "$$STAGING"; \
+		aws s3 cp "$$ZIP_FILE" "s3://$(PLUGIN_S3_BUCKET)/$$plugin_name/$$VERSION/plugin.zip" --quiet; \
+		rm -f "$$ZIP_FILE"; \
 		echo -n "$$PLUGIN_HASH" | aws s3 cp - "s3://$(PLUGIN_S3_BUCKET)/$$plugin_name/.latest-hash" --quiet; \
 		UPLOADED=$$((UPLOADED + 1)); \
 	done; \
@@ -374,12 +380,18 @@ upload-plugin: build-plugin
 			if [ -f "$(PLUGIN)/$$alt" ]; then manifest="$(PLUGIN)/$$alt"; break; fi; \
 		done; \
 	fi; \
-	aws s3 cp "$$manifest" "s3://$(PLUGIN_S3_BUCKET)/$(PLUGIN)/$$VERSION/manifest.yml"; \
+	ZIP_FILE=$$(mktemp --suffix=.zip); \
+	STAGING=$$(mktemp -d); \
+	cp "$$manifest" "$$STAGING/manifest.yml"; \
 	for subdir in styles templates examples dist; do \
 		if [ -d "$(PLUGIN)/$$subdir" ]; then \
-			aws s3 sync "$(PLUGIN)/$$subdir/" "s3://$(PLUGIN_S3_BUCKET)/$(PLUGIN)/$$VERSION/$$subdir/" --quiet; \
+			cp -r "$(PLUGIN)/$$subdir" "$$STAGING/$$subdir"; \
 		fi; \
 	done; \
+	(cd "$$STAGING" && zip -r "$$ZIP_FILE" . -x ".*" --quiet); \
+	rm -rf "$$STAGING"; \
+	aws s3 cp "$$ZIP_FILE" "s3://$(PLUGIN_S3_BUCKET)/$(PLUGIN)/$$VERSION/plugin.zip"; \
+	rm -f "$$ZIP_FILE"; \
 	echo "Upload complete: $(PLUGIN) v$$VERSION"
 
 # =============================================================================

@@ -123,36 +123,29 @@ jobs:
             VERSION="${YEAR}.${MONTH}.${RELEASE}.${SHA}"
             echo "  $plugin_name: uploading v${VERSION}"
 
-            # Upload all plugin files to S3 under {plugin_id}/{version}/
-            S3_PREFIX="${plugin_name}/${VERSION}/"
+            # Build a zip archive of all plugin files and upload to S3
+            S3_KEY="${plugin_name}/${VERSION}/plugin.zip"
+            ZIP_FILE=$(mktemp --suffix=.zip)
 
-            # Upload manifest
-            aws s3 cp "$manifest" "s3://${PLUGIN_S3_BUCKET}/${S3_PREFIX}manifest.yml"
+            # Stage plugin files in a temp dir to ensure manifest.yml name
+            STAGING=$(mktemp -d)
+            cp "$manifest" "${STAGING}/manifest.yml"
+            for subdir in styles templates examples dist; do
+              if [ -d "${plugin_dir}${subdir}" ]; then
+                cp -r "${plugin_dir}${subdir}" "${STAGING}/${subdir}"
+              fi
+            done
 
-            # Upload styles directory if it exists
-            if [ -d "${plugin_dir}styles" ]; then
-              aws s3 sync "${plugin_dir}styles/" "s3://${PLUGIN_S3_BUCKET}/${S3_PREFIX}styles/" --quiet
-            fi
+            (cd "$STAGING" && zip -r "$ZIP_FILE" . -x ".*" --quiet)
+            rm -rf "$STAGING"
 
-            # Upload templates directory if it exists
-            if [ -d "${plugin_dir}templates" ]; then
-              aws s3 sync "${plugin_dir}templates/" "s3://${PLUGIN_S3_BUCKET}/${S3_PREFIX}templates/" --quiet
-            fi
-
-            # Upload examples directory if it exists
-            if [ -d "${plugin_dir}examples" ]; then
-              aws s3 sync "${plugin_dir}examples/" "s3://${PLUGIN_S3_BUCKET}/${S3_PREFIX}examples/" --quiet
-            fi
-
-            # Upload dist directory if it exists (compiled components)
-            if [ -d "${plugin_dir}dist" ]; then
-              aws s3 sync "${plugin_dir}dist/" "s3://${PLUGIN_S3_BUCKET}/${S3_PREFIX}dist/" --quiet
-            fi
+            aws s3 cp "$ZIP_FILE" "s3://${PLUGIN_S3_BUCKET}/${S3_KEY}" --quiet
+            rm -f "$ZIP_FILE"
 
             # Store the hash marker for future change detection
             echo -n "$PLUGIN_HASH" | aws s3 cp - "$HASH_MARKER"
 
-            echo "    Uploaded to s3://${PLUGIN_S3_BUCKET}/${S3_PREFIX}"
+            echo "    Uploaded to s3://${PLUGIN_S3_BUCKET}/${S3_KEY}"
             UPLOADED=$((UPLOADED + 1))
           done
 

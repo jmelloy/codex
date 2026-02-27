@@ -9,7 +9,7 @@ import tempfile
 import pytest
 import yaml
 
-from codex_plugin_service.catalog import PluginCatalog, CatalogEntry
+from api.catalog import PluginCatalog, CatalogEntry
 
 
 @pytest.fixture
@@ -18,20 +18,24 @@ def plugins_dir(tmp_path):
     # Create a theme plugin
     theme_dir = tmp_path / "test-theme"
     theme_dir.mkdir()
-    (theme_dir / "manifest.yml").write_text(yaml.dump({
-        "id": "test-theme",
-        "name": "Test Theme",
-        "version": "1.0.0",
-        "type": "theme",
-        "description": "A test theme",
-        "author": "Test Author",
-        "theme": {
-            "display_name": "Test Theme",
-            "category": "light",
-            "className": "theme-test",
-            "stylesheet": "styles/main.css",
-        },
-    }))
+    (theme_dir / "manifest.yml").write_text(
+        yaml.dump(
+            {
+                "id": "test-theme",
+                "name": "Test Theme",
+                "version": "1.0.0",
+                "type": "theme",
+                "description": "A test theme",
+                "author": "Test Author",
+                "theme": {
+                    "display_name": "Test Theme",
+                    "category": "light",
+                    "className": "theme-test",
+                    "stylesheet": "styles/main.css",
+                },
+            }
+        )
+    )
     styles_dir = theme_dir / "styles"
     styles_dir.mkdir()
     (styles_dir / "main.css").write_text("body { background: #fff; }")
@@ -39,22 +43,26 @@ def plugins_dir(tmp_path):
     # Create an integration plugin
     int_dir = tmp_path / "test-integration"
     int_dir.mkdir()
-    (int_dir / "manifest.yml").write_text(yaml.dump({
-        "id": "test-integration",
-        "name": "Test Integration",
-        "version": "2.0.0",
-        "type": "integration",
-        "description": "A test integration",
-        "author": "Test Author",
-        "integration": {
-            "api_type": "rest",
-            "base_url": "https://api.example.com",
-            "auth_method": "api_key",
-        },
-        "endpoints": [
-            {"id": "test", "name": "Test", "method": "GET", "path": "/test"},
-        ],
-    }))
+    (int_dir / "manifest.yml").write_text(
+        yaml.dump(
+            {
+                "id": "test-integration",
+                "name": "Test Integration",
+                "version": "2.0.0",
+                "type": "integration",
+                "description": "A test integration",
+                "author": "Test Author",
+                "integration": {
+                    "api_type": "rest",
+                    "base_url": "https://api.example.com",
+                    "auth_method": "api_key",
+                },
+                "endpoints": [
+                    {"id": "test", "name": "Test", "method": "GET", "path": "/test"},
+                ],
+            }
+        )
+    )
 
     # Create a directory that should be skipped (no manifest)
     (tmp_path / "not-a-plugin").mkdir()
@@ -179,11 +187,15 @@ def test_catalog_invalid_manifest(tmp_path):
     # Plugin missing required fields
     bad_dir = tmp_path / "bad-plugin"
     bad_dir.mkdir()
-    (bad_dir / "manifest.yml").write_text(yaml.dump({
-        "id": "bad-plugin",
-        "name": "Bad Plugin",
-        # Missing version and type
-    }))
+    (bad_dir / "manifest.yml").write_text(
+        yaml.dump(
+            {
+                "id": "bad-plugin",
+                "name": "Bad Plugin",
+                # Missing version and type
+            }
+        )
+    )
 
     catalog = PluginCatalog(plugins_dir=tmp_path)
     catalog.build()
@@ -194,12 +206,16 @@ def test_catalog_invalid_plugin_id(tmp_path):
     """Test that invalid plugin IDs are rejected."""
     bad_dir = tmp_path / "BadPlugin"
     bad_dir.mkdir()
-    (bad_dir / "manifest.yml").write_text(yaml.dump({
-        "id": "Bad_Plugin",  # Invalid: uppercase and underscore
-        "name": "Bad Plugin",
-        "version": "1.0.0",
-        "type": "view",
-    }))
+    (bad_dir / "manifest.yml").write_text(
+        yaml.dump(
+            {
+                "id": "Bad_Plugin",  # Invalid: uppercase and underscore
+                "name": "Bad Plugin",
+                "version": "1.0.0",
+                "type": "view",
+            }
+        )
+    )
 
     catalog = PluginCatalog(plugins_dir=tmp_path)
     catalog.build()
@@ -215,12 +231,16 @@ def test_catalog_rebuild(plugins_dir):
     # Add a new plugin
     new_dir = plugins_dir / "new-plugin"
     new_dir.mkdir()
-    (new_dir / "manifest.yml").write_text(yaml.dump({
-        "id": "new-plugin",
-        "name": "New Plugin",
-        "version": "1.0.0",
-        "type": "view",
-    }))
+    (new_dir / "manifest.yml").write_text(
+        yaml.dump(
+            {
+                "id": "new-plugin",
+                "name": "New Plugin",
+                "version": "1.0.0",
+                "type": "view",
+            }
+        )
+    )
 
     catalog.build()
     assert len(catalog.entries) == 3

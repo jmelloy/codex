@@ -279,11 +279,4 @@ workspaces/
 # Screenshots (generated for documentation)
 screenshots/
 
-# Plugin build artifacts
-plugins/node_modules/
-plugins/*/dist/
-plugins/*/node_modules/
-plugins/*/package-lock.json
-plugins/components.json
-plugins/plugins.json
 .env.production

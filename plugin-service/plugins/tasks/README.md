@@ -17,12 +17,14 @@ A visual board with draggable cards organized in columns. Perfect for project ma
 **View Type**: `kanban`
 
 **Configuration Options**:
+
 - `columns`: Array of column definitions with id, title, and filter
 - `card_fields`: Fields to display on cards
 - `drag_drop`: Enable drag and drop (default: true)
 - `editable`: Allow inline editing (default: true)
 
 **Example**:
+
 ```yaml
 ---
 type: view
@@ -55,12 +57,14 @@ Simple checklist view with task completion. Great for daily task management and 
 **View Type**: `task-list`
 
 **Configuration Options**:
+
 - `compact`: Compact display mode (default: false)
 - `show_details`: Show task details (default: true)
 - `editable`: Allow checkbox toggling (default: true)
 - `sort_by`: Sort order (priority, due_date, created_at)
 
 **Example**:
+
 ```yaml
 ---
 type: view
@@ -108,26 +112,31 @@ Create an individual todo task file.
 This plugin defines the following custom frontmatter properties:
 
 ### `status`
+
 - **Type**: string
 - **Description**: Task status
 - **Values**: backlog, todo, in-progress, review, done
 - **Default**: todo
 
 ### `priority`
+
 - **Type**: string
 - **Description**: Task priority level
 - **Values**: low, medium, high, critical
 - **Default**: medium
 
 ### `due_date`
+
 - **Type**: date
 - **Description**: Task due date
 
 ### `assignee`
+
 - **Type**: string
 - **Description**: Person assigned to task
 
 ### `estimated_hours`
+
 - **Type**: number
 - **Description**: Estimated hours to complete
 
@@ -161,6 +170,7 @@ The plugin includes example files demonstrating different task management approa
 ## Permissions
 
 This plugin requires the following permissions:
+
 - `read_files`: Read task files
 - `write_files`: Create and update tasks
 - `modify_metadata`: Update task properties

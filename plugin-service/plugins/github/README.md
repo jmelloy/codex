@@ -12,16 +12,18 @@ Embed GitHub issues, pull requests, and repositories directly in your Codex note
 
 ## Installation
 
-1. Generate a GitHub personal access token at https://github.com/settings/tokens
+1. Generate a GitHub personal access token at [https://github.com/settings/tokens]
 2. Configure the integration in your workspace settings
 3. Enter your access token
 
 ### Token Permissions
 
 For public repositories:
+
 - No specific scopes required
 
 For private repositories:
+
 - `repo` - Full control of private repositories
 
 ## Usage
@@ -35,6 +37,7 @@ url: https://github.com/owner/repo/issues/123
 ```
 
 Shows:
+
 - Issue number and title
 - Issue body
 - State (open/closed)
@@ -51,6 +54,7 @@ url: https://github.com/owner/repo/pull/456
 ```
 
 Shows:
+
 - PR number and title
 - PR description
 - State (open/closed/merged)
@@ -67,6 +71,7 @@ url: https://github.com/owner/repo
 ```
 
 Shows:
+
 - Repository name and description
 - Stars and forks count
 - Open issues count
@@ -101,11 +106,13 @@ Will show the full issue details with formatting preserved.
 ## Troubleshooting
 
 **"Not Found" error:**
+
 - Verify the URL is correct
 - For private repositories, ensure your token has `repo` scope
 - Check that the repository/issue/PR exists
 
 **Rate limit exceeded:**
+
 - Wait for the rate limit to reset (shown in error message)
 - Add or verify your access token for higher limits
 

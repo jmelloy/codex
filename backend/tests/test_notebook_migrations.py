@@ -144,8 +144,8 @@ class TestNotebookMigrations:
         with engine.connect() as conn:
             result = conn.execute(text("SELECT version_num FROM alembic_version"))
             version = result.scalar()
-            # Should be at the latest migration (005)
-            assert version == "005"
+            # Should be at the latest migration (006)
+            assert version == "006"
 
         engine.dispose()
 
@@ -260,9 +260,9 @@ class TestNotebookMigrations:
             result = conn.execute(text("SELECT COUNT(*) FROM file_metadata WHERE path = 'duplicate.md'"))
             assert result.scalar() == 1
 
-            # Verify we're at migration 005
+            # Verify we're at migration 006
             result = conn.execute(text("SELECT version_num FROM alembic_version"))
-            assert result.scalar() == "005"
+            assert result.scalar() == "006"
 
         engine.dispose()
 

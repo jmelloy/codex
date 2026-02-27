@@ -15,7 +15,7 @@ COPY plugins/ ./
 RUN npx tsx build.ts
 
 # Stage 2: Python service
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 ARG BUILD_VERSION=dev
 LABEL org.opencontainers.image.version=${BUILD_VERSION}
@@ -23,11 +23,11 @@ LABEL org.opencontainers.image.version=${BUILD_VERSION}
 WORKDIR /app
 
 # Install the service package
-COPY plugin-service/pyproject.toml ./
+COPY pyproject.toml ./
 RUN pip install --no-cache-dir .
 
 # Copy service code
-COPY plugin-service/codex_plugin_service ./codex_plugin_service
+COPY api ./api
 
 # Copy built plugins from the builder stage (includes dist/ and manifests)
 COPY --from=plugin-builder /plugins /app/plugins

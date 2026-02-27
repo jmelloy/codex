@@ -24,6 +24,7 @@ url: https://github.com
 ```
 
 The integration will automatically fetch and display:
+
 - Page title
 - Description
 - Preview image
@@ -43,6 +44,7 @@ url: https://github.com
 ```
 
 Will display:
+
 - Title: "GitHub: Let's build from here"
 - Description: GitHub's description
 - Preview image from GitHub's OG tags

@@ -51,9 +51,9 @@ async def lifespan(app: FastAPI):
     # Start WebSocket broadcast loop
     await connection_manager.start_broadcast_loop()
 
-    # Default plugins directory is at the repository root (../../plugins from this file)
+    # Default plugins directory is under plugin-service/ at the repository root
     # or use CODEX_PLUGINS_DIR environment variable to override
-    default_plugins_dir = Path(__file__).parent.parent.parent / "plugins"
+    default_plugins_dir = Path(__file__).parent.parent.parent / "plugin-service" / "plugins"
     plugins_dir = Path(os.getenv("CODEX_PLUGINS_DIR", default_plugins_dir))
     logger.info(f"Loading plugins from directory: {plugins_dir}")
     loader = PluginLoader(plugins_dir)

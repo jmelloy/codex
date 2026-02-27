@@ -57,7 +57,7 @@ Resources:
               S3Key:
                 Rules:
                   - Name: suffix
-                    Value: "/manifest.yml"
+                    Value: "plugin.zip"
             Function: !GetAtt PluginIndexerFunction.Arn
       Tags:
         - Key: Project
@@ -175,12 +175,15 @@ Resources:
         ZipFile: |
           """Lambda function to index plugin uploads into DynamoDB.
 
-          Triggered by S3 events when manifest.yml files are uploaded.
-          Reads the manifest, extracts metadata, and writes to DynamoDB.
+          Triggered by S3 events when plugin.zip files are uploaded.
+          Reads the manifest from inside the zip, extracts metadata,
+          and writes to DynamoDB.
           """
+          import io
           import json
           import os
           import urllib.parse
+          import zipfile
 
           import boto3
           import yaml
@@ -197,22 +200,28 @@ Resources:
                   bucket = record["s3"]["bucket"]["name"]
                   key = urllib.parse.unquote_plus(record["s3"]["object"]["key"])
 
-                  # Key format: {plugin_id}/{version}/manifest.yml
+                  # Key format: {plugin_id}/{version}/plugin.zip
                   parts = key.split("/")
-                  if len(parts) < 3 or parts[-1] != "manifest.yml":
-                      print(f"Skipping non-manifest key: {key}")
+                  if len(parts) < 3 or parts[-1] != "plugin.zip":
+                      print(f"Skipping non-zip key: {key}")
                       continue
 
                   plugin_id = parts[0]
                   version = parts[1]
 
-                  # Read manifest from S3
+                  # Read zip from S3 and extract manifest
                   try:
                       response = s3.get_object(Bucket=bucket, Key=key)
-                      manifest_content = response["Body"].read().decode("utf-8")
-                      manifest = yaml.safe_load(manifest_content)
+                      zip_bytes = response["Body"].read()
+
+                      with zipfile.ZipFile(io.BytesIO(zip_bytes), "r") as zf:
+                          if "manifest.yml" not in zf.namelist():
+                              print(f"No manifest.yml in {key}")
+                              continue
+                          manifest_content = zf.read("manifest.yml").decode("utf-8")
+                          manifest = yaml.safe_load(manifest_content)
                   except Exception as e:
-                      print(f"Error reading manifest {key}: {e}")
+                      print(f"Error reading zip {key}: {e}")
                       continue
 
                   # Compute the S3 prefix for this plugin version

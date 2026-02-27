@@ -120,7 +120,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=log_level)
 
     uvicorn.run(
-        "codex_plugin_service.main:app",
+        "api.main:app",
         host="0.0.0.0",
         port=8090,
         log_level=log_level.lower(),

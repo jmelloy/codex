@@ -18,12 +18,14 @@ Activity report grouped by date with statistics.
 **View Type**: `rollup`
 
 **Configuration Options**:
+
 - `group_by`: Field to group by (created_at, modified_at)
 - `group_format`: Grouping granularity (hour, day, week, month)
 - `show_stats`: Show statistics for each group (default: true)
 - `sections`: Array of categorized sections with filters
 
 **Example**:
+
 ```yaml
 ---
 type: view
@@ -73,6 +75,7 @@ The plugin includes a weekly activity report that shows all files created this w
 ### Template Variables
 
 Use template variables for dynamic date queries:
+
 - `{{ today }}` - Current date/time
 - `{{ todayStart }}` - Start of today (00:00)
 - `{{ startOfWeek }}` - Start of current week
@@ -82,6 +85,7 @@ Use template variables for dynamic date queries:
 ## Permissions
 
 This plugin requires the following permissions:
+
 - `read_files`: Read files for rollup
 
 ## License

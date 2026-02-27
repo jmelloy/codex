@@ -4,7 +4,6 @@ WORKDIR /app
 
 # Build arguments
 ARG VITE_API_BASE_URL=
-ARG PLUGINS_DIR=/plugins
 ARG BUILD_VERSION=dev
 
 # Install pnpm via npm
@@ -19,12 +18,9 @@ RUN pnpm install --frozen-lockfile
 # Copy source code
 COPY . ./
 
-# Create plugins directory
-RUN mkdir -p /plugins
-
 # Set environment variables for build
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
-ENV VITE_PLUGINS_DIR=${PLUGINS_DIR}
+ENV BUILD_VERSION=${BUILD_VERSION}
 
 # Build application
 RUN pnpm build
@@ -32,7 +28,7 @@ RUN pnpm build
 # Production stage
 FROM nginx:alpine
 
-ARG BUILD_VERSION=dev
+ARG BUILD_VERSION=${BUILD_VERSION}
 LABEL org.opencontainers.image.version=${BUILD_VERSION}
 
 RUN addgroup -g 1000 -S codex && \

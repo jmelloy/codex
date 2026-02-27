@@ -56,12 +56,8 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      args:
-        - PLUGINS_DIR=/plugins
     ports:
       - 8065:80
-    volumes:
-      - ./plugins:/plugins
     depends_on:
       backend:
         condition: service_healthy

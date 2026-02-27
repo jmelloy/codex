@@ -89,14 +89,32 @@ class DynamoPluginRegistry:
             PluginVersionInfo or None if not found
         """
         try:
+            latest_info: PluginVersionInfo | None = None
+
+            # Query all versions for this plugin_id and select the latest
             response = self._table.query(
                 KeyConditionExpression=Key("plugin_id").eq(plugin_id),
-                ScanIndexForward=False,  # Sort descending by version
-                Limit=1,
+                ScanIndexForward=True,  # Ascending; we'll compute the latest via _version_gt
             )
             items = response.get("Items", [])
-            if items:
-                return self._item_to_info(items[0])
+
+            while True:
+                for item in items:
+                    info = self._item_to_info(item)
+                    if latest_info is None or self._version_gt(info.version, latest_info.version):
+                        latest_info = info
+
+                if "LastEvaluatedKey" not in response:
+                    break
+
+                response = self._table.query(
+                    KeyConditionExpression=Key("plugin_id").eq(plugin_id),
+                    ScanIndexForward=True,
+                    ExclusiveStartKey=response["LastEvaluatedKey"],
+                )
+                items = response.get("Items", [])
+
+            return latest_info
         except ClientError as e:
             logger.error(f"Error querying plugin {plugin_id}: {e}")
 

@@ -186,7 +186,6 @@ Resources:
           import zipfile
 
           import boto3
-          import yaml
 
           dynamodb = boto3.resource("dynamodb")
           s3 = boto3.client("s3")
@@ -215,11 +214,10 @@ Resources:
                       zip_bytes = response["Body"].read()
 
                       with zipfile.ZipFile(io.BytesIO(zip_bytes), "r") as zf:
-                          if "manifest.yml" not in zf.namelist():
-                              print(f"No manifest.yml in {key}")
+                          if "manifest.json" not in zf.namelist():
+                              print(f"No manifest.json in {key}")
                               continue
-                          manifest_content = zf.read("manifest.yml").decode("utf-8")
-                          manifest = yaml.safe_load(manifest_content)
+                          manifest = json.loads(zf.read("manifest.json"))
                   except Exception as e:
                       print(f"Error reading zip {key}: {e}")
                       continue

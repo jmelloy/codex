@@ -334,6 +334,8 @@ upload-plugins: build-plugins
 		ZIP_FILE=$$(mktemp --suffix=.zip); \
 		STAGING=$$(mktemp -d); \
 		cp "$$manifest" "$$STAGING/manifest.yml"; \
+		python3 -c "import yaml,json,sys;json.dump(yaml.safe_load(open(sys.argv[1])),open(sys.argv[2],'w'))" \
+			"$$STAGING/manifest.yml" "$$STAGING/manifest.json"; \
 		for subdir in styles templates examples dist; do \
 			if [ -d "$${plugin_dir}$$subdir" ]; then \
 				cp -r "$${plugin_dir}$$subdir" "$$STAGING/$$subdir"; \
@@ -383,6 +385,8 @@ upload-plugin: build-plugin
 	ZIP_FILE=$$(mktemp --suffix=.zip); \
 	STAGING=$$(mktemp -d); \
 	cp "$$manifest" "$$STAGING/manifest.yml"; \
+	python3 -c "import yaml,json,sys;json.dump(yaml.safe_load(open(sys.argv[1])),open(sys.argv[2],'w'))" \
+		"$$STAGING/manifest.yml" "$$STAGING/manifest.json"; \
 	for subdir in styles templates examples dist; do \
 		if [ -d "$(PLUGIN)/$$subdir" ]; then \
 			cp -r "$(PLUGIN)/$$subdir" "$$STAGING/$$subdir"; \

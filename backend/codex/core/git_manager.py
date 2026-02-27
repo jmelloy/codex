@@ -123,9 +123,16 @@ class GitManager:
                 logger.error(f"Error adding file to git: {e}")
 
     def commit(self, message: str, files: list[str] | None = None):
-        """Commit changes to Git."""
+        """Commit changes to Git.
+
+        Binary files are skipped unless they have an associated S3 pointer
+        file (``*.s3ref``).  Pointer files are always committed so that
+        git history tracks every S3 version of a binary.
+        """
         if not self.repo:
             return
+
+        from codex.core.s3_storage import POINTER_EXT
 
         with git_lock_manager.lock(self.notebook_path):
             try:
@@ -133,9 +140,14 @@ class GitManager:
                     # Add specific files (resolve paths to handle symlinks like /var -> /private/var)
                     resolved_files = [str(Path(f).resolve()) for f in files]
                     rel_paths = [os.path.relpath(f, self.notebook_path) for f in resolved_files]
-                    filtered_paths = [
-                        p for p in rel_paths if not self.is_binary_file(os.path.join(self.notebook_path, p))
-                    ]
+                    filtered_paths = []
+                    for p in rel_paths:
+                        abs_p = os.path.join(self.notebook_path, p)
+                        # Always include S3 pointer files
+                        if p.endswith(POINTER_EXT):
+                            filtered_paths.append(p)
+                        elif not self.is_binary_file(abs_p):
+                            filtered_paths.append(p)
                     if filtered_paths:
                         self.repo.index.add(filtered_paths)
                 else:
@@ -192,6 +204,34 @@ class GitManager:
             except Exception as e:
                 logger.error(f"Error getting file at commit: {e}")
                 return None
+
+    def commit_s3_upload(
+        self,
+        filepath: str,
+        pointer_path: str,
+        s3_bucket: str,
+        s3_key: str,
+        s3_version_id: str,
+        file_size: int,
+    ) -> str | None:
+        """Commit an S3 pointer file for a binary upload.
+
+        The commit message includes the S3 version link so that every
+        binary revision is recorded in git history.
+        """
+        if not self.repo:
+            return None
+
+        filename = os.path.basename(filepath)
+        message = (
+            f"Upload binary: {filename}\n"
+            f"\n"
+            f"S3-Version: {s3_version_id}\n"
+            f"S3-Bucket: {s3_bucket}\n"
+            f"S3-Key: {s3_key}\n"
+            f"Size: {file_size}\n"
+        )
+        return self.commit(message, [pointer_path])
 
     def auto_commit_on_change(self, filepath: str, sidecar: str | None = None) -> str | None:
         """Automatically commit a file when it changes."""

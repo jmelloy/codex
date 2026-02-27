@@ -436,7 +436,7 @@ async def serve_plugin_asset(file_path: str, request: Request):
     parts = file_path.split("/", 2)
     resolved: Path | None = None
 
-    if len(parts) >= 3 and re.match(r"^\d+\.\d+\.\d+$", parts[1]):
+    if len(parts) >= 3 and re.match(r"^\d+\.\d+\.\d+(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$", parts[1]):
         # Versioned path – resolve to {plugin_id}/dist/{file}
         plugin_id, _version, remainder = parts
         candidate = (plugins_dir / plugin_id / "dist" / remainder).resolve()

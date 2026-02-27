@@ -553,6 +553,53 @@ class TestVersionedAssetPaths:
         assert resp.status_code == 200
         assert "text/css" in resp.headers["content-type"]
 
+    def test_prerelease_version_resolves_to_dist(self, client):
+        """A pre-release version like cream/1.0.0-alpha/test.css resolves to cream/dist/test.css."""
+        dist_dir = PLUGINS_DIR / "cream" / "dist"
+        dist_dir.mkdir(exist_ok=True)
+        test_file = dist_dir / "prerelease-test.css"
+        try:
+            test_file.write_text("/* prerelease */")
+
+            resp = client.get("/api/v1/plugins/assets/cream/1.0.0-alpha/prerelease-test.css")
+            assert resp.status_code == 200
+            assert "text/css" in resp.headers["content-type"]
+            assert "prerelease" in resp.text
+        finally:
+            test_file.unlink(missing_ok=True)
+            if dist_dir.exists() and not any(dist_dir.iterdir()):
+                dist_dir.rmdir()
+
+    def test_prerelease_dotted_version_resolves_to_dist(self, client):
+        """A dotted pre-release version like 1.0.0-beta.1 resolves to dist/."""
+        dist_dir = PLUGINS_DIR / "cream" / "dist"
+        dist_dir.mkdir(exist_ok=True)
+        test_file = dist_dir / "beta-test.js"
+        try:
+            test_file.write_text("// beta")
+
+            resp = client.get("/api/v1/plugins/assets/cream/1.0.0-beta.1/beta-test.js")
+            assert resp.status_code == 200
+        finally:
+            test_file.unlink(missing_ok=True)
+            if dist_dir.exists() and not any(dist_dir.iterdir()):
+                dist_dir.rmdir()
+
+    def test_build_metadata_version_resolves_to_dist(self, client):
+        """A build-metadata version like 1.0.0+build.42 resolves to dist/."""
+        dist_dir = PLUGINS_DIR / "cream" / "dist"
+        dist_dir.mkdir(exist_ok=True)
+        test_file = dist_dir / "build-test.js"
+        try:
+            test_file.write_text("// build")
+
+            resp = client.get("/api/v1/plugins/assets/cream/1.0.0+build.42/build-test.js")
+            assert resp.status_code == 200
+        finally:
+            test_file.unlink(missing_ok=True)
+            if dist_dir.exists() and not any(dist_dir.iterdir()):
+                dist_dir.rmdir()
+
 
 # ---------------------------------------------------------------------------
 # Workspace Plugin Config Version

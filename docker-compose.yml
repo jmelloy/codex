@@ -18,7 +18,7 @@ services:
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI:-http://localhost:8065/oauth/callback}
       - PLUGIN_SERVICE_URL=${PLUGIN_SERVICE_URL:-http://plugin-service:8090}
-      - PLUGIN_AUTO_SYNC=${PLUGIN_AUTO_SYNC:-false}
+      - PLUGIN_AUTO_SYNC=${PLUGIN_AUTO_SYNC:-true}
     volumes:
       - ./data:/app/data
       - ./plugins:/app/plugins
@@ -44,8 +44,6 @@ services:
     environment:
       - PLUGIN_SERVICE_DIR=/app/plugins
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
-    volumes:
-      - ./plugins:/app/plugins
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8090/health')"]

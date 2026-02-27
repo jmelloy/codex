@@ -729,22 +729,46 @@ async def sync_plugins_from_s3(
         try:
             local_dir = plugins_dir / info.plugin_id if plugins_dir else None
             if local_dir and local_dir.exists():
-                # Check if local version matches
-                import yaml
+                # Check if local S3 distribution version matches using a cache marker.
+                current_s3_version = None
+                version_marker = local_dir / ".s3_version"
+                if version_marker.exists():
+                    try:
+                        current_s3_version = version_marker.read_text(encoding="utf-8").strip()
+                    except Exception as e:
+                        logger.warning(
+                            "Failed to read S3 version marker for plugin %s: %s",
+                            info.plugin_id,
+                            e,
+                        )
+                if current_s3_version == str(info.version):
+                    skipped.append(info.plugin_id)
+                    continue
 
-                for mf in ["manifest.yml", "manifest.yaml"]:
-                    mf_path = local_dir / mf
-                    if mf_path.exists():
-                        with open(mf_path) as f:
-                            local_manifest = yaml.safe_load(f)
-                        if local_manifest.get("version") == info.version:
-                            skipped.append(info.plugin_id)
-                            break
-                else:
-                    await asyncio.to_thread(s3_client.download_plugin, info.plugin_id, info.version)
-                    updated.append(info.plugin_id)
+                await asyncio.to_thread(s3_client.download_plugin, info.plugin_id, info.version)
+                if local_dir:
+                    version_marker = local_dir / ".s3_version"
+                    try:
+                        version_marker.write_text(str(info.version), encoding="utf-8")
+                    except Exception as e:
+                        logger.warning(
+                            "Failed to write S3 version marker for plugin %s: %s",
+                            info.plugin_id,
+                            e,
+                        )
+                updated.append(info.plugin_id)
             else:
                 await asyncio.to_thread(s3_client.download_plugin, info.plugin_id, info.version)
+                if local_dir:
+                    version_marker = local_dir / ".s3_version"
+                    try:
+                        version_marker.write_text(str(info.version), encoding="utf-8")
+                    except Exception as e:
+                        logger.warning(
+                            "Failed to write S3 version marker for new plugin %s: %s",
+                            info.plugin_id,
+                            e,
+                        )
                 installed.append(info.plugin_id)
         except Exception as e:
             logger.error(f"Failed to sync plugin {info.plugin_id}: {e}")

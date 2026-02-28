@@ -1,0 +1,85 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: codex
+
+resources:
+  - ../../base
+
+# Images point to local k3d registry
+images:
+  - name: ghcr.io/OWNER/codex-backend
+    newName: codex-registry.localhost:5111/codex-backend
+    newTag: dev
+  - name: ghcr.io/OWNER/codex-frontend
+    newName: codex-registry.localhost:5111/codex-frontend
+    newTag: dev
+
+patches:
+  # Remove ingress — Tilt handles port-forwarding in local dev
+  - target:
+      kind: Ingress
+      name: codex-ingress
+    patch: |
+      $patch: delete
+      apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      metadata:
+        name: codex-ingress
+
+  # Backend: single replica, relaxed probes, dev-friendly settings
+  - target:
+      kind: Deployment
+      name: backend
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: 128Mi
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: 512Mi
+      - op: replace
+        path: /spec/template/spec/containers/0/readinessProbe/initialDelaySeconds
+        value: 5
+      - op: replace
+        path: /spec/template/spec/containers/0/livenessProbe/initialDelaySeconds
+        value: 30
+      - op: replace
+        path: /spec/template/spec/containers/0/livenessProbe/periodSeconds
+        value: 60
+
+  # Frontend: single replica
+  - target:
+      kind: Deployment
+      name: frontend
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+
+  # PVC: small volume for dev (data is ephemeral)
+  - target:
+      kind: PersistentVolumeClaim
+      name: codex-data
+    patch: |
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: 1Gi
+
+  # ConfigMap: dev-friendly values
+  - target:
+      kind: ConfigMap
+      name: codex-config
+    patch: |
+      - op: replace
+        path: /data/DEBUG
+        value: "true"
+      - op: replace
+        path: /data/LOG_LEVEL
+        value: "DEBUG"
+      - op: replace
+        path: /data/LOG_FORMAT
+        value: "colored"

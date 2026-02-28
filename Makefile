@@ -2,9 +2,12 @@
 # ==================
 # Build and development commands for the Codex project.
 #
-# Quick Start:
-#   make              - Build plugins and start production containers
+# Quick Start (Development):
 #   make dev-docker   - Setup and start development containers (with hot-reload)
+#
+# Production Deployment (Kubernetes):
+#   make k8s-deploy           - Deploy to production Kubernetes cluster
+#   make k8s-deploy-staging   - Deploy to staging Kubernetes cluster
 #
 # Local Development (no Docker):
 #   make install      - Install all dependencies
@@ -19,18 +22,56 @@
 .PHONY: typecheck typecheck-backend typecheck-frontend typecheck-plugins
 .PHONY: clean-plugins clean-frontend clean-backend
 .PHONY: deploy docker-build docker-up docker-down docker-logs
+.PHONY: k8s-deploy k8s-deploy-staging k8s-setup
 
-# Default target - production deployment
-all: deploy
+# Default target - show help
+all: help
 
 # =============================================================================
-# Docker Deployment
+# Kubernetes Deployment (Production)
 # =============================================================================
 
-# Production: Build plugins and start containers
+# Deploy to production Kubernetes cluster
+# Requires: kubectl configured with cluster credentials and KUBECONFIG set
+k8s-deploy: build-plugins
+	@echo "Deploying to production Kubernetes cluster..."
+	@echo "  Building and pushing images is handled by CI/CD (deploy.yml)."
+	@echo "  To deploy manually, ensure images are pushed to GHCR first:"
+	@echo "    docker buildx build --push -t ghcr.io/<owner>/codex-backend:latest ./backend"
+	@echo "    docker buildx build --push -t ghcr.io/<owner>/codex-frontend:latest ./frontend"
+	@echo "    docker buildx build --push -t ghcr.io/<owner>/codex-plugin-service:latest ."
+	@echo ""
+	kubectl apply -k k8s/overlays/production
+	kubectl -n codex rollout status deployment/plugin-service --timeout=120s
+	kubectl -n codex rollout status deployment/backend --timeout=180s
+	kubectl -n codex rollout status deployment/frontend --timeout=120s
+	@echo ""
+	@echo "Production deployment complete!"
+
+# Deploy to staging Kubernetes cluster
+k8s-deploy-staging: build-plugins
+	@echo "Deploying to staging Kubernetes cluster..."
+	kubectl apply -k k8s/overlays/staging
+	kubectl -n codex rollout status deployment/plugin-service --timeout=120s
+	kubectl -n codex rollout status deployment/backend --timeout=180s
+	kubectl -n codex rollout status deployment/frontend --timeout=120s
+	@echo ""
+	@echo "Staging deployment complete!"
+
+# Bootstrap a new LKE cluster (run once)
+k8s-setup:
+	@echo "Setting up Linode LKE cluster..."
+	./k8s/setup-lke.sh
+
+# =============================================================================
+# Docker Development
+# =============================================================================
+
+# Production: Build plugins and start containers (for local testing of prod image)
 deploy: build-plugins docker-build docker-up
 	@echo ""
-	@echo "Deployment complete!"
+	@echo "Local Docker deployment complete!"
+	@echo "Note: For production, use 'make k8s-deploy' or push to main branch."
 	
 # Development: Setup override file and start with hot-reload
 dev-docker: build-plugins
@@ -294,14 +335,21 @@ help:
 	@echo "Codex Build System"
 	@echo "=================="
 	@echo ""
-	@echo "Docker (recommended):"
-	@echo "  make              Build plugins + start production containers"
-	@echo "  make deploy       Same as above"
-	@echo "  make dev-docker   Setup + start development containers (hot-reload)"
-	@echo "  make docker-down  Stop containers"
-	@echo "  make docker-logs  View container logs"
-	@echo "  make docker-restart  Restart after plugin changes"
-	@echo "  make docker-rebuild  Full rebuild and restart"
+	@echo "Production Deployment (Kubernetes):"
+	@echo "  make k8s-deploy         Deploy to production Kubernetes cluster"
+	@echo "  make k8s-deploy-staging Deploy to staging Kubernetes cluster"
+	@echo "  make k8s-setup          Bootstrap a new LKE cluster (run once)"
+	@echo ""
+	@echo "  CI/CD: Pushing to main branch triggers automatic build & deploy"
+	@echo "         See .github/workflows/deploy.yml"
+	@echo ""
+	@echo "Docker (Development):"
+	@echo "  make dev-docker       Setup + start development containers (hot-reload)"
+	@echo "  make docker-down      Stop containers"
+	@echo "  make docker-logs      View container logs"
+	@echo "  make docker-restart   Restart after plugin changes"
+	@echo "  make docker-rebuild   Full rebuild and restart"
+	@echo "  make deploy           Build + start Docker containers (local prod testing)"
 	@echo ""
 	@echo "Build:"
 	@echo "  make build        Build plugins + frontend"

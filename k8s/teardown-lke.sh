@@ -12,7 +12,7 @@
 #   - helm v3 installed
 #
 # Usage:
-#   ./scripts/teardown-lke.sh [--keep-infra] [--yes]
+#   ./k8s/teardown-lke.sh [--keep-infra] [--yes]
 #
 set -euo pipefail
 
@@ -117,6 +117,6 @@ if [[ "${KEEP_INFRA}" == true ]]; then
   echo "Re-deploy with:  kubectl apply -k ${OVERLAY_DIR}"
 else
   echo "All Codex resources and cluster infrastructure removed."
-  echo "To set up again:  ./scripts/setup-lke.sh"
+  echo "To set up again:  ./k8s/setup-lke.sh"
 fi
 echo ""

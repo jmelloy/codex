@@ -43,7 +43,8 @@ A hierarchical digital laboratory journal system for tracking computational expe
 
 - Python 3.12+
 - Node.js 24+
-- Docker and Docker Compose (optional)
+- Docker and Docker Compose (for local development)
+- kubectl + Helm (for production deployment)
 
 ### Local Development
 
@@ -100,17 +101,49 @@ A hierarchical digital laboratory journal system for tracking computational expe
 
    This creates three test users with sample workspaces and notebooks. See [TEST_CREDENTIALS.md](TEST_CREDENTIALS.md) for login details.
 
-### Docker Deployment
+### Docker (Development)
 
-1. **Start all services**
+1. **Start development containers with hot-reload**
 
    ```bash
-   docker-compose up -d
+   make dev-docker
+   ```
+
+   Or manually:
+
+   ```bash
+   cp docker-compose.override.yml.example docker-compose.override.yml
+   cp .env.example .env
+   # Edit .env — set SECRET_KEY at minimum
+   docker compose up -d
    ```
 
 2. **Access the application**
-   - Frontend: http://localhost
-   - API: http://localhost:8000
+   - Frontend: http://localhost:5165 (Vite dev server with hot-reload)
+   - API: http://localhost:8765
+   - API Docs: http://localhost:8765/docs
+
+### Kubernetes (Production)
+
+Production deployments run on Kubernetes via CI/CD. Pushing to `main` automatically:
+
+1. Builds and pushes container images to GHCR
+2. Deploys to the configured Kubernetes cluster using Kustomize
+
+**First-time cluster setup** (Linode LKE):
+
+```bash
+./k8s/setup-lke.sh --domain your-domain.example.com --email admin@example.com
+```
+
+**Manual deploy** (requires `kubectl` configured for the cluster):
+
+```bash
+kubectl apply -k k8s/overlays/production   # production
+kubectl apply -k k8s/overlays/staging      # staging
+```
+
+See [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) and [`k8s/`](k8s/) for details.
 
 ## Project Structure
 

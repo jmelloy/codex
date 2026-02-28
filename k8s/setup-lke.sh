@@ -7,7 +7,7 @@
 #   - helm v3 installed
 #
 # Usage:
-#   ./scripts/setup-lke.sh [--domain codex.melloy.life] [--email admin@melloy.life]
+#   ./k8s/setup-lke.sh [--domain codex.melloy.life] [--email admin@melloy.life]
 #
 set -euo pipefail
 
@@ -124,3 +124,4 @@ echo "  To configure GitHub Actions, add these repository secrets:"
 echo "    KUBECONFIG  — base64-encoded kubeconfig for your LKE cluster"
 echo "                  Generate with: cat ~/.kube/config | base64 -w0"
 echo ""
+echo "  To tear down:  ./k8s/teardown-lke.sh"

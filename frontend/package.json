@@ -28,7 +28,7 @@
     "@vitest/coverage-v8": "^4.0.18",
     "@vitest/ui": "^4.0.16",
     "@vue/test-utils": "^2.4.6",
-    "@vue/tsconfig": "^0.8.1",
+    "@vue/tsconfig": "^0.9.0",
     "autoprefixer": "^10.4.27",
     "happy-dom": "^20.7.0",
     "postcss": "^8.5.6",

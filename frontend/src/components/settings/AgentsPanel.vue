@@ -155,32 +155,15 @@ onMounted(async () => {
 })
 </script>
 
+<style src="./settings-panel.css"></style>
 <style scoped>
-.panel-wrapper {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-
+/* Override panel-header to support the "New Agent" button on the right */
 .panel-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   padding: 2rem 2.5rem;
   border-bottom: 1px solid var(--color-border-light);
-}
-
-.panel-title {
-  margin: 0 0 0.5rem;
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--color-text-primary);
-}
-
-.panel-subtitle {
-  margin: 0;
-  color: var(--color-text-secondary);
-  font-size: 1rem;
 }
 
 .create-btn {
@@ -198,12 +181,6 @@ onMounted(async () => {
 
 .create-btn:hover {
   background: color-mix(in srgb, var(--notebook-accent) 85%, black);
-}
-
-.panel-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 2rem 2.5rem;
 }
 
 .config-container {

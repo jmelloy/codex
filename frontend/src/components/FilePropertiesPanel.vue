@@ -313,31 +313,11 @@ watch(
 )
 </script>
 
+<style src="./properties-panel.css"></style>
 <style scoped>
-.properties-panel {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  background: var(--color-bg-primary);
-  border-left: 1px solid var(--color-border-light);
-}
-
+/* Override panel-header padding for the tabbed layout */
 .panel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   padding: var(--spacing-sm) var(--spacing-lg);
-  border-bottom: 1px solid var(--color-border-light);
-  background: var(--color-bg-secondary);
-}
-
-.panel-header h3 {
-  margin: 0;
-  font-size: var(--text-sm);
-  font-weight: var(--font-semibold);
-  color: var(--color-text-primary);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wide);
 }
 
 /* Tabs */
@@ -366,132 +346,6 @@ watch(
 .tab-btn.active {
   color: var(--color-primary);
   background: var(--color-bg-primary);
-}
-
-.btn-close {
-  background: none;
-  border: none;
-  font-size: var(--text-xl);
-  color: var(--color-text-tertiary);
-  cursor: pointer;
-  padding: var(--spacing-xs);
-  line-height: 1;
-  transition: color 0.2s;
-}
-
-.btn-close:hover {
-  color: var(--color-text-primary);
-}
-
-.panel-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: var(--spacing-lg);
-}
-
-.property-group {
-  margin-bottom: var(--spacing-lg);
-}
-
-.property-group label {
-  display: block;
-  font-size: var(--text-xs);
-  font-weight: var(--font-semibold);
-  color: var(--color-text-tertiary);
-  text-transform: uppercase;
-  margin-bottom: var(--spacing-sm);
-}
-
-.property-input,
-.property-textarea {
-  width: 100%;
-  padding: var(--spacing-sm);
-  border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-sm);
-  font-size: var(--text-sm);
-  color: var(--color-text-primary);
-  background: var(--color-bg-primary);
-  font-family: var(--font-sans);
-  transition:
-    border-color 0.2s,
-    box-shadow 0.2s;
-}
-
-.property-input:focus,
-.property-textarea:focus {
-  outline: none;
-  border-color: var(--color-border-focus);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 20%, transparent);
-}
-
-.property-textarea {
-  resize: vertical;
-}
-
-.property-section {
-  margin-bottom: var(--spacing-xl);
-}
-
-.property-section h4 {
-  margin: 0 0 var(--spacing-md);
-  font-size: var(--text-xs);
-  font-weight: var(--font-semibold);
-  color: var(--color-text-tertiary);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wide);
-}
-
-.property-row {
-  display: flex;
-  justify-content: space-between;
-  padding: var(--spacing-sm) 0;
-  border-bottom: 1px solid var(--color-bg-secondary);
-}
-
-.property-label {
-  font-size: var(--text-sm);
-  color: var(--color-text-tertiary);
-}
-
-.property-value {
-  font-size: var(--text-sm);
-  color: var(--color-text-primary);
-  text-align: right;
-  max-width: 60%;
-  word-break: break-all;
-}
-
-.property-actions {
-  margin-top: auto;
-  padding-top: var(--spacing-lg);
-  border-top: 1px solid var(--color-border-light);
-}
-
-.btn-delete {
-  width: 100%;
-  padding: var(--spacing-md) var(--spacing-lg);
-  background: var(--color-bg-primary);
-  color: var(--color-error);
-  border: 1px solid var(--color-error);
-  border-radius: var(--radius-sm);
-  font-size: var(--text-sm);
-  font-weight: var(--font-medium);
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-delete:hover {
-  background: var(--color-error);
-  color: var(--color-text-inverse);
-}
-
-.empty-state {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  color: var(--color-text-placeholder);
-  font-size: var(--text-sm);
 }
 
 /* History Tab Styles */

@@ -5,6 +5,7 @@ import pytest
 from codex.scripts.holdem_agents import (
     BOTS,
     HoldEmAgent,
+    random_bot,
     simulate_hand,
     simulate_tournament,
 )
@@ -148,6 +149,92 @@ class TestBotPresets:
         assert len(set(aggressions)) >= 4
         assert len(set(bluff_rates)) >= 4
         assert len(set(tight_factors)) >= 4
+
+
+# ---------------------------------------------------------------------------
+# random_bot tests
+# ---------------------------------------------------------------------------
+
+
+class TestRandomBot:
+    """Tests for the random_bot factory function."""
+
+    def test_returns_holdem_agent(self):
+        bot = random_bot()
+        assert isinstance(bot, HoldEmAgent)
+
+    def test_personality_matches_a_preset(self):
+        bot = random_bot()
+        preset_fields = [
+            (
+                p.aggression_factor,
+                p.bluff_rate,
+                p.tight_factor,
+                p.call_threshold,
+                p.raise_multiplier,
+                p.position_awareness,
+                p.pot_odds_skill,
+            )
+            for p in BOTS
+        ]
+        bot_fields = (
+            bot.aggression_factor,
+            bot.bluff_rate,
+            bot.tight_factor,
+            bot.call_threshold,
+            bot.raise_multiplier,
+            bot.position_awareness,
+            bot.pot_odds_skill,
+        )
+        assert bot_fields in preset_fields
+
+    def test_custom_seat_name(self):
+        bot = random_bot(seat="Seat 3")
+        assert bot.name == "Seat 3"
+
+    def test_auto_name_includes_preset_name(self):
+        import random as _random
+
+        # Force a specific preset via a seeded rng
+        rng = _random.Random(0)
+        preset = rng.choice(BOTS)
+        rng2 = _random.Random(0)
+        bot = random_bot(rng=rng2)
+        assert bot.name.startswith(preset.name)
+
+    def test_returns_independent_copies(self):
+        """Multiple assigned bots must not share state."""
+        b1 = random_bot()
+        b2 = random_bot()
+        b1.chips = 500
+        assert b2.chips == 1000  # b2 unaffected by b1 mutation
+
+    def test_bots_have_different_seeds(self):
+        seeds = {random_bot().seed for _ in range(20)}
+        # Across 20 draws we expect at least 5 distinct seeds
+        assert len(seeds) >= 5
+
+    def test_rng_controls_preset_selection(self):
+        import random as _random
+
+        rng_a = _random.Random(42)
+        rng_b = _random.Random(42)
+        bot_a = random_bot(rng=rng_a)
+        bot_b = random_bot(rng=rng_b)
+        # Same RNG seed → same preset personality
+        assert bot_a.aggression_factor == bot_b.aggression_factor
+        assert bot_a.bluff_rate == bot_b.bluff_rate
+
+    def test_assigned_bots_can_play_tournament(self):
+        import random as _random
+
+        rng = _random.Random(7)
+        players = [random_bot(seat=f"Seat {i + 1}", rng=rng) for i in range(6)]
+        histories = simulate_tournament(players, num_hands=50, seed=7)
+        assert len(histories) == 6
+        for history in histories.values():
+            assert len(history) == 51
+            assert all(c >= 0 for c in history)
 
 
 # ---------------------------------------------------------------------------

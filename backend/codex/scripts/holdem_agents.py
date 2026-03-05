@@ -24,9 +24,12 @@ pot_odds_skill : float  [0.0 – 1.0]
 
 Usage
 -----
-    from codex.scripts.holdem_agents import BOTS, simulate_tournament, plot_results
+    from codex.scripts.holdem_agents import BOTS, random_bot, simulate_tournament, plot_results
 
-    histories = simulate_tournament(BOTS, num_hands=500, seed=42)
+    # Assign a randomly-chosen preset to each seat in a game:
+    players = [random_bot() for _ in range(6)]
+
+    histories = simulate_tournament(players, num_hands=500, seed=42)
     plot_results(histories)           # requires matplotlib
 """
 
@@ -232,6 +235,68 @@ BOTS: list[HoldEmAgent] = [
         pot_odds_skill=0.65,       # reasonable pot-odds skill
     ),
 ]
+
+
+# ---------------------------------------------------------------------------
+# Bot assignment helper
+# ---------------------------------------------------------------------------
+
+_bot_counter = 0  # global counter for generating unique seat names
+
+
+def random_bot(seat: str | None = None, rng: random.Random | None = None) -> HoldEmAgent:
+    """Return a fresh :class:`HoldEmAgent` whose personality is randomly
+    chosen from the pre-built :data:`BOTS` presets.
+
+    Each call returns an *independent* copy so that multiple bots assigned
+    to the same game do not share state with each other or with the originals
+    in :data:`BOTS`.
+
+    Parameters
+    ----------
+    seat:
+        An optional display name for this bot instance (e.g. ``"Seat 1"``).
+        When omitted an auto-generated name like ``"Rock-1"`` is used.
+    rng:
+        Optional :class:`random.Random` instance used to pick the preset.
+        Passing the same ``rng`` lets callers control which preset is chosen.
+        When omitted, ``random.Random()`` is used (non-deterministic).
+
+    Returns
+    -------
+    A new :class:`HoldEmAgent` initialised with the chosen preset's
+    randomization fields, a fresh seed, and a unique starting chip count.
+
+    Examples
+    --------
+    Seat six players with randomly chosen strategies::
+
+        players = [random_bot(seat=f"Seat {i+1}") for i in range(6)]
+        histories = simulate_tournament(players, num_hands=300)
+    """
+    global _bot_counter
+
+    picker = rng if rng is not None else random.Random()
+    preset = picker.choice(BOTS)
+
+    _bot_counter += 1
+    name = seat if seat is not None else f"{preset.name}-{_bot_counter}"
+
+    # Each assigned bot gets its own unique seed so its internal RNG is
+    # independent from both the preset and any other assigned bots.
+    unique_seed = hash((preset.seed, _bot_counter)) & 0xFFFF_FFFF
+
+    return HoldEmAgent(
+        name=name,
+        seed=unique_seed,
+        aggression_factor=preset.aggression_factor,
+        bluff_rate=preset.bluff_rate,
+        tight_factor=preset.tight_factor,
+        call_threshold=preset.call_threshold,
+        raise_multiplier=preset.raise_multiplier,
+        position_awareness=preset.position_awareness,
+        pot_odds_skill=preset.pot_odds_skill,
+    )
 
 
 # ---------------------------------------------------------------------------

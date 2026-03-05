@@ -1,6 +1,5 @@
 """Notebook routes."""
 
-import re
 import shutil
 from pathlib import Path
 from uuid import uuid4
@@ -11,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from codex.api.auth import get_current_active_user
+from codex.api.routes.utils import slugify
 from codex.api.routes.workspaces import get_workspace_by_slug_or_id
 from codex.core.watcher import NotebookWatcher, get_watcher_for_notebook, unregister_watcher
 from codex.db.database import get_system_session, init_notebook_db
@@ -29,13 +29,6 @@ class NotebookPluginConfigUpdate(BaseModel):
 
     enabled: bool | None = None
     config: dict | None = None
-
-
-def slugify(name: str) -> str:
-    """Convert a name to a filesystem-safe slug."""
-    slug = re.sub(r"[^\w\s-]", "", name.lower())
-    slug = re.sub(r"[-\s]+", "-", slug).strip("-")
-    return slug or "notebook"
 
 
 async def get_notebook_by_slug_or_id(
@@ -265,7 +258,7 @@ async def create_notebook_nested(
     """Create a new notebook."""
     workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
 
-    base_slug = slugify(body.name)
+    base_slug = slugify(body.name, default="notebook")
     final_slug = base_slug
 
     workspace_path = Path(workspace.path).resolve()
@@ -309,7 +302,6 @@ async def create_notebook_nested(
 
     except Exception as e:
         if notebook_path.exists():
-            import shutil
             shutil.rmtree(notebook_path)
         raise HTTPException(status_code=500, detail=f"Error creating notebook: {str(e)}")
 

@@ -24,7 +24,7 @@ pot_odds_skill : float  [0.0 – 1.0]
 
 Usage
 -----
-    from codex.scripts.holdem_agents import BOTS, random_bot, simulate_tournament, plot_results
+    from codex.holdem.agents import BOTS, random_bot, simulate_tournament, plot_results
 
     # Assign a randomly-chosen preset to each seat in a game:
     players = [random_bot() for _ in range(6)]

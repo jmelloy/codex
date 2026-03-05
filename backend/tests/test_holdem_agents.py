@@ -2,7 +2,7 @@
 
 import pytest
 
-from codex.scripts.holdem_agents import (
+from codex.holdem.agents import (
     BOTS,
     HoldEmAgent,
     random_bot,

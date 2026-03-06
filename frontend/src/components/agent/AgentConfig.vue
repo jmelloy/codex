@@ -356,7 +356,7 @@ onMounted(async () => {
 }
 
 .required {
-  color: #dc3545;
+  color: var(--color-error);
 }
 
 .field-input {
@@ -416,7 +416,7 @@ onMounted(async () => {
 .credential-delete {
   background: none;
   border: none;
-  color: #dc3545;
+  color: var(--color-error);
   cursor: pointer;
   font-size: 0.8125rem;
   padding: 0.25rem 0.5rem;
@@ -425,7 +425,7 @@ onMounted(async () => {
 }
 
 .credential-delete:hover {
-  background: rgba(220, 53, 69, 0.1);
+  background: var(--color-error-bg);
 }
 
 .form-actions {

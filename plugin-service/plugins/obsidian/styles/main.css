@@ -54,18 +54,26 @@
   --color-success: #8ae88a;
   --color-success-bg: rgba(138, 232, 138, 0.1);
   --color-success-border: rgba(138, 232, 138, 0.3);
+  --color-success-text: #8ae88a;
 
   --color-error: #ff8a8a;
   --color-error-bg: rgba(255, 138, 138, 0.1);
   --color-error-border: rgba(255, 138, 138, 0.3);
+  --color-error-text: #ff8a8a;
 
   --color-warning: #ffc078;
   --color-warning-bg: rgba(255, 192, 120, 0.1);
   --color-warning-border: rgba(255, 192, 120, 0.3);
+  --color-warning-text: #ffc078;
 
   --color-info: #7eb6ff;
   --color-info-bg: rgba(126, 182, 255, 0.1);
   --color-info-border: rgba(126, 182, 255, 0.3);
+  --color-info-text: #7eb6ff;
+
+  /* Toggle switch for dark mode */
+  --toggle-slider-bg: #454750;
+  --toggle-knob-bg: #e8e6e3;
 
   /* Shadows - deeper for dark mode */
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);

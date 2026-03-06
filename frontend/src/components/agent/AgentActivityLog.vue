@@ -217,10 +217,10 @@ watch(() => props.agentId, loadSessions, { immediate: true })
   text-transform: uppercase;
 }
 
-.status-pending { background: #fff3cd; color: #856404; }
-.status-running { background: #cce5ff; color: #004085; }
-.status-completed { background: #d4edda; color: #155724; }
-.status-failed { background: #f8d7da; color: #721c24; }
+.status-pending { background: var(--color-warning-bg); color: var(--color-warning-text); }
+.status-running { background: var(--color-info-bg); color: var(--color-info-text); }
+.status-completed { background: var(--color-success-bg); color: var(--color-success-text); }
+.status-failed { background: var(--color-error-bg); color: var(--color-error-text); }
 .status-cancelled { background: var(--color-bg-tertiary); color: var(--color-text-tertiary); }
 
 .session-date {
@@ -256,10 +256,10 @@ watch(() => props.agentId, loadSessions, { immediate: true })
 
 .session-error {
   padding: 0.75rem;
-  background: #f8d7da;
-  border: 1px solid #f5c6cb;
+  background: var(--color-error-bg);
+  border: 1px solid var(--color-error-border);
   border-radius: 4px;
-  color: #721c24;
+  color: var(--color-error-text);
   font-size: 0.875rem;
 }
 

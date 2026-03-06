@@ -526,7 +526,7 @@ onMounted(async () => {
 .toggle-slider {
   position: absolute;
   inset: 0;
-  background-color: #ccc;
+  background-color: var(--toggle-slider-bg);
   border-radius: 26px;
   transition: 0.25s;
 }
@@ -538,7 +538,7 @@ onMounted(async () => {
   width: 20px;
   left: 3px;
   bottom: 3px;
-  background-color: white;
+  background-color: var(--toggle-knob-bg);
   border-radius: 50%;
   transition: 0.25s;
 }
@@ -613,10 +613,10 @@ onMounted(async () => {
 
 .warning-box {
   padding: 1rem;
-  background: #fff3cd;
-  border: 1px solid #ffc107;
+  background: var(--color-warning-bg);
+  border: 1px solid var(--color-warning-border);
   border-radius: 4px;
-  color: #856404;
+  color: var(--color-warning-text);
   font-size: 0.9375rem;
 }
 
@@ -659,7 +659,7 @@ onMounted(async () => {
 }
 
 .required-mark {
-  color: #dc3545;
+  color: var(--color-error);
   margin-left: 0.25rem;
 }
 
@@ -748,15 +748,15 @@ onMounted(async () => {
 }
 
 .result-success {
-  background: #d4edda;
-  border: 1px solid #c3e6cb;
-  color: #155724;
+  background: var(--color-success-bg);
+  border: 1px solid var(--color-success-border);
+  color: var(--color-success-text);
 }
 
 .result-error {
-  background: #f8d7da;
-  border: 1px solid #f5c6cb;
-  color: #721c24;
+  background: var(--color-error-bg);
+  border: 1px solid var(--color-error-border);
+  color: var(--color-error-text);
 }
 
 .result-box p {
@@ -766,7 +766,7 @@ onMounted(async () => {
 .result-details {
   margin: 0.5rem 0 0;
   padding: 0.75rem;
-  background: rgba(0, 0, 0, 0.05);
+  background: var(--color-bg-tertiary);
   border-radius: 4px;
   font-size: 0.8125rem;
   overflow-x: auto;

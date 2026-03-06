@@ -54,18 +54,22 @@
   --color-success: #2d6a4f;
   --color-success-bg: rgba(45, 106, 79, 0.1);
   --color-success-border: rgba(45, 106, 79, 0.3);
+  --color-success-text: #1a3d2d;
 
   --color-error: #c23616;
   --color-error-bg: rgba(194, 54, 22, 0.1);
   --color-error-border: rgba(194, 54, 22, 0.3);
+  --color-error-text: #7a220e;
 
   --color-warning: #dd6b20;
   --color-warning-bg: rgba(221, 107, 32, 0.1);
   --color-warning-border: rgba(221, 107, 32, 0.3);
+  --color-warning-text: #7a3a10;
 
   --color-info: #1e5a8a;
   --color-info-bg: rgba(30, 90, 138, 0.1);
   --color-info-border: rgba(30, 90, 138, 0.3);
+  --color-info-text: #103657;
 
   /* Shadows - rugged and bold */
   --shadow-sm: 0 1px 3px rgba(26, 26, 20, 0.12);

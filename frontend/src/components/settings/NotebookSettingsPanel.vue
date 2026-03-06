@@ -189,8 +189,8 @@ onMounted(() => {
   font-size: 0.75rem;
   padding: 0.1875rem 0.5rem;
   border-radius: 10px;
-  background: #fef3c7;
-  color: #92400e;
+  background: var(--color-warning-bg);
+  color: var(--color-warning-text);
   font-weight: 600;
 }
 

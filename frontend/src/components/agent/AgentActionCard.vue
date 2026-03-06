@@ -131,13 +131,13 @@ function truncate(str: string, max: number): string {
 }
 
 .status-allowed {
-  background: #d4edda;
-  color: #155724;
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
 }
 
 .status-denied {
-  background: #f8d7da;
-  color: #721c24;
+  background: var(--color-error-bg);
+  color: var(--color-error-text);
 }
 
 .action-detail {

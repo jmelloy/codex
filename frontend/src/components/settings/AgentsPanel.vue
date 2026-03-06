@@ -291,10 +291,10 @@ onMounted(async () => {
   text-transform: uppercase;
 }
 
-.cap-read { background: #d4edda; color: #155724; }
-.cap-write { background: #cce5ff; color: #004085; }
-.cap-create { background: #fff3cd; color: #856404; }
-.cap-delete { background: #f8d7da; color: #721c24; }
+.cap-read { background: var(--color-success-bg); color: var(--color-success-text); }
+.cap-write { background: var(--color-info-bg); color: var(--color-info-text); }
+.cap-create { background: var(--color-warning-bg); color: var(--color-warning-text); }
+.cap-delete { background: var(--color-error-bg); color: var(--color-error-text); }
 
 .card-actions {
   display: flex;
@@ -320,7 +320,7 @@ onMounted(async () => {
 .toggle-slider {
   position: absolute;
   inset: 0;
-  background-color: #ccc;
+  background-color: var(--toggle-slider-bg);
   border-radius: 22px;
   transition: 0.25s;
 }
@@ -332,7 +332,7 @@ onMounted(async () => {
   width: 16px;
   left: 3px;
   bottom: 3px;
-  background-color: white;
+  background-color: var(--toggle-knob-bg);
   border-radius: 50%;
   transition: 0.25s;
 }
@@ -371,12 +371,12 @@ onMounted(async () => {
 }
 
 .action-btn-danger {
-  color: #dc3545;
-  border-color: #dc3545;
+  color: var(--color-error);
+  border-color: var(--color-error);
 }
 
 .action-btn-danger:hover {
-  background: rgba(220, 53, 69, 0.1);
+  background: var(--color-error-bg);
 }
 
 .card-expanded {

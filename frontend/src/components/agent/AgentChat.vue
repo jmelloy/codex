@@ -322,10 +322,10 @@ onMounted(async () => {
   text-transform: uppercase;
 }
 
-.status-pending { background: #fff3cd; color: #856404; }
-.status-running { background: #cce5ff; color: #004085; }
-.status-completed { background: #d4edda; color: #155724; }
-.status-failed { background: #f8d7da; color: #721c24; }
+.status-pending { background: var(--color-warning-bg); color: var(--color-warning-text); }
+.status-running { background: var(--color-info-bg); color: var(--color-info-text); }
+.status-completed { background: var(--color-success-bg); color: var(--color-success-text); }
+.status-failed { background: var(--color-error-bg); color: var(--color-error-text); }
 .status-cancelled { background: var(--color-bg-tertiary); color: var(--color-text-tertiary); }
 
 .header-actions {
@@ -350,12 +350,12 @@ onMounted(async () => {
 }
 
 .header-btn-danger {
-  color: #dc3545;
-  border-color: #dc3545;
+  color: var(--color-error);
+  border-color: var(--color-error);
 }
 
 .header-btn-danger:hover {
-  background: rgba(220, 53, 69, 0.1);
+  background: var(--color-error-bg);
 }
 
 /* Notebook selector */
@@ -481,9 +481,9 @@ onMounted(async () => {
 }
 
 .message-system .message-content {
-  background: #fff3cd;
-  border: 1px solid #ffc107;
-  color: #856404;
+  background: var(--color-warning-bg);
+  border: 1px solid var(--color-warning-border);
+  color: var(--color-warning-text);
   font-size: 0.8125rem;
 }
 
@@ -496,7 +496,7 @@ onMounted(async () => {
 }
 
 .message-text :deep(.code-block) {
-  background: rgba(0, 0, 0, 0.08);
+  background: var(--color-bg-tertiary);
   padding: 0.5rem;
   border-radius: 4px;
   margin: 0.5rem 0;
@@ -506,7 +506,7 @@ onMounted(async () => {
 }
 
 .message-text :deep(.inline-code) {
-  background: rgba(0, 0, 0, 0.08);
+  background: var(--color-bg-tertiary);
   padding: 0.125rem 0.375rem;
   border-radius: 3px;
   font-family: var(--font-mono);
@@ -675,8 +675,8 @@ onMounted(async () => {
   align-items: center;
   justify-content: space-between;
   padding: 0.5rem 1rem;
-  background: #f8d7da;
-  color: #721c24;
+  background: var(--color-error-bg);
+  color: var(--color-error-text);
   font-size: 0.8125rem;
   flex-shrink: 0;
 }
@@ -684,7 +684,7 @@ onMounted(async () => {
 .error-dismiss {
   background: none;
   border: none;
-  color: #721c24;
+  color: var(--color-error-text);
   cursor: pointer;
   font-size: 1.25rem;
   line-height: 1;

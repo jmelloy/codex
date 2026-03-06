@@ -75,18 +75,26 @@
   --color-success: #16a34a;
   --color-success-bg: #f0fdf4;
   --color-success-border: #86efac;
+  --color-success-text: #166534;
 
   --color-error: #dc2626;
   --color-error-bg: #fef2f2;
   --color-error-border: #fca5a5;
+  --color-error-text: #991b1b;
 
   --color-warning: #d97706;
   --color-warning-bg: #fffbeb;
   --color-warning-border: #fde68a;
+  --color-warning-text: #92400e;
 
   --color-info: #2563eb;
   --color-info-bg: #eff6ff;
   --color-info-border: #93c5fd;
+  --color-info-text: #1e40af;
+
+  /* Toggle Switch */
+  --toggle-slider-bg: #cbd5e0;
+  --toggle-knob-bg: #ffffff;
 
   /* Shadow Tokens */
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);

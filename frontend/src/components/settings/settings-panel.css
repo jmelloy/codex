@@ -62,9 +62,9 @@
 .error-state {
   padding: 2rem;
   text-align: center;
-  color: #991b1b;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
+  color: var(--color-error-text);
+  background: var(--color-error-bg);
+  border: 1px solid var(--color-error-border);
   border-radius: 6px;
   font-style: italic;
 }
@@ -73,10 +73,10 @@
 .save-notification {
   margin-top: 1.25rem;
   padding: 0.875rem 1.125rem;
-  background: #d4edda;
-  border: 1px solid #c3e6cb;
+  background: var(--color-success-bg);
+  border: 1px solid var(--color-success-border);
   border-radius: 6px;
-  color: #155724;
+  color: var(--color-success-text);
   font-weight: 500;
 }
 
@@ -166,7 +166,7 @@
 .toggle-slider {
   position: absolute;
   inset: 0;
-  background-color: #ccc;
+  background-color: var(--toggle-slider-bg);
   border-radius: 26px;
   transition: 0.25s;
 }
@@ -178,7 +178,7 @@
   width: 20px;
   left: 3px;
   bottom: 3px;
-  background-color: white;
+  background-color: var(--toggle-knob-bg);
   border-radius: 50%;
   transition: 0.25s;
 }

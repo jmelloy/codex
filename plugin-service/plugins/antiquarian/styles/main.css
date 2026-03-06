@@ -54,18 +54,22 @@
   --color-success: #4a6741;
   --color-success-bg: rgba(74, 103, 65, 0.1);
   --color-success-border: rgba(74, 103, 65, 0.3);
+  --color-success-text: #2d4028;
 
   --color-error: #8b3a3a;
   --color-error-bg: rgba(139, 58, 58, 0.1);
   --color-error-border: rgba(139, 58, 58, 0.3);
+  --color-error-text: #5c2020;
 
   --color-warning: #a67c3d;
   --color-warning-bg: rgba(166, 124, 61, 0.1);
   --color-warning-border: rgba(166, 124, 61, 0.3);
+  --color-warning-text: #6b4e22;
 
   --color-info: #3d5a80;
   --color-info-bg: rgba(61, 90, 128, 0.1);
   --color-info-border: rgba(61, 90, 128, 0.3);
+  --color-info-text: #243652;
 
   /* Shadows - warm sepia tones */
   --shadow-sm: 0 1px 2px rgba(59, 43, 31, 0.08);

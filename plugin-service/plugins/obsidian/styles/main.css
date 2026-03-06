@@ -23,18 +23,18 @@
   --pen-green: #8ae88a;
   --pen-purple: #c4a7e7;
 
-  /* UI Background colors - layered depths */
-  --color-bg-primary: #1a1b1e;
-  --color-bg-secondary: #212226;
-  --color-bg-tertiary: #282a2e;
-  --color-bg-hover: #2e3035;
-  --color-bg-active: #35373c;
-  --color-bg-disabled: #282a2e;
+  /* UI Background colors - layered depths (more distinct than notebook-bg #1a1b1e) */
+  --color-bg-primary: #23262d;
+  --color-bg-secondary: #2b2e38;
+  --color-bg-tertiary: #333743;
+  --color-bg-hover: #3a3e4d;
+  --color-bg-active: #42465a;
+  --color-bg-disabled: #2b2e38;
 
-  /* Border colors - subtle definition */
-  --color-border-light: #35373c;
-  --color-border-medium: #454750;
-  --color-border-dark: #5c5e66;
+  /* Border colors - visible but subtle */
+  --color-border-light: #3a3e4d;
+  --color-border-medium: #50546a;
+  --color-border-dark: #666a82;
   --color-border-focus: #9d8cd6;
 
   /* Text colors - avoiding pure white */
@@ -135,4 +135,85 @@
 .theme-obsidian .graph-paper,
 .theme-obsidian .dotted-paper {
   background-color: var(--notebook-bg);
+}
+
+/* Sidebar and toolbar - slightly lighter than the main background */
+.theme-obsidian .notebook-sidebar {
+  background: var(--color-bg-secondary);
+  border-right: 1px solid var(--color-border-light);
+}
+
+.theme-obsidian .notebook-toolbar {
+  background: var(--color-bg-primary);
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+/* Properties panel - visible panel surface */
+.theme-obsidian .properties-panel {
+  background: var(--color-bg-primary);
+  border-left: 1px solid var(--color-border-light);
+}
+
+.theme-obsidian .panel-header {
+  background: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+/* Settings/config sections - clearly visible against page background */
+.theme-obsidian .config-section {
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-light);
+}
+
+/* Plugin rows - elevated surface inside section */
+.theme-obsidian .plugin-row {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-light);
+}
+
+.theme-obsidian .plugin-row:hover {
+  border-color: var(--color-border-medium);
+}
+
+/* Form inputs - distinct from panel background */
+.theme-obsidian .field-input,
+.theme-obsidian .property-input,
+.theme-obsidian .property-textarea {
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border-medium);
+  color: var(--color-text-primary);
+}
+
+.theme-obsidian .field-input:focus,
+.theme-obsidian .property-input:focus,
+.theme-obsidian .property-textarea:focus {
+  border-color: var(--color-border-focus);
+  box-shadow: 0 0 0 2px rgba(157, 140, 214, 0.2);
+}
+
+/* User section at bottom of sidebar - deepest surface */
+.theme-obsidian .user-section {
+  background: var(--notebook-bg);
+  border-top: 1px solid var(--color-border-light);
+}
+
+/* Modal and dialog surfaces */
+.theme-obsidian .modal-content,
+.theme-obsidian .dialog-content {
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-medium);
+}
+
+/* Override hardcoded light-mode error/notification colors */
+.theme-obsidian .error-state {
+  color: var(--color-error);
+  background: var(--color-error-bg);
+  border-color: var(--color-error-border);
+}
+
+.theme-obsidian .operation-notification,
+.theme-obsidian .save-notification {
+  color: var(--color-success);
+  background: var(--color-success-bg);
+  border-color: var(--color-success-border);
 }

@@ -268,6 +268,23 @@ python -m codex.scripts.seed_test_data
 # Test accounts: demo/demo123456, testuser/testpass123, scientist/lab123456
 ```
 
+## Memory Usage
+
+When using the memory tool to store facts about this codebase:
+
+- **Be concise**: Store short, actionable statements (one or two sentences). Avoid lengthy explanations.
+- **Focus on plans and inferences**: Record conclusions, design decisions, inferred conventions, and planned approaches—not raw observations or file contents.
+- **Skip obvious facts**: Do not store things that are immediately apparent from reading the code or that can always be re-derived in a few seconds.
+- **Prefer patterns over instances**: Capture the general rule or convention rather than a specific example.
+
+Good memory entries:
+- "All API routes are prefixed with `/api/v1/`. Authentication uses Bearer tokens."
+- "Notebook DB migrations live in `backend/codex/migrations/notebook/`; system DB migrations in `backend/codex/migrations/workspace/`."
+
+Poor memory entries (too verbose / not inferential):
+- Long code snippets or file contents
+- Simple facts already stated in README or docstrings
+
 ## Best Practices for Development
 
 1. **Always install dependencies first** before running tests or making changes:

@@ -659,3 +659,118 @@ class TestAgentSessionAPI:
         response = test_client.get(f"/api/v1/sessions/{session_id}/logs", headers=headers)
         assert response.status_code == 200
         assert len(response.json()) == 0
+
+
+# ---------------------------------------------------------------------------
+# Unit tests for AgentWatchdog
+# ---------------------------------------------------------------------------
+
+
+class TestAgentWatchdog:
+    """Tests for the AgentWatchdog restart-on-crash behaviour."""
+
+    def _make_session(self, status: str = "running"):
+        from unittest.mock import MagicMock
+
+        session = MagicMock()
+        session.id = 42
+        session.status = status
+        return session
+
+    def _make_engine(self, side_effects):
+        """Return a mock engine whose ``run`` method raises the given side-effects in order."""
+        from unittest.mock import AsyncMock
+
+        engine = AsyncMock()
+        engine.run = AsyncMock(side_effect=side_effects)
+        return engine
+
+    @pytest.mark.asyncio
+    async def test_success_on_first_attempt(self):
+        """Watchdog passes through a successful run without retrying."""
+        from codex.agents.watchdog import AgentWatchdog
+
+        engine = self._make_engine(["hello"])
+        session = self._make_session()
+        watchdog = AgentWatchdog(engine=engine, session=session, max_retries=3, base_delay=0)
+
+        result = await watchdog.run("do something")
+
+        assert result == "hello"
+        assert watchdog.attempts == 1
+        engine.run.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_retries_on_crash_while_active(self):
+        """Watchdog retries when the engine crashes and session is still active."""
+        from codex.agents.watchdog import AgentWatchdog
+
+        engine = self._make_engine([RuntimeError("boom"), RuntimeError("boom again"), "recovered"])
+        session = self._make_session(status="running")
+        watchdog = AgentWatchdog(engine=engine, session=session, max_retries=3, base_delay=0)
+
+        result = await watchdog.run("do something")
+
+        assert result == "recovered"
+        assert watchdog.attempts == 3
+        assert engine.run.call_count == 3
+
+    @pytest.mark.asyncio
+    async def test_stops_retrying_when_session_inactive(self):
+        """Watchdog does not retry once the session is no longer active."""
+        from codex.agents.watchdog import AgentWatchdog
+
+        engine = self._make_engine([RuntimeError("crash")])
+        session = self._make_session(status="cancelled")
+        watchdog = AgentWatchdog(engine=engine, session=session, max_retries=3, base_delay=0)
+
+        with pytest.raises(RuntimeError, match="crash"):
+            await watchdog.run("do something")
+
+        assert watchdog.attempts == 1
+        engine.run.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_raises_after_max_retries_exhausted(self):
+        """Watchdog re-raises the last exception after all retries are used up."""
+        from codex.agents.watchdog import AgentWatchdog
+
+        engine = self._make_engine([RuntimeError("fail")] * 5)
+        session = self._make_session(status="running")
+        watchdog = AgentWatchdog(engine=engine, session=session, max_retries=2, base_delay=0)
+
+        with pytest.raises(RuntimeError, match="fail"):
+            await watchdog.run("do something")
+
+        # 1 initial attempt + 2 retries = 3 total
+        assert watchdog.attempts == 3
+        assert engine.run.call_count == 3
+
+    @pytest.mark.asyncio
+    async def test_session_cancelled_mid_retry(self):
+        """Watchdog stops if the session is cancelled between crash and retry."""
+        from codex.agents.watchdog import AgentWatchdog
+
+        session = self._make_session(status="running")
+
+        call_count = 0
+
+        async def flaky_run(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            # Simulate external cancellation after the first crash
+            session.status = "cancelled"
+            raise RuntimeError("transient error")
+
+        from unittest.mock import AsyncMock, MagicMock
+
+        engine = MagicMock()
+        engine.run = AsyncMock(side_effect=flaky_run)
+
+        watchdog = AgentWatchdog(engine=engine, session=session, max_retries=3, base_delay=0)
+
+        with pytest.raises(RuntimeError, match="transient error"):
+            await watchdog.run("do something")
+
+        # Only one attempt because the session was cancelled before the first retry
+        assert call_count == 1

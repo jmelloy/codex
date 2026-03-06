@@ -14,6 +14,7 @@ from codex.agents.engine import AgentEngine
 from codex.agents.provider import LiteLLMProvider
 from codex.agents.scope import ScopeGuard
 from codex.agents.tools import ToolRouter
+from codex.agents.watchdog import AgentWatchdog
 from codex.api.auth import get_current_active_user
 from codex.api.schemas_agent import (
     ActionLogResponse,
@@ -377,6 +378,7 @@ async def send_message(
     tool_router = ToolRouter(scope_guard, agent_session, notebook_path)
     provider = LiteLLMProvider(model=model, api_key=api_key, api_base=api_base)
     engine = AgentEngine(agent=agent, provider=provider, tool_router=tool_router, session=agent_session)
+    watchdog = AgentWatchdog(engine=engine, session=agent_session)
 
     # Update session status
     agent_session.status = "running"
@@ -384,7 +386,7 @@ async def send_message(
     await db.commit()
 
     try:
-        response_text = await engine.run(body.content)
+        response_text = await watchdog.run(body.content)
 
         # Persist session updates
         agent_session.status = "completed"

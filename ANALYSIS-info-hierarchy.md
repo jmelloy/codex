@@ -204,6 +204,43 @@ The frontend has no visual breadcrumb trail showing the current position in the 
 
 ---
 
+### 12. **MEDIUM — Missing Composite Index on workspace_permissions**
+
+**Location:** `backend/codex/migrations/workspace/versions/20250123_000000_001_initial_system_schema.py:82-94`
+
+The `workspace_permissions` table has foreign keys on both `workspace_id` and `user_id`, but lacks a composite index on `(workspace_id, user_id)`. This means:
+- O(n) lookups when checking user permissions
+- No UNIQUE constraint preventing duplicate permission entries for the same user-workspace pair
+
+**Recommendation:** Add a migration creating a composite unique index on `(workspace_id, user_id)`.
+
+---
+
+### 13. **LOW — Schema Drift: Notebook Slug Unique Constraint Not Reflected in Model**
+
+**Location:** Migration `20260203_000000_007_add_slug_fields.py:103-107` creates `uq_notebooks_workspace_slug`, but `backend/codex/db/models/system.py:105` only documents this in a comment — missing from `__table_args__`.
+
+**Risk:** SQLAlchemy ORM may not enforce the uniqueness constraint, leading to potential duplicate slug issues caught only at the DB level.
+
+---
+
+### 14. **LOW — Missing Foreign Key Indexes on agent_sessions**
+
+**Location:** `backend/codex/migrations/workspace/versions/20260206_000000_009_add_agent_tables.py:94-96`
+
+The `task_id` and `user_id` columns on `agent_sessions` are foreign keys without indexes, causing slow queries when filtering by task or user.
+
+---
+
+### 15. **INFO — Folders Are Virtual Entities (Not a Discrepancy)**
+
+Folders have no database table — they are derived from file paths via string manipulation in `backend/codex/api/routes/folders.py`. Folder metadata is stored in `.metadata` sidecar files with YAML frontmatter. This is a deliberate design choice aligned with the filesystem-based storage model, but has trade-offs:
+- No referential integrity for folder structure
+- Folder deletion cascades via path string filtering (potential race conditions)
+- Performance concerns with large directories (MAX_COUNT_THRESHOLD = 10,000)
+
+---
+
 ## Summary Table
 
 | # | Severity | Issue | Area |
@@ -219,6 +256,9 @@ The frontend has no visual breadcrumb trail showing the current position in the 
 | 9 | LOW | Frontend API parameter order inconsistency | Frontend Services |
 | 10 | LOW | No breadcrumb navigation | Frontend UI |
 | 11 | LOW | WorkspacePermission no User back-reference | Backend Models |
+| 12 | MEDIUM | Missing composite index on workspace_permissions | Migrations |
+| 13 | LOW | Schema drift: notebook slug constraint not in model | Models/Migrations |
+| 14 | LOW | Missing FK indexes on agent_sessions | Migrations |
 
 ## Entities and Their Hierarchy Position
 

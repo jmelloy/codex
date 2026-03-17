@@ -273,6 +273,19 @@ class PluginRegistry:
         return [p for p in all_plugins if p.has_views()]
 
     @staticmethod
+    async def get_plugins_with_templates(session: AsyncSession) -> list[RegisteredPlugin]:
+        """Get all plugins that provide templates.
+
+        Args:
+            session: Database session
+
+        Returns:
+            List of plugins with template capabilities
+        """
+        all_plugins = await PluginRegistry.get_all_plugins(session)
+        return [p for p in all_plugins if p.has_templates()]
+
+    @staticmethod
     async def get_plugins_with_themes(session: AsyncSession) -> list[RegisteredPlugin]:
         """Get all plugins that provide themes.
 

@@ -1,0 +1,34 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: codex
+
+resources:
+  - ../../base
+
+# Override the image tags — set by CI or manually
+# CI replaces 'OWNER' with the actual GitHub org via `kustomize edit set image`
+# See .github/workflows/deploy.yml → "Deploy with Kustomize" step
+images:
+  - name: ghcr.io/OWNER/codex-backend
+    newName: ghcr.io/OWNER/codex-backend # CI replaces OWNER
+    newTag: latest
+  - name: ghcr.io/OWNER/codex-frontend
+    newName: ghcr.io/OWNER/codex-frontend
+    newTag: latest
+
+patches:
+  # Ingress: set staging hostname and use staging cert issuer
+  - target:
+      kind: Ingress
+      name: codex-ingress
+    patch: |
+      - op: replace
+        path: /spec/tls/0/hosts/0
+        value: staging.codex.melloy.life
+      - op: replace
+        path: /spec/rules/0/host
+        value: staging.codex.melloy.life
+      - op: replace
+        path: /metadata/annotations/cert-manager.io~1cluster-issuer
+        value: letsencrypt-staging

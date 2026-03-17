@@ -103,6 +103,56 @@ def get_default_templates(loader) -> list[dict]:
     return load_default_templates(loader)
 
 
+async def get_db_plugin_templates(session: AsyncSession, plugins_dir: Path | None = None) -> list[dict]:
+    """Get templates from database-registered plugins.
+
+    Checks the PluginRegistry for plugins with templates and loads
+    their template data. Template YAML files are resolved from the
+    plugins directory on disk when available.
+    """
+    import yaml
+    from codex.plugins.registry import PluginRegistry
+
+    templates = []
+    try:
+        db_plugins = await PluginRegistry.get_plugins_with_templates(session)
+    except Exception as e:
+        logger.warning(f"Failed to query DB plugin templates: {e}")
+        return templates
+
+    for plugin in db_plugins:
+        for template_def in plugin.templates:
+            template_id = template_def.get("id", "")
+            # Try to load the full template from a YAML file on disk
+            file_ref = template_def.get("file", "")
+            if file_ref and plugins_dir:
+                template_file_path = plugins_dir / plugin.plugin_id / file_ref
+                if template_file_path.exists():
+                    try:
+                        with open(template_file_path) as f:
+                            template_data = yaml.safe_load(f)
+                            if template_data and isinstance(template_data, dict):
+                                template_data["plugin_id"] = plugin.plugin_id
+                                templates.append(template_data)
+                                continue
+                    except Exception as e:
+                        logger.warning(f"Failed to load DB plugin template {template_file_path}: {e}")
+
+            # Fall back to metadata from manifest if file not available
+            if template_def.get("content") or template_def.get("file_extension"):
+                templates.append({
+                    "id": template_id,
+                    "name": template_def.get("name", template_id),
+                    "description": template_def.get("description", ""),
+                    "icon": template_def.get("icon", "📄"),
+                    "file_extension": template_def.get("file_extension", ".md"),
+                    "default_name": template_def.get("default_name", f"{{title}}.md"),
+                    "content": template_def.get("content", ""),
+                    "plugin_id": plugin.plugin_id,
+                })
+    return templates
+
+
 def expand_template_pattern(pattern: str, title: str = "untitled") -> str:
     """Expand date patterns and title in a template string.
 
@@ -206,6 +256,18 @@ async def list_templates_nested(
     # Get plugin_loader if available (may not be in test environment)
     plugin_loader = getattr(request.app.state, 'plugin_loader', None)
     defaults = get_default_templates(plugin_loader) if plugin_loader else []
+
+    # Also check database-registered plugins for templates
+    plugins_dir = getattr(request.app.state, 'plugins_dir', None)
+    db_templates = await get_db_plugin_templates(session, plugins_dir)
+
+    # Merge filesystem and DB templates, deduplicating by template ID
+    seen_ids = {t.get("id") for t in defaults if t.get("id")}
+    for t in db_templates:
+        if t.get("id") not in seen_ids:
+            defaults.append(t)
+            seen_ids.add(t.get("id"))
+
     defaults_with_source = add_template_source(defaults)
 
     templates_dir = notebook_path / ".templates"
@@ -1287,15 +1349,23 @@ async def create_from_template_nested(
                 except Exception:
                     continue
 
-    # Fall back to default templates
+    # Fall back to default templates (filesystem plugins)
     if not template:
-        # Get plugin_loader if available (may not be in test environment)
         plugin_loader = getattr(req.app.state, 'plugin_loader', None)
         if plugin_loader:
             for t in get_default_templates(plugin_loader):
                 if t["id"] == template_id:
                     template = t
                     break
+
+    # Fall back to database-registered plugins
+    if not template:
+        plugins_dir = getattr(req.app.state, 'plugins_dir', None)
+        db_templates = await get_db_plugin_templates(session, plugins_dir)
+        for t in db_templates:
+            if t["id"] == template_id:
+                template = t
+                break
 
     if not template:
         raise HTTPException(status_code=404, detail=f"Template not found: {template_id}")

@@ -120,7 +120,8 @@ class Plugin(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     plugin_id: str = Field(unique=True, index=True)
     name: str
-    version: str
+    version: str  # Semver from the plugin manifest (e.g. "1.2.3")
+    distribution_version: str | None = Field(default=None)  # S3 distribution version (e.g. "YYYY.MM.release.sha")
     type: str  # 'view', 'theme', 'integration'
     enabled: bool = Field(default=True)
     installed_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)

@@ -568,7 +568,8 @@ class InstallPluginResponse(BaseModel):
     """Schema for plugin install result."""
 
     plugin_id: str
-    version: str
+    version: str  # Semver from the plugin manifest (e.g. "1.2.3")
+    distribution_version: str  # S3 distribution version (e.g. "YYYY.MM.release.sha")
     installed: bool
     message: str
 
@@ -652,13 +653,15 @@ async def install_plugin_from_s3(
 
     # Register the plugin in the database
     now = datetime.now(timezone.utc)
+    manifest_version = info.manifest.get("version", info.version)
     stmt = select(Plugin).where(Plugin.plugin_id == info.plugin_id)
     result = await session.execute(stmt)
     existing = result.scalar_one_or_none()
 
     if existing:
         existing.name = info.name
-        existing.version = info.version
+        existing.version = manifest_version
+        existing.distribution_version = info.version
         existing.type = info.plugin_type
         existing.manifest = info.manifest
         existing.updated_at = now
@@ -667,7 +670,8 @@ async def install_plugin_from_s3(
         plugin = Plugin(
             plugin_id=info.plugin_id,
             name=info.name,
-            version=info.version,
+            version=manifest_version,
+            distribution_version=info.version,
             type=info.plugin_type,
             enabled=True,
             manifest=info.manifest,
@@ -689,9 +693,10 @@ async def install_plugin_from_s3(
 
     return InstallPluginResponse(
         plugin_id=info.plugin_id,
-        version=info.version,
+        version=manifest_version,
+        distribution_version=info.version,
         installed=True,
-        message=f"Plugin {info.plugin_id} v{info.version} installed from S3",
+        message=f"Plugin {info.plugin_id} v{manifest_version} installed from S3",
     )
 
 
@@ -781,13 +786,15 @@ async def sync_plugins_from_s3(
             p_info = await asyncio.to_thread(registry.get_plugin, plugin_id)
             if not p_info:
                 continue
+            manifest_version = p_info.manifest.get("version", p_info.version)
             stmt = select(Plugin).where(Plugin.plugin_id == plugin_id)
             db_result = await session.execute(stmt)
             existing = db_result.scalar_one_or_none()
 
             if existing:
                 existing.name = p_info.name
-                existing.version = p_info.version
+                existing.version = manifest_version
+                existing.distribution_version = p_info.version
                 existing.type = p_info.plugin_type
                 existing.manifest = p_info.manifest
                 existing.updated_at = now
@@ -796,7 +803,8 @@ async def sync_plugins_from_s3(
                 plugin = Plugin(
                     plugin_id=p_info.plugin_id,
                     name=p_info.name,
-                    version=p_info.version,
+                    version=manifest_version,
+                    distribution_version=p_info.version,
                     type=p_info.plugin_type,
                     enabled=True,
                     manifest=p_info.manifest,

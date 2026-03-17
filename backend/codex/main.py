@@ -9,6 +9,8 @@ from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from sqlmodel import select
 from ulid import ULID
 
@@ -246,12 +248,6 @@ app.add_middleware(
 )
 
 
-@app.get("/")
-async def root():
-    """Root endpoint."""
-    return {"message": "Codex API", "version": os.environ.get("BUILD_VERSION", "dev"), "docs": "/docs"}
-
-
 @app.get("/health")
 async def health():
     """Health check endpoint for Docker and monitoring."""
@@ -303,6 +299,21 @@ app.include_router(tokens.router, prefix="/api/v1/tokens", tags=["tokens"])
 app.include_router(snippets.router, prefix="/api/v1/snippets", tags=["snippets"])
 app.include_router(oauth.router, prefix="/api/v1/oauth", tags=["oauth"])
 app.include_router(calendar.router, prefix="/api/v1/calendar", tags=["calendar"])
+
+# Serve frontend static files if the build is present (production)
+_static_dir = Path(__file__).parent.parent / "static"
+if not _static_dir.exists():
+    _static_dir = Path("/app/static")
+
+if _static_dir.exists():
+    app.mount("/assets", StaticFiles(directory=str(_static_dir / "assets")), name="assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def serve_spa(full_path: str):
+        file = _static_dir / full_path
+        if file.exists() and file.is_file():
+            return FileResponse(file)
+        return FileResponse(_static_dir / "index.html")
 
 if __name__ == "__main__":
     import uvicorn

@@ -1,345 +1,91 @@
 # Codex
 
-A hierarchical digital laboratory journal system for tracking computational experiments, creative iterations, and technical investigations with full provenance and reproducibility.
+A hierarchical digital laboratory journal system for tracking computational experiments, creative iterations, and technical investigations.
 
-## Architecture
+**Stack**: Python 3.13 / FastAPI + SQLModel · Vue.js 3 / TypeScript · SQLite · Docker · Kubernetes
 
-- **Backend**: Python 3.12+ with FastAPI + SQLModel
-- **Frontend**: Vue.js 3 with TypeScript and Vite
-- **Hierarchy**: Workspace → Notebook → Files
-
-## Features
-
-### System Level
-
-- User authentication and authorization
-- Multi-workspace support with permission management
-- Task management system for agent work
-- RESTful API for all operations
-
-### Notebook Level
-
-- File-based data tracking with flexible tagging
-- SQLite database for metadata and search indexing
-- Automatic filesystem watcher for change detection
-- Git integration with automatic versioning (excludes binary files)
-- Support for multiple metadata formats:
-  - Markdown frontmatter
-  - JSON sidecar files
-  - XML sidecar files
-  - Markdown sidecar files
-
-### Frontend
-
-- Modern Vue.js interface
-- Workspace and notebook management
-- File browser and editor
-- Tag-based organization
-- Full-text search capabilities
+**Hierarchy**: Workspace → Notebook → Files
 
 ## Quick Start
 
-### Prerequisites
+```bash
+cp .env.example .env   # set SECRET_KEY at minimum
+docker compose up -d
+```
 
-- Python 3.12+
-- Node.js 24+
-- Docker and Docker Compose (for local development)
-- kubectl + Helm (for production deployment)
+- App (dev frontend): http://localhost:8065
+- API: http://localhost:8765
+- API Docs: http://localhost:8765/docs
 
-### Local Development
+`docker compose up` runs the backend with hot-reload and the Vue dev server with HMR. The production Docker image builds the frontend and serves it as static files from the backend — no separate frontend container needed.
 
-1. **Clone the repository**
-
-   ```bash
-   git clone <repository-url>
-   cd codex
-   ```
-
-2. **Set up environment**
-
-   ```bash
-   cp .env.example .env
-   # Edit .env with your configuration
-   ```
-
-3. **Install backend dependencies**
-
-   ```bash
-   pip install -e ".[dev]"
-   ```
-
-4. **Install frontend dependencies**
-
-   ```bash
-   cd frontend
-   npm install
-   ```
-
-5. **Run backend**
-
-   ```bash
-   uvicorn codex.main:app --reload --port 8000
-   ```
-
-6. **Run frontend** (in another terminal)
-
-   ```bash
-   cd frontend
-   npm run dev
-   ```
-
-7. **Access the application**
-   - Frontend: http://localhost:5165
-   - API: http://localhost:8765
-   - API Docs: http://localhost:8765/docs
-
-8. **Load test data** (optional, recommended for testing)
-
-   ```bash
-   python -m codex.scripts.seed_test_data
-   ```
-
-   This creates three test users with sample workspaces and notebooks. See [TEST_CREDENTIALS.md](TEST_CREDENTIALS.md) for login details.
-
-### Docker (Development)
-
-1. **Start development containers with hot-reload**
-
-   ```bash
-   make dev-docker
-   ```
-
-   Or manually:
-
-   ```bash
-   cp docker-compose.override.yml.example docker-compose.override.yml
-   cp .env.example .env
-   # Edit .env — set SECRET_KEY at minimum
-   docker compose up -d
-   ```
-
-2. **Access the application**
-   - Frontend: http://localhost:5165 (Vite dev server with hot-reload)
-   - API: http://localhost:8765
-   - API Docs: http://localhost:8765/docs
-
-### Kubernetes (Production)
-
-Production deployments run on Kubernetes via CI/CD. Pushing to `main` automatically:
-
-1. Builds and pushes container images to GHCR
-2. Deploys to the configured Kubernetes cluster using Kustomize
-
-**First-time cluster setup** (Linode LKE):
+## Local Development (without Docker)
 
 ```bash
+# Backend
+cd backend
+pip install -e ".[dev]"
+uvicorn codex.main:app --reload --port 8000
+
+# Frontend (separate terminal)
+cd frontend
+npm install
+npm run dev
+```
+
+## Testing
+
+```bash
+cd backend
+pytest -v
+```
+
+Seed test data (server must be running):
+
+```bash
+python -m codex.scripts.seed_test_data
+# Accounts: demo/demo123456  testuser/testpass123  scientist/lab123456
+python -m codex.scripts.seed_test_data clean  # cleanup
+```
+
+## Production (Kubernetes)
+
+Pushing to `main` builds and deploys automatically via GitHub Actions:
+
+```bash
+# First-time cluster setup (Linode LKE)
 ./k8s/setup-lke.sh --domain your-domain.example.com --email admin@example.com
+
+# Manual deploy
+kubectl apply -k k8s/overlays/production
 ```
 
-**Manual deploy** (requires `kubectl` configured for the cluster):
-
-```bash
-kubectl apply -k k8s/overlays/production   # production
-kubectl apply -k k8s/overlays/staging      # staging
-```
-
-See [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) and [`k8s/`](k8s/) for details.
+The backend image includes the compiled frontend. Only two services run in k8s: `backend` and `plugin-service`.
 
 ## Project Structure
 
 ```
-codex/
-├── backend/                 # Python backend
-│   ├── api/                # FastAPI application
-│   │   ├── main.py        # API entry point
-│   │   ├── auth.py        # Authentication utilities
-│   │   └── routes/        # API route handlers
-│   ├── core/              # Core business logic
-│   │   ├── watcher.py     # File system watcher
-│   │   ├── git_manager.py # Git integration
-│   │   └── metadata.py    # Metadata parsers
-│   └── db/                # Database layer
-│       ├── models.py      # SQLModel definitions
-│       └── database.py    # Database connections
-├── frontend/              # Vue.js frontend
-│   ├── src/
-│   │   ├── views/        # Page components
-│   │   ├── stores/       # Pinia state management
-│   │   ├── services/     # API client services
-│   │   └── router/       # Vue Router configuration
-│   └── nginx.conf        # Nginx configuration for production
-├── tests/                # Python tests
-├── pyproject.toml        # Python project configuration
-├── docker-compose.yml    # Docker composition
-└── README.md            # This file
+backend/       Python/FastAPI app — API routes, watchers, DB models, migrations
+frontend/      Vue.js SPA — built into backend image for production
+plugin-service/ Plugin distribution service
+k8s/           Kubernetes manifests (Kustomize)
+plugins/       Plugin directory
 ```
 
-## Database Schema
+## API
 
-### System Database
+All routes are prefixed `/api/v1/`. Interactive docs at `/docs`.
 
-- **users**: User accounts
-- **workspaces**: Workspace definitions
-- **workspace_permissions**: User-workspace permissions
-- **tasks**: Agent task queue
-
-### Notebook Database (per-notebook)
-
-- **notebooks**: Notebook metadata
-- **file_metadata**: File tracking and metadata
-- **tags**: Tag definitions
-- **search_index**: Full-text search index
-
-## API Endpoints
-
-### Authentication
-
-- `POST /token` - Login and get access token
-- `GET /users/me` - Get current user info
-
-### Workspaces
-
-- `GET /api/v1/workspaces/` - List workspaces
-- `POST /api/v1/workspaces/` - Create workspace
-- `GET /api/v1/workspaces/{id}` - Get workspace
-
-### Notebooks
-
-- `GET /api/v1/notebooks/` - List notebooks
-- `POST /api/v1/notebooks/` - Create notebook
-- `GET /api/v1/notebooks/{id}` - Get notebook
-
-### Files
-
-- `GET /api/v1/files/` - List files
-- `POST /api/v1/files/` - Create file
-- `GET /api/v1/files/{id}` - Get file
-- `PUT /api/v1/files/{id}` - Update file
-
-### Search
-
-- `GET /api/v1/search/` - Search files by query
-- `GET /api/v1/search/tags` - Search files by tags
-
-### Tasks
-
-- `GET /api/v1/tasks/` - List tasks
-- `POST /api/v1/tasks/` - Create task
-- `GET /api/v1/tasks/{id}` - Get task
-- `PUT /api/v1/tasks/{id}` - Update task
-
-## Testing
-
-### Test Users and Data
-
-For testing, screenshots, and demonstrations, you can create test users with sample data:
-
-```bash
-python -m codex.scripts.seed_test_data
-```
-
-This creates three test accounts with workspaces, notebooks, and markdown files:
-
-| Username    | Password      | Purpose                                 |
-| ----------- | ------------- | --------------------------------------- |
-| `demo`      | `demo123456`  | Full-featured account with ML notebooks |
-| `testuser`  | `testpass123` | Simple account for basic testing        |
-| `scientist` | `lab123456`   | Scientific research notebooks           |
-
-See [TEST_CREDENTIALS.md](TEST_CREDENTIALS.md) for complete details.
-
-To clean up test data:
-
-```bash
-python -m codex.scripts.seed_test_data clean
-```
-
-### Running Automated Tests
-
-```bash
-pytest tests/ -v
-```
-
-## Development
-
-### Code Formatting
-
-```bash
-black backend/
-```
-
-### Linting
-
-```bash
-ruff check backend/
-```
-
-### Type Checking
-
-```bash
-mypy backend/
-```
+Key resources: `users`, `workspaces`, `notebooks`, `files`, `folders`, `search`, `tasks`, `agents`, `plugins`, `snippets`, `calendar`.
 
 ## Configuration
 
-### Environment Variables
-
-See `.env.example` for all available configuration options.
-
-### Metadata Formats
-
-#### Markdown Frontmatter
-
-```markdown
----
-title: My Document
-tags: [experiment, analysis]
-date: 2024-01-01
----
-
-# Content here
-```
-
-#### JSON Sidecar (.filename.json)
-
-```json
-{
-  "title": "My Document",
-  "tags": ["experiment", "analysis"],
-  "date": "2024-01-01"
-}
-```
-
-#### XML Sidecar (.filename.xml)
-
-```xml
-<metadata>
-  <title>My Document</title>
-  <tags>
-    <tag>experiment</tag>
-    <tag>analysis</tag>
-  </tags>
-  <date>2024-01-01</date>
-</metadata>
-```
+See `.env.example` for all environment variables. Required: `SECRET_KEY`.
 
 ## Documentation
 
-### Design Documents
-
-Comprehensive design documents are available in the `/docs/design/` directory:
-
-- **[Dynamic Views](docs/design/dynamic-views.md)** - Query-based dynamic views and visualizations with plugin-provided components
-- **[Plugin System](docs/design/plugin-system.md)** - Extensible plugin architecture for custom views, themes, and integrations
-- **[AI Agent Integration](docs/design/ai-agent-integration.md)** - Scoped AI agents for automated assistance and task execution
-
-See the [Design Documents README](docs/design/README.md) for implementation status and details.
-
-### Additional Resources
-
-- [Test Credentials](TEST_CREDENTIALS.md) - Test user accounts and sample data
-- [Claude Instructions](CLAUDE.md) - Development guidelines for AI assistants
+Design docs in [`docs/design/`](docs/design/) — plugin system, dynamic views, AI agent integration.
 
 ## License
 
-MIT License - see LICENSE file for details
+MIT

@@ -6,7 +6,6 @@ metadata:
   labels:
     app.kubernetes.io/part-of: codex
   annotations:
-    # cert-manager will provision TLS automatically
     cert-manager.io/cluster-issuer: letsencrypt-prod
     nginx.ingress.kubernetes.io/proxy-body-size: "50m"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "120"
@@ -20,26 +19,10 @@ spec:
     - host: codex.melloy.life # override in overlay
       http:
         paths:
-          # API routes go to backend
-          - path: /api
-            pathType: Prefix
-            backend:
-              service:
-                name: backend
-                port:
-                  number: 8000
-          - path: /health
-            pathType: Exact
-            backend:
-              service:
-                name: backend
-                port:
-                  number: 8000
-          # Everything else goes to frontend (SPA)
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: frontend
+                name: backend
                 port:
-                  number: 80
+                  number: 8000

@@ -6,22 +6,15 @@ namespace: codex
 resources:
   - ../../base
 
-# Override the image tags — set by CI or manually
-# CI replaces 'OWNER' with the actual GitHub org via `kustomize edit set image`
-# See .github/workflows/deploy.yml → "Deploy with Kustomize" step
 images:
   - name: ghcr.io/OWNER/codex-backend
     newName: ghcr.io/OWNER/codex-backend # CI replaces OWNER
-    newTag: latest
-  - name: ghcr.io/OWNER/codex-frontend
-    newName: ghcr.io/OWNER/codex-frontend
     newTag: latest
   - name: ghcr.io/OWNER/codex-plugin-service
     newName: ghcr.io/OWNER/codex-plugin-service
     newTag: latest
 
 patches:
-  # Ingress: set staging hostname and use staging cert issuer
   - target:
       kind: Ingress
       name: codex-ingress

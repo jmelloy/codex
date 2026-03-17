@@ -24,7 +24,6 @@ on:
 env:
   REGISTRY: ghcr.io
   BACKEND_IMAGE: ghcr.io/${{ github.repository_owner }}/codex-backend
-  FRONTEND_IMAGE: ghcr.io/${{ github.repository_owner }}/codex-frontend
   PLUGIN_SERVICE_IMAGE: ghcr.io/${{ github.repository_owner }}/codex-plugin-service
 
 jobs:
@@ -95,11 +94,8 @@ jobs:
       matrix:
         include:
           - service: backend
-            context: ./backend
+            context: .
             dockerfile: backend/Dockerfile
-          - service: frontend
-            context: ./frontend
-            dockerfile: frontend/Dockerfile
           - service: plugin-service
             context: .
             dockerfile: plugin-service/Dockerfile
@@ -149,8 +145,6 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
           build-args: |
             BUILD_VERSION=${{ steps.version.outputs.build_version }}
-            ${{ matrix.service == 'frontend' && 'VITE_API_BASE_URL=' || '' }}
-            ${{ matrix.service == 'frontend' && 'PLUGINS_DIR=/plugins' || '' }}
 
   # ---------------------------------------------------------------------------
   # 3. Deploy to Kubernetes (LKE)
@@ -216,7 +210,6 @@ jobs:
           # Update image references with actual owner and tag
           kustomize edit set image \
             ghcr.io/OWNER/codex-backend=ghcr.io/${OWNER}/codex-backend:${TAG} \
-            ghcr.io/OWNER/codex-frontend=ghcr.io/${OWNER}/codex-frontend:${TAG} \
             ghcr.io/OWNER/codex-plugin-service=ghcr.io/${OWNER}/codex-plugin-service:${TAG}
 
           # Add build version as annotation (safe for selectors unlike labels)
@@ -228,7 +221,6 @@ jobs:
           # Wait for rollout
           kubectl -n codex rollout status deployment/plugin-service --timeout=120s
           kubectl -n codex rollout status deployment/backend --timeout=180s
-          kubectl -n codex rollout status deployment/frontend --timeout=120s
 
       - name: Verify deployment
         run: |

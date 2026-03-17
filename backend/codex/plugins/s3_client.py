@@ -4,8 +4,10 @@ Replaces the HTTP-based PluginServiceClient. Downloads plugin zip archives
 from S3, caches them locally, and extracts to the plugins directory.
 """
 
+import io
 import logging
 import os
+import shutil
 import tempfile
 import zipfile
 from pathlib import Path
@@ -94,17 +96,35 @@ class S3PluginClient:
 
         logger.info(f"Downloading plugin {plugin_id} v{version} from s3://{self.bucket_name}/{s3_key}")
 
-        # Download zip to a temp file, then extract
+        # Download zip to a temp file, extract to a staging directory on the same
+        # filesystem, then atomically replace the plugin directory so that stale
+        # files from previous versions are never left on disk.
         with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp:
             tmp_path = tmp.name
+
+        # Use a unique staging directory inside plugins_dir so that rename() stays
+        # on one filesystem and concurrent downloads for the same plugin_id do not
+        # collide on the staging path.
+        staging_dir = Path(tempfile.mkdtemp(dir=self.plugins_dir, prefix=f".tmp-{plugin_id}-"))
 
         try:
             self._s3.download_file(self.bucket_name, s3_key, tmp_path)
 
-            # Extract zip contents to plugin directory
-            plugin_dir.mkdir(parents=True, exist_ok=True)
-            with zipfile.ZipFile(tmp_path, "r") as zf:
-                zf.extractall(plugin_dir)
+            # Extract to staging directory
+            try:
+                with zipfile.ZipFile(tmp_path, "r") as zf:
+                    zf.extractall(staging_dir)
+            except Exception:
+                try:
+                    shutil.rmtree(staging_dir)
+                except OSError:
+                    logger.warning(f"Failed to remove staging dir {staging_dir} after extraction error")
+                raise
+
+            # Atomically replace old plugin directory with the freshly extracted one
+            if plugin_dir.exists():
+                shutil.rmtree(plugin_dir)
+            staging_dir.rename(plugin_dir)
         finally:
             os.unlink(tmp_path)
 
@@ -141,8 +161,6 @@ class S3PluginClient:
         Returns:
             Parsed manifest dict, or None if not found
         """
-        import io
-
         import yaml
 
         key = f"{plugin_id}/{version}/plugin.zip"

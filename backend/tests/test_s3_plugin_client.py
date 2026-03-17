@@ -1,6 +1,7 @@
 """Tests for the S3 plugin client."""
 
 import io
+import os
 import zipfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -222,5 +223,45 @@ def test_download_plugin_cleans_up_on_error(client, mock_s3, plugins_dir):
         client.download_plugin("test-plugin", "1.0.0")
 
 
+def test_download_plugin_removes_stale_files(client, mock_s3, plugins_dir):
+    """Test that stale files from previous version are removed on update."""
+    # Simulate a previously installed version with an extra file
+    plugin_dir = plugins_dir / "test-plugin"
+    plugin_dir.mkdir()
+    (plugin_dir / "manifest.yml").write_text("id: test-plugin\nversion: 1.0.0")
+    stale_file = plugin_dir / "old_module.py"
+    stale_file.write_text("# this file was removed in v2.0.0")
+
+    # New version zip does NOT contain old_module.py
+    manifest = {"id": "test-plugin", "name": "Test", "version": "2.0.0", "type": "theme"}
+    zip_bytes = _make_plugin_zip(manifest, {"new_module.py": "# new file"})
+
+    def fake_download(bucket, key, local_path):
+        Path(local_path).write_bytes(zip_bytes)
+
+    mock_s3.download_file.side_effect = fake_download
+
+    result = client.download_plugin("test-plugin", "2.0.0")
+
+    assert result.exists()
+    assert (result / "manifest.yml").exists()
+    assert (result / "new_module.py").exists()
+    # Stale file from previous version must be gone
+    assert not (result / "old_module.py").exists()
+
+
+def test_download_plugin_staging_dir_cleaned_on_extract_error(client, mock_s3, plugins_dir):
+    """Test that the staging directory is removed if zip extraction fails."""
+    def fake_download(bucket, key, local_path):
+        Path(local_path).write_bytes(b"not a valid zip")
+
+    mock_s3.download_file.side_effect = fake_download
+
+    with pytest.raises(Exception):
+        client.download_plugin("test-plugin", "1.0.0")
+
+    # Staging directory must not be left behind
+    assert not list(plugins_dir.glob(".tmp-test-plugin-*"))
+
+
 # Need os import for test_download_plugin_cleans_up_temp_file
-import os

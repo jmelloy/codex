@@ -222,12 +222,32 @@ Resources:
                       print(f"Error reading zip {key}: {e}")
                       continue
 
-                  # Compute the S3 prefix for this plugin version
+                  # Enforce that manifest.id matches the S3 folder name.
+                  # If they differ the item would be internally inconsistent:
+                  # the DynamoDB partition key wouldn't match the S3 prefix,
+                  # so lookups by plugin_id would fail to locate the correct
+                  # S3 object.
+                  manifest_id = manifest.get("id")
+                  if not manifest_id:
+                      print(
+                          f"Warning: manifest.json in {key} is missing 'id' field; using S3 folder name '{plugin_id}'. "
+                          f"A missing id may indicate a malformed plugin package."
+                      )
+                  elif manifest_id != plugin_id:
+                      print(
+                          f"Skipping {key}: manifest.id '{manifest_id}' does not match "
+                          f"S3 folder '{plugin_id}'. They must be equal."
+                      )
+                      continue
+
+                  # Compute the S3 prefix for this plugin version.
+                  # Always use the S3 path prefix as the authoritative plugin_id
+                  # so the DynamoDB partition key is guaranteed to match the S3 location.
                   s3_prefix = f"{plugin_id}/{version}/"
 
                   # Write to DynamoDB
                   item = {
-                      "plugin_id": manifest.get("id", plugin_id),
+                      "plugin_id": plugin_id,
                       "version": version,
                       "name": manifest.get("name", plugin_id),
                       "type": manifest.get("type", "unknown"),

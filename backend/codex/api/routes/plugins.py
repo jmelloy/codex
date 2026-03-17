@@ -710,7 +710,12 @@ async def sync_plugins_from_s3(
     registry = getattr(request.app.state, "dynamo_registry", None)
     s3_client = getattr(request.app.state, "s3_plugin_client", None)
     if not registry or not s3_client:
-        raise HTTPException(status_code=503, detail="Plugin service not configured")
+        missing = []
+        if not registry:
+            missing.append("DynamoDB plugin registry")
+        if not s3_client:
+            missing.append("S3 plugin client")
+        raise HTTPException(status_code=503, detail=f"Plugin service unavailable: missing {', '.join(missing)}")
 
     import asyncio
 

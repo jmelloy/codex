@@ -4,6 +4,7 @@ Replaces the HTTP-based PluginServiceClient. Downloads plugin zip archives
 from S3, caches them locally, and extracts to the plugins directory.
 """
 
+import io
 import logging
 import os
 import tempfile
@@ -141,8 +142,6 @@ class S3PluginClient:
         Returns:
             Parsed manifest dict, or None if not found
         """
-        import io
-
         import yaml
 
         key = f"{plugin_id}/{version}/plugin.zip"

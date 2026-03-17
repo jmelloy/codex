@@ -1,7 +1,6 @@
 """Workspace routes."""
 
 import os
-import re
 import shutil
 from pathlib import Path
 from uuid import uuid4
@@ -12,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from codex.api.auth import get_current_active_user
+from codex.api.routes.utils import slugify
 from codex.core.watcher import get_watcher_for_notebook, unregister_watcher
 from codex.db.database import DATA_DIRECTORY, get_system_session
 from codex.db.models import (
@@ -55,14 +55,6 @@ class PluginConfigUpdate(BaseModel):
     enabled: bool | None = None
     version: str | None = None
     config: dict | None = None
-
-
-def slugify(name: str) -> str:
-    """Convert a name to a filesystem-safe slug."""
-    # Convert to lowercase, replace spaces and special chars with hyphens
-    slug = re.sub(r"[^\w\s-]", "", name.lower())
-    slug = re.sub(r"[-\s]+", "-", slug).strip("-")
-    return slug or "workspace"
 
 
 router = APIRouter()
@@ -174,7 +166,7 @@ async def create_workspace(
                 )
         
         # Generate slug from the path's basename
-        base_slug = slugify(workspace_path.name)
+        base_slug = slugify(workspace_path.name, default="workspace")
         final_slug = base_slug
         
         # Handle slug collisions
@@ -185,7 +177,7 @@ async def create_workspace(
         path = str(workspace_path)
     else:
         # No path provided - auto-generate from workspace name in data directory
-        base_slug = slugify(name)
+        base_slug = slugify(name, default="workspace")
         base_path = Path(DATA_DIRECTORY).resolve() / "workspaces"
         workspace_path = base_path / base_slug
         final_slug = base_slug

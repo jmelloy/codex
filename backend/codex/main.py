@@ -41,6 +41,54 @@ request_id_var: ContextVar[str] = ContextVar("request_id", default="")
 logger = logging.getLogger(__name__)
 
 
+async def _register_loaded_plugins_in_db(loader: PluginLoader) -> None:
+    """Register all loaded plugins from the PluginLoader into the system database.
+
+    This ensures the database has entries for filesystem-discovered plugins,
+    so the PluginRegistry can serve template/view/theme data even when
+    the filesystem loader isn't directly accessible (e.g., in route handlers).
+    """
+    from datetime import datetime, timezone
+
+    from codex.db.database import async_session_maker
+    from codex.db.models import Plugin as PluginModel
+
+    if not loader.plugins:
+        return
+
+    try:
+        async with async_session_maker() as session:
+            now = datetime.now(timezone.utc)
+            for plugin in loader.plugins.values():
+                stmt = select(PluginModel).where(PluginModel.plugin_id == plugin.id)
+                result = await session.execute(stmt)
+                existing = result.scalar_one_or_none()
+
+                if existing:
+                    existing.name = plugin.name
+                    existing.version = plugin.version
+                    existing.type = plugin.type
+                    existing.manifest = plugin.manifest
+                    existing.updated_at = now
+                    session.add(existing)
+                else:
+                    db_plugin = PluginModel(
+                        plugin_id=plugin.id,
+                        name=plugin.name,
+                        version=plugin.version,
+                        type=plugin.type,
+                        enabled=True,
+                        manifest=plugin.manifest,
+                        installed_at=now,
+                        updated_at=now,
+                    )
+                    session.add(db_plugin)
+            await session.commit()
+            logger.info(f"Registered {len(loader.plugins)} plugins in database")
+    except Exception as e:
+        logger.warning(f"Failed to register plugins in database: {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize database and plugins on startup."""
@@ -105,6 +153,9 @@ async def lifespan(app: FastAPI):
     # Store plugin loader and directory in app state for use by API routes
     app.state.plugin_loader = loader
     app.state.plugins_dir = plugins_dir
+
+    # Register filesystem-loaded plugins in the database
+    await _register_loaded_plugins_in_db(loader)
 
     # Enable S3 versioning if S3 storage is configured
     try:

@@ -585,7 +585,7 @@ async def list_remote_plugins(
     """
     registry = getattr(request.app.state, "dynamo_registry", None)
     if not registry:
-        raise HTTPException(status_code=503, detail="Plugin service not configured")
+        raise HTTPException(status_code=503, detail="Plugin service unavailable: missing DynamoDB plugin registry")
 
     try:
         import asyncio
@@ -627,7 +627,12 @@ async def install_plugin_from_s3(
     registry = getattr(request.app.state, "dynamo_registry", None)
     s3_client = getattr(request.app.state, "s3_plugin_client", None)
     if not registry or not s3_client:
-        raise HTTPException(status_code=503, detail="Plugin service not configured")
+        missing = []
+        if not registry:
+            missing.append("DynamoDB plugin registry")
+        if not s3_client:
+            missing.append("S3 plugin client")
+        raise HTTPException(status_code=503, detail=f"Plugin service unavailable: missing {', '.join(missing)}")
 
     import asyncio
 
@@ -708,7 +713,12 @@ async def sync_plugins_from_s3(
     registry = getattr(request.app.state, "dynamo_registry", None)
     s3_client = getattr(request.app.state, "s3_plugin_client", None)
     if not registry or not s3_client:
-        raise HTTPException(status_code=503, detail="Plugin service not configured")
+        missing = []
+        if not registry:
+            missing.append("DynamoDB plugin registry")
+        if not s3_client:
+            missing.append("S3 plugin client")
+        raise HTTPException(status_code=503, detail=f"Plugin service unavailable: missing {', '.join(missing)}")
 
     import asyncio
 

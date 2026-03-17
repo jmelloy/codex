@@ -583,14 +583,14 @@ async def list_remote_plugins(
 
     Returns plugins indexed from S3 uploads.
     """
-    registry = getattr(request.app.state, "dynamo_registry", None)
-    if not registry:
-        raise HTTPException(status_code=503, detail="Plugin service not configured")
+    dynamo_registry = getattr(request.app.state, "dynamo_registry", None)
+    if not dynamo_registry:
+        raise HTTPException(status_code=503, detail="DynamoDB plugin registry not configured")
 
     try:
         import asyncio
 
-        available = await asyncio.to_thread(registry.list_plugins)
+        available = await asyncio.to_thread(dynamo_registry.list_plugins)
     except Exception as e:
         logger.error(f"Failed to scan plugin registry: {e}")
         raise HTTPException(status_code=502, detail=f"Plugin registry unavailable: {e}")
@@ -624,20 +624,22 @@ async def install_plugin_from_s3(
     Downloads plugin files from the S3 bucket, registers in the database,
     and loads into the plugin loader.
     """
-    registry = getattr(request.app.state, "dynamo_registry", None)
-    s3_client = getattr(request.app.state, "s3_plugin_client", None)
-    if not registry or not s3_client:
-        raise HTTPException(status_code=503, detail="Plugin service not configured")
+    dynamo_registry = getattr(request.app.state, "dynamo_registry", None)
+    s3_plugin_client = getattr(request.app.state, "s3_plugin_client", None)
+    if not dynamo_registry:
+        raise HTTPException(status_code=503, detail="DynamoDB plugin registry not configured")
+    if not s3_plugin_client:
+        raise HTTPException(status_code=503, detail="S3 plugin client not configured")
 
     import asyncio
 
     try:
         if install_request.version:
             info = await asyncio.to_thread(
-                registry.get_plugin_version, install_request.plugin_id, install_request.version
+                dynamo_registry.get_plugin_version, install_request.plugin_id, install_request.version
             )
         else:
-            info = await asyncio.to_thread(registry.get_plugin, install_request.plugin_id)
+            info = await asyncio.to_thread(dynamo_registry.get_plugin, install_request.plugin_id)
     except Exception as e:
         raise HTTPException(status_code=404, detail=f"Plugin not found in registry: {e}")
 
@@ -645,7 +647,7 @@ async def install_plugin_from_s3(
         raise HTTPException(status_code=404, detail=f"Plugin not found: {install_request.plugin_id}")
 
     try:
-        await asyncio.to_thread(s3_client.download_plugin, info.plugin_id, info.version)
+        await asyncio.to_thread(s3_plugin_client.download_plugin, info.plugin_id, info.version)
     except Exception as e:
         logger.error(f"Failed to install plugin {install_request.plugin_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Installation failed: {e}")
@@ -682,7 +684,7 @@ async def install_plugin_from_s3(
     loader = getattr(request.app.state, "plugin_loader", None)
     if loader:
         try:
-            plugin_dir = s3_client.plugins_dir / info.plugin_id
+            plugin_dir = s3_plugin_client.plugins_dir / info.plugin_id
             loader.load_plugin(plugin_dir)
         except Exception as e:
             logger.warning(f"Plugin installed but failed to load: {e}")

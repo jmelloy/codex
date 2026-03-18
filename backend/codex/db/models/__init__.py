@@ -18,6 +18,7 @@ from .base import utc_now
 
 # Re-export notebook models
 from .notebook import (
+    Block,
     FileMetadata,
     FileTag,
     SearchIndex,
@@ -70,6 +71,7 @@ __all__ = [
     "AgentSession",
     "AgentActionLog",
     # Notebook models
+    "Block",
     "FileMetadata",
     "Tag",
     "FileTag",

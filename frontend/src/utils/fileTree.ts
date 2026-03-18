@@ -15,10 +15,13 @@ export interface FileTreeNode {
     properties?: Record<string, any>
     file_count?: number
   }
+  // Block/page support
+  isPage?: boolean // folder has .codex-page.json
+  blockOrder?: string[] // ordered block_ids for sorting children
 }
 
 /** Hidden metadata filenames that should not appear in the tree */
-const HIDDEN_FILENAMES = new Set([".metadata"])
+const HIDDEN_FILENAMES = new Set([".metadata", ".codex-page.json"])
 
 /**
  * Build a hierarchical tree structure from a flat list of files
@@ -313,6 +316,11 @@ export function mergeFolderContents(
       description: folderData.description,
       properties: folderData.properties,
       file_count: folderData.file_count,
+    }
+    // Set page/block info if available
+    if (folderData.is_page) {
+      folderNode.isPage = true
+      folderNode.blockOrder = folderData.block_order
     }
     targetChildren = folderNode.children!
   }

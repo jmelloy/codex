@@ -252,6 +252,31 @@ class MetadataParser:
             logger.error(f"Error writing markdown sidecar: {e}", exc_info=True)
 
     @staticmethod
+    def read_page_metadata(folder_path: str) -> dict[str, Any] | None:
+        """Read page metadata from .codex-page.json in the folder."""
+        import json as json_mod
+
+        metadata_file = Path(folder_path) / ".codex-page.json"
+        if not metadata_file.exists():
+            return None
+
+        try:
+            with open(metadata_file) as f:
+                return json_mod.load(f)
+        except Exception as e:
+            logger.warning(f"Failed to read page metadata from {metadata_file}: {e}")
+            return None
+
+    @staticmethod
+    def write_page_metadata(folder_path: str, metadata: dict[str, Any]) -> None:
+        """Write page metadata to .codex-page.json in the folder."""
+        import json as json_mod
+
+        metadata_file = Path(folder_path) / ".codex-page.json"
+        with open(metadata_file, "w") as f:
+            json_mod.dump(metadata, f, indent=2, default=str)
+
+    @staticmethod
     def resolve_sidecar(filepath: str) -> tuple[str, str | None]:
         """Check for existence of sidecar files and return the path if found."""
 

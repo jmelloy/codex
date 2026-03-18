@@ -38,46 +38,6 @@ views:
 
 # Templates
 templates:
-  - id: blank-note
-    name: Blank Note
-    file: templates/blank-note.yaml
-    description: A blank markdown note
-    icon: 📝
-    default_name: "{title}.md"
-    file_extension: .md
-
-  - id: daily-journal
-    name: Daily Journal
-    file: templates/daily-journal.yaml
-    description: A journal entry with today's date
-    icon: 📔
-    default_name: "{yyyy}-{mm}-{dd}-journal.md"
-    file_extension: .md
-
-  - id: meeting-notes
-    name: Meeting Notes
-    file: templates/meeting-notes.yaml
-    description: Template for meeting notes
-    icon: 🗓️
-    default_name: "{yyyy}-{mm}-{dd}-meeting.md"
-    file_extension: .md
-
-  - id: project-doc
-    name: Project Document
-    file: templates/project-doc.yaml
-    description: Documentation template for a project
-    icon: 📋
-    default_name: "{title}.md"
-    file_extension: .md
-
-  - id: adhd-daily-log
-    name: ADHD Daily Log
-    file: templates/adhd-daily-log.yaml
-    description: Structured daily log with dashboard, schedule, tasks, and journal sections designed for ADHD
-    icon: 🧠
-    default_name: "{yyyy}-{mm}-{dd}-adhd-log.md"
-    file_extension: .md
-
   - id: adhd-dashboard
     name: ADHD Dashboard
     file: templates/adhd-dashboard.yaml

@@ -20,7 +20,13 @@ jobs:
 
     strategy:
       matrix:
-        service: [backend, frontend, plugin-service]
+        include:
+          - service: backend
+            context: .
+            dockerfile: backend/Dockerfile
+          - service: plugin-service
+            context: ./plugin-service
+            dockerfile: ./plugin-service/Dockerfile
 
     steps:
       - uses: actions/checkout@v6
@@ -31,15 +37,13 @@ jobs:
       - name: Build ${{ matrix.service }} image
         uses: docker/build-push-action@v7
         with:
-          context: ./${{ matrix.service }}
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
           push: false
           load: true
           tags: codex-${{ matrix.service }}:test
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
-          build-args: |
-            ${{ matrix.service == 'frontend' && 'VITE_API_BASE_URL=/api' || '' }}
-            ${{ matrix.service == 'frontend' && 'PLUGINS_DIR=/plugins' || '' }}
 
       - name: Inspect ${{ matrix.service }} image
         run: docker image inspect codex-${{ matrix.service }}:test --format '{{.Size}}'

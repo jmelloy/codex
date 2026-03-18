@@ -1,8 +1,8 @@
 services:
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     ports:
       - 8765:8000
     environment:
@@ -22,12 +22,13 @@ services:
     volumes:
       - ./data:/app/data
       - ./plugins:/app/plugins
+      - ./backend:/app
     depends_on:
       plugin-service:
         condition: service_healthy
     restart: unless-stopped
     command: >
-      sh -c "alembic upgrade head && python -m codex.main"
+      sh -c "alembic upgrade head && uvicorn codex.main:app --host 0.0.0.0 --port 8000 --reload"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 30s
@@ -53,18 +54,20 @@ services:
       start_period: 5s
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    image: node:22-slim
+    working_dir: /app
     ports:
-      - 8065:80
+      - 8065:5173
+    volumes:
+      - ./frontend:/app
+      - frontend-node-modules:/app/node_modules
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    environment:
+      - VITE_PROXY_TARGET=http://backend:8000
+    stdin_open: true
+    tty: true
     depends_on:
-      backend:
-        condition: service_healthy
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:80"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 5s
+      - backend
+
+volumes:
+  frontend-node-modules:

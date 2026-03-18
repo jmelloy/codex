@@ -477,10 +477,10 @@
     <main class="flex-1 flex flex-col overflow-hidden pt-14 lg:pt-0">
       <!-- Loading State -->
       <div
-        v-if="workspaceStore.fileLoading"
+        v-if="workspaceStore.fileLoading || isConverting"
         class="flex flex-col items-center justify-center h-full text-text-tertiary"
       >
-        <span>Loading...</span>
+        <span>{{ isConverting ? 'Converting to blocks...' : 'Loading...' }}</span>
       </div>
 
       <!-- Error State -->
@@ -726,6 +726,7 @@
           @add-block="handleAddBlock"
           @reorder="handleReorderBlocks"
           @edit-block="handleEditBlock"
+          @update-block="handleUpdateBlock"
         />
       </div>
 
@@ -1089,16 +1090,27 @@ watch(
   { immediate: true },
 )
 
-// Auto-enter live edit mode for markdown files when they finish loading
-watch([() => workspaceStore.currentFile, () => workspaceStore.fileLoading], ([file, loading]) => {
+// Auto-convert markdown files to blocks when they finish loading
+const isConverting = ref(false)
+watch([() => workspaceStore.currentFile, () => workspaceStore.fileLoading], async ([file, loading]) => {
   if (
     file &&
     !loading &&
     file.content !== undefined &&
     getDisplayType(file.content_type) === "markdown" &&
-    !workspaceStore.isEditing
+    !workspaceStore.isEditing &&
+    !isConverting.value
   ) {
-    startEdit()
+    // Convert markdown file to blocks automatically
+    isConverting.value = true
+    try {
+      await workspaceStore.convertFileToBlocks(file.id, file.notebook_id)
+    } catch {
+      // If conversion fails, fall back to regular edit mode
+      startEdit()
+    } finally {
+      isConverting.value = false
+    }
   }
 })
 
@@ -1371,35 +1383,85 @@ async function handleNavigatePageBlock(block: any) {
 async function handleDeleteBlock(blockId: string) {
   if (workspaceStore.currentFolder && workspaceStore.currentFolder.is_page) {
     const notebookId = workspaceStore.currentFolder.notebook_id
-    // Find the page's block_id from the block_order or use a fetch
-    const pageBlockId = workspaceStore.currentFolder.block_order?.[0]
+    const pageBlockId = workspaceStore.currentPageBlockId
     if (pageBlockId) {
-      // We need the parent page's block_id, not the first child
-      // For now, just delete and refresh
-      await workspaceStore.deleteBlock(notebookId, blockId, blockId)
+      try {
+        await workspaceStore.deleteBlock(notebookId, blockId, pageBlockId)
+        showToast({ message: "Block deleted" })
+      } catch {
+        showToast({ message: "Failed to delete block", type: "error" })
+      }
     }
   }
 }
 
-async function handleAddBlock() {
-  // This will be expanded with a block type picker in the future
+async function handleAddBlock(blockType: string = "text", content: string = "") {
   if (workspaceStore.currentFolder && workspaceStore.currentFolder.is_page) {
-    // Would need the page's block_id to create a child block
-    // For now this is a placeholder for the UI hook
-    console.log("Add block to page:", workspaceStore.currentFolder.path)
+    const notebookId = workspaceStore.currentFolder.notebook_id
+    const pageBlockId = workspaceStore.currentPageBlockId
+    if (pageBlockId) {
+      try {
+        await workspaceStore.createBlock(notebookId, pageBlockId, blockType, content)
+        showToast({ message: "Block added" })
+      } catch {
+        showToast({ message: "Failed to add block", type: "error" })
+      }
+    }
   }
 }
 
 async function handleReorderBlocks(blockIds: string[]) {
   if (workspaceStore.currentFolder && workspaceStore.currentFolder.is_page) {
-    // Would need the page's block_id
-    console.log("Reorder blocks:", blockIds)
+    const notebookId = workspaceStore.currentFolder.notebook_id
+    const pageBlockId = workspaceStore.currentPageBlockId
+    if (pageBlockId) {
+      try {
+        await workspaceStore.reorderBlocks(notebookId, pageBlockId, blockIds)
+      } catch {
+        showToast({ message: "Failed to reorder blocks", type: "error" })
+      }
+    }
   }
 }
 
-function handleEditBlock(block: any) {
-  // Open block for inline editing
-  console.log("Edit block:", block.block_id)
+async function handleEditBlock(block: any) {
+  // Open block for inline editing - handled by BlockView component
+  if (workspaceStore.currentFolder && workspaceStore.currentFolder.is_page) {
+    const notebookId = workspaceStore.currentFolder.notebook_id
+    try {
+      const { blockService } = await import("../services/codex")
+      await blockService.updateBlock(
+        block.block_id,
+        notebookId,
+        workspaceStore.currentWorkspace!.id,
+        block.content
+      )
+      // Refresh blocks
+      const pageBlockId = workspaceStore.currentPageBlockId
+      if (pageBlockId) {
+        await workspaceStore.fetchPageBlocks(pageBlockId, notebookId)
+      }
+    } catch {
+      showToast({ message: "Failed to save block", type: "error" })
+    }
+  }
+}
+
+async function handleUpdateBlock(block: { block_id: string; content: string }) {
+  if (workspaceStore.currentFolder && workspaceStore.currentFolder.is_page) {
+    const notebookId = workspaceStore.currentFolder.notebook_id
+    try {
+      const { blockService } = await import("../services/codex")
+      await blockService.updateBlock(
+        block.block_id,
+        notebookId,
+        workspaceStore.currentWorkspace!.id,
+        block.content
+      )
+    } catch {
+      showToast({ message: "Failed to save block", type: "error" })
+    }
+  }
 }
 
 function isFolderExpanded(notebookId: number, folderPath: string): boolean {
@@ -1796,6 +1858,19 @@ async function handleCreateFile() {
     const path = newFileName.value
     const baseName = path.replace(/\.[^/.]+$/, "") || path
 
+    if (path.endsWith(".md")) {
+      // Create as a block page instead of a flat markdown file
+      const notebookId = createFileNotebook.value.id
+      await workspaceStore.createPage(notebookId, baseName)
+      showCreateFile.value = false
+      newFileName.value = ""
+      customTitle.value = ""
+      selectedTemplate.value = null
+      createFileNotebook.value = null
+      showToast({ message: "Page created!" })
+      return
+    }
+
     // Generate default content based on file extension
     let content: string
     if (path.endsWith(".cdx")) {
@@ -1814,8 +1889,6 @@ config: {}
 
 Edit the frontmatter above to configure this view.
 `
-    } else if (path.endsWith(".md")) {
-      content = `# ${baseName}\n\nStart writing here...`
     } else if (path.endsWith(".json")) {
       content = "{\n  \n}"
     } else {

@@ -65,6 +65,13 @@ class MoveBlockRequest(BaseModel):
     position: int | None = None
 
 
+class ConvertFileRequest(BaseModel):
+    """Request to convert an existing markdown file to a block page."""
+
+    file_id: int | None = None
+    path: str | None = None
+
+
 class ReorderBlocksRequest(BaseModel):
     """Request to reorder blocks within a page."""
 
@@ -402,6 +409,63 @@ async def delete_block_endpoint(
         return {"message": "Block deleted successfully"}
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    finally:
+        nb_session.close()
+
+
+@nested_router.post("/convert-file")
+async def convert_file_to_blocks(
+    workspace_identifier: str,
+    notebook_identifier: str,
+    request: ConvertFileRequest,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Convert an existing markdown file in the notebook to a page of blocks."""
+    notebook_path, notebook, workspace = await get_notebook_path_nested(
+        workspace_identifier, notebook_identifier, current_user, session
+    )
+
+    # Resolve the file path
+    if request.file_id:
+        nb_session = get_notebook_session(str(notebook_path))
+        try:
+            from codex.db.models import FileMetadata as FM
+
+            from sqlmodel import select as sel
+
+            file_meta = nb_session.exec(
+                sel(FM).where(FM.notebook_id == notebook.id, FM.id == request.file_id)
+            ).first()
+            if not file_meta:
+                raise HTTPException(status_code=404, detail="File not found")
+            md_path = file_meta.path
+        finally:
+            nb_session.close()
+    elif request.path:
+        md_path = request.path
+    else:
+        raise HTTPException(status_code=400, detail="Either file_id or path is required")
+
+    if not md_path.endswith(".md"):
+        raise HTTPException(status_code=400, detail="Only .md files can be converted to blocks")
+
+    full_path = notebook_path / md_path
+    if not full_path.exists():
+        raise HTTPException(status_code=404, detail=f"File not found: {md_path}")
+
+    nb_session = get_notebook_session(str(notebook_path))
+    try:
+        result = import_markdown_to_page(
+            notebook_path=notebook_path,
+            notebook_id=notebook.id,
+            markdown_path=md_path,
+            nb_session=nb_session,
+        )
+        return result
+    except Exception as e:
+        logger.error(f"Error converting file to blocks: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error converting file: {str(e)}")
     finally:
         nb_session.close()
 

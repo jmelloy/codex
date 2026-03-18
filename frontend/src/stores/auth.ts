@@ -2,6 +2,7 @@ import { defineStore } from "pinia"
 import { ref } from "vue"
 import { authService, type User } from "../services/auth"
 import { useThemeStore } from "./theme"
+import { useIntegrationStore } from "./integration"
 import { pluginRegistry } from "../services/pluginRegistry"
 import { viewPluginService } from "../services/viewPluginService"
 
@@ -56,10 +57,8 @@ export const useAuthStore = defineStore("auth", () => {
     user.value = null
     isAuthenticated.value = false
     // Reset integrations on logout
-    import("./integration").then(({ useIntegrationStore }) => {
-      const integrationStore = useIntegrationStore()
-      integrationStore.reset()
-    })
+    const integrationStore = useIntegrationStore()
+    integrationStore.reset()
   }
 
   async function initialize() {

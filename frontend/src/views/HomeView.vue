@@ -1384,7 +1384,6 @@ async function handleDeleteBlock(blockId: string) {
 async function handleAddBlock() {
   // This will be expanded with a block type picker in the future
   if (workspaceStore.currentFolder && workspaceStore.currentFolder.is_page) {
-    const notebookId = workspaceStore.currentFolder.notebook_id
     // Would need the page's block_id to create a child block
     // For now this is a placeholder for the UI hook
     console.log("Add block to page:", workspaceStore.currentFolder.path)
@@ -1393,7 +1392,6 @@ async function handleAddBlock() {
 
 async function handleReorderBlocks(blockIds: string[]) {
   if (workspaceStore.currentFolder && workspaceStore.currentFolder.is_page) {
-    const notebookId = workspaceStore.currentFolder.notebook_id
     // Would need the page's block_id
     console.log("Reorder blocks:", blockIds)
   }

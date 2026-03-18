@@ -147,11 +147,11 @@ function onDragStart(event: DragEvent, index: number) {
   }
 }
 
-function onDragOver(event: DragEvent, index: number) {
+function onDragOver(_event: DragEvent, index: number) {
   dragOverIndex.value = index
 }
 
-function onDrop(event: DragEvent, targetIndex: number) {
+function onDrop(_event: DragEvent, targetIndex: number) {
   const sourceIndex = dragIndex.value
   if (sourceIndex === null || sourceIndex === targetIndex) return
 

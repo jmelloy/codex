@@ -711,6 +711,24 @@
         </div>
       </div>
 
+      <!-- Block/Page View Mode -->
+      <div
+        v-else-if="workspaceStore.currentFolder && workspaceStore.currentFolder.is_page"
+        class="flex-1 flex overflow-hidden p-4"
+      >
+        <BlockView
+          :blocks="workspaceStore.currentPageBlocks"
+          :page-title="workspaceStore.currentFolder.title"
+          :page-description="workspaceStore.currentFolder.description"
+          class="flex-1"
+          @navigate-page="handleNavigatePageBlock"
+          @delete-block="handleDeleteBlock"
+          @add-block="handleAddBlock"
+          @reorder="handleReorderBlocks"
+          @edit-block="handleEditBlock"
+        />
+      </div>
+
       <!-- Folder View Mode -->
       <div v-else-if="workspaceStore.currentFolder" class="flex-1 flex overflow-hidden p-4">
         <FolderView
@@ -928,6 +946,7 @@ import ViewRenderer from "../components/views/ViewRenderer.vue"
 import FilePropertiesPanel from "../components/FilePropertiesPanel.vue"
 import FolderPropertiesPanel from "../components/FolderPropertiesPanel.vue"
 import FolderView from "../components/FolderView.vue"
+import BlockView from "../components/BlockView.vue"
 import FileHeader from "../components/FileHeader.vue"
 import FileTreeItem from "../components/FileTreeItem.vue"
 import CreateViewModal from "../components/CreateViewModal.vue"
@@ -1338,6 +1357,49 @@ async function handleSelectSubfolder(subfolder: { path: string }) {
     const notebookId = workspaceStore.currentFolder.notebook_id
     await handleSelectFolder(notebookId, subfolder.path)
   }
+}
+
+// Block/page event handlers
+async function handleNavigatePageBlock(block: any) {
+  if (workspaceStore.currentFolder) {
+    const notebookId = workspaceStore.currentFolder.notebook_id
+    // Navigate to the nested page's folder path
+    await handleSelectFolder(notebookId, block.path)
+  }
+}
+
+async function handleDeleteBlock(blockId: string) {
+  if (workspaceStore.currentFolder && workspaceStore.currentFolder.is_page) {
+    const notebookId = workspaceStore.currentFolder.notebook_id
+    // Find the page's block_id from the block_order or use a fetch
+    const pageBlockId = workspaceStore.currentFolder.block_order?.[0]
+    if (pageBlockId) {
+      // We need the parent page's block_id, not the first child
+      // For now, just delete and refresh
+      await workspaceStore.deleteBlock(notebookId, blockId, blockId)
+    }
+  }
+}
+
+async function handleAddBlock() {
+  // This will be expanded with a block type picker in the future
+  if (workspaceStore.currentFolder && workspaceStore.currentFolder.is_page) {
+    // Would need the page's block_id to create a child block
+    // For now this is a placeholder for the UI hook
+    console.log("Add block to page:", workspaceStore.currentFolder.path)
+  }
+}
+
+async function handleReorderBlocks(blockIds: string[]) {
+  if (workspaceStore.currentFolder && workspaceStore.currentFolder.is_page) {
+    // Would need the page's block_id
+    console.log("Reorder blocks:", blockIds)
+  }
+}
+
+function handleEditBlock(block: any) {
+  // Open block for inline editing
+  console.log("Edit block:", block.block_id)
 }
 
 function isFolderExpanded(notebookId: number, folderPath: string): boolean {

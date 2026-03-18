@@ -619,6 +619,12 @@ def update_file_metadata(
                     else:
                         raise
 
+        # Sync block state if this file is inside a page folder or is a page metadata file
+        try:
+            _sync_blocks_for_file(notebook_path, notebook_id, filepath, event_type, session)
+        except Exception as block_err:
+            logger.debug(f"Block sync skipped for {filepath}: {block_err}")
+
         if callback:
             callback(filepath, event_type)
 
@@ -635,6 +641,90 @@ def update_file_metadata(
     finally:
         if session:
             session.close()
+
+
+def _sync_blocks_for_file(
+    notebook_path: str,
+    notebook_id: int,
+    filepath: str,
+    event_type: str,
+    session=None,
+) -> None:
+    """Sync block state when a file inside a page folder changes.
+
+    Called after standard file metadata processing. Handles:
+    - .codex-page.json created/modified → sync page block state from disk
+    - File added to a page folder → auto-append block entry
+    - File deleted from a page folder → remove block entry
+    """
+    from codex.core.blocks import PAGE_METADATA_FILE, is_page_folder, read_page_metadata, sync_page_from_disk, write_page_metadata
+
+    rel_path = os.path.relpath(filepath, notebook_path)
+    filename = os.path.basename(filepath)
+    parent_dir = os.path.dirname(filepath)
+
+    # If this is a .codex-page.json file, sync the page
+    if filename == PAGE_METADATA_FILE:
+        if event_type in ("created", "modified", "scanned"):
+            page_rel_path = os.path.relpath(parent_dir, notebook_path)
+            if page_rel_path == ".":
+                page_rel_path = ""
+            _session = session or get_notebook_session(notebook_path)
+            try:
+                sync_page_from_disk(Path(notebook_path), page_rel_path, notebook_id, _session)
+            finally:
+                if not session:
+                    _session.close()
+        return
+
+    # Check if the parent folder is a page
+    if not is_page_folder(Path(parent_dir)):
+        return
+
+    page_rel_path = os.path.relpath(parent_dir, notebook_path)
+    if page_rel_path == ".":
+        page_rel_path = ""
+
+    page_meta = read_page_metadata(Path(parent_dir))
+    if not page_meta:
+        return
+
+    # Check if this file is already tracked in the page metadata
+    existing_block_ids = {b.get("file"): b for b in page_meta.get("blocks", [])}
+
+    if event_type == "deleted":
+        # Remove block entry for deleted file
+        if filename in existing_block_ids:
+            page_meta["blocks"] = [b for b in page_meta["blocks"] if b.get("file") != filename]
+            write_page_metadata(Path(parent_dir), page_meta)
+            # DB sync will happen on next .codex-page.json change detection
+    elif event_type in ("created", "scanned"):
+        # Auto-append new file as a block if not already tracked
+        if filename not in existing_block_ids and not filename.startswith("."):
+            import uuid
+
+            block_id = str(uuid.uuid4())
+            # Infer block type from extension
+            ext = os.path.splitext(filename)[1].lower()
+            if ext in (".md", ".txt"):
+                block_type = "text"
+            elif ext in (".py", ".js", ".ts", ".rs", ".go", ".java", ".c", ".cpp", ".sh", ".sql"):
+                block_type = "code"
+            elif ext in (".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp"):
+                block_type = "image"
+            elif ext in (".json", ".yaml", ".yml", ".toml", ".xml"):
+                block_type = "file"
+            else:
+                block_type = "file"
+
+            max_order = max((b.get("order", 0) for b in page_meta.get("blocks", [])), default=0)
+            page_meta.setdefault("blocks", []).append({
+                "block_id": block_id,
+                "type": block_type,
+                "file": filename,
+                "order": max_order + 1.0,
+            })
+            write_page_metadata(Path(parent_dir), page_meta)
 
 
 def is_binary_file(filepath: str) -> bool:

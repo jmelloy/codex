@@ -70,6 +70,53 @@ export interface SubfolderMetadata {
 export interface FolderWithFiles extends FolderMetadata {
   files: FileMetadata[]
   subfolders?: SubfolderMetadata[]
+  is_page?: boolean
+  block_order?: string[]
+}
+
+export interface Block {
+  id: number
+  block_id: string
+  parent_block_id: string | null
+  notebook_id: number
+  path: string
+  block_type:
+    | "page"
+    | "text"
+    | "heading"
+    | "code"
+    | "image"
+    | "list"
+    | "quote"
+    | "divider"
+    | "embed"
+    | "file"
+  content_format: "markdown" | "json" | "binary"
+  order_index: number
+  title?: string
+  file_id?: number
+  content?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface PageMetadata {
+  version: number
+  block_id: string
+  title: string
+  description?: string
+  properties?: Record<string, any>
+  blocks: Array<{
+    block_id: string
+    type: string
+    file: string
+    order: number
+  }>
+}
+
+export interface BlockWithChildren extends Block {
+  children?: Block[]
+  page_metadata?: PageMetadata
 }
 export interface FileHistoryEntry {
   hash: string
@@ -486,6 +533,172 @@ export const folderService = {
     await apiClient.delete(
       `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/folders/${encodedPath}`
     )
+  },
+}
+
+export const blockService = {
+  /**
+   * List root-level blocks/pages in a notebook.
+   */
+  async listRootBlocks(
+    notebookId: number | string,
+    workspaceId: number | string
+  ): Promise<{ blocks: Block[]; notebook_id: number; workspace_id: number }> {
+    const response = await apiClient.get(
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/`
+    )
+    return response.data
+  },
+
+  /**
+   * Get a single block with metadata and content.
+   */
+  async getBlock(
+    blockId: string,
+    notebookId: number | string,
+    workspaceId: number | string
+  ): Promise<BlockWithChildren> {
+    const response = await apiClient.get<BlockWithChildren>(
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/${blockId}`
+    )
+    return response.data
+  },
+
+  /**
+   * Get ordered children of a page block.
+   */
+  async getChildren(
+    blockId: string,
+    notebookId: number | string,
+    workspaceId: number | string
+  ): Promise<{ parent_block_id: string; children: Block[] }> {
+    const response = await apiClient.get(
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/${blockId}/children`
+    )
+    return response.data
+  },
+
+  /**
+   * Create a new block within a page.
+   */
+  async createBlock(
+    notebookId: number | string,
+    workspaceId: number | string,
+    data: {
+      parent_block_id: string
+      block_type?: string
+      content?: string
+      position?: number
+      content_format?: string
+    }
+  ): Promise<Block> {
+    const response = await apiClient.post<Block>(
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/`,
+      data
+    )
+    return response.data
+  },
+
+  /**
+   * Create a new page (folder with block structure).
+   */
+  async createPage(
+    notebookId: number | string,
+    workspaceId: number | string,
+    data: {
+      parent_path?: string
+      title: string
+      description?: string
+      properties?: Record<string, any>
+    }
+  ): Promise<PageMetadata> {
+    const response = await apiClient.post<PageMetadata>(
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/pages`,
+      data
+    )
+    return response.data
+  },
+
+  /**
+   * Update block content.
+   */
+  async updateBlock(
+    blockId: string,
+    notebookId: number | string,
+    workspaceId: number | string,
+    content: string
+  ): Promise<Block> {
+    const response = await apiClient.put<Block>(
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/${blockId}`,
+      { content }
+    )
+    return response.data
+  },
+
+  /**
+   * Move a block to a new parent and/or position.
+   */
+  async moveBlock(
+    blockId: string,
+    notebookId: number | string,
+    workspaceId: number | string,
+    data: {
+      new_parent_block_id?: string
+      position?: number
+    }
+  ): Promise<Block> {
+    const response = await apiClient.patch<Block>(
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/${blockId}/move`,
+      data
+    )
+    return response.data
+  },
+
+  /**
+   * Reorder children of a page block.
+   */
+  async reorderBlocks(
+    blockId: string,
+    notebookId: number | string,
+    workspaceId: number | string,
+    blockIds: string[]
+  ): Promise<any> {
+    const response = await apiClient.patch(
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/${blockId}/reorder`,
+      { block_ids: blockIds }
+    )
+    return response.data
+  },
+
+  /**
+   * Delete a block. For pages, recursively deletes all children.
+   */
+  async deleteBlock(
+    blockId: string,
+    notebookId: number | string,
+    workspaceId: number | string
+  ): Promise<void> {
+    await apiClient.delete(
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/${blockId}`
+    )
+  },
+
+  /**
+   * Import a markdown file as a page of blocks.
+   */
+  async importMarkdown(
+    notebookId: number | string,
+    workspaceId: number | string,
+    file: File
+  ): Promise<PageMetadata> {
+    const formData = new FormData()
+    formData.append("file", file)
+    const response = await apiClient.post<PageMetadata>(
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/import-markdown`,
+      formData,
+      { headers: { "Content-Type": "multipart/form-data" } }
+    )
+    return response.data
   },
 }
 

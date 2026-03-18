@@ -17,7 +17,7 @@
       <span class="text-[10px] mr-2 text-text-tertiary w-3">{{
         isFolderExpanded ? "▼" : "▶"
       }}</span>
-      <span class="mr-2 text-sm">📁</span>
+      <span class="mr-2 text-sm">{{ node.isPage ? '📑' : '📁' }}</span>
       <span class="overflow-hidden text-ellipsis whitespace-nowrap">{{ node.folderMeta?.title || node.name }}</span>
     </div>
 

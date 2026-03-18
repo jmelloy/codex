@@ -16,6 +16,7 @@ from ulid import ULID
 
 from codex.api.routes import (
     agents,
+    blocks,
     calendar,
     files,
     folders,
@@ -272,6 +273,11 @@ app.include_router(
     folders.nested_router,
     prefix="/api/v1/workspaces/{workspace_identifier}/notebooks/{notebook_identifier}/folders",
     tags=["folders"],
+)
+app.include_router(
+    blocks.nested_router,
+    prefix="/api/v1/workspaces/{workspace_identifier}/notebooks/{notebook_identifier}/blocks",
+    tags=["blocks"],
 )
 app.include_router(
     search.nested_router,

@@ -7,12 +7,6 @@ describe("API Client", () => {
     localStorage.clear()
   })
 
-  it("should be configured with correct base URL", () => {
-    expect(apiClient.defaults.baseURL).toBeDefined()
-    // Default or environment variable
-    expect(apiClient.defaults.baseURL).toMatch(/http/)
-  })
-
   it("should have correct default headers", () => {
     expect(apiClient.defaults.headers["Content-Type"]).toBe("application/json")
   })

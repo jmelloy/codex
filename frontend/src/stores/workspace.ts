@@ -5,11 +5,14 @@ import {
   notebookService,
   fileService,
   folderService,
+  blockService,
   type Workspace,
   type Notebook,
   type FileMetadata,
   type FileWithContent,
   type FolderWithFiles,
+  type Block,
+  type PageMetadata,
 } from "../services/codex"
 import {
   type FileTreeNode,
@@ -534,6 +537,25 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     const folder = await fetchFolderContents(folderPath, notebookId)
     if (folder) {
       currentFolder.value = folder
+
+      // If this folder is a page, also fetch its blocks
+      if (folder.is_page) {
+        try {
+          // Fetch the page block to get its block_id, then fetch children
+          const rootBlocks = await blockService.listRootBlocks(notebookId, currentWorkspace.value.id)
+          // Find the block matching this folder path
+          const pageBlock = rootBlocks.blocks.find((b: Block) => b.path === folderPath)
+          if (pageBlock) {
+            await fetchPageBlocks(pageBlock.block_id, notebookId)
+          }
+        } catch {
+          // Block loading is optional - folder still works without it
+          currentPageBlocks.value = []
+        }
+      } else {
+        currentPageBlocks.value = []
+        currentPageMeta.value = null
+      }
     }
   }
 
@@ -617,6 +639,133 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     currentFolder.value = null
   }
 
+  // Block state
+  const currentPageBlocks = ref<Block[]>([])
+  const currentPageMeta = ref<PageMetadata | null>(null)
+  const blockLoading = ref(false)
+
+  /**
+   * Fetch blocks for a page and set as current
+   */
+  async function fetchPageBlocks(blockId: string, notebookId: number) {
+    if (!currentWorkspace.value) return
+    blockLoading.value = true
+    try {
+      const result = await blockService.getChildren(
+        blockId,
+        notebookId,
+        currentWorkspace.value.id,
+      )
+      currentPageBlocks.value = result.children
+    } catch (e: any) {
+      error.value = e.response?.data?.detail || "Failed to fetch page blocks"
+    } finally {
+      blockLoading.value = false
+    }
+  }
+
+  /**
+   * Create a new page
+   */
+  async function createPage(
+    notebookId: number,
+    title: string,
+    parentPath?: string,
+    description?: string,
+  ) {
+    if (!currentWorkspace.value) return
+    try {
+      const result = await blockService.createPage(notebookId, currentWorkspace.value.id, {
+        title,
+        parent_path: parentPath,
+        description,
+      })
+      // Refresh the file tree to show the new page folder
+      await fetchFiles(notebookId)
+      return result
+    } catch (e: any) {
+      error.value = e.response?.data?.detail || "Failed to create page"
+      throw e
+    }
+  }
+
+  /**
+   * Create a block within a page
+   */
+  async function createBlock(
+    notebookId: number,
+    parentBlockId: string,
+    blockType: string = "text",
+    content: string = "",
+    position?: number,
+  ) {
+    if (!currentWorkspace.value) return
+    try {
+      const result = await blockService.createBlock(notebookId, currentWorkspace.value.id, {
+        parent_block_id: parentBlockId,
+        block_type: blockType,
+        content,
+        position,
+      })
+      // Refresh blocks
+      await fetchPageBlocks(parentBlockId, notebookId)
+      return result
+    } catch (e: any) {
+      error.value = e.response?.data?.detail || "Failed to create block"
+      throw e
+    }
+  }
+
+  /**
+   * Reorder blocks within a page
+   */
+  async function reorderBlocks(
+    notebookId: number,
+    pageBlockId: string,
+    blockIds: string[],
+  ) {
+    if (!currentWorkspace.value) return
+    try {
+      await blockService.reorderBlocks(pageBlockId, notebookId, currentWorkspace.value.id, blockIds)
+      await fetchPageBlocks(pageBlockId, notebookId)
+    } catch (e: any) {
+      error.value = e.response?.data?.detail || "Failed to reorder blocks"
+    }
+  }
+
+  /**
+   * Delete a block
+   */
+  async function deleteBlock(
+    notebookId: number,
+    blockId: string,
+    parentBlockId: string,
+  ) {
+    if (!currentWorkspace.value) return
+    try {
+      await blockService.deleteBlock(blockId, notebookId, currentWorkspace.value.id)
+      await fetchPageBlocks(parentBlockId, notebookId)
+    } catch (e: any) {
+      error.value = e.response?.data?.detail || "Failed to delete block"
+      throw e
+    }
+  }
+
+  /**
+   * Import a markdown file as a page of blocks
+   */
+  async function importMarkdown(notebookId: number, file: File) {
+    if (!currentWorkspace.value) return
+    try {
+      const result = await blockService.importMarkdown(notebookId, currentWorkspace.value.id, file)
+      await fetchFiles(notebookId)
+      return result
+    } catch (e: any) {
+      error.value = e.response?.data?.detail || "Failed to import markdown"
+      throw e
+    }
+  }
+
   /**
    * Get the file tree for a notebook
    */
@@ -668,5 +817,16 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     saveFolderProperties,
     deleteFolder,
     clearFolderSelection,
+    // Block state
+    currentPageBlocks,
+    currentPageMeta,
+    blockLoading,
+    // Block actions
+    fetchPageBlocks,
+    createPage,
+    createBlock,
+    reorderBlocks,
+    deleteBlock,
+    importMarkdown,
   }
 })

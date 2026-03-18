@@ -15,11 +15,11 @@ from sqlmodel import select
 
 from codex.api.auth import get_current_active_user
 from codex.api.routes.helpers import get_notebook_path_nested
+from codex.core.blocks import is_page_folder, read_page_metadata
 from codex.core.metadata import MetadataParser
+from codex.core.watcher import get_watcher_for_notebook
 from codex.db.database import get_notebook_session, get_system_session
 from codex.db.models import FileMetadata, User
-from codex.core.watcher import get_watcher_for_notebook
-
 
 logger = logging.getLogger(__name__)
 
@@ -191,13 +191,26 @@ def get_subfolders(folder_path: str, notebook_path: Path) -> list[dict]:
             properties = read_folder_properties(item)
             folder_stats = item.stat()
 
+            # Check if subfolder is a page
+            subfolder_is_page = is_page_folder(item)
+            subfolder_title = properties.get("title") if properties else None
+            subfolder_desc = properties.get("description") if properties else None
+
+            # Use page metadata for title/description if available
+            if subfolder_is_page and not subfolder_title:
+                page_meta = read_page_metadata(item)
+                if page_meta:
+                    subfolder_title = subfolder_title or page_meta.get("title")
+                    subfolder_desc = subfolder_desc or page_meta.get("description")
+
             subfolders.append(
                 {
                     "path": subfolder_path,
                     "name": item.name,
-                    "title": properties.get("title") if properties else None,
-                    "description": properties.get("description") if properties else None,
+                    "title": subfolder_title,
+                    "description": subfolder_desc,
                     "properties": properties,
+                    "is_page": subfolder_is_page,
                     "created_at": datetime.fromtimestamp(folder_stats.st_ctime, tz=UTC).isoformat(),
                     "updated_at": datetime.fromtimestamp(folder_stats.st_mtime, tz=UTC).isoformat(),
                 }
@@ -286,6 +299,21 @@ async def get_folder(
         # Build response
         folder_name = os.path.basename(folder_path) if folder_path else ""
 
+        # Check if this folder is a page (has .codex-page.json)
+        folder_is_page = is_page_folder(full_folder_path)
+        block_order = None
+        if folder_is_page:
+            page_meta = read_page_metadata(full_folder_path)
+            if page_meta:
+                # Use page metadata for title/description if not set in .metadata
+                if not properties:
+                    properties = {}
+                if not properties.get("title") and page_meta.get("title"):
+                    properties["title"] = page_meta["title"]
+                if not properties.get("description") and page_meta.get("description"):
+                    properties["description"] = page_meta["description"]
+                block_order = [b.get("block_id") for b in page_meta.get("blocks", []) if b.get("block_id")]
+
         result = {
             "path": folder_path,
             "name": folder_name,
@@ -299,6 +327,8 @@ async def get_folder(
             "file_count": total_file_count,
             "files": files,
             "subfolders": subfolders,
+            "is_page": folder_is_page,
+            "block_order": block_order,
             "pagination": {
                 "skip": skip,
                 "limit": limit,

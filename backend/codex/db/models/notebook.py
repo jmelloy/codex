@@ -88,6 +88,34 @@ class Tag(SQLModel, table=True):
     files: list[FileMetadata] = Relationship(back_populates="tags", link_model=FileTag)
 
 
+class Block(SQLModel, table=True):
+    """Block model for infinite nested block structure.
+
+    Each block is backed by a file on disk. Pages (blocks with children) are
+    folders containing a .codex-page.json metadata file.
+    """
+
+    __tablename__ = "blocks"  # type: ignore[assignment]
+    __table_args__ = (
+        UniqueConstraint("notebook_id", "block_id", name="uq_blocks_notebook_block_id"),
+        UniqueConstraint("notebook_id", "path", name="uq_blocks_notebook_path"),
+        {"sqlite_autoincrement": True},
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    notebook_id: int  # Reference to notebook in system database (not a foreign key)
+    block_id: str = Field(index=True)  # UUID, stable across renames
+    parent_block_id: str | None = Field(default=None, index=True)  # NULL = root-level
+    path: str = Field(index=True)  # Filesystem path relative to notebook root
+    block_type: str  # "page", "text", "heading", "code", "image", "list", "quote", "divider", "embed", "file"
+    content_format: str = Field(default="markdown")  # "markdown", "json", "binary"
+    order_index: float  # Fractional indexing for ordering
+    title: str | None = None
+    file_id: int | None = Field(default=None, foreign_key="file_metadata.id")
+    created_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
+    updated_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
+
+
 class SearchIndex(SQLModel, table=True):
     """Full-text search index for file content."""
 

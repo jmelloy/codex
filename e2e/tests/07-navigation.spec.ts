@@ -18,32 +18,30 @@ test.describe("Navigation & URL Routing", () => {
       }
     );
     const workspaces = await wsResponse.json();
-    const wsId = workspaces[0].id;
+    const ws = workspaces[0];
 
     const nbResponse = await page.request.post(
-      `${baseURL}/api/v1/workspaces/${wsId}/notebooks`,
+      `${baseURL}/api/v1/workspaces/${ws.id}/notebooks/`,
       {
         headers: { Authorization: `Bearer ${token}` },
-        data: { name: notebookName, path: notebookName.toLowerCase().replace(/ /g, "-") },
+        data: { name: notebookName },
       }
     );
     const notebook = await nbResponse.json();
 
     await page.request.post(
-      `${baseURL}/api/v1/workspaces/${wsId}/notebooks/${notebook.id}/files/`,
+      `${baseURL}/api/v1/workspaces/${ws.id}/notebooks/${notebook.id}/files/`,
       {
         headers: { Authorization: `Bearer ${token}` },
         data: {
-          filename: "nav-test.md",
           path: "nav-test.md",
           content: "# Navigation Test",
-          content_type: "text/markdown",
         },
       }
     );
 
-    // Reload and wait for sidebar to be ready
-    await page.reload();
+    // Navigate to the workspace/notebook URL to ensure the correct workspace is shown
+    await page.goto(`/w/${ws.slug}/${notebook.slug}`);
     await expect(page.locator("text=Notebooks")).toBeVisible({ timeout: 10_000 });
 
     // Ensure notebook is expanded

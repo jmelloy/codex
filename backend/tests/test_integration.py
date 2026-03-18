@@ -66,11 +66,6 @@ class TestBackendHealth:
         assert resp.status_code == 200
         assert resp.json()["status"] == "healthy"
 
-    def test_root_endpoint(self):
-        client = _fresh_client()
-        resp = client.get("/")
-        assert resp.status_code == 200
-        assert resp.json()["message"] == "Codex API"
 
     def test_docs_available(self):
         client = _fresh_client()

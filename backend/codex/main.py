@@ -315,6 +315,7 @@ if _static_dir.exists():
             return FileResponse(file)
         return FileResponse(_static_dir / "index.html")
 
+
 if __name__ == "__main__":
     import uvicorn
 

@@ -21,8 +21,8 @@ services:
       - PLUGIN_AUTO_SYNC=${PLUGIN_AUTO_SYNC:-true}
     volumes:
       - ./data:/app/data
-      - ./plugins:/app/plugins
       - ./backend:/app
+      - ./frontend/dist:/app/static
     depends_on:
       plugin-service:
         condition: service_healthy

@@ -97,7 +97,7 @@ jobs:
             context: .
             dockerfile: backend/Dockerfile
           - service: plugin-service
-            context: .
+            context: ./plugin-service
             dockerfile: plugin-service/Dockerfile
     outputs:
       image_tag: ${{ steps.meta.outputs.version }}

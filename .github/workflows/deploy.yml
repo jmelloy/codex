@@ -24,7 +24,6 @@ on:
 env:
   REGISTRY: ghcr.io
   BACKEND_IMAGE: ghcr.io/${{ github.repository_owner }}/codex-backend
-  PLUGIN_SERVICE_IMAGE: ghcr.io/${{ github.repository_owner }}/codex-plugin-service
 
 jobs:
   # ---------------------------------------------------------------------------
@@ -96,9 +95,6 @@ jobs:
           - service: backend
             context: .
             dockerfile: backend/Dockerfile
-          - service: plugin-service
-            context: ./plugin-service
-            dockerfile: plugin-service/Dockerfile
     outputs:
       image_tag: ${{ steps.meta.outputs.version }}
       build_version: ${{ steps.version.outputs.build_version }}
@@ -209,8 +205,7 @@ jobs:
 
           # Update image references with actual owner and tag
           kustomize edit set image \
-            ghcr.io/OWNER/codex-backend=ghcr.io/${OWNER}/codex-backend:${TAG} \
-            ghcr.io/OWNER/codex-plugin-service=ghcr.io/${OWNER}/codex-plugin-service:${TAG}
+            ghcr.io/OWNER/codex-backend=ghcr.io/${OWNER}/codex-backend:${TAG}
 
           # Add build version as annotation (safe for selectors unlike labels)
           kustomize edit add annotation app.kubernetes.io/version:${BUILD_VERSION} --force
@@ -219,7 +214,6 @@ jobs:
           kubectl apply -k .
 
           # Wait for rollout
-          kubectl -n codex rollout status deployment/plugin-service --timeout=120s
           kubectl -n codex rollout status deployment/backend --timeout=180s
 
       - name: Verify deployment

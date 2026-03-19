@@ -8,7 +8,6 @@ resources:
   - configmap.yml
   - secrets.yml
   - pvc.yml
-  - plugin-service-deployment.yml
   - backend-deployment.yml
   - ingress.yml
 

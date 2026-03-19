@@ -24,9 +24,6 @@ jobs:
           - service: backend
             context: .
             dockerfile: backend/Dockerfile
-          - service: plugin-service
-            context: ./plugin-service
-            dockerfile: ./plugin-service/Dockerfile
 
     steps:
       - uses: actions/checkout@v6

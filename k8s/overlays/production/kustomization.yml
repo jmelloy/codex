@@ -10,9 +10,6 @@ images:
   - name: ghcr.io/OWNER/codex-backend
     newName: ghcr.io/OWNER/codex-backend # CI replaces OWNER
     newTag: latest
-  - name: ghcr.io/OWNER/codex-plugin-service
-    newName: ghcr.io/OWNER/codex-plugin-service
-    newTag: latest
 
 patches:
   - target:

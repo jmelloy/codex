@@ -17,15 +17,10 @@ services:
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI:-http://localhost:8065/oauth/callback}
-      - PLUGIN_SERVICE_URL=${PLUGIN_SERVICE_URL:-http://plugin-service:8090}
-      - PLUGIN_AUTO_SYNC=${PLUGIN_AUTO_SYNC:-true}
     volumes:
       - ./data:/app/data
       - ./backend:/app
       - ./frontend/dist:/app/static
-    depends_on:
-      plugin-service:
-        condition: service_healthy
     restart: unless-stopped
     command: >
       sh -c "alembic upgrade head && python -m codex.main"
@@ -35,23 +30,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
-
-  plugin-service:
-    build:
-      context: ./plugin-service
-      dockerfile: Dockerfile
-    ports:
-      - 8090:8090
-    environment:
-      - PLUGIN_SERVICE_DIR=/app/plugins
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8090/health')"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 5s
 
   frontend:
     image: node:22-slim

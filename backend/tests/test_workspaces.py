@@ -132,7 +132,9 @@ def test_update_workspace_theme(test_client, auth_headers, temp_workspace_dir):
     assert get_response.json()["theme_setting"] == "dark"
 
     # Update theme using slug
-    response = test_client.patch(f"/api/v1/workspaces/{workspace_slug}/theme", json={"theme": "manila"}, headers=headers)
+    response = test_client.patch(
+        f"/api/v1/workspaces/{workspace_slug}/theme", json={"theme": "manila"}, headers=headers
+    )
     assert response.status_code == 200
     assert response.json()["theme_setting"] == "manila"
 

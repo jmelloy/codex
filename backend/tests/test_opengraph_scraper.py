@@ -87,36 +87,32 @@ async def test_fallback_to_opengraph_io_when_direct_fails():
     # Mock environment variable
     with patch.dict(os.environ, {"OPENGRAPH_IO_API_KEY": "test-api-key"}):
         scraper = OpenGraphScraper(timeout=10)
-        
+
         # Track whether fallback method was called
         fallback_called = False
         original_fallback = scraper._scrape_with_opengraph_io
-        
+
         async def mock_fallback(url):
             nonlocal fallback_called
             fallback_called = True
-            return {
-                "title": "Test Title OG",
-                "description": "Test Description OG",
-                "url": url
-            }
-        
+            return {"title": "Test Title OG", "description": "Test Description OG", "url": url}
+
         scraper._scrape_with_opengraph_io = mock_fallback
-        
+
         # Mock direct scraping to fail
         with patch("httpx.AsyncClient") as mock_client:
             mock_context = MagicMock()
             mock_client.return_value.__aenter__.return_value = mock_context
-            
+
             # Make get() raise an exception
             async def mock_get(*args, **kwargs):
                 raise httpx.HTTPStatusError("404 Not Found", request=MagicMock(), response=MagicMock())
-            
+
             mock_context.get = mock_get
-            
+
             # Execute
             metadata = await scraper.scrape_url("https://example.com")
-            
+
             # Verify fallback was used
             assert fallback_called
             assert metadata["title"] == "Test Title OG"
@@ -131,18 +127,18 @@ async def test_no_fallback_when_api_key_missing():
     with patch.dict(os.environ, {}, clear=True):
         scraper = OpenGraphScraper(timeout=10)
         assert scraper.opengraph_io_api_key is None
-        
+
         # Mock the HTTP client to fail
         with patch("httpx.AsyncClient") as mock_client:
             mock_context = MagicMock()
             mock_client.return_value.__aenter__.return_value = mock_context
-            
+
             # Make get() raise an exception
             async def mock_get(*args, **kwargs):
                 raise httpx.HTTPStatusError("404 Not Found", request=MagicMock(), response=MagicMock())
-            
+
             mock_context.get = mock_get
-            
+
             # Should raise the original error
             with pytest.raises(httpx.HTTPStatusError):
                 await scraper.scrape_url("https://example.com")
@@ -153,42 +149,38 @@ async def test_opengraph_io_api_call():
     """Test direct call to opengraph.io API."""
     with patch.dict(os.environ, {"OPENGRAPH_IO_API_KEY": "test-api-key"}):
         scraper = OpenGraphScraper(timeout=10)
-        
+
         # Mock the HTTP client for API call
         with patch("httpx.AsyncClient") as mock_client:
             mock_context = MagicMock()
             mock_client.return_value.__aenter__.return_value = mock_context
-            
+
             # Mock successful API response
             mock_response = MagicMock()
-            mock_response.json = MagicMock(return_value={
-                "hybridGraph": {
-                    "title": "Test Title",
-                    "site": "https://example.com"
-                },
-                "openGraph": {
-                    "title": "OG Title",
-                    "description": "OG Description",
-                    "image": [
-                        {"url": "https://example.com/img1.jpg"},
-                        {"url": "https://example.com/img2.jpg"}
-                    ],
-                    "url": "https://example.com"
+            mock_response.json = MagicMock(
+                return_value={
+                    "hybridGraph": {"title": "Test Title", "site": "https://example.com"},
+                    "openGraph": {
+                        "title": "OG Title",
+                        "description": "OG Description",
+                        "image": [{"url": "https://example.com/img1.jpg"}, {"url": "https://example.com/img2.jpg"}],
+                        "url": "https://example.com",
+                    },
                 }
-            })
-            
+            )
+
             async def mock_get(*args, **kwargs):
                 return mock_response
-            
+
             async def mock_raise_for_status():
                 pass
-            
+
             mock_response.raise_for_status = mock_raise_for_status
             mock_context.get = mock_get
-            
+
             # Call the fallback method directly
             metadata = await scraper._scrape_with_opengraph_io("https://example.com")
-            
+
             # Should use openGraph data and extract first image from array
             assert metadata["title"] == "OG Title"
             assert metadata["description"] == "OG Description"

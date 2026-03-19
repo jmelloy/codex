@@ -232,16 +232,8 @@ class FileOperationQueue:
                 consolidated[op.filepath] = op
 
         # Detect moves: delete + create with same hash
-        deletes = {
-            op.filepath: op
-            for op in consolidated.values()
-            if op.operation == "deleted" and op.file_hash
-        }
-        creates = {
-            op.filepath: op
-            for op in consolidated.values()
-            if op.operation == "created"
-        }
+        deletes = {op.filepath: op for op in consolidated.values() if op.operation == "deleted" and op.file_hash}
+        creates = {op.filepath: op for op in consolidated.values() if op.operation == "created"}
 
         moves: list[tuple[FileOperation, FileOperation]] = []  # (delete, create) pairs
         moves_handled: set[str] = set()
@@ -302,9 +294,7 @@ class FileOperationQueue:
 
                     # Update sidecar path if applicable
                     if create_op.sidecar_path:
-                        file_meta.sidecar_path = os.path.relpath(
-                            create_op.sidecar_path, self.notebook_path
-                        )
+                        file_meta.sidecar_path = os.path.relpath(create_op.sidecar_path, self.notebook_path)
 
                     session.commit()
                     logger.info(f"Moved file in DB: {old_rel_path} -> {new_rel_path}")
@@ -657,7 +647,13 @@ def _sync_blocks_for_file(
     - File added to a page folder → auto-append block entry
     - File deleted from a page folder → remove block entry
     """
-    from codex.core.blocks import PAGE_METADATA_FILE, is_page_folder, read_page_metadata, sync_page_from_disk, write_page_metadata
+    from codex.core.blocks import (
+        PAGE_METADATA_FILE,
+        is_page_folder,
+        read_page_metadata,
+        sync_page_from_disk,
+        write_page_metadata,
+    )
 
     rel_path = os.path.relpath(filepath, notebook_path)
     filename = os.path.basename(filepath)
@@ -718,12 +714,14 @@ def _sync_blocks_for_file(
                 block_type = "file"
 
             max_order = max((b.get("order", 0) for b in page_meta.get("blocks", [])), default=0)
-            page_meta.setdefault("blocks", []).append({
-                "block_id": block_id,
-                "type": block_type,
-                "file": filename,
-                "order": max_order + 1.0,
-            })
+            page_meta.setdefault("blocks", []).append(
+                {
+                    "block_id": block_id,
+                    "type": block_type,
+                    "file": filename,
+                    "order": max_order + 1.0,
+                }
+            )
             write_page_metadata(Path(parent_dir), page_meta)
 
 
@@ -1252,7 +1250,7 @@ class NotebookWatcher:
                     sidecar_files[f.sidecar_path] = f
 
             # Track which paths we've seen on disk
-            
+
             updated_count = 0
 
             files_to_process = set()
@@ -1274,12 +1272,12 @@ class NotebookWatcher:
 
                     rel_path = os.path.relpath(abs_filepath, self.notebook_path)
 
-                    is_sidecar = abs_sidecar and abs_sidecar == filepath 
+                    is_sidecar = abs_sidecar and abs_sidecar == filepath
 
                     seen_files += 1 if not is_sidecar else 0
                     seen_sidecars += 1 if is_sidecar else 0
 
-                    existing = existing_files.get(rel_path) 
+                    existing = existing_files.get(rel_path)
                     seen_paths.add(rel_path)
 
                     if abs_filepath in files_to_process:
@@ -1287,14 +1285,14 @@ class NotebookWatcher:
 
                     try:
                         file_stats = os.stat(filepath)
-                        
+
                     except OSError:
                         # File may have been deleted between walk and stat
                         continue
-                    
+
                     file_mtime = datetime.fromtimestamp(file_stats.st_mtime)
                     file_size = file_stats.st_size
-                    
+
                     if existing and not is_sidecar:
                         # Compare size first (cheap check)
                         if existing.size != file_size or file_mtime > existing.updated_at:
@@ -1339,7 +1337,9 @@ class NotebookWatcher:
             new_count = len(files_to_process - set(existing_files.keys()))
             deleted_count = len(deleted_paths)
             unchanged_count = len(set(existing_files.keys()) - files_to_process)
-            logger.info(f"Scan complete: {seen_files} files ({seen_sidecars} sidecars) on disk, {len(existing_files)} in database")
+            logger.info(
+                f"Scan complete: {seen_files} files ({seen_sidecars} sidecars) on disk, {len(existing_files)} in database"
+            )
             logger.info(
                 f"  New: {new_count}, Updated: {updated_count}, Deleted: {deleted_count}, Unchanged: {unchanged_count}"
             )

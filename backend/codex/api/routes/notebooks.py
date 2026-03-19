@@ -31,23 +31,15 @@ class NotebookPluginConfigUpdate(BaseModel):
     config: dict | None = None
 
 
-async def get_notebook_by_slug_or_id(
-    notebook_identifier: str, workspace: Workspace, session: AsyncSession
-) -> Notebook:
+async def get_notebook_by_slug_or_id(notebook_identifier: str, workspace: Workspace, session: AsyncSession) -> Notebook:
     """Get notebook by slug or ID within a workspace."""
     if notebook_identifier.isdigit():
         result = await session.execute(
-            select(Notebook).where(
-                Notebook.id == int(notebook_identifier),
-                Notebook.workspace_id == workspace.id
-            )
+            select(Notebook).where(Notebook.id == int(notebook_identifier), Notebook.workspace_id == workspace.id)
         )
     else:
         result = await session.execute(
-            select(Notebook).where(
-                Notebook.slug == notebook_identifier,
-                Notebook.workspace_id == workspace.id
-            )
+            select(Notebook).where(Notebook.slug == notebook_identifier, Notebook.workspace_id == workspace.id)
         )
 
     notebook = result.scalar_one_or_none()
@@ -58,15 +50,14 @@ async def get_notebook_by_slug_or_id(
 
 async def slug_exists_for_workspace(session: AsyncSession, slug: str, workspace_id: int) -> bool:
     """Check if a notebook slug already exists within a workspace."""
-    result = await session.execute(
-        select(Notebook).where(Notebook.slug == slug, Notebook.workspace_id == workspace_id)
-    )
+    result = await session.execute(select(Notebook).where(Notebook.slug == slug, Notebook.workspace_id == workspace_id))
     return result.scalar_one_or_none() is not None
 
 
 # ---------------------------------------------------------------------------
 # Shared plugin config helpers (used by both main and nested routers)
 # ---------------------------------------------------------------------------
+
 
 def _format_plugin_config(config: NotebookPluginConfig) -> dict:
     """Format a plugin config record for API response."""
@@ -82,9 +73,7 @@ def _format_plugin_config(config: NotebookPluginConfig) -> dict:
 async def _verify_notebook_access(notebook_id: int, current_user: User, session: AsyncSession) -> Notebook:
     """Verify the current user has access to the notebook."""
     result = await session.execute(
-        select(Notebook)
-        .join(Workspace)
-        .where(Notebook.id == notebook_id, Workspace.owner_id == current_user.id)
+        select(Notebook).join(Workspace).where(Notebook.id == notebook_id, Workspace.owner_id == current_user.id)
     )
     notebook = result.scalar_one_or_none()
     if not notebook:
@@ -275,14 +264,11 @@ async def create_notebook_nested(
         init_notebook_db(str(notebook_path))
 
         from codex.core.git_manager import GitManager
+
         git_manager = GitManager(str(notebook_path))
 
         notebook = Notebook(
-            workspace_id=workspace.id,
-            name=body.name,
-            slug=final_slug,
-            path=final_slug,
-            description=body.description
+            workspace_id=workspace.id, name=body.name, slug=final_slug, path=final_slug, description=body.description
         )
         session.add(notebook)
         await session.commit()
@@ -411,9 +397,7 @@ async def delete_notebook_nested(
         unregister_watcher(watcher)
 
     # Delete related NotebookPluginConfig records
-    result = await session.execute(
-        select(NotebookPluginConfig).where(NotebookPluginConfig.notebook_id == notebook.id)
-    )
+    result = await session.execute(select(NotebookPluginConfig).where(NotebookPluginConfig.notebook_id == notebook.id))
     for config in result.scalars().all():
         await session.delete(config)
 

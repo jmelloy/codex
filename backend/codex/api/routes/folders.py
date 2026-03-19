@@ -477,7 +477,12 @@ async def update_folder_properties(
         nb_session = get_notebook_session(str(notebook_path))
         try:
             files, file_count = get_folder_files(
-                actual_folder_path, notebook.id, notebook_path, nb_session, skip=0, limit=DEFAULT_FOLDER_PAGINATION_LIMIT
+                actual_folder_path,
+                notebook.id,
+                notebook_path,
+                nb_session,
+                skip=0,
+                limit=DEFAULT_FOLDER_PAGINATION_LIMIT,
             )
         finally:
             nb_session.close()

@@ -25,7 +25,6 @@ from codex.db.database import get_notebook_session, get_system_session
 from codex.db.models import FileMetadata, User
 from codex.core.watcher import get_watcher_for_notebook
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -128,21 +127,21 @@ async def list_files_nested(
                     properties = None
 
             entry = {
-                    "id": f.id,
-                    "notebook_id": f.notebook_id,
-                    "path": f.path,
-                    "filename": f.filename,
-                    "content_type": f.content_type,
-                    "size": f.size,
-                    "hash": f.hash,
-                    "title": f.title,
-                    "description": f.description,
-                    "file_type": f.file_type,
-                    "properties": properties,
-                    "created_at": f.created_at.isoformat() if f.created_at else None,
-                    "updated_at": f.updated_at.isoformat() if f.updated_at else None,
-                    "file_modified_at": f.file_modified_at.isoformat() if f.file_modified_at else None,
-                }
+                "id": f.id,
+                "notebook_id": f.notebook_id,
+                "path": f.path,
+                "filename": f.filename,
+                "content_type": f.content_type,
+                "size": f.size,
+                "hash": f.hash,
+                "title": f.title,
+                "description": f.description,
+                "file_type": f.file_type,
+                "properties": properties,
+                "created_at": f.created_at.isoformat() if f.created_at else None,
+                "updated_at": f.updated_at.isoformat() if f.updated_at else None,
+                "file_modified_at": f.file_modified_at.isoformat() if f.file_modified_at else None,
+            }
             if f.s3_key:
                 entry["s3_key"] = f.s3_key
                 entry["s3_version_id"] = f.s3_version_id
@@ -159,7 +158,6 @@ async def list_files_nested(
         }
     finally:
         nb_session.close()
-
 
 
 @nested_router.post("/")
@@ -274,7 +272,7 @@ async def get_file_text_by_path_nested(
     session: AsyncSession = Depends(get_system_session),
 ):
     """Get file text content by path (nested under workspace/notebook route).
-    
+
     For markdown files, strips frontmatter and returns only the content body.
     """
     notebook_path, notebook, workspace = await get_notebook_path_nested(
@@ -289,15 +287,16 @@ async def get_file_text_by_path_nested(
     try:
         with open(file_path, "r") as f:
             content = f.read()
-        
+
         # Strip frontmatter from markdown files
         if filepath.endswith(".md"):
             _, content = MetadataParser.parse_frontmatter(content)
-        
+
         return {"content": content}
     except Exception as e:
         logger.error(f"Error reading file {file_path}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}")
+
 
 @nested_router.get("/path/{filepath:path}/content")
 async def get_file_content_by_path_nested(
@@ -308,7 +307,7 @@ async def get_file_content_by_path_nested(
     session: AsyncSession = Depends(get_system_session),
 ):
     """Get file content by path (serves binary files like images).
-    
+
     Nested under workspace/notebook route.
     Supports:
     - Exact path match: "path/to/image.png"
@@ -494,7 +493,7 @@ async def get_file_content_nested(
     session: AsyncSession = Depends(get_system_session),
 ):
     """Get file content (serves binary files like images).
-    
+
     Nested under workspace/notebook route.
     """
     notebook_path, notebook, workspace = await get_notebook_path_nested(
@@ -558,7 +557,7 @@ async def get_file_text_nested(
     session: AsyncSession = Depends(get_system_session),
 ):
     """Get file text content by ID (nested under workspace/notebook route).
-    
+
     For markdown files, strips frontmatter and returns only the content body.
     """
     notebook_path, notebook, workspace = await get_notebook_path_nested(
@@ -584,11 +583,11 @@ async def get_file_text_nested(
         try:
             with open(file_path, "r") as f:
                 content = f.read()
-            
+
             # Strip frontmatter from markdown files
             if file_meta.path.endswith(".md"):
                 _, content = MetadataParser.parse_frontmatter(content)
-            
+
             return {"content": content}
         except Exception as e:
             logger.error(f"Error reading file {file_path}: {e}", exc_info=True)
@@ -1019,6 +1018,7 @@ async def get_file_history_nested(
 
         # Get git history
         from codex.core.git_manager import GitManager
+
         git_manager = GitManager(str(notebook_path))
         history = git_manager.get_file_history(str(file_path))
 
@@ -1061,6 +1061,7 @@ async def get_file_at_commit_nested(
 
         # Get file content at commit
         from codex.core.git_manager import GitManager
+
         git_manager = GitManager(str(notebook_path))
         content = git_manager.get_file_at_commit(str(file_path), commit_hash)
 
@@ -1240,5 +1241,3 @@ async def upload_file_nested(
         raise HTTPException(status_code=500, detail=f"Error uploading file: {str(e)}")
     finally:
         nb_session.close()
-
-

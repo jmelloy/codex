@@ -1,6 +1,5 @@
 """Test notebook Alembic migrations."""
 
-
 import pytest
 from sqlalchemy import inspect, text
 
@@ -149,7 +148,6 @@ class TestNotebookMigrations:
 
         engine.dispose()
 
-
     def test_unique_constraint_on_notebook_path(self, tmp_path):
         """Test that unique constraint on (notebook_id, path) is enforced."""
         notebook_path = tmp_path / "test_notebook"
@@ -228,9 +226,19 @@ class TestNotebookMigrations:
                 )
             """))
             conn.execute(text("CREATE INDEX ix_file_metadata_path ON file_metadata (path)"))
-            conn.execute(text("CREATE TABLE tags (id INTEGER PRIMARY KEY, notebook_id INTEGER, name TEXT, color TEXT, created_at TIMESTAMP)"))
-            conn.execute(text("CREATE TABLE file_tags (file_id INTEGER, tag_id INTEGER, PRIMARY KEY (file_id, tag_id))"))
-            conn.execute(text("CREATE TABLE search_index (id INTEGER PRIMARY KEY, file_id INTEGER, content TEXT, updated_at TIMESTAMP)"))
+            conn.execute(
+                text(
+                    "CREATE TABLE tags (id INTEGER PRIMARY KEY, notebook_id INTEGER, name TEXT, color TEXT, created_at TIMESTAMP)"
+                )
+            )
+            conn.execute(
+                text("CREATE TABLE file_tags (file_id INTEGER, tag_id INTEGER, PRIMARY KEY (file_id, tag_id))")
+            )
+            conn.execute(
+                text(
+                    "CREATE TABLE search_index (id INTEGER PRIMARY KEY, file_id INTEGER, content TEXT, updated_at TIMESTAMP)"
+                )
+            )
             # Stamp as migration 004 so init_notebook_db runs migration 005
             conn.execute(text("CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL)"))
             conn.execute(text("INSERT INTO alembic_version (version_num) VALUES ('004')"))

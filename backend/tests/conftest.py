@@ -18,7 +18,6 @@ from codex.db.models import Plugin
 from codex.main import app
 from codex.core.watcher import get_active_watchers, unregister_watcher
 
-
 # Test plugin manifests (matching what the frontend would register)
 TEST_PLUGINS = [
     {
@@ -60,7 +59,12 @@ TEST_PLUGINS = [
                     "description": "Convert city name to coordinates",
                     "cache_ttl": 2592000,
                     "parameters": [
-                        {"name": "q", "type": "string", "required": True, "description": "City name, state code, country code"},
+                        {
+                            "name": "q",
+                            "type": "string",
+                            "required": True,
+                            "description": "City name, state code, country code",
+                        },
                         {"name": "limit", "type": "integer", "required": False, "default": 1},
                         {"name": "appid", "type": "string", "required": True, "from_config": "api_key"},
                     ],
@@ -265,7 +269,7 @@ def cleanup_workspace_dirs():
     if workspace_dir.exists():
         current_dirs = set(workspace_dir.iterdir())
         new_dirs = current_dirs - existing_dirs
-        
+
         # Stop watchers for directories we're about to delete
         for new_dir in new_dirs:
             # Find and stop watchers for this directory and its subdirectories
@@ -281,7 +285,7 @@ def cleanup_workspace_dirs():
                 except Exception:
                     # Ignore errors when stopping watchers during cleanup
                     pass
-        
+
         # Now delete the directories
         for new_dir in new_dirs:
             shutil.rmtree(new_dir, ignore_errors=True)

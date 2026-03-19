@@ -142,7 +142,7 @@ class Plugin:
     @property
     def test_endpoint(self) -> str | None:
         """Get the endpoint ID to use for testing connection.
-        
+
         Returns the endpoint ID specified in integration.test_endpoint,
         or None to use the first endpoint.
         """
@@ -182,28 +182,31 @@ class Plugin:
 @dataclass
 class ViewPlugin(Plugin):
     """View plugin - backward compatibility wrapper.
-    
+
     Note: Any plugin can now provide views and templates, not just ViewPlugin.
     This class exists for backward compatibility.
     """
+
     pass
 
 
 @dataclass
 class ThemePlugin(Plugin):
     """Theme plugin - backward compatibility wrapper.
-    
+
     Note: Any plugin can now provide themes, not just ThemePlugin.
     This class exists for backward compatibility.
     """
+
     pass
 
 
 @dataclass
 class IntegrationPlugin(Plugin):
     """Integration plugin - backward compatibility wrapper.
-    
+
     Note: Any plugin can now provide integrations, not just IntegrationPlugin.
     This class exists for backward compatibility.
     """
+
     pass

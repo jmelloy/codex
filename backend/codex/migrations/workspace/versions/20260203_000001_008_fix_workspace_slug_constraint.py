@@ -26,7 +26,6 @@ def upgrade() -> None:
         # Drop the old global unique constraint if it exists
         batch_op.drop_constraint("uq_workspaces_slug", type_="unique")
         batch_op.create_unique_constraint("uq_workspaces_owner_slug", ["owner_id", "slug"])
-        
 
 
 def downgrade() -> None:
@@ -34,4 +33,3 @@ def downgrade() -> None:
     with op.batch_alter_table("workspaces") as batch_op:
         batch_op.drop_constraint("uq_workspaces_owner_slug", type_="unique")
         batch_op.create_unique_constraint("uq_workspaces_slug", ["slug"])
-        

@@ -17,8 +17,9 @@ def test_weather_integration_is_loaded(client):
     """Test that weather-api integration is loaded."""
     # Create a test user
     import time
+
     username = f"testuser_weather_{int(time.time() * 1000)}"
-    
+
     response = client.post(
         "/api/v1/users/register",
         json={
@@ -29,9 +30,7 @@ def test_weather_integration_is_loaded(client):
     )
     assert response.status_code == 201
 
-    response = client.post(
-        "/api/v1/users/token", data={"username": username, "password": "testpass123"}
-    )
+    response = client.post("/api/v1/users/token", data={"username": username, "password": "testpass123"})
     assert response.status_code == 200
     token = response.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
@@ -40,7 +39,7 @@ def test_weather_integration_is_loaded(client):
     response = client.get("/api/v1/plugins/integrations", headers=headers)
     assert response.status_code == 200
     integrations = response.json()
-    
+
     # Find weather-api
     weather = next((i for i in integrations if i["id"] == "weather-api"), None)
     assert weather is not None
@@ -54,8 +53,9 @@ def test_weather_integration_details(client):
     """Test getting weather-api integration details."""
     # Create a test user
     import time
+
     username = f"testuser_weather_{int(time.time() * 1000)}"
-    
+
     response = client.post(
         "/api/v1/users/register",
         json={
@@ -66,9 +66,7 @@ def test_weather_integration_details(client):
     )
     assert response.status_code == 201
 
-    response = client.post(
-        "/api/v1/users/token", data={"username": username, "password": "testpass123"}
-    )
+    response = client.post("/api/v1/users/token", data={"username": username, "password": "testpass123"})
     assert response.status_code == 200
     token = response.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
@@ -76,7 +74,7 @@ def test_weather_integration_details(client):
     # Get integration details
     response = client.get("/api/v1/plugins/integrations/weather-api", headers=headers)
     assert response.status_code == 200
-    
+
     weather = response.json()
     assert weather["id"] == "weather-api"
     assert weather["name"] == "Weather API Integration"
@@ -88,8 +86,9 @@ def test_weather_integration_blocks(client):
     """Test getting weather-api block definitions."""
     # Create a test user
     import time
+
     username = f"testuser_weather_{int(time.time() * 1000)}"
-    
+
     response = client.post(
         "/api/v1/users/register",
         json={
@@ -100,9 +99,7 @@ def test_weather_integration_blocks(client):
     )
     assert response.status_code == 201
 
-    response = client.post(
-        "/api/v1/users/token", data={"username": username, "password": "testpass123"}
-    )
+    response = client.post("/api/v1/users/token", data={"username": username, "password": "testpass123"})
     assert response.status_code == 200
     token = response.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
@@ -110,11 +107,11 @@ def test_weather_integration_blocks(client):
     # Get blocks
     response = client.get("/api/v1/plugins/integrations/weather-api/blocks", headers=headers)
     assert response.status_code == 200
-    
+
     data = response.json()
     assert data["integration_id"] == "weather-api"
     assert len(data["blocks"]) == 1
-    
+
     weather_block = data["blocks"][0]
     assert weather_block["id"] == "weather"
     assert weather_block["name"] == "Weather Block"

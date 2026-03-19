@@ -54,7 +54,9 @@ class ConnectionManager:
         if notebook_id not in self._connections:
             self._connections[notebook_id] = set()
         self._connections[notebook_id].add(websocket)
-        logger.info(f"WebSocket connected for notebook {notebook_id}. Total connections: {len(self._connections[notebook_id])}")
+        logger.info(
+            f"WebSocket connected for notebook {notebook_id}. Total connections: {len(self._connections[notebook_id])}"
+        )
 
     def disconnect(self, websocket: WebSocket, notebook_id: int):
         """Remove a WebSocket connection."""

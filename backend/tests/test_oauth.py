@@ -178,9 +178,7 @@ def test_format_event():
         "htmlLink": "https://calendar.google.com/event?eid=xxx",
         "creator": {"email": "creator@example.com"},
         "organizer": {"email": "org@example.com"},
-        "attendees": [
-            {"email": "attendee@example.com", "displayName": "Attendee", "responseStatus": "accepted"}
-        ],
+        "attendees": [{"email": "attendee@example.com", "displayName": "Attendee", "responseStatus": "accepted"}],
     }
 
     formatted = _format_event(raw_event)

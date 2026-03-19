@@ -30,16 +30,14 @@ def upgrade() -> None:
     # First, clean up any duplicate rows that may exist.
     # Keep only the row with the highest id for each (notebook_id, path) pair.
     conn = op.get_bind()
-    conn.execute(
-        sa.text("""
+    conn.execute(sa.text("""
             DELETE FROM file_metadata
             WHERE id NOT IN (
                 SELECT MAX(id)
                 FROM file_metadata
                 GROUP BY notebook_id, path
             )
-        """)
-    )
+        """))
 
     # Now add the unique constraint using batch mode (required for SQLite)
     with op.batch_alter_table("file_metadata", schema=None) as batch_op:

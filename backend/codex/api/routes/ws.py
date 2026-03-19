@@ -31,11 +31,13 @@ async def notebook_websocket(websocket: WebSocket, notebook_id: int):
     await connection_manager.connect(websocket, notebook_id)
     try:
         # Send initial connection confirmation
-        await websocket.send_json({
-            "type": "connected",
-            "notebook_id": notebook_id,
-            "message": "Connected to file change notifications",
-        })
+        await websocket.send_json(
+            {
+                "type": "connected",
+                "notebook_id": notebook_id,
+                "message": "Connected to file change notifications",
+            }
+        )
 
         # Keep connection alive and handle any client messages
         while True:

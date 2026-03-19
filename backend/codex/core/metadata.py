@@ -145,25 +145,36 @@ class MetadataParser:
     @staticmethod
     def extract_image_metadata(filepath: str) -> dict[str, Any] | None:
         """Extract metadata from an image file.
-        
+
         Returns a dictionary with:
         - width: Image width in pixels
         - height: Image height in pixels
         - format: Image format (e.g., PNG, JPEG, GIF)
         - mode: Image mode (e.g., RGB, RGBA, L for grayscale)
-        
+
         Returns None if the file is not an image or cannot be read.
         """
         # Check if file might be an image based on extension (performance optimization)
         # Common image extensions supported by Pillow
         image_extensions = {
-            '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.tiff', '.tif', 
-            '.webp', '.ico', '.svg', '.heic', '.heif', '.avif'
+            ".png",
+            ".jpg",
+            ".jpeg",
+            ".gif",
+            ".bmp",
+            ".tiff",
+            ".tif",
+            ".webp",
+            ".ico",
+            ".svg",
+            ".heic",
+            ".heif",
+            ".avif",
         }
         file_ext = Path(filepath).suffix.lower()
         if file_ext not in image_extensions:
             return None
-            
+
         try:
             with Image.open(filepath) as img:
                 return {
@@ -179,12 +190,12 @@ class MetadataParser:
     @staticmethod
     def extract_all_metadata(filepath: str, content: str | None = None) -> dict[str, Any]:
         """Extract all available metadata from a file.
-        
+
         Priority order (later sources override earlier ones):
         1. Image metadata (automatic extraction)
         2. Frontmatter (for markdown files)
         3. Sidecar files (JSON, XML, Markdown)
-        
+
         This allows user-provided metadata in sidecars to override automatic extraction.
         """
         metadata: dict[str, Any] = {}
@@ -287,12 +298,12 @@ class MetadataParser:
             sidecar = Path(f"{filepath}{suffix}")
             if sidecar.exists():
                 return (filepath, str(sidecar))
-            
+
             # file = regular, sidecar = dot prefix
             sidecar_dot = Path(filepath).parent / f".{Path(filepath).name}{suffix}"
             if sidecar_dot.exists():
                 return (filepath, str(sidecar_dot))
-            
+
             # file = sidecar
             if filepath.endswith(suffix):
                 regular_file = filepath.removesuffix(suffix)

@@ -51,56 +51,58 @@ class ToolRouter:
         tools: list[ToolDefinition] = []
 
         if self.scope_guard.agent.can_read:
-            tools.extend([
-                ToolDefinition(
-                    name="read_file",
-                    description="Read the contents of a file in the notebook",
-                    parameters={
-                        "type": "object",
-                        "properties": {
-                            "path": {"type": "string", "description": "File path relative to notebook root"},
-                        },
-                        "required": ["path"],
-                    },
-                ),
-                ToolDefinition(
-                    name="list_files",
-                    description="List files in a directory within the notebook",
-                    parameters={
-                        "type": "object",
-                        "properties": {
-                            "path": {
-                                "type": "string",
-                                "description": "Directory path relative to notebook root",
-                                "default": "/",
+            tools.extend(
+                [
+                    ToolDefinition(
+                        name="read_file",
+                        description="Read the contents of a file in the notebook",
+                        parameters={
+                            "type": "object",
+                            "properties": {
+                                "path": {"type": "string", "description": "File path relative to notebook root"},
                             },
-                            "pattern": {"type": "string", "description": "Glob pattern filter (e.g. '*.md')"},
+                            "required": ["path"],
                         },
-                    },
-                ),
-                ToolDefinition(
-                    name="search_content",
-                    description="Search for text content across files in the notebook",
-                    parameters={
-                        "type": "object",
-                        "properties": {
-                            "query": {"type": "string", "description": "Search query text"},
+                    ),
+                    ToolDefinition(
+                        name="list_files",
+                        description="List files in a directory within the notebook",
+                        parameters={
+                            "type": "object",
+                            "properties": {
+                                "path": {
+                                    "type": "string",
+                                    "description": "Directory path relative to notebook root",
+                                    "default": "/",
+                                },
+                                "pattern": {"type": "string", "description": "Glob pattern filter (e.g. '*.md')"},
+                            },
                         },
-                        "required": ["query"],
-                    },
-                ),
-                ToolDefinition(
-                    name="get_file_metadata",
-                    description="Get metadata (size, modified time, properties) for a file",
-                    parameters={
-                        "type": "object",
-                        "properties": {
-                            "path": {"type": "string", "description": "File path relative to notebook root"},
+                    ),
+                    ToolDefinition(
+                        name="search_content",
+                        description="Search for text content across files in the notebook",
+                        parameters={
+                            "type": "object",
+                            "properties": {
+                                "query": {"type": "string", "description": "Search query text"},
+                            },
+                            "required": ["query"],
                         },
-                        "required": ["path"],
-                    },
-                ),
-            ])
+                    ),
+                    ToolDefinition(
+                        name="get_file_metadata",
+                        description="Get metadata (size, modified time, properties) for a file",
+                        parameters={
+                            "type": "object",
+                            "properties": {
+                                "path": {"type": "string", "description": "File path relative to notebook root"},
+                            },
+                            "required": ["path"],
+                        },
+                    ),
+                ]
+            )
 
         if self.scope_guard.agent.can_write:
             tools.append(
@@ -201,25 +203,29 @@ class ToolRouter:
         try:
             result = await tool_map[tool_name](**arguments)
             elapsed_ms = int((time.monotonic() - start_time) * 1000)
-            self._action_logs.append({
-                "action_type": tool_name,
-                "target_path": arguments.get("path"),
-                "input_summary": str(arguments)[:500],
-                "output_summary": str(result)[:500],
-                "was_allowed": True,
-                "execution_time_ms": elapsed_ms,
-            })
+            self._action_logs.append(
+                {
+                    "action_type": tool_name,
+                    "target_path": arguments.get("path"),
+                    "input_summary": str(arguments)[:500],
+                    "output_summary": str(result)[:500],
+                    "was_allowed": True,
+                    "execution_time_ms": elapsed_ms,
+                }
+            )
             return result
         except ScopeViolation as e:
             elapsed_ms = int((time.monotonic() - start_time) * 1000)
-            self._action_logs.append({
-                "action_type": tool_name,
-                "target_path": arguments.get("path"),
-                "input_summary": str(arguments)[:500],
-                "output_summary": str(e),
-                "was_allowed": False,
-                "execution_time_ms": elapsed_ms,
-            })
+            self._action_logs.append(
+                {
+                    "action_type": tool_name,
+                    "target_path": arguments.get("path"),
+                    "input_summary": str(arguments)[:500],
+                    "output_summary": str(e),
+                    "was_allowed": False,
+                    "execution_time_ms": elapsed_ms,
+                }
+            )
             return {"error": str(e), "scope_violation": True}
         except Exception as e:
             logger.exception(f"Tool execution error: {tool_name}")
@@ -306,12 +312,14 @@ class ToolRouter:
             rel_path = str(entry.relative_to(notebook_root))
             if pattern and not fnmatch(entry.name, pattern):
                 continue
-            files.append({
-                "name": entry.name,
-                "path": rel_path,
-                "is_dir": entry.is_dir(),
-                "size": entry.stat().st_size if entry.is_file() else None,
-            })
+            files.append(
+                {
+                    "name": entry.name,
+                    "path": rel_path,
+                    "is_dir": entry.is_dir(),
+                    "size": entry.stat().st_size if entry.is_file() else None,
+                }
+            )
         return {"path": path, "files": files}
 
     async def _search_content(self, query: str) -> dict[str, Any]:

@@ -171,15 +171,15 @@ class IntegrationExecutor:
 
         # Find the test endpoint - use specified test_endpoint or first endpoint
         test_endpoint = None
-        test_endpoint_id = getattr(integration, 'test_endpoint', None)
-        
+        test_endpoint_id = getattr(integration, "test_endpoint", None)
+
         if test_endpoint_id:
             # Look for the specified test endpoint
             for ep in integration.endpoints:
                 if ep.get("id") == test_endpoint_id:
                     test_endpoint = ep
                     break
-            
+
             if not test_endpoint:
                 return {
                     "success": False,
@@ -188,7 +188,7 @@ class IntegrationExecutor:
         else:
             # Use the first endpoint
             test_endpoint = integration.endpoints[0]
-        
+
         endpoint_id = test_endpoint.get("id")
 
         # Build minimal test parameters
@@ -253,9 +253,7 @@ class IntegrationExecutor:
                 if config_key in config:
                     result[param_name] = config[config_key]
                 elif param_def.get("required"):
-                    raise ValueError(
-                        f"Missing required config value: {config_key}"
-                    )
+                    raise ValueError(f"Missing required config value: {config_key}")
 
             # Check if parameter provided by user
             elif param_name in parameters:

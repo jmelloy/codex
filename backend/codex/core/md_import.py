@@ -59,11 +59,13 @@ def _parse_markdown_to_blocks(markdown_content: str) -> list[dict[str, Any]]:
         heading_match = re.match(r"^(#{1,6})\s+(.+)$", line)
         if heading_match:
             level = len(heading_match.group(1))
-            blocks.append({
-                "type": BLOCK_TYPE_HEADING,
-                "content": line,
-                "level": level,
-            })
+            blocks.append(
+                {
+                    "type": BLOCK_TYPE_HEADING,
+                    "content": line,
+                    "level": level,
+                }
+            )
             i += 1
             continue
 
@@ -78,11 +80,13 @@ def _parse_markdown_to_blocks(markdown_content: str) -> list[dict[str, Any]]:
                 if lines[i].strip() == "```":
                     break
                 i += 1
-            blocks.append({
-                "type": BLOCK_TYPE_CODE,
-                "content": "\n".join(code_lines),
-                "language": language,
-            })
+            blocks.append(
+                {
+                    "type": BLOCK_TYPE_CODE,
+                    "content": "\n".join(code_lines),
+                    "language": language,
+                }
+            )
             i += 1
             continue
 
@@ -94,43 +98,55 @@ def _parse_markdown_to_blocks(markdown_content: str) -> list[dict[str, Any]]:
                     break
                 quote_lines.append(lines[i])
                 i += 1
-            blocks.append({
-                "type": BLOCK_TYPE_QUOTE,
-                "content": "\n".join(quote_lines),
-            })
+            blocks.append(
+                {
+                    "type": BLOCK_TYPE_QUOTE,
+                    "content": "\n".join(quote_lines),
+                }
+            )
             continue
 
         # Unordered list
         if re.match(r"^[\s]*[-*+]\s", line):
             list_lines = []
-            while i < len(lines) and (re.match(r"^[\s]*[-*+]\s", lines[i]) or (lines[i].startswith("  ") and list_lines)):
+            while i < len(lines) and (
+                re.match(r"^[\s]*[-*+]\s", lines[i]) or (lines[i].startswith("  ") and list_lines)
+            ):
                 list_lines.append(lines[i])
                 i += 1
-            blocks.append({
-                "type": BLOCK_TYPE_LIST,
-                "content": "\n".join(list_lines),
-            })
+            blocks.append(
+                {
+                    "type": BLOCK_TYPE_LIST,
+                    "content": "\n".join(list_lines),
+                }
+            )
             continue
 
         # Ordered list
         if re.match(r"^[\s]*\d+\.\s", line):
             list_lines = []
-            while i < len(lines) and (re.match(r"^[\s]*\d+\.\s", lines[i]) or (lines[i].startswith("  ") and list_lines)):
+            while i < len(lines) and (
+                re.match(r"^[\s]*\d+\.\s", lines[i]) or (lines[i].startswith("  ") and list_lines)
+            ):
                 list_lines.append(lines[i])
                 i += 1
-            blocks.append({
-                "type": BLOCK_TYPE_LIST,
-                "content": "\n".join(list_lines),
-            })
+            blocks.append(
+                {
+                    "type": BLOCK_TYPE_LIST,
+                    "content": "\n".join(list_lines),
+                }
+            )
             continue
 
         # Standalone image
         img_match = re.match(r"^!\[([^\]]*)\]\(([^)]+)\)\s*$", line.strip())
         if img_match:
-            blocks.append({
-                "type": BLOCK_TYPE_IMAGE,
-                "content": line.strip(),
-            })
+            blocks.append(
+                {
+                    "type": BLOCK_TYPE_IMAGE,
+                    "content": line.strip(),
+                }
+            )
             i += 1
             continue
 
@@ -154,10 +170,12 @@ def _parse_markdown_to_blocks(markdown_content: str) -> list[dict[str, Any]]:
             i += 1
 
         if para_lines:
-            blocks.append({
-                "type": BLOCK_TYPE_TEXT,
-                "content": "\n".join(para_lines),
-            })
+            blocks.append(
+                {
+                    "type": BLOCK_TYPE_TEXT,
+                    "content": "\n".join(para_lines),
+                }
+            )
 
     return blocks
 
@@ -288,12 +306,14 @@ def import_markdown_to_page(
         with open(block_file, "w") as f:
             f.write(block["content"])
 
-        block_entries.append({
-            "block_id": block_id,
-            "type": block["type"],
-            "file": filename,
-            "order": float(i + 1),
-        })
+        block_entries.append(
+            {
+                "block_id": block_id,
+                "type": block["type"],
+                "file": filename,
+                "order": float(i + 1),
+            }
+        )
 
     # Build description from frontmatter
     description = frontmatter.pop("description", None)

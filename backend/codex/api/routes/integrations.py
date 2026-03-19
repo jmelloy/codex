@@ -57,6 +57,7 @@ CONTENT_TYPE_EXTENSIONS = {
 # Shared helpers
 # ---------------------------------------------------------------------------
 
+
 def _compute_parameters_hash(block_type: str, parameters: dict) -> str:
     """Compute a hash of block_type and parameters for cache key."""
     key_data = json.dumps({"block_type": block_type, "parameters": parameters}, sort_keys=True)
@@ -280,9 +281,7 @@ async def _execute_integration(
     result = await session.execute(stmt)
     configuration = result.scalar_one_or_none()
 
-    logger.info(
-        f"Executing endpoint {request_data.endpoint_id} for integration {integration_id}"
-    )
+    logger.info(f"Executing endpoint {request_data.endpoint_id} for integration {integration_id}")
 
     # Compute cache key
     params_hash = _compute_parameters_hash(request_data.endpoint_id, request_data.parameters or {})
@@ -307,9 +306,7 @@ async def _execute_integration(
         if not is_expired and artifact_path.exists():
             cached_data = await _read_artifact_data(artifact_path, existing_artifact.content_type)
             if cached_data is not None:
-                logger.info(
-                    f"Returning cached artifact for {integration_id}/{request_data.endpoint_id}"
-                )
+                logger.info(f"Returning cached artifact for {integration_id}/{request_data.endpoint_id}")
                 if not isinstance(cached_data, dict):
                     cached_data = {"content": cached_data, "content_type": existing_artifact.content_type}
                 return IntegrationExecuteResponse(success=True, data=cached_data, error=None)
@@ -323,12 +320,8 @@ async def _execute_integration(
         )
 
         # Cache the result
-        artifact_path = _get_artifact_path(
-            workspace.path, integration_id, params_hash, execution_result.content_type
-        )
-        relative_path = _get_artifact_relative_path(
-            integration_id, params_hash, execution_result.content_type
-        )
+        artifact_path = _get_artifact_path(workspace.path, integration_id, params_hash, execution_result.content_type)
+        relative_path = _get_artifact_relative_path(integration_id, params_hash, execution_result.content_type)
 
         if not await _write_artifact_data(artifact_path, execution_result.data, execution_result.content_type):
             logger.warning(f"Failed to cache artifact for {integration_id}/{request_data.endpoint_id}")

@@ -6,7 +6,7 @@ from codex.core.metadata import MetadataParser
 
 def test_frontmatter_parsing():
     """Test that MetadataParser.parse_frontmatter strips frontmatter correctly."""
-    
+
     # Test with frontmatter
     markdown_with_frontmatter = """---
 title: Test Document
@@ -18,9 +18,9 @@ tags: [test, example]
 
 This is the actual content of the markdown file.
 """
-    
+
     metadata, content = MetadataParser.parse_frontmatter(markdown_with_frontmatter)
-    
+
     assert "title" in metadata
     assert metadata["title"] == "Test Document"
     assert "author" in metadata
@@ -32,14 +32,14 @@ This is the actual content of the markdown file.
 
 def test_no_frontmatter_parsing():
     """Test that files without frontmatter are handled correctly."""
-    
+
     markdown_no_frontmatter = """# Main Content
 
 This is content without any frontmatter.
 """
-    
+
     metadata, content = MetadataParser.parse_frontmatter(markdown_no_frontmatter)
-    
+
     assert metadata == {}
     assert "# Main Content" in content
     # Content should be the same (may have slight whitespace differences)
@@ -48,7 +48,7 @@ This is content without any frontmatter.
 
 def test_empty_frontmatter_parsing():
     """Test that empty frontmatter is handled correctly."""
-    
+
     markdown_empty_frontmatter = """---
 ---
 
@@ -56,9 +56,9 @@ def test_empty_frontmatter_parsing():
 
 Content after empty frontmatter.
 """
-    
+
     metadata, content = MetadataParser.parse_frontmatter(markdown_empty_frontmatter)
-    
+
     assert metadata == {}
     assert "# Main Content" in content
     assert "---" not in content
@@ -66,7 +66,7 @@ Content after empty frontmatter.
 
 def test_complex_frontmatter_parsing():
     """Test parsing complex frontmatter with nested structures."""
-    
+
     markdown_complex = """---
 title: Complex Document
 metadata:
@@ -85,9 +85,9 @@ config:
 
 Complex frontmatter test.
 """
-    
+
     metadata, content = MetadataParser.parse_frontmatter(markdown_complex)
-    
+
     assert "title" in metadata
     assert metadata["title"] == "Complex Document"
     assert "metadata" in metadata
@@ -104,14 +104,14 @@ if __name__ == "__main__":
     # Run tests directly
     test_frontmatter_parsing()
     print("✓ test_frontmatter_parsing passed")
-    
+
     test_no_frontmatter_parsing()
     print("✓ test_no_frontmatter_parsing passed")
-    
+
     test_empty_frontmatter_parsing()
     print("✓ test_empty_frontmatter_parsing passed")
-    
+
     test_complex_frontmatter_parsing()
     print("✓ test_complex_frontmatter_parsing passed")
-    
+
     print("\nAll tests passed!")

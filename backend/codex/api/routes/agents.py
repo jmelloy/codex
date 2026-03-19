@@ -232,9 +232,7 @@ async def list_credentials(
 ) -> list[AgentCredential]:
     """List credential keys for an agent (values are never returned)."""
     await _get_agent(agent_id, session)
-    result = await session.execute(
-        select(AgentCredential).where(AgentCredential.agent_id == agent_id)
-    )
+    result = await session.execute(select(AgentCredential).where(AgentCredential.agent_id == agent_id))
     return list(result.scalars().all())
 
 

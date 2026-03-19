@@ -350,9 +350,7 @@ def update_block_content(
     Returns:
         Updated block metadata.
     """
-    block = nb_session.exec(
-        select(Block).where(Block.notebook_id == notebook_id, Block.block_id == block_id)
-    ).first()
+    block = nb_session.exec(select(Block).where(Block.notebook_id == notebook_id, Block.block_id == block_id)).first()
 
     if not block:
         raise FileNotFoundError(f"Block not found: {block_id}")
@@ -399,9 +397,7 @@ def move_block(
     Returns:
         Updated block metadata.
     """
-    block = nb_session.exec(
-        select(Block).where(Block.notebook_id == notebook_id, Block.block_id == block_id)
-    ).first()
+    block = nb_session.exec(select(Block).where(Block.notebook_id == notebook_id, Block.block_id == block_id)).first()
 
     if not block:
         raise FileNotFoundError(f"Block not found: {block_id}")
@@ -433,9 +429,7 @@ def move_block(
 
     # Remove from old parent metadata
     if old_parent_meta:
-        old_parent_meta["blocks"] = [
-            b for b in old_parent_meta.get("blocks", []) if b.get("block_id") != block_id
-        ]
+        old_parent_meta["blocks"] = [b for b in old_parent_meta.get("blocks", []) if b.get("block_id") != block_id]
         write_page_metadata(old_parent_full, old_parent_meta)
 
     # Move file on disk if parent changed
@@ -566,9 +560,7 @@ def delete_block(
         block_id: Block UUID to delete
         nb_session: Database session
     """
-    block = nb_session.exec(
-        select(Block).where(Block.notebook_id == notebook_id, Block.block_id == block_id)
-    ).first()
+    block = nb_session.exec(select(Block).where(Block.notebook_id == notebook_id, Block.block_id == block_id)).first()
 
     if not block:
         raise FileNotFoundError(f"Block not found: {block_id}")
@@ -580,9 +572,7 @@ def delete_block(
     parent_full = notebook_path / parent_path
     parent_meta = read_page_metadata(parent_full)
     if parent_meta:
-        parent_meta["blocks"] = [
-            b for b in parent_meta.get("blocks", []) if b.get("block_id") != block_id
-        ]
+        parent_meta["blocks"] = [b for b in parent_meta.get("blocks", []) if b.get("block_id") != block_id]
         write_page_metadata(parent_full, parent_meta)
 
     # Delete from filesystem
@@ -620,9 +610,7 @@ def get_block(
     nb_session: Session,
 ) -> Block | None:
     """Get a block by its UUID."""
-    return nb_session.exec(
-        select(Block).where(Block.notebook_id == notebook_id, Block.block_id == block_id)
-    ).first()
+    return nb_session.exec(select(Block).where(Block.notebook_id == notebook_id, Block.block_id == block_id)).first()
 
 
 def get_block_children(

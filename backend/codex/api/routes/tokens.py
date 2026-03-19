@@ -100,7 +100,9 @@ async def list_tokens(
 ) -> list[TokenListItem]:
     """List all personal access tokens for the current user."""
     result = await session.execute(
-        select(PersonalAccessToken).where(PersonalAccessToken.user_id == current_user.id).order_by(PersonalAccessToken.created_at.desc())
+        select(PersonalAccessToken)
+        .where(PersonalAccessToken.user_id == current_user.id)
+        .order_by(PersonalAccessToken.created_at.desc())
     )
     tokens = result.scalars().all()
     return [

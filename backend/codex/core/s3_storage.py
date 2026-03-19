@@ -104,6 +104,7 @@ def is_s3_configured() -> bool:
 # Versioning
 # ---------------------------------------------------------------------------
 
+
 def ensure_versioning(bucket: str | None = None) -> bool:
     """Enable versioning on the S3 bucket. Returns True on success."""
     bucket = bucket or S3_BUCKET
@@ -139,6 +140,7 @@ def get_versioning_status(bucket: str | None = None) -> str | None:
 # ---------------------------------------------------------------------------
 # Upload / Download
 # ---------------------------------------------------------------------------
+
 
 def build_s3_key(workspace_slug: str, notebook_slug: str, relative_path: str) -> str:
     """Build a deterministic S3 key for a file."""
@@ -221,13 +223,15 @@ def list_versions(s3_key: str, bucket: str | None = None) -> list[dict]:
         versions = []
         for v in resp.get("Versions", []):
             if v["Key"] == s3_key:
-                versions.append({
-                    "version_id": v["VersionId"],
-                    "last_modified": v["LastModified"].isoformat(),
-                    "size": v["Size"],
-                    "is_latest": v["IsLatest"],
-                    "etag": v.get("ETag", "").strip('"'),
-                })
+                versions.append(
+                    {
+                        "version_id": v["VersionId"],
+                        "last_modified": v["LastModified"].isoformat(),
+                        "size": v["Size"],
+                        "is_latest": v["IsLatest"],
+                        "etag": v.get("ETag", "").strip('"'),
+                    }
+                )
         return versions
     except ClientError as e:
         logger.error("Failed to list versions for %s: %s", s3_key, e)
@@ -237,6 +241,7 @@ def list_versions(s3_key: str, bucket: str | None = None) -> list[dict]:
 # ---------------------------------------------------------------------------
 # Pointer file helpers
 # ---------------------------------------------------------------------------
+
 
 def write_pointer_file(
     filepath: str,

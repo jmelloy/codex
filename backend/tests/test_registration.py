@@ -34,12 +34,14 @@ async def test_duplicate_username():
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # Register first user
         await client.post(
-            "/api/v1/users/register", json={"username": "duplicate", "email": "user1@example.com", "password": "password123"}
+            "/api/v1/users/register",
+            json={"username": "duplicate", "email": "user1@example.com", "password": "password123"},
         )
 
         # Try to register with same username
         response = await client.post(
-            "/api/v1/users/register", json={"username": "duplicate", "email": "user2@example.com", "password": "password456"}
+            "/api/v1/users/register",
+            json={"username": "duplicate", "email": "user2@example.com", "password": "password456"},
         )
         assert response.status_code == 400
         assert "Username already registered" in response.json()["detail"]
@@ -52,12 +54,14 @@ async def test_duplicate_email():
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # Register first user
         await client.post(
-            "/api/v1/users/register", json={"username": "user1", "email": "duplicate@example.com", "password": "password123"}
+            "/api/v1/users/register",
+            json={"username": "user1", "email": "duplicate@example.com", "password": "password123"},
         )
 
         # Try to register with same email
         response = await client.post(
-            "/api/v1/users/register", json={"username": "user2", "email": "duplicate@example.com", "password": "password456"}
+            "/api/v1/users/register",
+            json={"username": "user2", "email": "duplicate@example.com", "password": "password456"},
         )
         assert response.status_code == 400
         assert "Email already registered" in response.json()["detail"]
@@ -103,7 +107,8 @@ async def test_login_after_registration():
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # Register user
         await client.post(
-            "/api/v1/users/register", json={"username": "logintest", "email": "logintest@example.com", "password": "password123"}
+            "/api/v1/users/register",
+            json={"username": "logintest", "email": "logintest@example.com", "password": "password123"},
         )
 
         # Try to login
@@ -122,14 +127,17 @@ async def test_default_workspace_creation():
         # Register a new user with a unique username
         username = f"workspace_test_user_{int(time.time() * 1000)}"
         register_response = await client.post(
-            "/api/v1/users/register", json={"username": username, "email": f"{username}@example.com", "password": "testpass123"}
+            "/api/v1/users/register",
+            json={"username": username, "email": f"{username}@example.com", "password": "testpass123"},
         )
         assert register_response.status_code == 201
         user_data = register_response.json()
         user_id = user_data["id"]
 
         # Login to get access token
-        login_response = await client.post("/api/v1/users/token", data={"username": username, "password": "testpass123"})
+        login_response = await client.post(
+            "/api/v1/users/token", data={"username": username, "password": "testpass123"}
+        )
         assert login_response.status_code == 200
         token = login_response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}

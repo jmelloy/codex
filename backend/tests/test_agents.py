@@ -2,7 +2,6 @@
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Unit tests for ScopeGuard
 # ---------------------------------------------------------------------------
@@ -309,7 +308,11 @@ class TestLiteLLMProvider:
         messages = [
             Message(role="system", content="You are helpful."),
             Message(role="user", content="Hello"),
-            Message(role="assistant", content="Hi!", tool_calls=[{"id": "1", "type": "function", "function": {"name": "read_file", "arguments": "{}"}}]),
+            Message(
+                role="assistant",
+                content="Hi!",
+                tool_calls=[{"id": "1", "type": "function", "function": {"name": "read_file", "arguments": "{}"}}],
+            ),
             Message(role="tool", content='{"content": "data"}', tool_call_id="1"),
         ]
         converted = provider._convert_messages(messages)

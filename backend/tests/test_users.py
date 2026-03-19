@@ -67,7 +67,9 @@ def test_login_wrong_password(test_client):
 
 def test_login_nonexistent_user(test_client):
     """Test login with non-existent username."""
-    response = test_client.post("/api/v1/users/token", data={"username": "nonexistent_user_12345", "password": "somepassword"})
+    response = test_client.post(
+        "/api/v1/users/token", data={"username": "nonexistent_user_12345", "password": "somepassword"}
+    )
     assert response.status_code == 401
     assert "Incorrect username or password" in response.json()["detail"]
 

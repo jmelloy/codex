@@ -152,7 +152,9 @@ def test_folder_pagination(test_client, auth_headers, workspace_and_notebook):
     assert response.status_code == 200
     data = response.json()
     assert len(data["files"]) == 3
-    assert data["pagination"]["total"] == 10, f"Expected 10 files, got {data['pagination']['total']}. Files in response: {[f['path'] for f in data['files']]}"
+    assert (
+        data["pagination"]["total"] == 10
+    ), f"Expected 10 files, got {data['pagination']['total']}. Files in response: {[f['path'] for f in data['files']]}"
     assert data["pagination"]["has_more"] is True
 
     # Get second page using nested route

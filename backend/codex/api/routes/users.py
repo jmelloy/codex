@@ -103,9 +103,7 @@ async def delete_user(
     The user must delete all owned workspaces first.
     """
     # Check if user still owns workspaces
-    ws_result = await session.execute(
-        select(Workspace).where(Workspace.owner_id == current_user.id)
-    )
+    ws_result = await session.execute(select(Workspace).where(Workspace.owner_id == current_user.id))
     if ws_result.scalars().first():
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -120,23 +118,17 @@ async def delete_user(
         await session.delete(token)
 
     # Delete OAuth connections
-    oauth_result = await session.execute(
-        select(OAuthConnection).where(OAuthConnection.user_id == current_user.id)
-    )
+    oauth_result = await session.execute(select(OAuthConnection).where(OAuthConnection.user_id == current_user.id))
     for conn in oauth_result.scalars().all():
         await session.delete(conn)
 
     # Delete agent sessions owned by user
-    as_result = await session.execute(
-        select(AgentSession).where(AgentSession.user_id == current_user.id)
-    )
+    as_result = await session.execute(select(AgentSession).where(AgentSession.user_id == current_user.id))
     for agent_session in as_result.scalars().all():
         await session.delete(agent_session)
 
     # Delete workspace permissions
-    wp_result = await session.execute(
-        select(WorkspacePermission).where(WorkspacePermission.user_id == current_user.id)
-    )
+    wp_result = await session.execute(select(WorkspacePermission).where(WorkspacePermission.user_id == current_user.id))
     for perm in wp_result.scalars().all():
         await session.delete(perm)
 

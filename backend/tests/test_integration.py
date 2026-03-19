@@ -15,7 +15,6 @@ from fastapi.testclient import TestClient
 
 from codex.main import app
 
-
 # ---------------------------------------------------------------------------
 # Helpers – each test gets a fresh client to avoid cookie bleed-through
 # ---------------------------------------------------------------------------
@@ -65,7 +64,6 @@ class TestBackendHealth:
         resp = client.get("/health")
         assert resp.status_code == 200
         assert resp.json()["status"] == "healthy"
-
 
     def test_docs_available(self):
         client = _fresh_client()
@@ -455,10 +453,7 @@ class TestEndToEndFlow:
         assert len(nb_list.json()) >= 1
 
         # 9. Create file
-        file_content = (
-            "---\ntitle: E2E Test File\ntags: [e2e, integration]\n---\n\n"
-            "# End-to-end test content\n"
-        )
+        file_content = "---\ntitle: E2E Test File\ntags: [e2e, integration]\n---\n\n" "# End-to-end test content\n"
         file_resp = client.post(
             f"/api/v1/workspaces/{ws['id']}/notebooks/{nb['id']}/files/",
             json={"path": "e2e-test.md", "content": file_content},
@@ -487,4 +482,3 @@ class TestEndToEndFlow:
             headers=headers,
         )
         assert task_resp.status_code == 200
-

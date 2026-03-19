@@ -112,17 +112,17 @@ def downgrade() -> None:
         op.drop_index(op.f("ix_plugin_api_logs_plugin_id"), table_name="plugin_api_logs")
         op.drop_index(op.f("ix_plugin_api_logs_workspace_id"), table_name="plugin_api_logs")
         op.drop_table("plugin_api_logs")
-    
+
     if table_exists("plugin_secrets"):
         op.drop_index(op.f("ix_plugin_secrets_plugin_id"), table_name="plugin_secrets")
         op.drop_index(op.f("ix_plugin_secrets_workspace_id"), table_name="plugin_secrets")
         op.drop_table("plugin_secrets")
-    
+
     if table_exists("plugin_configs"):
         op.drop_index(op.f("ix_plugin_configs_plugin_id"), table_name="plugin_configs")
         op.drop_index(op.f("ix_plugin_configs_workspace_id"), table_name="plugin_configs")
         op.drop_table("plugin_configs")
-    
+
     if table_exists("plugins"):
         op.drop_index(op.f("ix_plugins_plugin_id"), table_name="plugins")
         op.drop_table("plugins")

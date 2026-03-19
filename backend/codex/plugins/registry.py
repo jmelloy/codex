@@ -126,7 +126,7 @@ class RegisteredPlugin:
     @property
     def test_endpoint(self) -> str | None:
         """Get the endpoint ID to use for testing connection.
-        
+
         Returns the endpoint ID specified in integration.test_endpoint,
         or None to use the first endpoint.
         """
@@ -183,9 +183,7 @@ class PluginRegistry:
         )
 
     @staticmethod
-    async def get_plugin(
-        session: AsyncSession, plugin_id: str
-    ) -> RegisteredPlugin | None:
+    async def get_plugin(session: AsyncSession, plugin_id: str) -> RegisteredPlugin | None:
         """Get a plugin by ID.
 
         Args:
@@ -221,9 +219,7 @@ class PluginRegistry:
         return [PluginRegistry._to_registered_plugin(p) for p in db_plugins]
 
     @staticmethod
-    async def get_plugins_by_type(
-        session: AsyncSession, plugin_type: str
-    ) -> list[RegisteredPlugin]:
+    async def get_plugins_by_type(session: AsyncSession, plugin_type: str) -> list[RegisteredPlugin]:
         """Get all plugins of a specific type.
 
         Args:

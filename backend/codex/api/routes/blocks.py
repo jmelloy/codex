@@ -434,9 +434,7 @@ async def convert_file_to_blocks(
 
             from sqlmodel import select as sel
 
-            file_meta = nb_session.exec(
-                sel(FM).where(FM.notebook_id == notebook.id, FM.id == request.file_id)
-            ).first()
+            file_meta = nb_session.exec(sel(FM).where(FM.notebook_id == notebook.id, FM.id == request.file_id)).first()
             if not file_meta:
                 raise HTTPException(status_code=404, detail="File not found")
             md_path = file_meta.path

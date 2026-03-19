@@ -69,9 +69,7 @@ class TestPersonalAccessTokens:
     def test_revoke_token(self, test_client, user_and_token):
         headers, _, _ = user_and_token
 
-        create_resp = test_client.post(
-            "/api/v1/tokens/", json={"name": "to-revoke"}, headers=headers
-        )
+        create_resp = test_client.post("/api/v1/tokens/", json={"name": "to-revoke"}, headers=headers)
         token_id = create_resp.json()["id"]
 
         # Revoke
@@ -93,9 +91,7 @@ class TestPersonalAccessTokens:
         headers, username, _ = user_and_token
 
         # Create a PAT
-        create_resp = test_client.post(
-            "/api/v1/tokens/", json={"name": "auth-test"}, headers=headers
-        )
+        create_resp = test_client.post("/api/v1/tokens/", json={"name": "auth-test"}, headers=headers)
         pat = create_resp.json()["token"]
 
         # Use PAT to access /users/me
@@ -108,9 +104,7 @@ class TestPersonalAccessTokens:
         headers, _, _ = user_and_token
 
         # Create and revoke a PAT
-        create_resp = test_client.post(
-            "/api/v1/tokens/", json={"name": "revoke-test"}, headers=headers
-        )
+        create_resp = test_client.post("/api/v1/tokens/", json={"name": "revoke-test"}, headers=headers)
         pat = create_resp.json()["token"]
         token_id = create_resp.json()["id"]
 
@@ -163,9 +157,7 @@ class TestSnippetPosting:
         notebook = nb_resp.json()
 
         # Create a PAT
-        pat_resp = test_client.post(
-            "/api/v1/tokens/", json={"name": "snippet-pat"}, headers=headers
-        )
+        pat_resp = test_client.post("/api/v1/tokens/", json={"name": "snippet-pat"}, headers=headers)
         pat = pat_resp.json()["token"]
 
         return workspace, notebook, pat, headers

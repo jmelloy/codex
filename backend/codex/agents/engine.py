@@ -105,11 +105,13 @@ class AgentEngine:
             # Process each tool call
             for tool_call in response.tool_calls:
                 if on_action:
-                    on_action({
-                        "type": "tool_call",
-                        "tool": tool_call.name,
-                        "arguments": tool_call.arguments,
-                    })
+                    on_action(
+                        {
+                            "type": "tool_call",
+                            "tool": tool_call.name,
+                            "arguments": tool_call.arguments,
+                        }
+                    )
 
                 result = await self.tool_router.execute_tool(
                     tool_call.name,

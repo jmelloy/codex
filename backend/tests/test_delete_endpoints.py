@@ -47,9 +47,7 @@ def test_delete_workspace(test_client, auth_headers):
     headers = auth_headers[0]
 
     # Create a workspace
-    ws_response = test_client.post(
-        "/api/v1/workspaces/", json={"name": "Delete Me Workspace"}, headers=headers
-    )
+    ws_response = test_client.post("/api/v1/workspaces/", json={"name": "Delete Me Workspace"}, headers=headers)
     assert ws_response.status_code == 200
     workspace = ws_response.json()
 
@@ -65,9 +63,7 @@ def test_delete_workspace(test_client, auth_headers):
     assert ws_dir.exists()
 
     # Delete the workspace
-    response = test_client.delete(
-        f"/api/v1/workspaces/{workspace['slug']}", headers=headers
-    )
+    response = test_client.delete(f"/api/v1/workspaces/{workspace['slug']}", headers=headers)
     assert response.status_code == 200
     assert response.json()["message"] == "Workspace deleted successfully"
 
@@ -75,9 +71,7 @@ def test_delete_workspace(test_client, auth_headers):
     assert not ws_dir.exists()
 
     # Workspace should no longer be accessible
-    get_response = test_client.get(
-        f"/api/v1/workspaces/{workspace['slug']}", headers=headers
-    )
+    get_response = test_client.get(f"/api/v1/workspaces/{workspace['slug']}", headers=headers)
     assert get_response.status_code == 404
 
 
@@ -85,9 +79,7 @@ def test_delete_workspace_not_found(test_client, auth_headers):
     """Test deleting a non-existent workspace returns 404."""
     headers = auth_headers[0]
 
-    response = test_client.delete(
-        "/api/v1/workspaces/nonexistent-workspace-99999", headers=headers
-    )
+    response = test_client.delete("/api/v1/workspaces/nonexistent-workspace-99999", headers=headers)
     assert response.status_code == 404
 
 
@@ -102,9 +94,7 @@ def test_delete_user_blocked_by_workspaces(test_client):
         "/api/v1/users/register",
         json={"username": username, "email": email, "password": password},
     )
-    login_response = test_client.post(
-        "/api/v1/users/token", data={"username": username, "password": password}
-    )
+    login_response = test_client.post("/api/v1/users/token", data={"username": username, "password": password})
     token = login_response.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 
@@ -125,9 +115,7 @@ def test_delete_user_success(test_client):
         "/api/v1/users/register",
         json={"username": username, "email": email, "password": password},
     )
-    login_response = test_client.post(
-        "/api/v1/users/token", data={"username": username, "password": password}
-    )
+    login_response = test_client.post("/api/v1/users/token", data={"username": username, "password": password})
     token = login_response.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 

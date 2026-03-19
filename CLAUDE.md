@@ -4,196 +4,121 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Codex is a hierarchical digital laboratory journal system for tracking computational experiments, creative iterations, and technical investigations. It uses a Workspace → Notebook → Files hierarchy with SQLite for metadata indexing and filesystem-based content storage.
+Codex is a hierarchical digital laboratory journal system for tracking computational experiments, creative iterations, and technical investigations. It uses a Workspace → Notebook → Files hierarchy with SQLite for metadata indexing and filesystem-based content storage. The UI is read-only content display centered on a block/page tree (BlockView).
 
 ## Build and Development Commands
 
 ### Backend (Python 3.12+)
 
 ```bash
-# Install dependencies (always run first)
 cd backend
 pip install -e ".[dev]"
-
-# Run tests
-pytest -v
-
-# Run single test file
-pytest tests/test_api.py -v
-
-# Run with coverage (as CI does)
-pytest -v --cov=. --cov-report=term-missing
-
-# Start backend server
-python -m codex.main
-# Or with uvicorn directly:
-uvicorn codex.main:app --reload --port 8000
-
-# Lint
-ruff check .
-
-# Format
-black .
-
-# Type check
-mypy .
+pytest -v                          # run tests
+python -m codex.main               # start server (port 8000)
+ruff check .                       # lint
+black .                            # format
 ```
 
 ### Frontend (Node.js 20+)
 
 ```bash
 cd frontend
-
-# Install dependencies
 npm install
-
-# Development server (port 5173)
-npm run dev
-
-# Build for production
-npm run build
-
-# Run tests
-npm test -- --run
-
-# Type check
-npm run build  # vue-tsc runs as part of build
+npm run dev                        # dev server (port 5173)
+npm run build                      # production build (includes vue-tsc type check)
+npm test -- --run                  # run tests
 ```
 
 ### Docker
 
 ```bash
-# Development
-docker compose up -d
-# Backend: http://localhost:8765
-# Frontend: http://localhost:8065
-
-# Production
-docker compose -f docker-compose.prod.yml up -d
+docker compose up -d               # Backend :8765, Frontend :8065
 ```
 
 ### Kubernetes (Linode LKE)
 
 ```bash
-# Initial cluster setup (installs ingress-nginx, cert-manager, creates secrets)
-./scripts/setup-lke.sh --domain codex.melloy.life --email admin@melloy.life
-
-# Deploy with Kustomize
-kubectl apply -k k8s/overlays/staging      # staging
-kubectl apply -k k8s/overlays/production   # production
+kubectl apply -k k8s/overlays/production
 ```
 
-CI/CD is handled by `.github/workflows/deploy.yml` which builds images to GHCR and deploys via Kustomize. See `k8s/` for manifests.
+CI/CD: `.github/workflows/deploy.yml` builds images to GHCR and deploys via Kustomize.
 
 ## Architecture
 
 ### Two-Database Pattern
 
-The system uses two types of SQLite databases:
+1. **System Database** (`codex_system.db`): Users, workspaces, permissions, tasks, notebook registrations. Alembic migrations in `backend/codex/migrations/workspace/`.
 
-1. **System Database** (`codex_system.db`): Stores users, workspaces, workspace permissions, tasks, and notebook registrations. Managed by Alembic migrations in `backend/codex/migrations/workspace/`.
+2. **Notebook Databases** (`.codex/notebook.db` per notebook): File metadata, tags, search indexes. Alembic migrations in `backend/codex/migrations/notebook/`.
 
-2. **Notebook Databases** (`.codex/notebook.db` per notebook): Stores file metadata, tags, and search indexes for each notebook. Managed by separate Alembic migrations in `backend/codex/migrations/notebook/`.
+Both configured in `backend/alembic.ini` with named sections `[alembic:workspace]` and `[alembic:notebook]`.
 
-Both migration paths are configured in a single unified `backend/alembic.ini` file with named sections `[alembic:workspace]` and `[alembic:notebook]`.
+### Backend
 
-### Key Backend Components
+- `backend/codex/main.py` - FastAPI app with lifespan management for file watchers
+- `backend/codex/api/routes/` - REST API (files, folders, notebooks, workspaces, search, tasks, blocks, agents, plugins, integrations)
+- `backend/codex/core/watcher.py` - Filesystem watcher syncing file changes to notebook databases
+- `backend/codex/core/metadata.py` - Frontmatter and sidecar metadata parsing
+- `backend/codex/db/models/` - SQLModel models (system.py, notebook.py)
+- `backend/codex/plugins/` - Plugin registry, executor, models (themes + integrations only)
+- `backend/plugins/` - Plugin assets (themes, opengraph, weather-api)
 
-- `backend/codex/main.py` - FastAPI app entry point with lifespan management for file watchers
-- `backend/codex/api/routes/` - REST API endpoints (files, folders, notebooks, workspaces, search, tasks, query)
-- `backend/codex/core/watcher.py` - Filesystem watcher that syncs file changes to notebook databases
-- `backend/codex/core/metadata.py` - Parses metadata from frontmatter, JSON/XML/MD sidecars
-- `backend/codex/db/models/system.py` - User, Workspace, WorkspacePermission, Task, Notebook models
-- `backend/codex/db/models/notebook.py` - FileMetadata, Tag, FileTag, SearchIndex models
-- `backend/codex/db/database.py` - Database session management for both system and notebook DBs
+### Frontend
 
-### Key Frontend Components
+- `frontend/src/views/HomeView.vue` - Main view (read-only file/folder/block display)
+- `frontend/src/stores/` - Pinia stores (auth, workspace, theme, integration)
+- `frontend/src/services/codex.ts` - API service (workspaces, notebooks, files, folders, blocks, search)
+- `frontend/src/services/pluginLoader.ts` - Loads theme/block plugins from `/api/v1/plugins/manifest`
+- `frontend/src/components/MarkdownViewer.vue` - Markdown rendering with custom blocks
 
-- `frontend/src/main.ts` - Vue app entry point
-- `frontend/src/router/index.ts` - Vue Router configuration
-- `frontend/src/stores/` - Pinia stores (auth, workspace, theme)
-- `frontend/src/services/api.ts` - Axios-based API client
-- `frontend/src/services/codex.ts` - Codex-specific API service
+### API Routes
 
-### API Routes Pattern
-
-All API routes are prefixed with `/api/v1/`:
-
-- `/api/v1/users/token` - Authentication
-- `/api/v1/users/register` - User registration
-- `/api/v1/users/me` - Current user profile
-- `/api/v1/workspaces/` - Workspace CRUD
-- `/api/v1/notebooks/` - Notebook CRUD
-- `/api/v1/files/` - File operations
-- `/api/v1/folders/` - Folder operations and metadata
-- `/api/v1/search/` - Full-text search
-- `/api/v1/tasks/` - Task queue for agents
-- `/api/v1/query/` - Advanced query interface
+All prefixed with `/api/v1/`:
+- `/users/` - Auth, registration, profile
+- `/workspaces/` - Workspace CRUD
+- `/workspaces/{ws}/notebooks/` - Notebook CRUD
+- `/workspaces/{ws}/notebooks/{nb}/files/` - File CRUD, upload, history
+- `/workspaces/{ws}/notebooks/{nb}/folders/` - Folder metadata
+- `/workspaces/{ws}/notebooks/{nb}/blocks/` - Block/page operations
+- `/workspaces/{ws}/search/` - Full-text search
+- `/tasks/` - Task queue for agents
+- `/plugins/manifest` - Plugin manifest for frontend
+- `/plugins/assets/` - Plugin asset serving (CSS, JS)
+- `/plugins/integrations/` - Integration API proxy
 
 ## Testing
 
-Backend tests are in `backend/tests/`. Key test files:
+Backend: `backend/tests/` with pytest. Key files: `test_api.py`, `test_files_api.py`, `test_integration.py`, `test_workspaces.py`.
 
-- `test_api.py` - Main API integration tests
-- `test_workspaces.py` - Workspace operations
-- `test_users.py` - User authentication
-- `test_tasks.py` - Task queue
-- `test_notebook_migrations.py` - Database migrations
+Frontend: `frontend/src/__tests__/` with Vitest.
 
-Frontend tests are in `frontend/src/__tests__/` using Vitest.
+Note: Backend tests use `TestClient(app)` **without** the `with` context manager to avoid triggering lifespan/FSEvents watchers (which causes segfaults on macOS when accumulated).
 
 ## Code Style
 
-- Python: Use black for formatting, ruff for linting (line length 120)
-- TypeScript/Vue: Use prettier for formatting
-- Python target version: 3.12
-- Tests use pytest-asyncio with `asyncio_mode = "auto"`
+- Python: black formatting, ruff linting, line length 120, target 3.12
+- TypeScript/Vue: prettier formatting
+- Tests: pytest-asyncio with `asyncio_mode = "auto"`
 
 ## Test Data
 
-The server must be running before using these scripts. All scripts use the HTTP API (no direct DB access).
+Server must be running. Scripts use HTTP API:
 
 ```bash
 cd backend
-
-# Seed test users, workspaces, notebooks, and files
-python -m codex.scripts.seed_test_data
-
-# Clean up all test data (deletes users, workspaces, notebooks via API)
-python -m codex.scripts.seed_test_data clean
-
-# User management
-python -m codex.scripts.user_manager register <username> <email> <password>
-python -m codex.scripts.user_manager token <username> <password>
-python -m codex.scripts.user_manager me --token <token>
+python -m codex.scripts.seed_test_data        # seed
+python -m codex.scripts.seed_test_data clean   # cleanup
 ```
 
 Test accounts: `demo`/`demo123456`, `testuser`/`testpass123`, `scientist`/`lab123456`
 
-**Environment variable**: Set `CODEX_API_URL` to override the default server URL (`http://localhost:8765`).
+Set `CODEX_API_URL` to override default (`http://localhost:8765`).
 
-**Cleanup order**: The cleanup deletes all workspaces for each test user (which cascades to notebooks, files, and filesystem directories), then deletes the user account itself.
+## Guidelines
 
-## Investigation & Debugging
-
-When debugging or investigating issues, propose a hypothesis and a targeted fix within the first 2-3 file reads. Do not spend more than 5 minutes exploring the codebase without offering a concrete diagnosis or solution direction. If uncertain, present your top 2 hypotheses and ask the user which to pursue.
-
-## Languages & Cross-Cutting Concerns
-
-This project uses Python (FastAPI backend) and TypeScript/Vue (frontend). Primary languages: Python for backend/API, TypeScript for frontend components, YAML for configuration/fixtures. Always check both backend and frontend implications for changes.
-
-## Frontend / Plugins
-
-For frontend plugins and shared modules, always place files in the plugins directory (not frontend/src/) and use relative imports instead of ambiguous aliases like @/. Verify import resolution works in both the main frontend dev server and plugin build contexts.
-
-## Frontend / Styling
-
-When fixing CSS/theme issues, always identify which layer (base styles, theme-specific overrides, component scoped styles) is responsible before making changes. Inspect theme-specific CSS files first when a visual bug appears in only some themes.
-
-## Version Control / Git
-
-Prefer a git worktree for work.
-
-Before committing, run `git status` and `git diff --staged` to verify only the intended changes are staged. Do not assume the working tree is clean.
-
-Any PR that deletes more code than it adds is a good PR.
+- Propose a hypothesis within the first 2-3 file reads. If uncertain, present top 2 hypotheses and ask.
+- Always check both backend and frontend implications for changes.
+- When fixing CSS/theme issues, identify which layer (base, theme-specific, component scoped) is responsible. Check theme CSS files first for theme-specific bugs.
+- Prefer git worktree for work.
+- Before committing, run `git status` and `git diff --staged` to verify staged changes.
+- Any PR that deletes more code than it adds is a good PR.

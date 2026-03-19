@@ -546,15 +546,18 @@ export const useWorkspaceStore = defineStore("workspace", () => {
           // Find the block matching this folder path
           const pageBlock = rootBlocks.blocks.find((b: Block) => b.path === folderPath)
           if (pageBlock) {
+            currentPageBlockId.value = pageBlock.block_id
             await fetchPageBlocks(pageBlock.block_id, notebookId)
           }
         } catch {
           // Block loading is optional - folder still works without it
           currentPageBlocks.value = []
+          currentPageBlockId.value = null
         }
       } else {
         currentPageBlocks.value = []
         currentPageMeta.value = null
+        currentPageBlockId.value = null
       }
     }
   }
@@ -642,6 +645,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   // Block state
   const currentPageBlocks = ref<Block[]>([])
   const currentPageMeta = ref<PageMetadata | null>(null)
+  const currentPageBlockId = ref<string | null>(null)
   const blockLoading = ref(false)
 
   /**
@@ -682,6 +686,10 @@ export const useWorkspaceStore = defineStore("workspace", () => {
       })
       // Refresh the file tree to show the new page folder
       await fetchFiles(notebookId)
+      // Select the new page folder
+      if (result.path) {
+        await selectFolder(result.path, notebookId)
+      }
       return result
     } catch (e: any) {
       error.value = e.response?.data?.detail || "Failed to create page"
@@ -747,6 +755,26 @@ export const useWorkspaceStore = defineStore("workspace", () => {
       await fetchPageBlocks(parentBlockId, notebookId)
     } catch (e: any) {
       error.value = e.response?.data?.detail || "Failed to delete block"
+      throw e
+    }
+  }
+
+  /**
+   * Convert an existing markdown file to a block page
+   */
+  async function convertFileToBlocks(fileId: number, notebookId: number) {
+    if (!currentWorkspace.value) return
+    try {
+      const result = await blockService.convertFileToBlocks(notebookId, currentWorkspace.value.id, fileId)
+      // Refresh the file tree since the file was replaced with a folder
+      await fetchFiles(notebookId)
+      // Select the new page folder
+      if (result.path) {
+        await selectFolder(result.path, notebookId)
+      }
+      return result
+    } catch (e: any) {
+      error.value = e.response?.data?.detail || "Failed to convert file to blocks"
       throw e
     }
   }
@@ -820,6 +848,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     // Block state
     currentPageBlocks,
     currentPageMeta,
+    currentPageBlockId,
     blockLoading,
     // Block actions
     fetchPageBlocks,
@@ -827,6 +856,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     createBlock,
     reorderBlocks,
     deleteBlock,
+    convertFileToBlocks,
     importMarkdown,
   }
 })

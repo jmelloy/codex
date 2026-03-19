@@ -11,7 +11,7 @@
         :key="block.block_id"
         class="block-item"
         :class="[`block-type-${block.block_type}`, { 'is-dragging': dragIndex === index }]"
-        :draggable="true"
+        :draggable="editingBlockId !== block.block_id"
         @dragstart="onDragStart($event, index)"
         @dragover.prevent="onDragOver($event, index)"
         @drop="onDrop($event, index)"
@@ -21,56 +21,75 @@
           <span class="handle-icon">&#x2630;</span>
         </div>
 
-        <div class="block-content" @dblclick="startEditing(block)">
-          <!-- Heading -->
-          <template v-if="block.block_type === 'heading'">
-            <div class="block-heading" v-html="renderMarkdown(block.content || '')"></div>
+        <div class="block-content" @click="startEditing(block)">
+          <!-- Editing mode -->
+          <template v-if="editingBlockId === block.block_id">
+            <textarea
+              ref="editTextarea"
+              v-model="editContent"
+              class="block-editor-textarea"
+              :class="`edit-${block.block_type}`"
+              @blur="finishEditing(block)"
+              @keydown.escape="cancelEditing"
+              @keydown.enter.ctrl="finishEditing(block)"
+              @keydown.enter.meta="finishEditing(block)"
+              :placeholder="getPlaceholder(block.block_type)"
+              autofocus
+            ></textarea>
           </template>
 
-          <!-- Text -->
-          <template v-else-if="block.block_type === 'text'">
-            <div class="block-text" v-html="renderMarkdown(block.content || '')"></div>
-          </template>
-
-          <!-- Code -->
-          <template v-else-if="block.block_type === 'code'">
-            <div class="block-code" v-html="renderMarkdown(block.content || '')"></div>
-          </template>
-
-          <!-- Image -->
-          <template v-else-if="block.block_type === 'image'">
-            <div class="block-image" v-html="renderMarkdown(block.content || '')"></div>
-          </template>
-
-          <!-- List -->
-          <template v-else-if="block.block_type === 'list'">
-            <div class="block-list" v-html="renderMarkdown(block.content || '')"></div>
-          </template>
-
-          <!-- Quote -->
-          <template v-else-if="block.block_type === 'quote'">
-            <div class="block-quote" v-html="renderMarkdown(block.content || '')"></div>
-          </template>
-
-          <!-- Divider -->
-          <template v-else-if="block.block_type === 'divider'">
-            <hr class="block-divider" />
-          </template>
-
-          <!-- Nested Page -->
-          <template v-else-if="block.block_type === 'page'">
-            <div class="block-page-link" @click="$emit('navigatePage', block)">
-              <span class="page-icon">&#x1F4C4;</span>
-              <span class="page-name">{{ block.title || block.path }}</span>
-            </div>
-          </template>
-
-          <!-- File / Other -->
+          <!-- View mode -->
           <template v-else>
-            <div class="block-file">
-              <span class="file-icon">&#x1F4CE;</span>
-              <span class="file-name">{{ block.path?.split('/').pop() }}</span>
-            </div>
+            <!-- Heading -->
+            <template v-if="block.block_type === 'heading'">
+              <div class="block-heading" v-html="renderMarkdown(block.content || '')"></div>
+            </template>
+
+            <!-- Text -->
+            <template v-else-if="block.block_type === 'text'">
+              <div class="block-text" v-html="renderMarkdown(block.content || '')"></div>
+            </template>
+
+            <!-- Code -->
+            <template v-else-if="block.block_type === 'code'">
+              <div class="block-code" v-html="renderMarkdown(block.content || '')"></div>
+            </template>
+
+            <!-- Image -->
+            <template v-else-if="block.block_type === 'image'">
+              <div class="block-image" v-html="renderMarkdown(block.content || '')"></div>
+            </template>
+
+            <!-- List -->
+            <template v-else-if="block.block_type === 'list'">
+              <div class="block-list" v-html="renderMarkdown(block.content || '')"></div>
+            </template>
+
+            <!-- Quote -->
+            <template v-else-if="block.block_type === 'quote'">
+              <div class="block-quote" v-html="renderMarkdown(block.content || '')"></div>
+            </template>
+
+            <!-- Divider -->
+            <template v-else-if="block.block_type === 'divider'">
+              <hr class="block-divider" />
+            </template>
+
+            <!-- Nested Page -->
+            <template v-else-if="block.block_type === 'page'">
+              <div class="block-page-link" @click.stop="$emit('navigatePage', block)">
+                <span class="page-icon">&#x1F4C4;</span>
+                <span class="page-name">{{ block.title || block.path }}</span>
+              </div>
+            </template>
+
+            <!-- File / Other -->
+            <template v-else>
+              <div class="block-file">
+                <span class="file-icon">&#x1F4CE;</span>
+                <span class="file-name">{{ block.path?.split('/').pop() }}</span>
+              </div>
+            </template>
           </template>
         </div>
 
@@ -88,18 +107,31 @@
 
     <div class="blocks-empty" v-else>
       <p>This page has no blocks yet.</p>
-      <button class="btn-add-block" @click="$emit('addBlock')">Add a block</button>
+      <button class="btn-add-block" @click="showAddMenu = !showAddMenu">Add a block</button>
     </div>
 
-    <!-- Add block button at bottom -->
+    <!-- Add block area at bottom -->
     <div class="add-block-footer" v-if="blocks.length > 0">
-      <button class="btn-add-block" @click="$emit('addBlock')">+ Add block</button>
+      <div class="add-block-row">
+        <button class="btn-add-block" @click="showAddMenu = !showAddMenu">+ Add block</button>
+      </div>
+      <div v-if="showAddMenu" class="add-block-menu">
+        <button
+          v-for="bt in blockTypes"
+          :key="bt.type"
+          class="add-block-option"
+          @click="addBlockOfType(bt.type, bt.defaultContent)"
+        >
+          <span class="add-block-icon">{{ bt.icon }}</span>
+          <span>{{ bt.label }}</span>
+        </button>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue"
+import { ref, nextTick, watch } from "vue"
 import { marked } from "marked"
 import type { Block } from "../services/codex"
 
@@ -118,14 +150,32 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   navigatePage: [block: Block]
   deleteBlock: [blockId: string]
-  addBlock: []
+  addBlock: [blockType: string, content: string]
   reorder: [blockIds: string[]]
   editBlock: [block: Block]
+  updateBlock: [block: { block_id: string; content: string }]
 }>()
 
 // Drag state
 const dragIndex = ref<number | null>(null)
 const dragOverIndex = ref<number | null>(null)
+
+// Inline editing state
+const editingBlockId = ref<string | null>(null)
+const editContent = ref("")
+const editTextarea = ref<HTMLTextAreaElement[] | null>(null)
+
+// Add block menu
+const showAddMenu = ref(false)
+
+const blockTypes = [
+  { type: "text", label: "Text", icon: "T", defaultContent: "" },
+  { type: "heading", label: "Heading", icon: "H", defaultContent: "## " },
+  { type: "code", label: "Code", icon: "<>", defaultContent: "```\n\n```" },
+  { type: "list", label: "List", icon: "-", defaultContent: "- " },
+  { type: "quote", label: "Quote", icon: ">", defaultContent: "> " },
+  { type: "divider", label: "Divider", icon: "--", defaultContent: "---" },
+]
 
 function renderMarkdown(content: string): string {
   try {
@@ -135,8 +185,63 @@ function renderMarkdown(content: string): string {
   }
 }
 
+function getPlaceholder(blockType: string): string {
+  switch (blockType) {
+    case "heading": return "Heading text..."
+    case "code": return "Code..."
+    case "list": return "- List item..."
+    case "quote": return "> Quote..."
+    default: return "Type something..."
+  }
+}
+
 function startEditing(block: Block) {
-  emit("editBlock", block)
+  if (block.block_type === "page" || block.block_type === "divider") return
+  editingBlockId.value = block.block_id
+  editContent.value = block.content || ""
+  nextTick(() => {
+    if (editTextarea.value && editTextarea.value.length > 0) {
+      const ta = editTextarea.value[0]
+      if (ta) {
+        ta.focus()
+        autoResizeTextarea(ta)
+      }
+    }
+  })
+}
+
+function finishEditing(block: Block) {
+  if (editingBlockId.value !== block.block_id) return
+  const newContent = editContent.value
+  editingBlockId.value = null
+  if (newContent !== (block.content || "")) {
+    emit("updateBlock", { block_id: block.block_id, content: newContent })
+  }
+}
+
+function cancelEditing() {
+  editingBlockId.value = null
+  editContent.value = ""
+}
+
+function autoResizeTextarea(el: HTMLTextAreaElement) {
+  el.style.height = "auto"
+  el.style.height = el.scrollHeight + "px"
+}
+
+// Watch editContent for auto-resize
+watch(editContent, () => {
+  nextTick(() => {
+    if (editTextarea.value && editTextarea.value.length > 0) {
+      const ta = editTextarea.value[0]
+      if (ta) autoResizeTextarea(ta)
+    }
+  })
+})
+
+function addBlockOfType(blockType: string, defaultContent: string) {
+  showAddMenu.value = false
+  emit("addBlock", blockType, defaultContent)
 }
 
 function onDragStart(event: DragEvent, index: number) {
@@ -155,7 +260,6 @@ function onDrop(_event: DragEvent, targetIndex: number) {
   const sourceIndex = dragIndex.value
   if (sourceIndex === null || sourceIndex === targetIndex) return
 
-  // Reorder blocks
   const newOrder = [...props.blocks]
   const [moved] = newOrder.splice(sourceIndex, 1)
   if (moved) {
@@ -177,6 +281,7 @@ function onDragEnd() {
   max-width: 900px;
   margin: 0 auto;
   padding: 1.5rem;
+  overflow-y: auto;
 }
 
 .page-header {
@@ -236,6 +341,31 @@ function onDragEnd() {
   flex: 1;
   min-width: 0;
   cursor: text;
+}
+
+.block-editor-textarea {
+  width: 100%;
+  min-height: 2rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--border-color, #d0d0d0);
+  border-radius: 4px;
+  background: var(--bg-primary, #fff);
+  color: var(--text-primary, #333);
+  font-family: inherit;
+  font-size: inherit;
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
+}
+
+.block-editor-textarea:focus {
+  border-color: var(--accent-color, #2563eb);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+.edit-code {
+  font-family: monospace;
+  font-size: 0.9em;
 }
 
 .block-actions {
@@ -313,6 +443,51 @@ function onDragEnd() {
 .btn-add-block:hover {
   background-color: var(--hover-bg, #f5f5f5);
   border-color: var(--text-secondary, #999);
+}
+
+.add-block-footer {
+  margin-top: 0.5rem;
+}
+
+.add-block-menu {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  margin-top: 0.5rem;
+  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 6px;
+  background: var(--bg-primary, #fff);
+}
+
+.add-block-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 4px;
+  background: var(--bg-secondary, #f9f9f9);
+  cursor: pointer;
+  color: var(--text-primary, #333);
+  font-size: 0.875rem;
+}
+
+.add-block-option:hover {
+  background: var(--hover-bg, #f0f0f0);
+  border-color: var(--accent-color, #2563eb);
+}
+
+.add-block-icon {
+  font-weight: 700;
+  font-size: 0.8rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  background: var(--bg-tertiary, #eee);
 }
 
 .is-dragging {

@@ -103,6 +103,7 @@ export interface Block {
 export interface PageMetadata {
   version: number
   block_id: string
+  path?: string
   title: string
   description?: string
   properties?: Record<string, any>
@@ -681,6 +682,21 @@ export const blockService = {
     await apiClient.delete(
       `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/${blockId}`
     )
+  },
+
+  /**
+   * Convert an existing markdown file to a page of blocks.
+   */
+  async convertFileToBlocks(
+    notebookId: number | string,
+    workspaceId: number | string,
+    fileId: number
+  ): Promise<PageMetadata> {
+    const response = await apiClient.post<PageMetadata>(
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/convert-file`,
+      { file_id: fileId }
+    )
+    return response.data
   },
 
   /**

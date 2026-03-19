@@ -1490,8 +1490,8 @@ async function handleFolderDrop(event: DragEvent, notebookId: number, folderPath
   if (!event.dataTransfer) return
 
   // Handle external file drop (upload)
-  if (event.dataTransfer.files.length > 0) {
-    await handleFileUpload(event.dataTransfer.files, notebookId, folderPath)
+  if (event.dataTransfer.types.includes("Files") && !event.dataTransfer.types.includes("application/x-codex-file")) {
+    await handleFileUpload(event.dataTransfer, notebookId, folderPath)
     return
   }
 
@@ -1531,8 +1531,8 @@ async function handleNotebookDrop(event: DragEvent, notebookId: number) {
   if (!event.dataTransfer) return
 
   // Handle external file drop (upload)
-  if (event.dataTransfer.files.length > 0) {
-    await handleFileUpload(event.dataTransfer.files, notebookId, "")
+  if (event.dataTransfer.types.includes("Files") && !event.dataTransfer.types.includes("application/x-codex-file")) {
+    await handleFileUpload(event.dataTransfer, notebookId, "")
     return
   }
 
@@ -1551,16 +1551,88 @@ async function handleNotebookDrop(event: DragEvent, notebookId: number) {
   }
 }
 
+// Recursively read all files from a dropped directory entry
+function readEntriesRecursively(
+  entry: FileSystemDirectoryEntry
+): Promise<{ file: File; relativePath: string }[]> {
+  return new Promise((resolve) => {
+    const reader = entry.createReader()
+    const results: Promise<{ file: File; relativePath: string }[]>[] = []
+
+    function readBatch() {
+      reader.readEntries((entries) => {
+        if (entries.length === 0) {
+          Promise.all(results).then((arrays) => resolve(arrays.flat()))
+          return
+        }
+        for (const child of entries) {
+          if (child.isFile) {
+            results.push(
+              new Promise((res) => {
+                ;(child as FileSystemFileEntry).file((f) => {
+                  res([{ file: f, relativePath: child.fullPath.replace(/^\//, "") }])
+                })
+              })
+            )
+          } else if (child.isDirectory) {
+            results.push(readEntriesRecursively(child as FileSystemDirectoryEntry))
+          }
+        }
+        // readEntries may not return all entries at once; keep reading
+        readBatch()
+      })
+    }
+    readBatch()
+  })
+}
+
+// Collect files from DataTransfer, recursing into directories
+async function collectDroppedFiles(
+  dataTransfer: DataTransfer
+): Promise<{ file: File; relativePath: string }[]> {
+  const items = dataTransfer.items
+  const fileEntries: Promise<{ file: File; relativePath: string }[]>[] = []
+  let hasDirectories = false
+
+  if (items) {
+    for (const item of Array.from(items)) {
+      if (item.kind !== "file") continue
+      const entry = item.webkitGetAsEntry?.()
+      if (entry?.isDirectory) {
+        hasDirectories = true
+        fileEntries.push(readEntriesRecursively(entry as FileSystemDirectoryEntry))
+      } else if (entry?.isFile) {
+        fileEntries.push(
+          new Promise((resolve) => {
+            ;(entry as FileSystemFileEntry).file((f) => {
+              resolve([{ file: f, relativePath: f.name }])
+            })
+          })
+        )
+      }
+    }
+  }
+
+  if (hasDirectories || fileEntries.length > 0) {
+    const arrays = await Promise.all(fileEntries)
+    return arrays.flat()
+  }
+
+  // Fallback for browsers that don't support webkitGetAsEntry
+  return Array.from(dataTransfer.files).map((f) => ({ file: f, relativePath: f.name }))
+}
+
 // Handle file upload from drag-drop
-async function handleFileUpload(files: FileList, notebookId: number, folderPath: string) {
-  for (const file of Array.from(files)) {
+async function handleFileUpload(dataTransfer: DataTransfer, notebookId: number, folderPath: string) {
+  const droppedFiles = await collectDroppedFiles(dataTransfer)
+  for (const { file, relativePath } of droppedFiles) {
     try {
-      const targetPath = folderPath ? `${folderPath}/${file.name}` : file.name
+      const targetPath = folderPath ? `${folderPath}/${relativePath}` : relativePath
       await workspaceStore.uploadFile(notebookId, file, targetPath)
-      showToast({ message: `Uploaded ${file.name}` })
+      showToast({ message: `Uploaded ${relativePath}` })
     } catch (e) {
-      console.error(`Failed to upload ${file.name}:`, e)
-      showToast({ message: `Failed to upload ${file.name}`, type: "error" })
+      console.error(`Failed to upload ${relativePath}:`, e)
+      showToast({ message: `Failed to upload ${relativePath}`, type: "error" })
     }
   }
 }

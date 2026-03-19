@@ -42,9 +42,7 @@ k8s-deploy: build-plugins
 	@echo "    docker buildx build --push -t ghcr.io/<owner>/codex-plugin-service:latest ."
 	@echo ""
 	kubectl apply -k k8s/overlays/production
-	kubectl -n codex rollout status deployment/plugin-service --timeout=120s
 	kubectl -n codex rollout status deployment/backend --timeout=180s
-	kubectl -n codex rollout status deployment/frontend --timeout=120s
 	@echo ""
 	@echo "Production deployment complete!"
 
@@ -52,9 +50,7 @@ k8s-deploy: build-plugins
 k8s-deploy-staging: build-plugins
 	@echo "Deploying to staging Kubernetes cluster..."
 	kubectl apply -k k8s/overlays/staging
-	kubectl -n codex rollout status deployment/plugin-service --timeout=120s
 	kubectl -n codex rollout status deployment/backend --timeout=180s
-	kubectl -n codex rollout status deployment/frontend --timeout=120s
 	@echo ""
 	@echo "Staging deployment complete!"
 

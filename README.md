@@ -67,7 +67,6 @@ The backend image includes the compiled frontend. Only two services run in k8s: 
 ```
 backend/       Python/FastAPI app — API routes, watchers, DB models, migrations
 frontend/      Vue.js SPA — built into backend image for production
-plugin-service/ Plugin distribution service
 k8s/           Kubernetes manifests (Kustomize)
 plugins/       Plugin directory
 ```

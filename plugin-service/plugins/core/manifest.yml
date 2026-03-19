@@ -54,6 +54,14 @@ templates:
     default_name: "{title}.json"
     file_extension: .json
 
+  - id: blank-note
+    name: Blank Note
+    file: templates/blank-note.yaml
+    description: A simple blank note
+    icon: 📝
+    default_name: note.md
+    file_extension: .md
+
 # Example Files
 examples:
   - name: Home Dashboard

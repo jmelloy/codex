@@ -1,0 +1,20 @@
+id: github-issue-tracker
+name: GitHub Issue Tracker
+description: Track GitHub issues in your notebook
+icon: "🐛"
+file_extension: .cdx
+default_name: github-issues.cdx
+content: |
+  ---
+  title: GitHub Issue Tracker
+  type: view
+  integration: github
+  ---
+
+  # GitHub Issue Tracker
+
+  Use this template to embed and track GitHub issues.
+
+  ```github-issue
+  url: https://github.com/owner/repo/issues/1
+  ```

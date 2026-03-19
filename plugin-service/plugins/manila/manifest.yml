@@ -38,3 +38,12 @@ colors:
   
   # Accent
   accent-primary: "#667eea"
+
+# Templates
+templates:
+  - id: manila-note
+    name: Manila Note
+    file: templates/manila-note.yaml
+    description: A note styled with the Manila vintage aesthetic
+    icon: 📄
+    default_name: note.md

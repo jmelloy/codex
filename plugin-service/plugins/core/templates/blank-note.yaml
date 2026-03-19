@@ -1,0 +1,14 @@
+id: blank-note
+name: Blank Note
+description: A simple blank note
+icon: "📝"
+file_extension: .md
+default_name: note.md
+content: |
+  ---
+  title: New Note
+  ---
+
+  # New Note
+
+  Start writing here.

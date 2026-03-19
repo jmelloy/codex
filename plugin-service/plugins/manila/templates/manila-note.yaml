@@ -1,0 +1,15 @@
+id: manila-note
+name: Manila Note
+description: A note styled with the Manila vintage aesthetic
+icon: "📄"
+file_extension: .md
+default_name: note.md
+content: |
+  ---
+  title: New Note
+  theme: manila
+  ---
+
+  # New Note
+
+  Start writing your note here.

@@ -123,6 +123,13 @@ templates:
     icon: ✅
     default_name: tasks.cdx
 
+  - id: todo-item
+    name: Todo Item
+    file: templates/todo-item.yaml
+    description: Single todo item file
+    icon: ☑️
+    default_name: todo.cdx
+
 
 # Example Files
 examples:

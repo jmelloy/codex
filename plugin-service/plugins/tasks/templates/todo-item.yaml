@@ -1,0 +1,17 @@
+id: todo-item
+name: Todo Item
+description: Single todo item file
+icon: "☑️"
+file_extension: .cdx
+default_name: todo.cdx
+content: |
+  ---
+  type: todo
+  title: New Todo
+  status: todo
+  priority: medium
+  ---
+
+  # New Todo
+
+  Add your todo description here.

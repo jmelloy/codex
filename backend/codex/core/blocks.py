@@ -307,7 +307,18 @@ def create_block(
     relative_path = f"{page_path}/{filename}"
 
     # Insert Block row if session provided
+    file_id = None
     if nb_session is not None:
+        # Look up matching FileMetadata to link
+        file_meta = nb_session.exec(
+            select(FileMetadata).where(
+                FileMetadata.notebook_id == notebook_id,
+                FileMetadata.path == relative_path,
+            )
+        ).first()
+        if file_meta:
+            file_id = file_meta.id
+
         block = Block(
             notebook_id=notebook_id,
             block_id=block_id,
@@ -317,6 +328,7 @@ def create_block(
             content_format=content_format,
             order_index=order,
             title=None,
+            file_id=file_id,
         )
         nb_session.add(block)
         nb_session.commit()
@@ -328,6 +340,7 @@ def create_block(
         "path": relative_path,
         "order": order,
         "content": content,
+        "file_id": file_id,
     }
 
 
@@ -731,12 +744,23 @@ def sync_page_from_disk(
         else:
             rel_path = f"{page_path}/{filename}" if page_path else filename
 
+        # Look up matching FileMetadata to link file_id
+        file_meta = nb_session.exec(
+            select(FileMetadata).where(
+                FileMetadata.notebook_id == notebook_id,
+                FileMetadata.path == rel_path,
+            )
+        ).first()
+        linked_file_id = file_meta.id if file_meta else None
+
         if bid in existing_children:
             # Update existing
             child = existing_children[bid]
             child.path = rel_path
             child.block_type = block_type
             child.order_index = order
+            if linked_file_id and not child.file_id:
+                child.file_id = linked_file_id
             nb_session.add(child)
         else:
             # Create new
@@ -748,6 +772,7 @@ def sync_page_from_disk(
                 block_type=block_type,
                 content_format="markdown",
                 order_index=order,
+                file_id=linked_file_id,
             )
             nb_session.add(child)
 

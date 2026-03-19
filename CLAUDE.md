@@ -192,6 +192,8 @@ When fixing CSS/theme issues, always identify which layer (base styles, theme-sp
 
 ## Version Control / Git
 
+Prefer a git worktree for work.
+
 Before committing, run `git status` and `git diff --staged` to verify only the intended changes are staged. Do not assume the working tree is clean.
 
 Any PR that deletes more code than it adds is a good PR.

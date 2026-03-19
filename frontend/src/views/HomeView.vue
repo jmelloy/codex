@@ -497,64 +497,6 @@
         </button>
       </div>
 
-      <!-- Editor Mode -->
-      <div
-        v-else-if="workspaceStore.isEditing && workspaceStore.currentFile"
-        class="flex-1 flex overflow-hidden p-4"
-      >
-        <div class="flex-1 flex flex-col overflow-hidden">
-          <FileHeader
-            :file="workspaceStore.currentFile"
-            @toggle-properties="toggleProperties"
-            @rename="handleRenameFile"
-          >
-            <template #actions>
-              <!-- Markdown files: autosave is on, just show Done + Properties -->
-              <template v-if="isMarkdownFile">
-                <button
-                  @click="handleCancelEdit"
-                  class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
-                >
-                  Done
-                </button>
-              </template>
-              <!-- Non-markdown files: show explicit Save/Cancel -->
-              <template v-else>
-                <button
-                  @click="handleSaveFile(editContent)"
-                  class="notebook-button-primary px-4 py-2 rounded cursor-pointer text-sm transition"
-                >
-                  Save
-                </button>
-                <button
-                  @click="handleCancelEdit"
-                  class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
-                >
-                  Cancel
-                </button>
-              </template>
-              <button
-                @click="toggleProperties"
-                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
-              >
-                Properties
-              </button>
-            </template>
-          </FileHeader>
-          <MarkdownEditor
-            v-model="editContent"
-            :frontmatter="workspaceStore.currentFile.properties"
-            :autosave="isMarkdownFile"
-            :autosave-delay="1500"
-            :workspace-id="workspaceStore.currentWorkspace?.id"
-            :notebook-id="workspaceStore.currentFile.notebook_id"
-            @save="isMarkdownFile ? handleAutoSave($event) : handleSaveFile($event)"
-            @cancel="handleCancelEdit"
-            class="flex-1"
-          />
-        </div>
-      </div>
-
       <!-- Viewer Mode -->
       <div v-else-if="workspaceStore.currentFile" class="flex-1 flex overflow-hidden p-4">
         <!-- All file types use a consistent header + content pattern -->
@@ -573,15 +515,6 @@
                 title="Open in new tab"
               >
                 Open
-              </button>
-
-              <!-- Editable files (code, markdown, view) get Edit button -->
-              <button
-                v-else-if="['code', 'markdown', 'view'].includes(displayType)"
-                @click="startEdit"
-                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
-              >
-                Edit
               </button>
 
               <!-- Binary files get Download link -->
@@ -663,16 +596,6 @@
             />
           </div>
 
-          <!-- Dynamic View Renderer for .cdx files -->
-          <ViewRenderer
-            v-else-if="displayType === 'view'"
-            :file-id="workspaceStore.currentFile.id"
-            :workspace-id="workspaceStore.currentWorkspace!.id"
-            :notebook-id="workspaceStore.currentFile.notebook_id"
-            class="flex-1"
-            @select-file="selectFile"
-          />
-
           <!-- Code Viewer -->
           <CodeViewer
             v-else-if="displayType === 'code'"
@@ -704,7 +627,6 @@
             :current-file-path="workspaceStore.currentFile.path"
             :show-frontmatter="false"
             :show-toolbar="false"
-            @edit="startEdit"
             @copy="handleCopy"
             class="flex-1"
           />
@@ -838,49 +760,18 @@
   <!-- Create File Modal -->
   <Modal v-model="showCreateFile" title="Create File" confirm-text="Create" hide-actions>
     <form @submit.prevent="handleCreateFile">
-      <!-- Template Selection -->
-      <div class="mb-4">
-        <TemplateSelector
-          :notebook-id="createFileNotebook?.id"
-          :workspace-id="workspaceStore.currentWorkspace?.id"
-          v-model="selectedTemplate"
-          @select="handleTemplateSelect"
-          @update:mode="handleModeChange"
+      <FormGroup label="Filename" v-slot="{ inputId }">
+        <input
+          :id="inputId"
+          v-model="newFileName"
+          placeholder="example.md"
+          required
+          class="w-full px-3 py-2 border border-border-medium rounded-md bg-bg-primary text-text-primary"
         />
-      </div>
-
-      <!-- Input section -->
-      <div class="border-t border-border-light pt-4 mt-4">
-        <!-- Template filename input -->
-        <FormGroup v-if="selectedTemplate" label="Filename" v-slot="{ inputId }">
-          <div class="flex items-center gap-2">
-            <input
-              :id="inputId"
-              v-model="customTitle"
-              :placeholder="getFilenamePlaceholder()"
-              class="flex-1 px-3 py-2 border border-border-medium rounded-md bg-bg-primary text-text-primary"
-            />
-            <span class="text-text-secondary text-sm">{{ selectedTemplate?.file_extension }}</span>
-          </div>
-          <p class="text-sm text-text-secondary mt-1">
-            Will create: <code class="bg-bg-hover px-1 rounded">{{ getPreviewFilename() }}</code>
-          </p>
-        </FormGroup>
-
-        <!-- Blank file filename input -->
-        <FormGroup v-else label="Filename" v-slot="{ inputId }">
-          <input
-            :id="inputId"
-            v-model="newFileName"
-            placeholder="example.md"
-            required
-            class="w-full px-3 py-2 border border-border-medium rounded-md bg-bg-primary text-text-primary"
-          />
-          <p class="text-sm text-text-secondary mt-1">
-            Enter any filename with extension (e.g., notes.md, data.json, script.py)
-          </p>
-        </FormGroup>
-      </div>
+        <p class="text-sm text-text-secondary mt-1">
+          Enter any filename with extension (e.g., notes.md, data.json, script.py)
+        </p>
+      </FormGroup>
 
       <div class="flex gap-2 justify-end mt-6">
         <button
@@ -891,15 +782,6 @@
           Cancel
         </button>
         <button
-          v-if="createMode === 'file' && !selectedTemplate && newFileName.endsWith('.cdx')"
-          type="button"
-          @click="switchToViewCreator"
-          class="notebook-button px-4 py-2 text-white border-none rounded cursor-pointer transition"
-        >
-          Configure View →
-        </button>
-        <button
-          v-else
           type="submit"
           class="notebook-button px-4 py-2 text-white border-none rounded cursor-pointer transition"
         >
@@ -908,9 +790,6 @@
       </div>
     </form>
   </Modal>
-
-  <!-- Create View Modal -->
-  <CreateViewModal v-model="showCreateView" @create="handleCreateView" />
 
   <!-- Settings Dialog -->
   <SettingsDialog v-model="showSettingsDialog" @open-agent-chat="handleOpenAgentChat" />
@@ -935,23 +814,19 @@ import { ref, onMounted, watch, computed } from "vue"
 import { useRouter, useRoute } from "vue-router"
 import { useAuthStore } from "../stores/auth"
 import { useWorkspaceStore } from "../stores/workspace"
-import type { Workspace, Notebook, FileMetadata, Template } from "../services/codex"
-import { templateService, searchService } from "../services/codex"
+import type { Workspace, Notebook, FileMetadata } from "../services/codex"
+import { searchService } from "../services/codex"
 import { getDisplayType } from "../utils/contentType"
 import Modal from "../components/Modal.vue"
 import FormGroup from "../components/FormGroup.vue"
 import MarkdownViewer from "../components/MarkdownViewer.vue"
-import MarkdownEditor from "../components/MarkdownEditor.vue"
 import CodeViewer from "../components/CodeViewer.vue"
-import ViewRenderer from "../components/views/ViewRenderer.vue"
 import FilePropertiesPanel from "../components/FilePropertiesPanel.vue"
 import FolderPropertiesPanel from "../components/FolderPropertiesPanel.vue"
 import FolderView from "../components/FolderView.vue"
 import BlockView from "../components/BlockView.vue"
 import FileHeader from "../components/FileHeader.vue"
 import FileTreeItem from "../components/FileTreeItem.vue"
-import CreateViewModal from "../components/CreateViewModal.vue"
-import TemplateSelector from "../components/TemplateSelector.vue"
 import SettingsDialog from "../components/SettingsDialog.vue"
 import AgentChat from "../components/agent/AgentChat.vue"
 import { useAgentStore } from "../stores/agent"
@@ -969,7 +844,6 @@ const agentStore = useAgentStore()
 const showCreateWorkspace = ref(false)
 const showCreateNotebook = ref(false)
 const showCreateFile = ref(false)
-const showCreateView = ref(false)
 const showSettingsDialog = ref(false)
 
 // Form state
@@ -977,14 +851,9 @@ const newWorkspaceName = ref("")
 const newNotebookName = ref("")
 const newFileName = ref("")
 const createFileNotebook = ref<Notebook | null>(null)
-const selectedTemplate = ref<Template | null>(null)
-const customTitle = ref("")
-const createMode = ref<"file" | "template">("file")
 
 // View state
 const showPropertiesPanel = ref(false)
-const editContent = ref("")
-
 // Mobile sidebar state
 const sidebarOpen = ref(false)
 
@@ -1066,29 +935,12 @@ const displayType = computed(() => {
   return getDisplayType(workspaceStore.currentFile.content_type)
 })
 
-// Check if the current file is a markdown file (for auto-edit behavior)
-const isMarkdownFile = computed(() => displayType.value === "markdown")
-
 // Open file in a new tab
 function openInNewTab() {
   if (currentContentUrl.value) {
     window.open(currentContentUrl.value, "_blank")
   }
 }
-
-// Sync edit content when file changes (but not during editing, to prevent cursor jumps on autosave)
-watch(
-  () => workspaceStore.currentFile,
-  (file, oldFile) => {
-    if (!file) return
-    // When actively editing the same file, skip syncing content back from the store.
-    // The editor already has the authoritative content; feeding saved content back
-    // would overwrite any typing since the autosave was triggered and reset the cursor.
-    if (workspaceStore.isEditing && oldFile && file.id === oldFile.id) return
-    editContent.value = file.content
-  },
-  { immediate: true },
-)
 
 // Auto-convert markdown files to blocks when they finish loading
 const isConverting = ref(false)
@@ -1098,7 +950,6 @@ watch([() => workspaceStore.currentFile, () => workspaceStore.fileLoading], asyn
     !loading &&
     file.content !== undefined &&
     getDisplayType(file.content_type) === "markdown" &&
-    !workspaceStore.isEditing &&
     !isConverting.value
   ) {
     // Convert markdown file to blocks automatically
@@ -1106,8 +957,8 @@ watch([() => workspaceStore.currentFile, () => workspaceStore.fileLoading], asyn
     try {
       await workspaceStore.convertFileToBlocks(file.id, file.notebook_id)
     } catch {
-      // If conversion fails, fall back to regular edit mode
-      startEdit()
+      // If conversion fails, just log and continue with markdown viewer
+      console.warn("Failed to convert markdown to blocks")
     } finally {
       isConverting.value = false
     }
@@ -1474,8 +1325,6 @@ function getFileIcon(file: FileMetadata | undefined): string {
   const displayType = getDisplayType(file.content_type)
 
   switch (displayType) {
-    case "view":
-      return "📊" // Chart/view icon for .cdx files
     case "markdown":
       return "📝" // Memo for markdown
     case "json":
@@ -1722,37 +1571,6 @@ function findFileById(fileId: number): FileMetadata | undefined {
   return undefined
 }
 
-function startEdit() {
-  if (workspaceStore.currentFile) {
-    editContent.value = workspaceStore.currentFile.content
-    workspaceStore.setEditing(true)
-  }
-}
-
-function handleCancelEdit() {
-  workspaceStore.setEditing(false)
-  if (workspaceStore.currentFile) {
-    editContent.value = workspaceStore.currentFile.content
-  }
-}
-
-async function handleSaveFile(content: string) {
-  try {
-    await workspaceStore.saveFile(content)
-    showToast({ message: "File saved successfully" })
-  } catch {
-    // Error handled in store
-  }
-}
-
-async function handleAutoSave(content: string) {
-  try {
-    await workspaceStore.saveFile(content, undefined, true)
-  } catch {
-    // Error handled in store
-  }
-}
-
 function handleCopy() {
   showToast({ message: "Content copied to clipboard!" })
 }
@@ -1775,7 +1593,6 @@ async function handleRestoreVersion(content: string) {
   if (workspaceStore.currentFile) {
     try {
       await workspaceStore.saveFile(content)
-      editContent.value = content
       showToast({ message: "File restored to previous version" })
     } catch {
       showToast({ message: "Failed to restore file", type: "error" })
@@ -1900,33 +1717,6 @@ async function handleCreateFile() {
   if (!createFileNotebook.value || !workspaceStore.currentWorkspace) return
 
   try {
-    // If a template is selected, use the template service
-    if (selectedTemplate.value) {
-      const filename = customTitle.value
-        ? customTitle.value + selectedTemplate.value.file_extension
-        : undefined
-
-      const newFile = await templateService.createFromTemplate(
-        createFileNotebook.value.id,
-        workspaceStore.currentWorkspace.id,
-        selectedTemplate.value.id,
-        filename,
-      )
-
-      // Refresh file list and select the new file
-      await workspaceStore.fetchFiles(createFileNotebook.value.id)
-      await workspaceStore.selectFile(newFile)
-
-      showCreateFile.value = false
-      newFileName.value = ""
-      customTitle.value = ""
-      selectedTemplate.value = null
-      createFileNotebook.value = null
-      showToast({ message: "File created from template!" })
-      return
-    }
-
-    // Otherwise, create a blank file with custom content
     const path = newFileName.value
     const baseName = path.replace(/\.[^/.]+$/, "") || path
 
@@ -1936,8 +1726,6 @@ async function handleCreateFile() {
       await workspaceStore.createPage(notebookId, baseName)
       showCreateFile.value = false
       newFileName.value = ""
-      customTitle.value = ""
-      selectedTemplate.value = null
       createFileNotebook.value = null
       showToast({ message: "Page created!" })
       return
@@ -1945,23 +1733,7 @@ async function handleCreateFile() {
 
     // Generate default content based on file extension
     let content: string
-    if (path.endsWith(".cdx")) {
-      // Create basic view template
-      content = `---
-type: view
-view_type: kanban
-title: ${baseName}
-description: Dynamic view
-query:
-  tags: []
-config: {}
----
-
-# ${baseName}
-
-Edit the frontmatter above to configure this view.
-`
-    } else if (path.endsWith(".json")) {
+    if (path.endsWith(".json")) {
       content = "{\n  \n}"
     } else {
       // Default: empty file for other types
@@ -1971,72 +1743,17 @@ Edit the frontmatter above to configure this view.
     await workspaceStore.createFile(createFileNotebook.value.id, path, content)
     showCreateFile.value = false
     newFileName.value = ""
-    customTitle.value = ""
-    selectedTemplate.value = null
     createFileNotebook.value = null
   } catch {
     // Error handled in store
   }
 }
 
-function switchToViewCreator() {
-  showCreateFile.value = false
-  showCreateView.value = true
-}
-
-async function handleCreateView(data: { filename: string; content: string }) {
-  if (!createFileNotebook.value) return
-
-  try {
-    await workspaceStore.createFile(createFileNotebook.value.id, data.filename, data.content)
-    showCreateView.value = false
-    createFileNotebook.value = null
-    showToast({ message: "View created successfully!" })
-  } catch {
-    // Error handled in store
-  }
-}
 
 function startCreateFile(notebook: Notebook) {
   createFileNotebook.value = notebook
   newFileName.value = ""
-  selectedTemplate.value = null
-  customTitle.value = ""
-  createMode.value = "file"
   showCreateFile.value = true
-}
-
-function handleTemplateSelect(template: Template | null) {
-  selectedTemplate.value = template
-  if (template) {
-    createMode.value = "template"
-    // Clear custom filename when a template is selected
-    customTitle.value = ""
-  }
-}
-
-function handleModeChange(mode: "file" | "template") {
-  createMode.value = mode
-}
-
-function getFilenamePlaceholder(): string {
-  if (!selectedTemplate.value) return "filename"
-  // Extract placeholder from default_name pattern
-  const pattern = selectedTemplate.value.default_name
-  if (pattern.includes("{title}")) {
-    return "Enter title (optional)"
-  }
-  // For date-based patterns, show what the filename will be
-  return templateService.expandPattern(pattern).replace(selectedTemplate.value.file_extension, "")
-}
-
-function getPreviewFilename(): string {
-  if (!selectedTemplate.value) return newFileName.value || "filename.md"
-
-  const pattern = selectedTemplate.value.default_name
-  const title = customTitle.value || "untitled"
-
-  return templateService.expandPattern(pattern, title)
 }
 
 // Search functionality

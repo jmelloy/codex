@@ -476,22 +476,6 @@ def test_file_requires_authentication(test_client):
     assert response.status_code == 401
 
 
-def test_list_templates(test_client, auth_headers, workspace_and_notebook):
-    """Test listing available templates."""
-    headers = auth_headers[0]
-    workspace, notebook = workspace_and_notebook
-
-    response = test_client.get(
-        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/files/templates",
-        headers=headers,
-    )
-    assert response.status_code == 200
-    data = response.json()
-    assert "templates" in data
-    # Templates should be a list
-    assert isinstance(data["templates"], list)
-
-
 def test_resolve_link(test_client, auth_headers, workspace_and_notebook):
     """Test resolving a link to a file."""
     headers = auth_headers[0]

@@ -52,7 +52,6 @@ describe("Workspace Store", () => {
       expect(store.error).toBeNull()
       expect(store.currentFile).toBeNull()
       expect(store.currentFolder).toBeNull()
-      expect(store.isEditing).toBe(false)
       expect(store.fileLoading).toBe(false)
       expect(store.folderLoading).toBe(false)
     })
@@ -203,7 +202,6 @@ describe("Workspace Store", () => {
       expect(store.currentWorkspace).toBeNull()
       expect(store.currentFile).toBeNull()
       expect(store.currentFolder).toBeNull()
-      expect(store.isEditing).toBe(false)
     })
   })
 
@@ -301,27 +299,6 @@ describe("Workspace Store", () => {
       expect(fileService.getContent).toHaveBeenCalled()
     })
 
-    it("fetches content for codex view files", async () => {
-      const mockFile = {
-        id: 1,
-        notebook_id: 1,
-        path: "view.cdx",
-        filename: "view.cdx",
-        content_type: "application/x-codex-view",
-        size: 200,
-      }
-      const mockContent = { id: 1, content: "---\ntype: gallery\n---" }
-
-      vi.mocked(fileService.get).mockResolvedValue(mockFile as any)
-      vi.mocked(fileService.getContent).mockResolvedValue(mockContent as any)
-
-      const store = useWorkspaceStore()
-      store.currentWorkspace = { id: 1 } as any
-
-      await store.selectFile(mockFile as any)
-
-      expect(fileService.getContent).toHaveBeenCalled()
-    })
   })
 
   describe("saveFile", () => {
@@ -337,7 +314,6 @@ describe("Workspace Store", () => {
       await store.saveFile("new content", { key: "value" })
 
       expect(fileService.update).toHaveBeenCalledWith(1, 1, 1, "new content", { key: "value" })
-      expect(store.isEditing).toBe(false)
     })
 
     it("throws error when file has no notebook_id", async () => {
@@ -381,7 +357,6 @@ describe("Workspace Store", () => {
 
       expect(fileService.delete).toHaveBeenCalledWith(1, 1, 1)
       expect(store.currentFile).toBeNull()
-      expect(store.isEditing).toBe(false)
     })
   })
 
@@ -457,18 +432,6 @@ describe("Workspace Store", () => {
       store.toggleNotebookExpansion(notebook)
 
       expect(store.expandedNotebooks.has(1)).toBe(false)
-    })
-  })
-
-  describe("setEditing", () => {
-    it("sets editing state", () => {
-      const store = useWorkspaceStore()
-
-      store.setEditing(true)
-      expect(store.isEditing).toBe(true)
-
-      store.setEditing(false)
-      expect(store.isEditing).toBe(false)
     })
   })
 

@@ -350,32 +350,6 @@ class TestTaskQueue:
 # ---------------------------------------------------------------------------
 
 
-class TestQueryAPI:
-    """Corresponds to the 'Query API' section."""
-
-    def test_query_returns_200(self):
-        client = _fresh_client()
-        headers, _ = _register_and_login(client)
-        ws = client.post(
-            "/api/v1/workspaces/",
-            json={"name": f"query-ws-{int(time.time() * 1000)}"},
-            headers=headers,
-        ).json()
-
-        resp = client.post(
-            "/api/v1/query/",
-            params={"workspace_id": ws["id"]},
-            json={},
-            headers=headers,
-        )
-        assert resp.status_code == 200
-
-    def test_query_requires_auth(self):
-        client = _fresh_client()
-        resp = client.post("/api/v1/query/", params={"workspace_id": 1}, json={})
-        assert resp.status_code == 401
-
-
 # ---------------------------------------------------------------------------
 # CORS Headers
 # ---------------------------------------------------------------------------
@@ -514,11 +488,3 @@ class TestEndToEndFlow:
         )
         assert task_resp.status_code == 200
 
-        # 13. Query API
-        query_resp = client.post(
-            "/api/v1/query/",
-            params={"workspace_id": ws["id"]},
-            json={},
-            headers=headers,
-        )
-        assert query_resp.status_code == 200

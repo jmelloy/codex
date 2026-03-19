@@ -33,18 +33,6 @@ vi.mock("../../stores/integration", () => ({
   }),
 }))
 
-vi.mock("../../services/pluginRegistry", () => ({
-  pluginRegistry: {
-    registerPlugins: vi
-      .fn()
-      .mockResolvedValue({ registered: 0, updated: 0, failed: 0, results: [] }),
-  },
-}))
-
-vi.mock("../../services/viewPluginService", () => ({
-  viewPluginService: { initialize: vi.fn().mockResolvedValue(undefined) },
-}))
-
 function createTestRouter(): Router {
   const HomeView = { template: "<div>Home</div>" }
   const LoginView = { template: "<div>Login</div>" }

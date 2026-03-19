@@ -181,8 +181,6 @@ const getFileIcon = (file: FileMetadata | undefined): string => {
   const displayType = getDisplayType(file.content_type)
 
   switch (displayType) {
-    case "view":
-      return "📊" // Chart/view icon for .cdx files
     case "markdown":
       return "📝" // Memo for markdown
     case "json":

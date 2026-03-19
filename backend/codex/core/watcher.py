@@ -750,9 +750,7 @@ def get_content_type(filepath: str) -> str:
     filepath_lower = filepath.lower()
 
     # Custom file types that don't have standard MIME types
-    if filepath_lower.endswith(".cdx"):
-        return "application/x-codex-view"
-    elif filepath_lower.endswith(".md"):
+    if filepath_lower.endswith(".md"):
         return "text/markdown"
     elif filename_lower in ("dockerfile", "makefile", "gnumakefile"):
         return "text/x-makefile"

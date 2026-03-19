@@ -139,18 +139,6 @@ export interface FileAtCommit {
   content: string
 }
 
-export interface Template {
-  id: string
-  name: string
-  description: string
-  icon: string
-  file_extension: string
-  default_name: string
-  content: string
-  source: "default" | "notebook"
-}
-
-
 export const workspaceService = {
   async list(): Promise<Workspace[]> {
     const response = await apiClient.get<Workspace[]>("/api/v1/workspaces/")
@@ -236,7 +224,6 @@ export const fileService = {
   /**
    * Get text content for a file.
    * For markdown files, returns body content without frontmatter.
-   * For view files (.cdx), returns raw content including frontmatter.
    */
   async getContent(id: number, workspaceId: number | string, notebookId: number | string): Promise<FileTextContent> {
     const response = await apiClient.get<FileTextContent>(
@@ -414,84 +401,6 @@ export const fileService = {
       `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/${id}/history/${commitHash}`
     )
     return response.data
-  },
-}
-
-export const templateService = {
-  /**
-   * List available templates for a notebook.
-   */
-  async list(notebookId: number | string, workspaceId: number | string): Promise<Template[]> {
-    const response = await apiClient.get<{ templates: Template[] }>(
-      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/templates`
-    )
-    return response.data.templates
-  },
-
-  /**
-   * Create a file from a template.
-   */
-  async createFromTemplate(
-    notebookId: number | string,
-    workspaceId: number | string,
-    templateId: string,
-    filename?: string
-  ): Promise<FileMetadata> {
-    const response = await apiClient.post<FileMetadata>(
-      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/from-template`,
-      {
-        template_id: templateId,
-        filename: filename || null,
-      }
-    )
-    return response.data
-  },
-
-  /**
-   * Expand date patterns in a string (client-side preview).
-   */
-  expandPattern(pattern: string, title: string = "untitled"): string {
-    const now = new Date()
-    const yyyy = now.getFullYear().toString()
-    const yy = yyyy.slice(-2)
-    const mm = String(now.getMonth() + 1).padStart(2, "0")
-    const dd = String(now.getDate()).padStart(2, "0")
-    const monthNames: readonly string[] = [
-      "January",
-      "February",
-      "March",
-      "April",
-      "May",
-      "June",
-      "July",
-      "August",
-      "September",
-      "October",
-      "November",
-      "December",
-    ] as const
-    const month = monthNames[now.getMonth()] ?? "January"
-    const mon = month.slice(0, 3)
-    const dayNames: readonly string[] = [
-      "Sunday",
-      "Monday",
-      "Tuesday",
-      "Wednesday",
-      "Thursday",
-      "Friday",
-      "Saturday",
-    ] as const
-    const day = dayNames[now.getDay()] ?? "Sunday"
-
-    return pattern
-      .replace(/{yyyy}/gi, yyyy)
-      .replace(/{yy}/gi, yy)
-      .replace(/{mm}/gi, mm)
-      .replace(/{dd}/gi, dd)
-      .replace(/{month}/gi, month)
-      .replace(/{mon}/gi, mon)
-      .replace(/{day}/gi, day)
-      .replace(/{title}/g, title)
   },
 }
 

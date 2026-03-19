@@ -7,11 +7,6 @@
  * Maps MIME types to simple display categories for UI purposes
  */
 export function getDisplayType(contentType: string): string {
-  // Handle special Codex types
-  if (contentType === "application/x-codex-view") {
-    return "view"
-  }
-
   // Map common MIME types to display categories
   if (contentType.startsWith("image/")) {
     return "image"
@@ -76,8 +71,7 @@ export function isTextType(contentType: string): boolean {
   return (
     contentType.startsWith("text/") ||
     contentType === "application/json" ||
-    contentType === "application/xml" ||
-    contentType === "application/x-codex-view"
+    contentType === "application/xml"
   )
 }
 

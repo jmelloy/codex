@@ -6,7 +6,6 @@ import {
   fileService,
   folderService,
   searchService,
-  templateService,
 } from "../../services/codex"
 
 vi.mock("../../services/api", () => ({
@@ -230,51 +229,6 @@ describe("Codex Services", () => {
       expect(mockGet).toHaveBeenCalledWith(
         "/api/v1/workspaces/1/notebooks/1/files/1/history/abc123"
       )
-    })
-  })
-
-  describe("templateService", () => {
-    it("lists and creates from templates", async () => {
-      const mockTemplates = [
-        { id: "note", name: "Note", description: "A note", icon: "📝" },
-        { id: "journal", name: "Journal", description: "A journal entry", icon: "📓" },
-      ]
-      mockGet.mockResolvedValue({ data: { templates: mockTemplates } })
-      expect(await templateService.list(1, 1)).toEqual(mockTemplates)
-      expect(mockGet).toHaveBeenCalledWith("/api/v1/workspaces/1/notebooks/1/files/templates")
-
-      // create with filename
-      const mockFile = { id: 1, path: "new-note.md", filename: "new-note.md" }
-      mockPost.mockResolvedValue({ data: mockFile })
-      expect(await templateService.createFromTemplate(1, 1, "note", "my-note.md")).toEqual(mockFile)
-      expect(mockPost).toHaveBeenCalledWith(
-        "/api/v1/workspaces/1/notebooks/1/files/from-template",
-        { template_id: "note", filename: "my-note.md" }
-      )
-
-      // create without filename
-      mockPost.mockResolvedValue({ data: { id: 1, path: "untitled.md" } })
-      await templateService.createFromTemplate(1, 1, "note")
-      expect(mockPost).toHaveBeenCalledWith(
-        "/api/v1/workspaces/1/notebooks/1/files/from-template",
-        { template_id: "note", filename: null }
-      )
-    })
-
-    it("expands date patterns in filenames", () => {
-      vi.setSystemTime(new Date(2024, 5, 15)) // June 15, 2024
-      expect(templateService.expandPattern("{yyyy}-{mm}-{dd}-{title}.md", "my-note"))
-        .toBe("2024-06-15-my-note.md")
-
-      vi.setSystemTime(new Date(2024, 0, 5)) // January 5, 2024
-      expect(templateService.expandPattern("{yyyy}/{yy}/{mm}/{dd}/{month}/{mon}/{title}", "test"))
-        .toBe("2024/24/01/05/January/Jan/test")
-
-      // Default title
-      vi.setSystemTime(new Date(2024, 0, 1))
-      expect(templateService.expandPattern("{title}.md")).toBe("untitled.md")
-
-      vi.useRealTimers()
     })
   })
 

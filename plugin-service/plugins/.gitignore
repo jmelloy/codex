@@ -1,4 +1,0 @@
-# Plugin build artifacts
-**/node_modules/
-**/dist/
-plugins.json

@@ -37,7 +37,6 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   // File state - now using tree structure
   const fileTrees = ref<Map<number, FileTreeNode[]>>(new Map()) // notebook_id -> file tree
   const currentFile = ref<FileWithContent | null>(null)
-  const isEditing = ref(false)
   const expandedNotebooks = ref<Set<number>>(new Set())
   const fileLoading = ref(false)
 
@@ -148,7 +147,6 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     // Clear file and folder state when switching workspaces
     currentFile.value = null
     currentFolder.value = null
-    isEditing.value = false
     fileTrees.value.clear()
     expandedNotebooks.value.clear()
   }
@@ -221,12 +219,11 @@ export const useWorkspaceStore = defineStore("workspace", () => {
 
       // Set file with empty content initially so UI can render metadata immediately
       currentFile.value = { ...fileMeta, content: "" }
-      isEditing.value = false
 
       // Then fetch content for text-based files
       const isTextFile =
         fileMeta.content_type.startsWith("text/") ||
-        ["application/json", "application/xml", "application/x-codex-view"].includes(
+        ["application/json", "application/xml"].includes(
           fileMeta.content_type,
         )
 
@@ -271,10 +268,6 @@ export const useWorkspaceStore = defineStore("workspace", () => {
       )
       // Update currentFile with new content and properties
       currentFile.value = { ...currentFile.value, ...updated, content }
-      if (!keepEditing) {
-        isEditing.value = false
-      }
-
       // Update the file node in the tree (incremental update)
       const tree = fileTrees.value.get(currentFile.value.notebook_id)
       if (tree) {
@@ -326,7 +319,6 @@ export const useWorkspaceStore = defineStore("workspace", () => {
       await fileService.delete(fileId, currentWorkspace.value.id, notebookId)
       const filePath = currentFile.value.path
       currentFile.value = null
-      isEditing.value = false
 
       // Remove the file from the tree (incremental update)
       if (notebookId) {
@@ -407,7 +399,6 @@ export const useWorkspaceStore = defineStore("workspace", () => {
         // Clear current file if it was deleted
         if (currentFile.value?.path === event.path && currentFile.value?.notebook_id === event.notebook_id) {
           currentFile.value = null
-          isEditing.value = false
         }
         // Clear current folder if it was deleted
         if (currentFolder.value?.path === event.path && currentFolder.value?.notebook_id === event.notebook_id) {
@@ -441,10 +432,6 @@ export const useWorkspaceStore = defineStore("workspace", () => {
         }
         break
     }
-  }
-
-  function setEditing(editing: boolean) {
-    isEditing.value = editing
   }
 
   function getFilesForNotebook(notebookId: number): FileMetadata[] {
@@ -531,7 +518,6 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     if (!currentWorkspace.value) return
 
     currentFile.value = null // Clear current file when selecting folder
-    isEditing.value = false
 
     // Use fetchFolderContents which handles both loading and tree merging
     const folder = await fetchFolderContents(folderPath, notebookId)
@@ -813,7 +799,6 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     files, // Backwards-compatible computed flat list
     currentNotebook,
     currentFile,
-    isEditing,
     expandedNotebooks,
     fileLoading,
     // Folder state
@@ -837,7 +822,6 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     uploadFile,
     moveFile,
     toggleNotebookExpansion,
-    setEditing,
     getFilesForNotebook,
     getFileTree,
     // Folder actions

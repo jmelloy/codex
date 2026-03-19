@@ -10,7 +10,6 @@ import {
 describe("contentType utilities", () => {
   describe("getDisplayType", () => {
     it.each([
-      ["application/x-codex-view", "view"],
       // images
       ["image/jpeg", "image"],
       ["image/png", "image"],
@@ -63,7 +62,6 @@ describe("contentType utilities", () => {
       ["text/css", true],
       ["application/json", true],
       ["application/xml", true],
-      ["application/x-codex-view", true],
       ["image/png", false],
       ["video/mp4", false],
       ["audio/mpeg", false],

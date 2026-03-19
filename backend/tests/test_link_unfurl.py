@@ -72,41 +72,6 @@ def workspace_and_notebook(client, auth_headers):
     return workspace_id, notebook_id
 
 
-def test_opengraph_integration_available(client, auth_headers):
-    """Test that opengraph-unfurl integration is available."""
-    # First register the plugin
-    
-    manifest_path = Path(__file__).parent.parent.parent / "plugin-service" / "plugins" / "opengraph" / "manifest.yml"
-    with open(manifest_path) as f:
-        manifest = yaml.safe_load(f)
-    
-    # Register the plugin
-    register_response = client.post(
-        "/api/v1/plugins/register",
-        headers=auth_headers,
-        json={
-            "id": manifest["id"],
-            "name": manifest["name"],
-            "version": manifest["version"],
-            "type": manifest["type"],
-            "manifest": manifest,
-        },
-    )
-    assert register_response.status_code in [200, 201]
-    
-    # Now test that it's available
-    response = client.get("/api/v1/plugins/integrations", headers=auth_headers)
-    assert response.status_code == 200
-
-    integrations = response.json()
-    opengraph = next((i for i in integrations if i["id"] == "opengraph-unfurl"), None)
-
-    assert opengraph is not None
-    assert opengraph["name"] == "Open Graph Link Unfurling"
-    assert opengraph["api_type"] == "rest"
-    assert opengraph["auth_method"] == "none"
-
-
 def test_opengraph_scraper_with_html():
     """Test the opengraph scraper with mock HTML."""
     from codex.plugins.opengraph_scraper import OpenGraphScraper
@@ -165,18 +130,11 @@ def test_url_detection_in_markdown():
 
 
 @pytest.mark.asyncio
-async def test_execute_opengraph_endpoint():
-    """Test executing the opengraph endpoint directly."""
-    from codex.plugins.executor import IntegrationExecutor
-    from codex.plugins.loader import PluginLoader
-    from pathlib import Path
+async def test_execute_opengraph_scraper():
+    """Test executing the opengraph scraper directly."""
+    from codex.plugins.opengraph_scraper import OpenGraphScraper
 
-    loader = PluginLoader(Path(__file__).parent.parent.parent / "plugin-service" / "plugins")
-    plugins = loader.load_all_plugins()  # Load all plugins
-    executor = IntegrationExecutor()
-    opengraph = plugins.get("opengraph-unfurl")
-
-    assert opengraph is not None
+    scraper = OpenGraphScraper()
 
     # Test with mock HTML
     html = """
@@ -188,7 +146,7 @@ async def test_execute_opengraph_endpoint():
     </html>
     """
 
-    metadata = executor.opengraph_scraper._parse_og_tags(html)
+    metadata = scraper._parse_og_tags(html)
 
     assert "title" in metadata
     assert metadata["title"] == "Test Title"

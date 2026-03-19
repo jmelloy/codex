@@ -21,15 +21,6 @@ vi.mock("../../stores/integration", () => ({
   }),
 }))
 
-vi.mock("../../services/pluginRegistry", () => ({
-  pluginRegistry: {
-    registerPlugins: vi.fn().mockResolvedValue({ registered: 0, updated: 0, failed: 0, results: [] }),
-  },
-}))
-
-vi.mock("../../services/viewPluginService", () => ({
-  viewPluginService: { initialize: vi.fn().mockResolvedValue(undefined) },
-}))
 
 const mockTokenResponse = { access_token: "test-token", token_type: "bearer" }
 const mockUser = { id: 1, username: "testuser", email: "test@example.com", is_active: true }

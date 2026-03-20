@@ -32,7 +32,7 @@ services:
       start_period: 10s
 
   frontend:
-    image: node:22-slim
+    image: node:24-slim
     working_dir: /app
     ports:
       - 8065:5173

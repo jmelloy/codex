@@ -10,9 +10,10 @@ for every FileMetadata row that doesn't already have one.
 
 import json
 import os
-import uuid
 from collections.abc import Sequence
 from pathlib import Path
+
+from ulid import ULID
 
 import sqlalchemy as sa
 from alembic import op
@@ -100,7 +101,7 @@ def upgrade() -> None:
             if parent_row:
                 parent_block_id = parent_row[0]
 
-        block_id = str(uuid.uuid4())
+        block_id = str(ULID())
         content_format = "binary" if (content_type and not content_type.startswith("text/")) else "markdown"
 
         conn.execute(

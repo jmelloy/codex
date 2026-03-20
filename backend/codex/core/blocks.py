@@ -13,6 +13,8 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+from ulid import ULID
+
 from sqlmodel import Session, select
 
 from codex.db.models import Block, FileMetadata
@@ -236,7 +238,7 @@ def add_file_as_block(
 
     # Calculate order
     order = _next_order_index(page_meta)
-    block_id = str(uuid.uuid4())
+    block_id = str(ULID())
 
     # Add to page metadata
     page_meta.setdefault("blocks", []).append(
@@ -332,7 +334,7 @@ def create_page(
     full_path.mkdir(parents=True, exist_ok=True)
 
     # Generate block_id
-    block_id = str(uuid.uuid4())
+    block_id = str(ULID())
 
     # Write .codex-page.json
     page_metadata = {
@@ -445,7 +447,7 @@ def create_block(
     order = _insert_order_index(page_meta, position)
 
     # Generate block ID and filename
-    block_id = str(uuid.uuid4())
+    block_id = str(ULID())
     filename = _generate_block_filename(block_type, len(page_meta.get("blocks", [])) + 1, content)
 
     # Ensure unique filename
@@ -1196,7 +1198,7 @@ def upload_to_block(
     nb_session.flush()  # Get the ID
 
     # Create Block
-    block_id = str(uuid.uuid4())
+    block_id = str(ULID())
     ext = os.path.splitext(filename)[1].lower()
     image_exts = {".jpg", ".jpeg", ".png", ".gif", ".svg", ".webp", ".bmp", ".ico"}
     block_type = BLOCK_TYPE_IMAGE if ext in image_exts else BLOCK_TYPE_FILE
@@ -1362,7 +1364,7 @@ def sync_block_from_file_metadata(
 
     block = Block(
         notebook_id=notebook_id,
-        block_id=str(uuid.uuid4()),
+        block_id=str(ULID()),
         parent_block_id=parent_block_id,
         path=file_meta.path,
         block_type=block_type,

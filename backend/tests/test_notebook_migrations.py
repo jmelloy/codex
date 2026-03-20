@@ -129,6 +129,16 @@ class TestNotebookMigrations:
 
     def test_notebook_alembic_version(self, tmp_path):
         """Test that the correct Alembic version is applied."""
+        import os
+
+        from alembic.config import Config
+        from alembic.script import ScriptDirectory
+
+        # Determine expected head revision from the migration scripts on disk
+        ini_path = os.path.join(os.path.dirname(__file__), "..", "alembic.ini")
+        cfg = Config(os.path.abspath(ini_path), ini_section="alembic:notebook")
+        expected_head = ScriptDirectory.from_config(cfg).get_current_head()
+
         notebook_path = tmp_path / "test_notebook"
         notebook_path.mkdir()
 
@@ -139,8 +149,7 @@ class TestNotebookMigrations:
         with engine.connect() as conn:
             result = conn.execute(text("SELECT version_num FROM alembic_version"))
             version = result.scalar()
-            # Should be at the latest migration (010)
-            assert version == "010"
+            assert version == expected_head
 
         engine.dispose()
 
@@ -240,10 +249,6 @@ class TestNotebookMigrations:
             # file_metadata should be gone after migration 010
             inspector = inspect(engine)
             assert "file_metadata" not in inspector.get_table_names()
-
-            # Verify we're at migration 010
-            result = conn.execute(text("SELECT version_num FROM alembic_version"))
-            assert result.scalar() == "010"
 
         engine.dispose()
 

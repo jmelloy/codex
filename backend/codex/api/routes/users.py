@@ -15,14 +15,14 @@ from codex.api.auth import (
     verify_password,
 )
 from codex.api.routes.workspaces import WorkspaceCreate, create_workspace
-from codex.api.schemas import ThemeUpdate, UserCreate, UserResponse
+from codex.api.schemas import MessageResponse, ThemeUpdate, TokenResponse, UserCreate, UserResponse
 from codex.db.database import get_system_session
 from codex.db.models import AgentSession, OAuthConnection, PersonalAccessToken, User, Workspace, WorkspacePermission
 
 router = APIRouter()
 
 
-@router.post("/token")
+@router.post("/token", response_model=TokenResponse)
 async def login(
     response: Response,
     form_data: OAuth2PasswordRequestForm = Depends(),
@@ -92,7 +92,7 @@ async def register(user_data: UserCreate, session: AsyncSession = Depends(get_sy
     return UserResponse.model_validate(new_user)
 
 
-@router.delete("/me")
+@router.delete("/me", response_model=MessageResponse)
 async def delete_user(
     response: Response,
     current_user: User = Depends(get_current_active_user),

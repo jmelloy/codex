@@ -6,6 +6,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from codex.api.auth import get_current_active_user
 from codex.api.routes.notebooks import get_notebook_by_slug_or_id
 from codex.api.routes.workspaces import get_workspace_by_slug_or_id
+from codex.api.schemas import (
+    NotebookSearchResponse,
+    NotebookTagSearchResponse,
+    WorkspaceSearchResponse,
+    WorkspaceTagSearchResponse,
+)
 from codex.db.database import get_system_session
 from codex.db.models import User
 
@@ -13,7 +19,7 @@ from codex.db.models import User
 nested_router = APIRouter()
 
 
-@nested_router.get("/")
+@nested_router.get("/", response_model=WorkspaceSearchResponse)
 async def search_workspace(
     workspace_identifier: str,
     q: str,
@@ -35,7 +41,7 @@ async def search_workspace(
     }
 
 
-@nested_router.get("/tags")
+@nested_router.get("/tags", response_model=WorkspaceTagSearchResponse)
 async def search_workspace_by_tags(
     workspace_identifier: str,
     tags: str,
@@ -62,7 +68,7 @@ async def search_workspace_by_tags(
 notebook_nested_router = APIRouter()
 
 
-@notebook_nested_router.get("/")
+@notebook_nested_router.get("/", response_model=NotebookSearchResponse)
 async def search_notebook(
     workspace_identifier: str,
     notebook_identifier: str,
@@ -86,7 +92,7 @@ async def search_notebook(
     }
 
 
-@notebook_nested_router.get("/tags")
+@notebook_nested_router.get("/tags", response_model=NotebookTagSearchResponse)
 async def search_notebook_by_tags(
     workspace_identifier: str,
     notebook_identifier: str,

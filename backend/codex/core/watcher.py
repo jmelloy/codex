@@ -483,8 +483,14 @@ def update_file_metadata(
                         ).scalar_one_or_none()
                         if block:
                             session.delete(block)
-                except Exception:
-                    pass
+                except Exception as block_delete_err:
+                    logger.warning(
+                        "Failed to delete Block for file '%s' in notebook '%s': %s",
+                        rel_path,
+                        notebook_id,
+                        block_delete_err,
+                        exc_info=True,
+                    )
                 session.delete(file_meta)
                 session.commit()
         else:

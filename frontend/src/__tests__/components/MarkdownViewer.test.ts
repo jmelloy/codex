@@ -138,7 +138,7 @@ describe("MarkdownViewer", () => {
     expect(html).toContain("<img")
     // HTML entities are escaped in the output - now using nested route format
     expect(html).toContain(
-      'src="/api/v1/workspaces/1/notebooks/2/files/path/test-image.png/content"'
+      'src="/api/v1/workspaces/1/notebooks/2/blocks/path/test-image.png/content"'
     )
     expect(html).toContain('alt="Test Image"')
   })
@@ -160,7 +160,7 @@ describe("MarkdownViewer", () => {
     expect(html).toContain("<a")
     // HTML entities are escaped in the output - now using nested route format
     expect(html).toContain(
-      'href="/api/v1/workspaces/1/notebooks/2/files/path/document.md/content"'
+      'href="/api/v1/workspaces/1/notebooks/2/blocks/path/document.md/content"'
     )
     expect(html).toContain("Read More")
   })
@@ -232,7 +232,7 @@ describe("MarkdownViewer", () => {
     expect(html).toContain("<img")
     // The path is URL-encoded and HTML entities are escaped - now using nested route format
     expect(html).toContain(
-      'src="/api/v1/workspaces/1/notebooks/2/files/path/.%2Fimages%2Ftest.png/content"'
+      'src="/api/v1/workspaces/1/notebooks/2/blocks/path/.%2Fimages%2Ftest.png/content"'
     )
   })
 
@@ -252,10 +252,10 @@ describe("MarkdownViewer", () => {
     const html = wrapper.find(".markdown-content").html()
     // HTML entities are escaped in the output - now using nested route format
     expect(html).toContain(
-      'src="/api/v1/workspaces/1/notebooks/2/files/path/img1.png/content"'
+      'src="/api/v1/workspaces/1/notebooks/2/blocks/path/img1.png/content"'
     )
     expect(html).toContain(
-      'src="/api/v1/workspaces/1/notebooks/2/files/path/img2.jpg/content"'
+      'src="/api/v1/workspaces/1/notebooks/2/blocks/path/img2.jpg/content"'
     )
   })
 })

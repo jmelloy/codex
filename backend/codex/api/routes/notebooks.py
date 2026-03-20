@@ -12,6 +12,12 @@ from sqlmodel import select
 from codex.api.auth import get_current_active_user
 from codex.api.routes.utils import slugify
 from codex.api.routes.workspaces import get_workspace_by_slug_or_id
+from codex.api.schemas import (
+    MessageResponse,
+    NotebookIndexingStatusResponse,
+    NotebookPluginConfigResponse,
+    NotebookResponse,
+)
 from codex.core.watcher import NotebookWatcher, get_watcher_for_notebook, unregister_watcher
 from codex.db.database import get_system_session, init_notebook_db
 from codex.db.models import Notebook, NotebookPluginConfig, User, Workspace
@@ -156,7 +162,7 @@ async def _delete_plugin_config(notebook_id: int, plugin_id: str, session: Async
 router = APIRouter()
 
 
-@router.get("/{notebook_id}/plugins")
+@router.get("/{notebook_id}/plugins", response_model=list[NotebookPluginConfigResponse])
 async def list_notebook_plugins(
     notebook_id: int,
     current_user: User = Depends(get_current_active_user),
@@ -167,7 +173,7 @@ async def list_notebook_plugins(
     return await _list_plugin_configs(notebook_id, session)
 
 
-@router.get("/{notebook_id}/plugins/{plugin_id}")
+@router.get("/{notebook_id}/plugins/{plugin_id}", response_model=NotebookPluginConfigResponse)
 async def get_notebook_plugin_config(
     notebook_id: int,
     plugin_id: str,
@@ -179,7 +185,7 @@ async def get_notebook_plugin_config(
     return await _get_plugin_config(notebook_id, plugin_id, session)
 
 
-@router.put("/{notebook_id}/plugins/{plugin_id}")
+@router.put("/{notebook_id}/plugins/{plugin_id}", response_model=NotebookPluginConfigResponse)
 async def update_notebook_plugin_config(
     notebook_id: int,
     plugin_id: str,
@@ -192,7 +198,7 @@ async def update_notebook_plugin_config(
     return await _update_plugin_config(notebook_id, plugin_id, request_data, session)
 
 
-@router.delete("/{notebook_id}/plugins/{plugin_id}")
+@router.delete("/{notebook_id}/plugins/{plugin_id}", response_model=MessageResponse)
 async def delete_notebook_plugin_config(
     notebook_id: int,
     plugin_id: str,
@@ -211,7 +217,7 @@ async def delete_notebook_plugin_config(
 nested_router = APIRouter()
 
 
-@nested_router.get("/")
+@nested_router.get("/", response_model=list[NotebookResponse])
 async def list_notebooks_nested(
     workspace_identifier: str,
     current_user: User = Depends(get_current_active_user),
@@ -237,7 +243,7 @@ async def list_notebooks_nested(
     ]
 
 
-@nested_router.post("/")
+@nested_router.post("/", response_model=NotebookResponse)
 async def create_notebook_nested(
     workspace_identifier: str,
     body: NotebookCreate,
@@ -292,7 +298,7 @@ async def create_notebook_nested(
         raise HTTPException(status_code=500, detail=f"Error creating notebook: {str(e)}")
 
 
-@nested_router.get("/{notebook_identifier}")
+@nested_router.get("/{notebook_identifier}", response_model=NotebookResponse)
 async def get_notebook_nested(
     workspace_identifier: str,
     notebook_identifier: str,
@@ -314,7 +320,7 @@ async def get_notebook_nested(
     }
 
 
-@nested_router.get("/{notebook_identifier}/indexing-status")
+@nested_router.get("/{notebook_identifier}/indexing-status", response_model=NotebookIndexingStatusResponse)
 async def get_notebook_indexing_status_nested(
     workspace_identifier: str,
     notebook_identifier: str,
@@ -334,7 +340,7 @@ async def get_notebook_indexing_status_nested(
     return {"notebook_id": notebook.id, "status": "not_started", "is_alive": False}
 
 
-@nested_router.get("/{notebook_identifier}/plugins")
+@nested_router.get("/{notebook_identifier}/plugins", response_model=list[NotebookPluginConfigResponse])
 async def list_notebook_plugins_nested(
     workspace_identifier: str,
     notebook_identifier: str,
@@ -347,7 +353,7 @@ async def list_notebook_plugins_nested(
     return await _list_plugin_configs(notebook.id, session)
 
 
-@nested_router.get("/{notebook_identifier}/plugins/{plugin_id}")
+@nested_router.get("/{notebook_identifier}/plugins/{plugin_id}", response_model=NotebookPluginConfigResponse)
 async def get_notebook_plugin_config_nested(
     workspace_identifier: str,
     notebook_identifier: str,
@@ -361,7 +367,7 @@ async def get_notebook_plugin_config_nested(
     return await _get_plugin_config(notebook.id, plugin_id, session)
 
 
-@nested_router.put("/{notebook_identifier}/plugins/{plugin_id}")
+@nested_router.put("/{notebook_identifier}/plugins/{plugin_id}", response_model=NotebookPluginConfigResponse)
 async def update_notebook_plugin_config_nested(
     workspace_identifier: str,
     notebook_identifier: str,
@@ -376,7 +382,7 @@ async def update_notebook_plugin_config_nested(
     return await _update_plugin_config(notebook.id, plugin_id, request_data, session)
 
 
-@nested_router.delete("/{notebook_identifier}")
+@nested_router.delete("/{notebook_identifier}", response_model=MessageResponse)
 async def delete_notebook_nested(
     workspace_identifier: str,
     notebook_identifier: str,
@@ -412,7 +418,7 @@ async def delete_notebook_nested(
     return {"message": "Notebook deleted successfully"}
 
 
-@nested_router.delete("/{notebook_identifier}/plugins/{plugin_id}")
+@nested_router.delete("/{notebook_identifier}/plugins/{plugin_id}", response_model=MessageResponse)
 async def delete_notebook_plugin_config_nested(
     workspace_identifier: str,
     notebook_identifier: str,

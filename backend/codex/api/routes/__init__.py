@@ -2,8 +2,6 @@
 
 from . import (
     calendar,
-    files,
-    folders,
     integrations,
     notebooks,
     oauth,
@@ -18,8 +16,6 @@ from . import (
 
 __all__ = [
     "calendar",
-    "files",
-    "folders",
     "integrations",
     "notebooks",
     "oauth",

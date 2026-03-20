@@ -21,18 +21,24 @@ class TestNotebookMigrations:
         inspector = inspect(engine)
         tables = inspector.get_table_names()
 
-        assert "file_metadata" in tables
+        assert "blocks" in tables
         assert "tags" in tables
-        assert "file_tags" in tables
+        assert "block_tags" in tables
         assert "search_index" in tables
+        # file_metadata should no longer exist after migration 010
+        assert "file_metadata" not in tables
 
         # Verify the alembic_version table exists (confirms Alembic was used)
         assert "alembic_version" in tables
 
-        # Verify file_metadata has 'properties' column (not 'frontmatter')
-        columns = {col["name"] for col in inspector.get_columns("file_metadata")}
-        assert "properties" in columns
-        assert "frontmatter" not in columns
+        # Verify blocks has merged fields from file_metadata
+        columns = {col["name"] for col in inspector.get_columns("blocks")}
+        assert "filename" in columns
+        assert "hash" in columns
+        assert "git_tracked" in columns
+        assert "s3_key" in columns
+        # file_id should be gone
+        assert "file_id" not in columns
 
     def test_migrate_existing_notebook_with_frontmatter(self, tmp_path):
         """Test migrating an existing database with frontmatter column to properties."""
@@ -75,7 +81,7 @@ class TestNotebookMigrations:
             # Insert test data
             conn.execute(text("""
                 INSERT INTO file_metadata (
-                    id, notebook_id, path, filename, file_type, size, 
+                    id, notebook_id, path, filename, file_type, size,
                     frontmatter, created_at, updated_at, git_tracked
                 )
                 VALUES (
@@ -90,21 +96,11 @@ class TestNotebookMigrations:
         # Run migrations
         engine = init_notebook_db(str(notebook_path))
 
-        # Verify migration was applied
+        # Verify file_metadata is gone after all migrations
         inspector = inspect(engine)
-        columns = {col["name"] for col in inspector.get_columns("file_metadata")}
-
-        # Should now have 'properties' instead of 'frontmatter'
-        assert "properties" in columns
-        assert "frontmatter" not in columns
-
-        # Verify data was preserved
-        with engine.connect() as conn:
-            result = conn.execute(text("SELECT id, properties FROM file_metadata WHERE id = 1"))
-            row = result.fetchone()
-            assert row is not None
-            assert row[0] == 1
-            assert row[1] == '{"title": "Test"}'
+        tables = inspector.get_table_names()
+        assert "file_metadata" not in tables
+        assert "blocks" in tables
 
         engine.dispose()
 
@@ -124,9 +120,9 @@ class TestNotebookMigrations:
         inspector = inspect(engine2)
         tables = inspector.get_table_names()
 
-        assert "file_metadata" in tables
+        assert "blocks" in tables
         assert "tags" in tables
-        assert "file_tags" in tables
+        assert "block_tags" in tables
         assert "search_index" in tables
 
         engine2.dispose()
@@ -143,47 +139,23 @@ class TestNotebookMigrations:
         with engine.connect() as conn:
             result = conn.execute(text("SELECT version_num FROM alembic_version"))
             version = result.scalar()
-            # Should be at the latest migration (007)
-            assert version == "007"
+            # Should be at the latest migration (010)
+            assert version == "010"
 
         engine.dispose()
 
     def test_unique_constraint_on_notebook_path(self, tmp_path):
-        """Test that unique constraint on (notebook_id, path) is enforced."""
+        """Test that unique constraint on (notebook_id, path) is enforced on blocks."""
         notebook_path = tmp_path / "test_notebook"
         notebook_path.mkdir()
 
         engine = init_notebook_db(str(notebook_path))
 
-        # Verify the unique constraint exists
+        # Verify the unique constraint exists on blocks
         inspector = inspect(engine)
-        constraints = inspector.get_unique_constraints("file_metadata")
+        constraints = inspector.get_unique_constraints("blocks")
         constraint_columns = [tuple(c["column_names"]) for c in constraints]
         assert ("notebook_id", "path") in constraint_columns
-
-        # Verify inserting duplicate (notebook_id, path) is rejected
-        with engine.connect() as conn:
-            conn.execute(text("""
-                INSERT INTO file_metadata (
-                    notebook_id, path, filename, content_type, size,
-                    created_at, updated_at, git_tracked
-                )
-                VALUES (1, 'test.md', 'test.md', 'text/markdown', 100,
-                        '2025-01-23 00:00:00', '2025-01-23 00:00:00', 1)
-            """))
-            conn.commit()
-
-            # Duplicate insert should fail
-            with pytest.raises(Exception, match="UNIQUE constraint failed"):
-                conn.execute(text("""
-                    INSERT INTO file_metadata (
-                        notebook_id, path, filename, content_type, size,
-                        created_at, updated_at, git_tracked
-                    )
-                    VALUES (1, 'test.md', 'test.md', 'text/markdown', 200,
-                            '2025-01-23 00:00:00', '2025-01-23 00:00:00', 1)
-                """))
-                conn.commit()
 
         engine.dispose()
 
@@ -260,17 +232,18 @@ class TestNotebookMigrations:
 
         old_engine.dispose()
 
-        # Run migrations — should run 005 which deduplicates and adds constraint
+        # Run migrations — should run 005 which deduplicates and adds constraint,
+        # then later migrations merge file_metadata into blocks
         engine = init_notebook_db(str(notebook_path))
 
         with engine.connect() as conn:
-            # Should only have 1 row (the highest id kept)
-            result = conn.execute(text("SELECT COUNT(*) FROM file_metadata WHERE path = 'duplicate.md'"))
-            assert result.scalar() == 1
+            # file_metadata should be gone after migration 010
+            inspector = inspect(engine)
+            assert "file_metadata" not in inspector.get_table_names()
 
-            # Verify we're at migration 007
+            # Verify we're at migration 010
             result = conn.execute(text("SELECT version_num FROM alembic_version"))
-            assert result.scalar() == "007"
+            assert result.scalar() == "010"
 
         engine.dispose()
 

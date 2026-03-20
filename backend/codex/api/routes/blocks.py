@@ -4,26 +4,52 @@ Provides CRUD operations for blocks and pages, supporting Notion-like
 infinite block recursion backed by filesystem folders and files.
 """
 
+import json
 import logging
+import mimetypes
 from typing import Any
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
 
 from codex.api.auth import get_current_active_user
 from codex.api.routes.helpers import get_notebook_path_nested
+from codex.api.schemas import (
+    BlockAtCommitResponse,
+    BlockChildrenResponse,
+    BlockDeleteResponse,
+    BlockReorderResponse,
+    BlockResolveLinkResponse,
+    BlockResponse,
+    BlockTextContentResponse,
+    BlockTreeResponse,
+    BlockHistoryResponse,
+    ImportFolderResponse,
+    PageResponse,
+    RootBlocksResponse,
+)
 from codex.core.blocks import (
+    _block_dict,
+    _parse_json,
     create_block,
     create_page,
     delete_block,
     get_block,
     get_block_children,
+    get_block_content,
+    get_block_tree,
     get_root_blocks,
+    import_folder_as_pages,
     move_block,
     read_page_metadata,
     reorder_blocks,
+    serve_block_file,
     update_block_content,
+    update_block_properties,
+    upload_to_block,
 )
 from codex.core.md_import import import_markdown_to_page
 from codex.db.database import get_notebook_session, get_system_session
@@ -79,6 +105,25 @@ class ReorderBlocksRequest(BaseModel):
     block_ids: list[str]
 
 
+class UpdateBlockPropertiesRequest(BaseModel):
+    """Request to update block properties."""
+
+    properties: dict[str, Any]
+
+
+class ImportFolderRequest(BaseModel):
+    """Request to import a folder tree as pages."""
+
+    folder_path: str
+
+
+class ResolveLinkRequest(BaseModel):
+    """Request model for resolving a link."""
+
+    link: str
+    current_file_path: str | None = None
+
+
 def _get_children_with_content(
     notebook_path, notebook_id: int, parent_block_id: str, nb_session
 ) -> list[dict[str, Any]]:
@@ -100,27 +145,86 @@ def _get_children_with_content(
 
 def _block_to_dict(block: Block) -> dict[str, Any]:
     """Convert a Block model to a response dict."""
-    return {
-        "id": block.id,
-        "block_id": block.block_id,
-        "parent_block_id": block.parent_block_id,
-        "notebook_id": block.notebook_id,
-        "path": block.path,
-        "block_type": block.block_type,
-        "content_format": block.content_format,
-        "order_index": block.order_index,
-        "title": block.title,
-        "file_id": block.file_id,
-        "created_at": block.created_at.isoformat() if block.created_at else None,
-        "updated_at": block.updated_at.isoformat() if block.updated_at else None,
-    }
+    return _block_dict(block)
 
 
 # Nested router (mounted under workspace/notebook)
 nested_router = APIRouter()
 
 
-@nested_router.get("/")
+# ---- Routes with literal path segments MUST be registered before /{block_id} ----
+
+
+@nested_router.get("/tree", response_model=BlockTreeResponse)
+async def get_tree(
+    workspace_identifier: str,
+    notebook_identifier: str,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Get hierarchical block tree for sidebar navigation."""
+    notebook_path, notebook, workspace = await get_notebook_path_nested(
+        workspace_identifier, notebook_identifier, current_user, session
+    )
+    nb_session = get_notebook_session(str(notebook_path))
+    try:
+        tree = get_block_tree(notebook_path, notebook.id, nb_session)
+        return {"tree": tree, "notebook_id": notebook.id, "workspace_id": workspace.id}
+    finally:
+        nb_session.close()
+
+
+@nested_router.get("/path/{path:path}/content")
+async def get_block_content_by_path(
+    workspace_identifier: str,
+    notebook_identifier: str,
+    path: str,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Serve content by path (needed for markdown image resolution)."""
+    notebook_path, notebook, workspace = await get_notebook_path_nested(
+        workspace_identifier, notebook_identifier, current_user, session
+    )
+
+    # Try direct path on disk first
+    file_path = notebook_path / path
+    if file_path.exists() and file_path.is_file():
+        # Security check
+        try:
+            if not file_path.resolve().is_relative_to(notebook_path.resolve()):
+                raise HTTPException(status_code=403, detail="Access denied")
+        except (OSError, ValueError):
+            raise HTTPException(status_code=400, detail="Invalid path")
+
+        media_type = mimetypes.guess_type(str(file_path))[0] or "application/octet-stream"
+        return FileResponse(path=str(file_path), media_type=media_type, filename=file_path.name)
+
+    # Try looking up by filename in DB
+    nb_session = get_notebook_session(str(notebook_path))
+    try:
+        block = nb_session.exec(
+            select(Block).where(Block.notebook_id == notebook.id, Block.path == path)
+        ).first()
+        if not block and "/" not in path:
+            block = nb_session.exec(
+                select(Block).where(Block.notebook_id == notebook.id, Block.filename == path)
+            ).first()
+
+        if block:
+            file_path_str, media_type = serve_block_file(notebook_path, block)
+            if file_path_str:
+                return FileResponse(path=file_path_str, media_type=media_type, filename=block.path.split("/")[-1])
+
+        raise HTTPException(status_code=404, detail=f"Content not found: {path}")
+    finally:
+        nb_session.close()
+
+
+# ---- End literal routes ----
+
+
+@nested_router.get("/", response_model=RootBlocksResponse)
 async def list_root_blocks(
     workspace_identifier: str,
     notebook_identifier: str,
@@ -144,7 +248,7 @@ async def list_root_blocks(
         nb_session.close()
 
 
-@nested_router.get("/{block_id}")
+@nested_router.get("/{block_id}", response_model=BlockResponse)
 async def get_block_detail(
     workspace_identifier: str,
     notebook_identifier: str,
@@ -184,7 +288,7 @@ async def get_block_detail(
         nb_session.close()
 
 
-@nested_router.get("/{block_id}/children")
+@nested_router.get("/{block_id}/children", response_model=BlockChildrenResponse)
 async def get_children(
     workspace_identifier: str,
     notebook_identifier: str,
@@ -229,7 +333,7 @@ async def get_children(
         nb_session.close()
 
 
-@nested_router.post("/")
+@nested_router.post("/", response_model=BlockResponse)
 async def create_new_block(
     workspace_identifier: str,
     notebook_identifier: str,
@@ -282,7 +386,7 @@ async def create_new_block(
         nb_session.close()
 
 
-@nested_router.post("/pages")
+@nested_router.post("/pages", response_model=PageResponse)
 async def create_new_page(
     workspace_identifier: str,
     notebook_identifier: str,
@@ -314,7 +418,7 @@ async def create_new_page(
         nb_session.close()
 
 
-@nested_router.put("/{block_id}")
+@nested_router.put("/{block_id}", response_model=BlockResponse)
 async def update_block(
     workspace_identifier: str,
     notebook_identifier: str,
@@ -354,7 +458,7 @@ async def update_block(
         nb_session.close()
 
 
-@nested_router.patch("/{block_id}/move")
+@nested_router.patch("/{block_id}/move", response_model=BlockResponse)
 async def move_block_endpoint(
     workspace_identifier: str,
     notebook_identifier: str,
@@ -387,7 +491,7 @@ async def move_block_endpoint(
         nb_session.close()
 
 
-@nested_router.patch("/{block_id}/reorder")
+@nested_router.patch("/{block_id}/reorder", response_model=BlockReorderResponse)
 async def reorder_blocks_endpoint(
     workspace_identifier: str,
     notebook_identifier: str,
@@ -421,7 +525,7 @@ async def reorder_blocks_endpoint(
         nb_session.close()
 
 
-@nested_router.delete("/{block_id}")
+@nested_router.delete("/{block_id}", response_model=BlockDeleteResponse)
 async def delete_block_endpoint(
     workspace_identifier: str,
     notebook_identifier: str,
@@ -459,7 +563,7 @@ async def delete_block_endpoint(
         nb_session.close()
 
 
-@nested_router.post("/convert-file")
+@nested_router.post("/convert-file", response_model=PageResponse)
 async def convert_file_to_blocks(
     workspace_identifier: str,
     notebook_identifier: str,
@@ -473,21 +577,20 @@ async def convert_file_to_blocks(
     )
 
     # Resolve the file path
-    if request.file_id:
+    if request.path:
+        md_path = request.path
+    elif request.file_id:
+        # Legacy support: look up block by integer id
         nb_session = get_notebook_session(str(notebook_path))
         try:
-            from codex.db.models import FileMetadata as FM
-
-            from sqlmodel import select as sel
-
-            file_meta = nb_session.exec(sel(FM).where(FM.notebook_id == notebook.id, FM.id == request.file_id)).first()
-            if not file_meta:
-                raise HTTPException(status_code=404, detail="File not found")
-            md_path = file_meta.path
+            block_row = nb_session.exec(
+                select(Block).where(Block.notebook_id == notebook.id, Block.id == request.file_id)
+            ).first()
+            if not block_row:
+                raise HTTPException(status_code=404, detail="Block not found")
+            md_path = block_row.path
         finally:
             nb_session.close()
-    elif request.path:
-        md_path = request.path
     else:
         raise HTTPException(status_code=400, detail="Either file_id or path is required")
 
@@ -514,7 +617,7 @@ async def convert_file_to_blocks(
         nb_session.close()
 
 
-@nested_router.post("/import-markdown")
+@nested_router.post("/import-markdown", response_model=PageResponse)
 async def import_markdown(
     workspace_identifier: str,
     notebook_identifier: str,
@@ -556,3 +659,263 @@ async def import_markdown(
             temp_path.unlink()
         logger.error(f"Error importing markdown: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error importing markdown: {str(e)}")
+
+
+@nested_router.get("/{block_id}/content")
+async def get_block_content_endpoint(
+    workspace_identifier: str,
+    notebook_identifier: str,
+    block_id: str,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Serve binary content for a block (mirrors files/{id}/content)."""
+    notebook_path, notebook, workspace = await get_notebook_path_nested(
+        workspace_identifier, notebook_identifier, current_user, session
+    )
+    nb_session = get_notebook_session(str(notebook_path))
+    try:
+        block = get_block(notebook.id, block_id, nb_session)
+        if not block:
+            raise HTTPException(status_code=404, detail="Block not found")
+
+        file_path_str, media_type = serve_block_file(notebook_path, block)
+        if not file_path_str:
+            # Check S3 (fields now directly on Block)
+            if block.s3_key and block.s3_bucket:
+                from codex.core.s3_storage import generate_presigned_url, is_s3_configured
+                from fastapi.responses import RedirectResponse
+
+                if is_s3_configured():
+                    url = generate_presigned_url(block.s3_key, block.s3_version_id, block.s3_bucket)
+                    return RedirectResponse(url=url)
+            raise HTTPException(status_code=404, detail="Block content not found")
+
+        return FileResponse(path=file_path_str, media_type=media_type, filename=block.path.split("/")[-1])
+    finally:
+        nb_session.close()
+
+
+@nested_router.get("/{block_id}/text", response_model=BlockTextContentResponse)
+async def get_block_text_endpoint(
+    workspace_identifier: str,
+    notebook_identifier: str,
+    block_id: str,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Serve text content for a block, stripping frontmatter."""
+    notebook_path, notebook, workspace = await get_notebook_path_nested(
+        workspace_identifier, notebook_identifier, current_user, session
+    )
+    nb_session = get_notebook_session(str(notebook_path))
+    try:
+        block = get_block(notebook.id, block_id, nb_session)
+        if not block:
+            raise HTTPException(status_code=404, detail="Block not found")
+
+        content = get_block_content(notebook_path, block)
+        if content is None:
+            raise HTTPException(status_code=404, detail="Block content not found")
+
+        props = _parse_json(block.properties) if block.properties else None
+        return {"content": content, "properties": props}
+    finally:
+        nb_session.close()
+
+
+@nested_router.post("/upload", response_model=BlockResponse)
+async def upload_block(
+    workspace_identifier: str,
+    notebook_identifier: str,
+    file: UploadFile = File(...),
+    parent_block_id: str = Form(None),
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Upload a file as a block within a page."""
+    notebook_path, notebook, workspace = await get_notebook_path_nested(
+        workspace_identifier, notebook_identifier, current_user, session
+    )
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No filename provided")
+
+    content = await file.read()
+
+    nb_session = get_notebook_session(str(notebook_path))
+    try:
+        result = upload_to_block(
+            notebook_path=notebook_path,
+            notebook_id=notebook.id,
+            page_block_id=parent_block_id,
+            filename=file.filename,
+            content=content,
+            nb_session=nb_session,
+        )
+        return result
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        nb_session.close()
+
+
+@nested_router.post("/import-folder", response_model=ImportFolderResponse)
+async def import_folder(
+    workspace_identifier: str,
+    notebook_identifier: str,
+    request: ImportFolderRequest,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Import a folder tree as nested pages."""
+    notebook_path, notebook, workspace = await get_notebook_path_nested(
+        workspace_identifier, notebook_identifier, current_user, session
+    )
+    nb_session = get_notebook_session(str(notebook_path))
+    try:
+        result = import_folder_as_pages(
+            notebook_path=notebook_path,
+            notebook_id=notebook.id,
+            folder_path=request.folder_path,
+            nb_session=nb_session,
+        )
+        return result
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        nb_session.close()
+
+
+@nested_router.get("/{block_id}/history", response_model=BlockHistoryResponse)
+async def get_block_history(
+    workspace_identifier: str,
+    notebook_identifier: str,
+    block_id: str,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Get git history for a block's backing file."""
+    notebook_path, notebook, workspace = await get_notebook_path_nested(
+        workspace_identifier, notebook_identifier, current_user, session
+    )
+    nb_session = get_notebook_session(str(notebook_path))
+    try:
+        block = get_block(notebook.id, block_id, nb_session)
+        if not block:
+            raise HTTPException(status_code=404, detail="Block not found")
+
+        file_path = notebook_path / block.path
+        from codex.core.git_manager import GitManager
+
+        git_manager = GitManager(str(notebook_path))
+        history = git_manager.get_file_history(str(file_path))
+        return {"block_id": block_id, "path": block.path, "history": history}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        nb_session.close()
+
+
+@nested_router.get("/{block_id}/history/{commit_hash}", response_model=BlockAtCommitResponse)
+async def get_block_at_commit(
+    workspace_identifier: str,
+    notebook_identifier: str,
+    block_id: str,
+    commit_hash: str,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Get block content at a specific commit."""
+    notebook_path, notebook, workspace = await get_notebook_path_nested(
+        workspace_identifier, notebook_identifier, current_user, session
+    )
+    nb_session = get_notebook_session(str(notebook_path))
+    try:
+        block = get_block(notebook.id, block_id, nb_session)
+        if not block:
+            raise HTTPException(status_code=404, detail="Block not found")
+
+        from codex.core.git_manager import GitManager
+
+        git_manager = GitManager(str(notebook_path))
+        content = git_manager.get_file_at_commit(str(notebook_path / block.path), commit_hash)
+        if content is None:
+            raise HTTPException(status_code=404, detail="Content not found at this commit")
+        return {"block_id": block_id, "path": block.path, "commit_hash": commit_hash, "content": content}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        nb_session.close()
+
+
+@nested_router.post("/resolve-link", response_model=BlockResolveLinkResponse)
+async def resolve_link_endpoint(
+    workspace_identifier: str,
+    notebook_identifier: str,
+    request: ResolveLinkRequest,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Resolve a relative link to a block."""
+    notebook_path, notebook, workspace = await get_notebook_path_nested(
+        workspace_identifier, notebook_identifier, current_user, session
+    )
+    from codex.core.link_resolver import LinkResolver
+
+    try:
+        resolved_path = LinkResolver.resolve_link(request.link, request.current_file_path, notebook_path)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    nb_session = get_notebook_session(str(notebook_path))
+    try:
+        # Look up block by path
+        block = nb_session.exec(
+            select(Block).where(Block.notebook_id == notebook.id, Block.path == resolved_path)
+        ).first()
+        if not block and "/" not in resolved_path:
+            block = nb_session.exec(
+                select(Block).where(Block.notebook_id == notebook.id, Block.filename == resolved_path)
+            ).first()
+        if block:
+            return {**_block_to_dict(block), "resolved_path": resolved_path}
+        raise HTTPException(status_code=404, detail=f"Not found: {resolved_path}")
+    finally:
+        nb_session.close()
+
+
+@nested_router.patch("/{block_id}/properties", response_model=BlockResponse)
+async def update_block_properties_endpoint(
+    workspace_identifier: str,
+    notebook_identifier: str,
+    block_id: str,
+    request: UpdateBlockPropertiesRequest,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Update block properties."""
+    notebook_path, notebook, workspace = await get_notebook_path_nested(
+        workspace_identifier, notebook_identifier, current_user, session
+    )
+    nb_session = get_notebook_session(str(notebook_path))
+    try:
+        result = update_block_properties(
+            notebook_path=notebook_path,
+            notebook_id=notebook.id,
+            block_id=block_id,
+            properties=request.properties,
+            nb_session=nb_session,
+        )
+        return result
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    finally:
+        nb_session.close()

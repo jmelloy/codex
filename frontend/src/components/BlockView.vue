@@ -98,7 +98,7 @@
             </template>
 
             <!-- Image block -->
-            <template v-else-if="block.block_type === 'image' && block.file_id">
+            <template v-else-if="block.block_type === 'image' && block.block_id">
               <div class="block-image">
                 <img
                   :src="getBlockFileUrl(block)"
@@ -110,7 +110,7 @@
             </template>
 
             <!-- File block -->
-            <template v-else-if="block.block_type === 'file' && block.file_id">
+            <template v-else-if="block.block_type === 'file' && block.block_id">
               <a class="block-file-link" :href="getBlockFileUrl(block)" target="_blank" download>
                 <span class="file-icon">&#x1F4CE;</span>
                 <span class="file-name">{{ getBlockFileName(block) }}</span>
@@ -237,8 +237,8 @@ onMounted(() => {
 })
 
 function getBlockFileUrl(block: Block): string {
-  if (!props.workspaceId || !props.notebookId || !block.file_id) return ""
-  return `/api/v1/workspaces/${props.workspaceId}/notebooks/${props.notebookId}/files/${block.file_id}/content`
+  if (!props.workspaceId || !props.notebookId || !block.block_id) return ""
+  return `/api/v1/workspaces/${props.workspaceId}/notebooks/${props.notebookId}/blocks/${block.block_id}/content`
 }
 
 function getBlockFileName(block: Block): string {

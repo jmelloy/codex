@@ -188,7 +188,7 @@
                 <span class="mr-2 text-sm">{{ getFileIcon(file) }}</span>
                 <div class="flex-1 min-w-0">
                   <div class="truncate font-medium" style="color: var(--notebook-text)">
-                    {{ file.title || file.filename }}
+                    {{ file.title || file.filename || file.path.split('/').pop() }}
                   </div>
                   <div class="truncate text-xs" style="color: var(--pen-gray)">
                     {{ file.path }}
@@ -677,15 +677,32 @@
         </div>
       </div>
 
-      <!-- Folder View Mode -->
+      <!-- Folder/Page View Mode (via BlockView) -->
       <div v-else-if="workspaceStore.currentFolder" class="flex-1 flex overflow-hidden p-4">
-        <FolderView
-          :folder="workspaceStore.currentFolder"
-          class="flex-1"
-          @select-file="selectFile"
-          @select-folder="handleSelectSubfolder"
-          @toggle-properties="toggleProperties"
-        />
+        <div class="flex-1 overflow-y-auto">
+          <BlockView
+            v-if="workspaceStore.currentPageBlockId && workspaceStore.currentPageBlocks.length > 0"
+            :blocks="workspaceStore.currentPageBlocks"
+            :page-block-id="workspaceStore.currentPageBlockId"
+            :notebook-id="workspaceStore.currentFolder.notebook_id"
+            :workspace-id="workspaceStore.currentWorkspace?.id ?? 0"
+            :notebook-path="''"
+            @navigate-page="handleNavigatePageBlock"
+            @delete-block="handleDeleteBlock"
+            @add-block="handleAddBlock"
+            @reorder="handleReorderBlocks"
+            @update-block="handleUpdateBlock"
+            @create-subpage="handleCreateSubpage"
+          />
+          <div v-else class="p-4">
+            <h2 class="text-lg font-medium mb-4" style="color: var(--notebook-text)">
+              {{ workspaceStore.currentFolder.title || workspaceStore.currentFolder.name }}
+            </h2>
+            <p v-if="workspaceStore.currentFolder.description" style="color: var(--pen-gray)">
+              {{ workspaceStore.currentFolder.description }}
+            </p>
+          </div>
+        </div>
       </div>
 
       <!-- Welcome State -->
@@ -723,13 +740,33 @@
       @restore="handleRestoreVersion"
     />
 
-    <!-- Folder Properties Panel -->
-    <FolderPropertiesPanel
-      v-if="showPropertiesPanel && workspaceStore.currentFolder && !workspaceStore.currentFile"
-      :folder="workspaceStore.currentFolder"
+    <!-- Folder Properties Panel (now uses FilePropertiesPanel for blocks) -->
+    <FilePropertiesPanel
+      v-if="showPropertiesPanel && workspaceStore.currentFolder && !workspaceStore.currentFile && workspaceStore.currentBlock"
+      :file="{
+        id: workspaceStore.currentBlock.id,
+        block_id: workspaceStore.currentBlock.block_id,
+        parent_block_id: workspaceStore.currentBlock.parent_block_id,
+        block_type: workspaceStore.currentBlock.block_type,
+        content_format: workspaceStore.currentBlock.content_format,
+        order_index: workspaceStore.currentBlock.order_index,
+        notebook_id: workspaceStore.currentBlock.notebook_id,
+        path: workspaceStore.currentBlock.path,
+        filename: workspaceStore.currentBlock.path.split('/').pop() || '',
+        content_type: workspaceStore.currentBlock.content_type || 'inode/directory',
+        size: workspaceStore.currentBlock.size || 0,
+        title: workspaceStore.currentBlock.title,
+        description: workspaceStore.currentBlock.description,
+        properties: workspaceStore.currentBlock.properties,
+        content: '',
+        created_at: workspaceStore.currentBlock.created_at,
+        updated_at: workspaceStore.currentBlock.updated_at,
+      }"
+      :workspace-id="workspaceStore.currentWorkspace?.id ?? 0"
+      :notebook-id="workspaceStore.currentBlock.notebook_id"
       class="w-full lg:w-[300px] lg:min-w-[300px] fixed lg:relative inset-0 lg:inset-auto z-50 lg:z-auto pt-14 lg:pt-0"
       @close="showPropertiesPanel = false"
-      @update-properties="handleUpdateFolderProperties"
+      @update-properties="handleUpdateProperties"
       @delete="handleDeleteFolder"
     />
   </div>
@@ -839,16 +876,14 @@ import { ref, onMounted, watch, computed } from "vue"
 import { useRouter, useRoute } from "vue-router"
 import { useAuthStore } from "../stores/auth"
 import { useWorkspaceStore } from "../stores/workspace"
-import type { Workspace, Notebook, FileMetadata } from "../services/codex"
-import { fileService, searchService } from "../services/codex"
+import type { Workspace, Notebook, Block } from "../services/codex"
+import { blockService, searchService } from "../services/codex"
 import { getDisplayType } from "../utils/contentType"
 import Modal from "../components/Modal.vue"
 import FormGroup from "../components/FormGroup.vue"
 import MarkdownViewer from "../components/MarkdownViewer.vue"
 import CodeViewer from "../components/CodeViewer.vue"
 import FilePropertiesPanel from "../components/FilePropertiesPanel.vue"
-import FolderPropertiesPanel from "../components/FolderPropertiesPanel.vue"
-import FolderView from "../components/FolderView.vue"
 import BlockView from "../components/BlockView.vue"
 import FileHeader from "../components/FileHeader.vue"
 import FileTreeItem from "../components/FileTreeItem.vue"
@@ -892,7 +927,7 @@ function closeSidebarOnMobile() {
 // Sidebar tab state
 const sidebarTab = ref<"files" | "search">("files")
 const searchQuery = ref("")
-const searchResults = ref<FileMetadata[]>([])
+const searchResults = ref<Block[]>([])
 const isSearching = ref(false)
 
 // Folder expansion state - tracks which folder paths are expanded
@@ -928,7 +963,7 @@ function findNotebookBySlugOrId(identifier: string): Notebook | undefined {
 }
 
 // Build file URL path: /w/{workspace}/{notebook}/{filePath}
-function buildFileUrl(file: FileMetadata, notebook?: Notebook | null): string {
+function buildFileUrl(file: Block, notebook?: Notebook | null): string {
   const ws = workspaceStore.currentWorkspace
   const nb = notebook || workspaceStore.notebooks.find((n) => n.id === file.notebook_id)
   if (!ws || !nb) return "/"
@@ -951,13 +986,13 @@ const currentContentUrl = computed(() => {
     (n: any) => n.id === workspaceStore.currentFile?.notebook_id,
   )
   const notebookId = notebook?.id || notebook?.slug
-  return `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/${workspaceStore.currentFile.id}/content`
+  return `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/${workspaceStore.currentFile.block_id}/content`
 })
 
 // Get display type for current file
 const displayType = computed(() => {
   if (!workspaceStore.currentFile) return "markdown"
-  return getDisplayType(workspaceStore.currentFile.content_type)
+  return getDisplayType(workspaceStore.currentFile.content_type || "")
 })
 
 // Open file in a new tab
@@ -998,10 +1033,9 @@ watch(
         if (workspaceStore.currentFile?.path !== itemPath && workspaceStore.currentFolder?.path !== itemPath) {
           try {
             // Try as file first
-            const file = await fileService.getByPath(itemPath, workspace!.id, notebook.id)
-            await workspaceStore.selectFile(file)
+            const block = await blockService.resolveLink(itemPath, notebook.id, workspace!.id)
+            await workspaceStore.selectBlock(block)
           } catch {
-            // Not a file, try as folder
             await workspaceStore.selectFolder(itemPath, notebook.id)
           }
         }
@@ -1056,10 +1090,9 @@ onMounted(async () => {
     if (notebook) {
       // Try to resolve path directly via API
       try {
-        const file = await fileService.getByPath(itemPath, workspaceStore.currentWorkspace!.id, notebook.id)
-        await workspaceStore.selectFile(file)
+        const block = await blockService.resolveLink(itemPath, notebook.id, workspaceStore.currentWorkspace!.id)
+        await workspaceStore.selectBlock(block)
       } catch {
-        // Not a file, try as folder
         await workspaceStore.selectFolder(itemPath, notebook.id)
       }
     }
@@ -1102,7 +1135,7 @@ watch(
       // Look up the notebook by the file's notebook_id for accuracy
       const notebook = notebooks.find((n) => n.id === file.notebook_id)
       const notebookName = notebook?.name || "Notebook"
-      const fileTitle = file.title || file.filename
+      const fileTitle = file.title || file.filename || file.path.split("/").pop()
       document.title = `Codex - ${notebookName} / ${fileTitle}`
     } else if (folder) {
       // Folder selected: "Codex - Notebook / Folder"
@@ -1219,13 +1252,7 @@ async function handleSelectFolder(notebookId: number, folderPath: string) {
   }
 }
 
-async function handleSelectSubfolder(subfolder: { path: string }) {
-  // Get the notebook_id from the current folder
-  if (workspaceStore.currentFolder) {
-    const notebookId = workspaceStore.currentFolder.notebook_id
-    await handleSelectFolder(notebookId, subfolder.path)
-  }
-}
+// handleSelectSubfolder removed — folders are now navigated via block tree
 
 // Block/page event handlers
 async function handleNavigatePageBlock(block: any) {
@@ -1330,10 +1357,10 @@ function isFolderExpanded(notebookId: number, folderPath: string): boolean {
   return expandedFolders.value.get(notebookId)?.has(folderPath) || false
 }
 
-function getFileIcon(file: FileMetadata | undefined): string {
+function getFileIcon(file: Block | undefined): string {
   if (!file) return "📄"
 
-  const displayType = getDisplayType(file.content_type)
+  const displayType = getDisplayType(file.content_type || "")
 
   switch (displayType) {
     case "markdown":
@@ -1363,7 +1390,7 @@ function getFileIcon(file: FileMetadata | undefined): string {
   }
 }
 
-function selectFile(file: FileMetadata) {
+function selectFile(file: Block) {
   workspaceStore.selectFile(file)
   // Close sidebar on mobile after selection
   closeSidebarOnMobile()
@@ -1375,15 +1402,15 @@ function selectFile(file: FileMetadata) {
 }
 
 // Drag-drop handlers for files within the sidebar
-function handleFileDragStart(event: DragEvent, file: FileMetadata, notebookId: number) {
+function handleFileDragStart(event: DragEvent, file: Block, notebookId: number) {
   if (!event.dataTransfer) return
   event.dataTransfer.effectAllowed = "move"
   event.dataTransfer.setData(
     "application/x-codex-file",
     JSON.stringify({
-      fileId: file.id,
+      blockId: file.block_id,
       notebookId: notebookId,
-      filename: file.filename,
+      filename: file.filename || file.path.split("/").pop() || file.path,
       path: file.path,
     }),
   )
@@ -1422,9 +1449,9 @@ async function handleFolderDrop(event: DragEvent, notebookId: number, folderPath
   if (!data) return
 
   try {
-    const { fileId, filename } = JSON.parse(data)
+    const { blockId, filename } = JSON.parse(data)
     const newPath = folderPath ? `${folderPath}/${filename}` : filename
-    await handleMoveFile(fileId, newPath)
+    await handleMoveFile(blockId, newPath)
   } catch (e) {
     console.error("Failed to parse drag data:", e)
   }
@@ -1463,10 +1490,9 @@ async function handleNotebookDrop(event: DragEvent, notebookId: number) {
   if (!data) return
 
   try {
-    const { fileId, filename, path } = JSON.parse(data)
-    // Only move if not already at root
+    const { blockId, filename, path } = JSON.parse(data)
     if (path !== filename) {
-      await handleMoveFile(fileId, filename)
+      await handleMoveFile(blockId, filename)
     }
   } catch (e) {
     console.error("Failed to parse drag data:", e)
@@ -1560,12 +1586,12 @@ async function handleFileUpload(dataTransfer: DataTransfer, notebookId: number, 
 }
 
 // Handle moving a file to a new path
-async function handleMoveFile(fileId: number, newPath: string) {
-  const file = findFileById(fileId)
-  if (!file) return
+async function handleMoveFile(blockId: string, newPath: string) {
+  const block = findBlockById(blockId)
+  if (!block) return
 
   try {
-    await workspaceStore.moveFile(fileId, file.notebook_id, newPath)
+    await workspaceStore.moveFile(blockId, block.notebook_id, newPath)
     showToast({ message: "File moved successfully" })
   } catch (e) {
     console.error("Failed to move file:", e)
@@ -1573,10 +1599,9 @@ async function handleMoveFile(fileId: number, newPath: string) {
   }
 }
 
-// Helper to find a file by ID across all notebooks
-function findFileById(fileId: number): FileMetadata | undefined {
+function findBlockById(blockId: string): Block | undefined {
   for (const files of workspaceStore.files.values()) {
-    const file = files.find((f) => f.id === fileId)
+    const file = files.find((f) => f.block_id === blockId)
     if (file) return file
   }
   return undefined
@@ -1597,6 +1622,18 @@ async function handleUpdateProperties(properties: Record<string, any>) {
     } catch {
       // Error handled in store
     }
+  } else if (workspaceStore.currentBlock && workspaceStore.currentWorkspace) {
+    // Handle folder/page block properties
+    try {
+      await blockService.updateProperties(
+        workspaceStore.currentBlock.block_id,
+        workspaceStore.currentBlock.notebook_id,
+        workspaceStore.currentWorkspace.id,
+        properties
+      )
+    } catch {
+      // Error handled by caller
+    }
   }
 }
 
@@ -1614,7 +1651,7 @@ async function handleRestoreVersion(content: string) {
 async function handleDeleteFile() {
   if (workspaceStore.currentFile) {
     try {
-      await workspaceStore.deleteFile(workspaceStore.currentFile.id)
+      await workspaceStore.deleteFile(workspaceStore.currentFile.block_id)
       showPropertiesPanel.value = false
       showToast({ message: "File deleted" })
     } catch {
@@ -1641,52 +1678,11 @@ async function handleRenameFile(newFilename: string) {
   if (newPath === currentPath) return
 
   try {
-    await workspaceStore.moveFile(currentFile.id, currentFile.notebook_id, newPath)
+    await workspaceStore.moveFile(currentFile.block_id, currentFile.notebook_id, newPath)
     showToast({ message: "File renamed successfully" })
   } catch (e) {
     console.error("Failed to rename file:", e)
     showToast({ message: "Failed to rename file", type: "error" })
-  }
-}
-
-async function handleUpdateFolderProperties(properties: Record<string, any>) {
-  if (workspaceStore.currentFolder) {
-    try {
-      const notebookId = workspaceStore.currentFolder.notebook_id
-      const result = await workspaceStore.saveFolderProperties(properties)
-
-      // If the folder was renamed (path changed), update expanded folders and URL
-      if (result?.pathChanged && result.oldPath && result.newPath) {
-        // Update expanded folders set
-        const folders = expandedFolders.value.get(notebookId)
-        if (folders) {
-          // Update any expanded folder paths that start with the old path
-          const toRemove: string[] = []
-          const toAdd: string[] = []
-          for (const p of folders) {
-            if (p === result.oldPath) {
-              toRemove.push(p)
-              toAdd.push(result.newPath)
-            } else if (p.startsWith(result.oldPath + "/")) {
-              toRemove.push(p)
-              toAdd.push(result.newPath + p.substring(result.oldPath.length))
-            }
-          }
-          toRemove.forEach((p) => folders.delete(p))
-          toAdd.forEach((p) => folders.add(p))
-        }
-
-        // Update the URL to the new path
-        const newUrl = buildFolderUrl(result.newPath, notebookId)
-        if (newUrl !== "/" && route.path !== newUrl) {
-          router.replace(newUrl)
-        }
-      }
-
-      showToast({ message: "Folder properties updated" })
-    } catch {
-      // Error handled in store
-    }
   }
 }
 
@@ -1775,13 +1771,13 @@ async function handleSearch() {
   try {
     // First, do a local search through all loaded files
     const query = searchQuery.value.toLowerCase()
-    const localResults: FileMetadata[] = []
+    const localResults: Block[] = []
 
     for (const [_notebookId, files] of workspaceStore.files) {
       for (const file of files) {
-        // Search in filename, title, and path
+        const fname = file.filename || file.path.split("/").pop() || ""
         if (
-          file.filename.toLowerCase().includes(query) ||
+          fname.toLowerCase().includes(query) ||
           file.title?.toLowerCase().includes(query) ||
           file.path.toLowerCase().includes(query)
         ) {
@@ -1801,7 +1797,7 @@ async function handleSearch() {
         // Add any API results that aren't already in local results
         for (const result of apiResults.results) {
           if (!localResults.find((f) => f.id === result.id)) {
-            localResults.push(result)
+            localResults.push(result as unknown as Block)
           }
         }
       }
@@ -1815,7 +1811,7 @@ async function handleSearch() {
   }
 }
 
-function selectSearchResult(file: FileMetadata) {
+function selectSearchResult(file: Block) {
   // Switch back to files tab and select the file
   sidebarTab.value = "files"
   selectFile(file)

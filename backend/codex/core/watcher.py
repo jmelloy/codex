@@ -22,7 +22,7 @@ from watchdog.observers import Observer
 from codex.core.metadata import MetadataParser
 from codex.core.websocket import notify_file_change
 from codex.db.database import get_notebook_session
-from codex.db.models import FileMetadata
+from codex.db.models import Block
 
 if TYPE_CHECKING:
     pass
@@ -277,24 +277,24 @@ class FileOperationQueue:
                 old_rel_path = os.path.relpath(del_op.filepath, self.notebook_path)
                 new_rel_path = os.path.relpath(create_op.filepath, self.notebook_path)
 
-                # Find the file record by old path
+                # Find the block record by old path
                 result = session.execute(
-                    select(FileMetadata).where(
-                        FileMetadata.notebook_id == self.notebook_id,
-                        FileMetadata.path == old_rel_path,
+                    select(Block).where(
+                        Block.notebook_id == self.notebook_id,
+                        Block.path == old_rel_path,
                     )
                 )
-                file_meta = result.scalar_one_or_none()
+                block = result.scalar_one_or_none()
 
-                if file_meta:
+                if block:
                     # Update path to new location
-                    file_meta.path = new_rel_path
-                    file_meta.filename = os.path.basename(new_rel_path)
-                    file_meta.updated_at = datetime.now(UTC)
+                    block.path = new_rel_path
+                    block.filename = os.path.basename(new_rel_path)
+                    block.updated_at = datetime.now(UTC)
 
                     # Update sidecar path if applicable
                     if create_op.sidecar_path:
-                        file_meta.sidecar_path = os.path.relpath(create_op.sidecar_path, self.notebook_path)
+                        block.sidecar_path = os.path.relpath(create_op.sidecar_path, self.notebook_path)
 
                     session.commit()
                     logger.info(f"Moved file in DB: {old_rel_path} -> {new_rel_path}")
@@ -430,7 +430,7 @@ def update_file_metadata(
     event_type: str,
     callback: Callable | None = None,
 ) -> None:
-    """Update file metadata in database.
+    """Update block metadata in database for a file change.
 
     Args:
         notebook_path: Path to the notebook directory
@@ -453,15 +453,26 @@ def update_file_metadata(
         rel_path = os.path.relpath(filepath, notebook_path)
         filename = os.path.basename(filepath)
 
-        # Check if file exists in database
+        # Check if block exists in database
         result = session.execute(
-            select(FileMetadata).where(FileMetadata.notebook_id == notebook_id, FileMetadata.path == rel_path)
+            select(Block).where(Block.notebook_id == notebook_id, Block.path == rel_path)
         )
-        file_meta = result.scalar_one_or_none()
+        block = result.scalar_one_or_none()
 
         if event_type == "deleted":
-            if file_meta:
-                session.delete(file_meta)
+            if block:
+                # Delete orphaned SearchIndex rows
+                try:
+                    from codex.db.models.notebook import SearchIndex
+
+                    for si in session.execute(
+                        select(SearchIndex).where(SearchIndex.block_id == block.id)
+                    ).scalars():
+                        session.delete(si)
+                except Exception:
+                    pass
+
+                session.delete(block)
                 session.commit()
         else:
             filepath, sidecar = MetadataParser.resolve_sidecar(filepath)
@@ -482,8 +493,6 @@ def update_file_metadata(
 
                     if is_s3_configured():
                         try:
-                            # Derive workspace/notebook slugs from path structure
-                            # notebook_path is e.g. /app/data/workspaces/<ws_slug>/<nb_slug>
                             nb_path = Path(notebook_path)
                             nb_slug = nb_path.name
                             ws_slug = nb_path.parent.name
@@ -492,7 +501,6 @@ def update_file_metadata(
                                 binary_content = bf.read()
                             s3_key = build_s3_key(ws_slug, nb_slug, rel_path)
                             s3_meta = upload_binary(binary_content, s3_key, content_type)
-                            # Write pointer file for git tracking
                             write_pointer_file(
                                 filepath,
                                 bucket=s3_meta["bucket"],
@@ -506,42 +514,74 @@ def update_file_metadata(
                             logger.warning(f"S3 upload failed for {filepath}, storing locally: {s3_err}")
                             s3_meta = None
 
-                if file_meta:
-                    # Update existing
-                    file_meta.size = file_stats.st_size
-                    file_meta.hash = file_hash
-                    file_meta.content_type = content_type
-                    file_meta.updated_at = datetime.now(UTC)
-                    file_meta.file_modified_at = datetime.fromtimestamp(file_stats.st_mtime)
-                    file_meta.properties = json.dumps(metadata)
+                if block:
+                    # Update existing block
+                    block.size = file_stats.st_size
+                    block.hash = file_hash
+                    block.content_type = content_type
+                    block.filename = filename
+                    block.updated_at = datetime.now(UTC)
+                    block.file_modified_at = datetime.fromtimestamp(file_stats.st_mtime)
+                    block.properties = json.dumps(metadata)
 
                     if s3_meta:
-                        file_meta.s3_bucket = s3_meta["bucket"]
-                        file_meta.s3_key = s3_meta["key"]
-                        file_meta.s3_version_id = s3_meta["version_id"]
+                        block.s3_bucket = s3_meta["bucket"]
+                        block.s3_key = s3_meta["key"]
+                        block.s3_version_id = s3_meta["version_id"]
 
                     if sidecar:
-                        file_meta.sidecar_path = os.path.relpath(sidecar, notebook_path)
+                        block.sidecar_path = os.path.relpath(sidecar, notebook_path)
 
                     if "title" in metadata:
-                        file_meta.title = metadata["title"]
+                        block.title = metadata["title"]
                     if "description" in metadata:
-                        file_meta.description = metadata["description"]
+                        block.description = metadata["description"]
                     if "type" in metadata:
-                        file_meta.file_type = metadata["type"]
+                        block.file_type = metadata["type"]
 
                     if "created" in metadata:
                         try:
                             created_dt = datetime.fromisoformat(metadata["created"])
-                            file_meta.file_created_at = created_dt
+                            block.file_created_at = created_dt
                         except Exception:
                             pass
 
                 else:
-                    # Create new
-                    file_meta = FileMetadata(
+                    # Determine block type
+                    if content_type and content_type.startswith("image/"):
+                        block_type = "image"
+                    elif content_type and content_type.startswith("text/"):
+                        block_type = "text"
+                    else:
+                        block_type = "file"
+
+                    content_format = "binary" if (content_type and not content_type.startswith("text/")) else "markdown"
+
+                    # Determine parent
+                    parent_block_id = None
+                    parts = rel_path.split("/")
+                    if len(parts) > 1:
+                        parent_path = "/".join(parts[:-1])
+                        parent = session.execute(
+                            select(Block).where(
+                                Block.notebook_id == notebook_id,
+                                Block.path == parent_path,
+                                Block.block_type == "page",
+                            )
+                        ).scalar_one_or_none()
+                        if parent:
+                            parent_block_id = parent.block_id
+
+                    from ulid import ULID
+
+                    block = Block(
                         notebook_id=notebook_id,
+                        block_id=str(ULID()),
+                        parent_block_id=parent_block_id,
                         path=rel_path,
+                        block_type=block_type,
+                        content_format=content_format,
+                        order_index=0.0,
                         filename=filename,
                         content_type=content_type,
                         size=file_stats.st_size,
@@ -553,24 +593,24 @@ def update_file_metadata(
                         file_modified_at=datetime.fromtimestamp(file_stats.st_mtime),
                     )
                     if s3_meta:
-                        file_meta.s3_bucket = s3_meta["bucket"]
-                        file_meta.s3_key = s3_meta["key"]
-                        file_meta.s3_version_id = s3_meta["version_id"]
+                        block.s3_bucket = s3_meta["bucket"]
+                        block.s3_key = s3_meta["key"]
+                        block.s3_version_id = s3_meta["version_id"]
 
                     if "title" in metadata:
-                        file_meta.title = metadata["title"]
+                        block.title = metadata["title"]
                     if "description" in metadata:
-                        file_meta.description = metadata["description"]
+                        block.description = metadata["description"]
                     if "type" in metadata:
-                        file_meta.file_type = metadata["type"]
+                        block.file_type = metadata["type"]
 
                     if "created" in metadata:
                         try:
                             created_dt = datetime.fromisoformat(metadata["created"])
-                            file_meta.file_created_at = created_dt
+                            block.file_created_at = created_dt
                         except Exception:
                             pass
-                    session.add(file_meta)
+                    session.add(block)
 
                 # Auto-commit to git if file should be tracked
                 # Skip git commits during scan - these are existing files
@@ -582,7 +622,7 @@ def update_file_metadata(
                     try:
                         commit_hash = git_manager.auto_commit_on_change(filepath, sidecar)
                         if commit_hash:
-                            file_meta.last_commit_hash = commit_hash
+                            block.last_commit_hash = commit_hash
                     except Exception as e:
                         logger.warning(f"Could not commit file to git: {e}")
 
@@ -594,17 +634,18 @@ def update_file_metadata(
                     if "UNIQUE constraint failed" in str(commit_error):
                         # Re-query and update instead
                         result = session.execute(
-                            select(FileMetadata).where(
-                                FileMetadata.notebook_id == notebook_id, FileMetadata.path == rel_path
+                            select(Block).where(
+                                Block.notebook_id == notebook_id, Block.path == rel_path
                             )
                         )
-                        file_meta = result.scalar_one_or_none()
-                        if file_meta:
-                            file_meta.size = file_stats.st_size
-                            file_meta.hash = file_hash
-                            file_meta.content_type = content_type
-                            file_meta.updated_at = datetime.now(UTC)
-                            file_meta.file_modified_at = datetime.fromtimestamp(file_stats.st_mtime)
+                        block = result.scalar_one_or_none()
+                        if block:
+                            block.size = file_stats.st_size
+                            block.hash = file_hash
+                            block.content_type = content_type
+                            block.filename = filename
+                            block.updated_at = datetime.now(UTC)
+                            block.file_modified_at = datetime.fromtimestamp(file_stats.st_mtime)
                             session.commit()
                     else:
                         raise
@@ -622,11 +663,8 @@ def update_file_metadata(
         # Check if this is a database table missing error (e.g., during test cleanup)
         error_msg = str(e)
         if "no such table" in error_msg or "OperationalError" in str(type(e)):
-            # Database or table has been removed (e.g., during test cleanup)
-            # This is expected in some scenarios, so just log at debug level
             logger.debug(f"Database table not found for {filepath}, likely during cleanup: {e}")
         else:
-            # Unexpected error - log at error level
             logger.error(f"Error updating metadata for {filepath}: {e}", exc_info=True)
     finally:
         if session:
@@ -804,161 +842,15 @@ class NotebookFileHandler(FileSystemEventHandler):
             logger.debug(f"Could not cache hash for {filepath}: {e}")
 
     def _update_file_metadata(self, filepath: str, event_type: str):
-        """Update file metadata in database."""
-        if self._should_ignore(filepath):
-            return
-
-        if Path(filepath).is_dir():
-            return
-
-        logger.debug(f"Updating metadata for {filepath} due to {event_type} event")
-        session = None
-        try:
-            session = get_notebook_session(self.notebook_path)
-
-            rel_path = os.path.relpath(filepath, self.notebook_path)
-            filename = os.path.basename(filepath)
-
-            # Check if file exists in database
-            result = session.execute(
-                select(FileMetadata).where(FileMetadata.notebook_id == self.notebook_id, FileMetadata.path == rel_path)
-            )
-            file_meta = result.scalar_one_or_none()
-
-            if event_type == "deleted":
-                if file_meta:
-                    session.delete(file_meta)
-                    session.commit()
-            else:
-                filepath, sidecar = MetadataParser.resolve_sidecar(filepath)
-                # File created or modified
-                if os.path.exists(filepath):
-                    file_stats = os.stat(filepath)
-                    file_hash = calculate_file_hash(filepath)
-                    is_binary = is_binary_file(filepath)
-
-                    # Get content type (MIME type)
-                    content_type = get_content_type(filepath)
-                    metadata = MetadataParser.extract_all_metadata(filepath)
-
-                    if file_meta:
-                        # Update existing
-                        file_meta.size = file_stats.st_size
-                        file_meta.hash = file_hash
-                        file_meta.content_type = content_type
-                        from datetime import datetime
-
-                        file_meta.updated_at = datetime.now(UTC)
-                        file_meta.file_modified_at = datetime.fromtimestamp(file_stats.st_mtime)
-                        file_meta.properties = json.dumps(metadata)
-
-                        if sidecar:
-                            file_meta.sidecar_path = os.path.relpath(sidecar, self.notebook_path)
-
-                        if "title" in metadata:
-                            file_meta.title = metadata["title"]
-                        if "description" in metadata:
-                            file_meta.description = metadata["description"]
-                        if "type" in metadata:
-                            file_meta.file_type = metadata["type"]
-
-                        if "created" in metadata:
-                            from datetime import datetime
-
-                            try:
-                                created_dt = datetime.fromisoformat(metadata["created"])
-                                file_meta.file_created_at = created_dt
-                            except Exception:
-                                pass
-
-                    else:
-                        # Create new
-                        from datetime import datetime
-
-                        file_meta = FileMetadata(
-                            notebook_id=self.notebook_id,
-                            path=rel_path,
-                            filename=filename,
-                            content_type=content_type,
-                            size=file_stats.st_size,
-                            hash=file_hash,
-                            git_tracked=not is_binary,
-                            properties=json.dumps(metadata),
-                            sidecar_path=os.path.relpath(sidecar, self.notebook_path) if sidecar else None,
-                            file_created_at=datetime.fromtimestamp(file_stats.st_ctime),
-                            file_modified_at=datetime.fromtimestamp(file_stats.st_mtime),
-                        )
-                        if "title" in metadata:
-                            file_meta.title = metadata["title"]
-                        if "description" in metadata:
-                            file_meta.description = metadata["description"]
-                        if "type" in metadata:
-                            file_meta.file_type = metadata["type"]
-
-                        if "created" in metadata:
-                            try:
-                                created_dt = datetime.fromisoformat(metadata["created"])
-                                file_meta.file_created_at = created_dt
-                            except Exception:
-                                pass
-                        session.add(file_meta)
-
-                    # Auto-commit to git if file should be tracked
-                    # Skip git commits during scan - these are existing files
-                    if event_type != "scanned":
-                        from codex.core.git_manager import GitManager
-
-                        git_manager = GitManager(self.notebook_path)
-
-                        try:
-                            commit_hash = git_manager.auto_commit_on_change(filepath, sidecar)
-                            if commit_hash:
-                                file_meta.last_commit_hash = commit_hash
-                        except Exception as e:
-                            logger.warning(f"Could not commit file to git: {e}")
-
-                    try:
-                        session.commit()
-                    except Exception as commit_error:
-                        # Handle race condition: another process created the record
-                        session.rollback()
-                        if "UNIQUE constraint failed" in str(commit_error):
-                            # Re-query and update instead
-                            result = session.execute(
-                                select(FileMetadata).where(
-                                    FileMetadata.notebook_id == self.notebook_id, FileMetadata.path == rel_path
-                                )
-                            )
-                            file_meta = result.scalar_one_or_none()
-                            if file_meta:
-                                file_meta.size = file_stats.st_size
-                                file_meta.hash = file_hash
-                                file_meta.content_type = content_type
-                                from datetime import datetime
-
-                                file_meta.updated_at = datetime.now(UTC)
-                                file_meta.file_modified_at = datetime.fromtimestamp(file_stats.st_mtime)
-                                session.commit()
-                        else:
-                            raise
-
-            if self.callback:
-                self.callback(filepath, event_type)
-
-        except Exception as e:
-            # Check if this is a database table missing error (e.g., during test cleanup)
-            error_msg = str(e)
-            if "no such table" in error_msg or "OperationalError" in str(type(e)):
-                # Database or table has been removed (e.g., during test cleanup)
-                # This is expected in some scenarios, so just log at debug level
-                logger.debug(f"Database table not found for {filepath}, likely during cleanup: {e}")
-            else:
-                # Unexpected error - log at error level and re-raise so caller can handle it
-                logger.error(f"Error updating metadata for {filepath}: {e}", exc_info=True)
-                raise
-        finally:
-            if session:
-                session.close()
+        """Update block metadata in database."""
+        # Delegate to the top-level function which now operates on Block directly
+        update_file_metadata(
+            notebook_path=self.notebook_path,
+            notebook_id=self.notebook_id,
+            filepath=filepath,
+            event_type=event_type,
+            callback=self.callback,
+        )
 
     def on_created(self, event):
         """Called when a file or directory is created."""
@@ -1038,11 +930,11 @@ class NotebookFileHandler(FileSystemEventHandler):
                 rel_dir = os.path.relpath(dir_path, self.notebook_path)
                 prefix = f"{rel_dir}/"
 
-                # Find all files that start with this directory path
+                # Find all blocks that start with this directory path
                 result = session.execute(
-                    select(FileMetadata).where(
-                        FileMetadata.notebook_id == self.notebook_id,
-                        FileMetadata.path.startswith(prefix),
+                    select(Block).where(
+                        Block.notebook_id == self.notebook_id,
+                        Block.path.startswith(prefix),
                     )
                 )
                 files_to_delete = result.scalars().all()
@@ -1240,8 +1132,8 @@ class NotebookWatcher:
         notebook_session = get_notebook_session(self.notebook_path)
 
         try:
-            # Get all existing file records from database
-            result = notebook_session.execute(select(FileMetadata).where(FileMetadata.notebook_id == self.notebook_id))
+            # Get all existing block records from database
+            result = notebook_session.execute(select(Block).where(Block.notebook_id == self.notebook_id))
             existing_files = {}
             sidecar_files = {}
             for f in result.scalars().all():

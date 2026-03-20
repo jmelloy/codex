@@ -39,8 +39,8 @@
         :current-folder-notebook-id="currentFolderNotebookId"
         @toggle-folder="(nid: number, path: string) => emit('toggleFolder', nid, path)"
         @select-folder="(nid: number, path: string) => emit('selectFolder', nid, path)"
-        @select-file="(file: FileMetadata) => emit('selectFile', file)"
-        @move-file="(fileId: number, targetPath: string) => emit('moveFile', fileId, targetPath)"
+        @select-file="(file: Block) => emit('selectFile', file)"
+        @move-file="(blockId: string, targetPath: string) => emit('moveFile', blockId, targetPath)"
       />
     </ul>
   </li>
@@ -70,7 +70,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue"
 import type { FileTreeNode } from "../utils/fileTree"
-import type { FileMetadata } from "../services/codex"
+import type { Block } from "../services/codex"
 import { getDisplayType } from "../utils/contentType"
 
 interface Props {
@@ -88,8 +88,8 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
   toggleFolder: [notebookId: number, path: string]
   selectFolder: [notebookId: number, path: string]
-  selectFile: [file: FileMetadata]
-  moveFile: [fileId: number, targetPath: string]
+  selectFile: [file: Block]
+  moveFile: [blockId: string, targetPath: string]
 }>()
 
 const isDragging = ref(false)
@@ -142,9 +142,9 @@ const handleDragStart = (event: DragEvent) => {
   event.dataTransfer.setData(
     "application/x-codex-file",
     JSON.stringify({
-      fileId: props.node.file.id,
+      blockId: props.node.file.block_id,
       notebookId: props.notebookId,
-      filename: props.node.file.filename,
+      filename: props.node.file.filename || props.node.file.path.split("/").pop() || props.node.file.path,
       path: props.node.file.path,
     })
   )
@@ -182,19 +182,18 @@ const handleDrop = (event: DragEvent) => {
   if (!data) return
 
   try {
-    const { fileId, filename } = JSON.parse(data)
-    // Calculate new path: folder path + filename
+    const { blockId, filename } = JSON.parse(data)
     const newPath = props.node.path ? `${props.node.path}/${filename}` : filename
-    emit("moveFile", fileId, newPath)
+    emit("moveFile", blockId, newPath)
   } catch (e) {
     console.error("Failed to parse drag data:", e)
   }
 }
 
-const getFileIcon = (file: FileMetadata | undefined): string => {
+const getFileIcon = (file: Block | undefined): string => {
   if (!file) return "📄"
 
-  const displayType = getDisplayType(file.content_type)
+  const displayType = getDisplayType(file.content_type || "")
 
   switch (displayType) {
     case "markdown":

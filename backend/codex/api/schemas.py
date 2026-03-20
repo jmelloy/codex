@@ -1,5 +1,6 @@
 """API schemas for request/response validation."""
 
+from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
@@ -152,3 +153,270 @@ class RenderResponse(BaseModel):
     error: str | None = None
     cached: bool = False  # Whether data was served from cache
     fetched_at: str | None = None  # ISO timestamp when data was fetched
+
+
+# --- Message response (for delete endpoints etc.) ---
+
+
+class MessageResponse(BaseModel):
+    """Generic message response."""
+
+    message: str
+
+
+# --- Token response ---
+
+
+class TokenResponse(BaseModel):
+    """OAuth2 token response."""
+
+    access_token: str
+    token_type: str
+
+
+# --- Notebook responses ---
+
+
+class NotebookResponse(BaseModel):
+    """Notebook API response."""
+
+    id: int
+    slug: str | None = None
+    name: str
+    path: str
+    description: str | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
+
+
+class NotebookIndexingStatusResponse(BaseModel):
+    """Notebook indexing status response."""
+
+    notebook_id: int
+    status: str
+    is_alive: bool
+
+
+# --- Plugin config responses ---
+
+
+class WorkspacePluginConfigResponse(BaseModel):
+    """Workspace plugin configuration response."""
+
+    plugin_id: str
+    version: str | None = None
+    enabled: bool
+    config: dict[str, Any]
+    created_at: str | None = None
+    updated_at: str | None = None
+
+
+class NotebookPluginConfigResponse(BaseModel):
+    """Notebook plugin configuration response."""
+
+    plugin_id: str
+    enabled: bool
+    config: dict[str, Any]
+    created_at: str | None = None
+    updated_at: str | None = None
+
+
+# --- Block responses ---
+
+
+class BlockResponse(BaseModel):
+    """Block API response.
+
+    Fields are optional because different endpoints return different subsets:
+    - _block_dict() returns the full shape from DB models
+    - Core functions (create_block, update_block_content, move_block) return minimal dicts
+    """
+
+    id: int | None = None
+    block_id: str
+    parent_block_id: str | None = None
+    notebook_id: int | None = None
+    path: str
+    block_type: str | None = None
+    type: str | None = None  # Alias used by core create/update functions
+    content_format: str | None = None
+    order_index: float | None = None
+    order: float | None = None  # Alias used by core create/move functions
+    file: str | None = None  # Filename, used by core create functions
+    title: str | None = None
+    file_id: int | None = None
+    content_type: str | None = None
+    size: int | None = None
+    description: str | None = None
+    properties: dict[str, Any] | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
+    content: str | None = None
+    children: list["BlockResponse"] | None = None
+    page_metadata: dict[str, Any] | None = None
+    blocks: list["BlockResponse"] | None = None
+
+
+class PageResponse(BaseModel):
+    """Response for page creation/conversion."""
+
+    block_id: str
+    path: str
+    title: str | None = None
+    description: str | None = None
+    properties: dict[str, Any] | None = None
+    version: int | None = None
+    blocks: list[dict[str, Any]] | None = None
+
+
+class RootBlocksResponse(BaseModel):
+    """Response for listing root blocks."""
+
+    blocks: list[BlockResponse]
+    notebook_id: int
+    workspace_id: int
+
+
+class BlockChildrenResponse(BaseModel):
+    """Response for listing block children."""
+
+    parent_block_id: str
+    children: list[BlockResponse]
+
+
+class BlockTreeResponse(BaseModel):
+    """Response for hierarchical block tree."""
+
+    tree: list[dict[str, Any]]
+    notebook_id: int
+    workspace_id: int
+
+
+class BlockTextContentResponse(BaseModel):
+    """Response for block text content."""
+
+    content: str
+    properties: dict[str, Any] | None = None
+
+
+class BlockDeleteResponse(BaseModel):
+    """Response for block deletion."""
+
+    message: str
+    blocks: list[BlockResponse] | None = None
+
+
+class BlockReorderResponse(BaseModel):
+    """Response for block reorder."""
+
+    parent_block_id: str
+    blocks: list[BlockResponse]
+
+
+class BlockResolveLinkResponse(BaseModel):
+    """Response for block link resolution."""
+
+    id: int | None = None
+    block_id: str | None = None
+    parent_block_id: str | None = None
+    notebook_id: int | None = None
+    path: str
+    filename: str | None = None
+    block_type: str | None = None
+    content_format: str | None = None
+    order_index: float | None = None
+    title: str | None = None
+    file_id: int | None = None
+    content_type: str | None = None
+    size: int | None = None
+    description: str | None = None
+    properties: dict[str, Any] | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
+    resolved_path: str
+
+
+class FileHistoryEntryResponse(BaseModel):
+    """Git history entry."""
+
+    hash: str
+    author: str
+    date: str
+    message: str
+
+
+class BlockHistoryResponse(BaseModel):
+    """Response for block git history."""
+
+    block_id: str
+    path: str
+    history: list[FileHistoryEntryResponse]
+
+
+class BlockAtCommitResponse(BaseModel):
+    """Response for block content at a specific commit."""
+
+    block_id: str
+    path: str
+    commit_hash: str
+    content: str
+
+
+class ImportFolderResponse(BaseModel):
+    """Response for folder import."""
+
+    path: str
+    block_id: str
+    pages_created: int
+    blocks_created: int
+
+
+# --- Search responses ---
+
+
+class SearchResultResponse(BaseModel):
+    """A single search result."""
+
+    id: int | None = None
+    path: str | None = None
+    filename: str | None = None
+    title: str | None = None
+    description: str | None = None
+    content_type: str | None = None
+    notebook_id: int | None = None
+    snippet: str | None = None
+    score: float | None = None
+
+
+class WorkspaceSearchResponse(BaseModel):
+    """Response for workspace-level search."""
+
+    query: str
+    workspace_id: int
+    workspace_slug: str | None = None
+    results: list[SearchResultResponse]
+    message: str | None = None
+
+
+class NotebookSearchResponse(WorkspaceSearchResponse):
+    """Response for notebook-level search."""
+
+    notebook_id: int
+    notebook_slug: str | None = None
+
+
+class WorkspaceTagSearchResponse(BaseModel):
+    """Response for workspace-level tag search."""
+
+    tags: list[str]
+    workspace_id: int
+    workspace_slug: str | None = None
+    results: list[SearchResultResponse]
+    message: str | None = None
+
+
+class NotebookTagSearchResponse(WorkspaceTagSearchResponse):
+    """Response for notebook-level tag search."""
+
+    notebook_id: int
+    notebook_slug: str | None = None

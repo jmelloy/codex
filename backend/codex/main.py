@@ -18,8 +18,6 @@ from codex.api.routes import (
     agents,
     blocks,
     calendar,
-    files,
-    folders,
     integrations,
     notebooks,
     oauth,
@@ -172,16 +170,6 @@ app.include_router(
     notebooks.nested_router,
     prefix="/api/v1/workspaces/{workspace_identifier}/notebooks",
     tags=["notebooks"],
-)
-app.include_router(
-    files.nested_router,
-    prefix="/api/v1/workspaces/{workspace_identifier}/notebooks/{notebook_identifier}/files",
-    tags=["files"],
-)
-app.include_router(
-    folders.nested_router,
-    prefix="/api/v1/workspaces/{workspace_identifier}/notebooks/{notebook_identifier}/folders",
-    tags=["folders"],
 )
 app.include_router(
     blocks.nested_router,

@@ -3,10 +3,10 @@ import { mount } from "@vue/test-utils"
 import FilePropertiesPanel from "../../components/FilePropertiesPanel.vue"
 
 vi.mock("../../services/codex", () => ({
-  fileService: {
-    getHistory: vi.fn().mockResolvedValue({ file_id: 1, path: "/test/path", history: [] }),
+  blockService: {
+    getHistory: vi.fn().mockResolvedValue({ block_id: "blk_1", path: "/test/path", history: [] }),
     getAtCommit: vi.fn().mockResolvedValue({
-      file_id: 1,
+      block_id: "blk_1",
       path: "/test/path",
       commit_hash: "abc123",
       content: "# Old Content",
@@ -16,8 +16,14 @@ vi.mock("../../services/codex", () => ({
 
 const mockFile = {
   id: 1,
+  block_id: "blk_1",
+  parent_block_id: null,
+  notebook_id: 1,
   path: "/test/path",
   filename: "test-file.md",
+  block_type: "file",
+  content_format: "markdown",
+  order_index: 0,
   title: "Test File",
   description: "Test description",
   content_type: "text/markdown",
@@ -30,7 +36,6 @@ const mockFile = {
     tags: ["test", "example"],
   },
   content: "# Test Content",
-  notebook_id: 1,
 }
 
 const defaultProps = { workspaceId: 1, notebookId: 1 }

@@ -11,7 +11,7 @@ from sqlmodel import select
 
 from codex.core.watcher import NotebookFileHandler, NotebookWatcher, get_watcher_for_notebook
 from codex.db.database import get_notebook_session, init_notebook_db
-from codex.db.models import FileMetadata
+from codex.db.models import Block
 
 
 @pytest.fixture
@@ -65,15 +65,15 @@ def test_watcher_extracts_image_metadata(temp_notebook):
     session = get_notebook_session(temp_dir)
     try:
         result = session.execute(
-            select(FileMetadata).where(FileMetadata.notebook_id == 1, FileMetadata.path == rel_path)
+            select(Block).where(Block.notebook_id == 1, Block.path == rel_path)
         )
-        file_meta = result.scalar_one_or_none()
+        block = result.scalar_one_or_none()
 
-        assert file_meta is not None
-        assert file_meta.content_type == "image/png"
+        assert block is not None
+        assert block.content_type == "image/png"
 
         # Check that properties contains image metadata
-        properties = json.loads(file_meta.properties)
+        properties = json.loads(block.properties)
         assert "width" in properties
         assert "height" in properties
         assert "format" in properties
@@ -103,15 +103,15 @@ def test_watcher_extracts_jpeg_metadata(temp_notebook):
     session = get_notebook_session(temp_dir)
     try:
         result = session.execute(
-            select(FileMetadata).where(FileMetadata.notebook_id == 1, FileMetadata.path == rel_path)
+            select(Block).where(Block.notebook_id == 1, Block.path == rel_path)
         )
-        file_meta = result.scalar_one_or_none()
+        block = result.scalar_one_or_none()
 
-        assert file_meta is not None
-        assert file_meta.content_type == "image/jpeg"
+        assert block is not None
+        assert block.content_type == "image/jpeg"
 
         # Check that properties contains image metadata
-        properties = json.loads(file_meta.properties)
+        properties = json.loads(block.properties)
         assert properties["width"] == 640
         assert properties["height"] == 480
         assert properties["format"] == "JPEG"
@@ -137,14 +137,14 @@ def test_watcher_extracts_rgba_image_metadata(temp_notebook):
     session = get_notebook_session(temp_dir)
     try:
         result = session.execute(
-            select(FileMetadata).where(FileMetadata.notebook_id == 1, FileMetadata.path == rel_path)
+            select(Block).where(Block.notebook_id == 1, Block.path == rel_path)
         )
-        file_meta = result.scalar_one_or_none()
+        block = result.scalar_one_or_none()
 
-        assert file_meta is not None
+        assert block is not None
 
         # Check that properties contains image metadata including mode
-        properties = json.loads(file_meta.properties)
+        properties = json.loads(block.properties)
         assert properties["width"] == 500
         assert properties["height"] == 300
         assert properties["mode"] == "RGBA"
@@ -168,15 +168,15 @@ def test_watcher_non_image_no_image_metadata(temp_notebook):
     session = get_notebook_session(temp_dir)
     try:
         result = session.execute(
-            select(FileMetadata).where(FileMetadata.notebook_id == 1, FileMetadata.path == rel_path)
+            select(Block).where(Block.notebook_id == 1, Block.path == rel_path)
         )
-        file_meta = result.scalar_one_or_none()
+        block = result.scalar_one_or_none()
 
-        assert file_meta is not None
-        assert file_meta.content_type == "text/plain"
+        assert block is not None
+        assert block.content_type == "text/plain"
 
         # Properties should exist but not have image metadata
-        properties = json.loads(file_meta.properties)
+        properties = json.loads(block.properties)
         assert "width" not in properties
         assert "height" not in properties
         assert "format" not in properties
@@ -206,14 +206,14 @@ def test_watcher_image_with_sidecar_metadata(temp_notebook):
     session = get_notebook_session(temp_dir)
     try:
         result = session.execute(
-            select(FileMetadata).where(FileMetadata.notebook_id == 1, FileMetadata.path == rel_path)
+            select(Block).where(Block.notebook_id == 1, Block.path == rel_path)
         )
-        file_meta = result.scalar_one_or_none()
+        block = result.scalar_one_or_none()
 
-        assert file_meta is not None
+        assert block is not None
 
         # Check that both image metadata and sidecar metadata are present
-        properties = json.loads(file_meta.properties)
+        properties = json.loads(block.properties)
 
         # Image metadata
         assert properties["width"] == 800
@@ -227,7 +227,7 @@ def test_watcher_image_with_sidecar_metadata(temp_notebook):
         assert properties["artist"] == "Test Artist"
 
         # Check indexed fields
-        assert file_meta.title == "My Artwork"
-        assert file_meta.description == "A beautiful piece of digital art"
+        assert block.title == "My Artwork"
+        assert block.description == "A beautiful piece of digital art"
     finally:
         session.close()

@@ -1,10 +1,10 @@
-import type { FileMetadata, FolderWithFiles, SubfolderMetadata } from "../services/codex"
+import type { Block, FolderWithFiles, SubfolderMetadata } from "../services/codex"
 
 export interface FileTreeNode {
   name: string
   path: string
   type: "file" | "folder"
-  file?: FileMetadata
+  file?: Block
   children?: FileTreeNode[]
   // For folders, track if contents have been loaded
   loaded?: boolean
@@ -19,6 +19,55 @@ export interface FileTreeNode {
   isPage?: boolean // folder has .codex-page.json
   hasSubpages?: boolean // page has child pages
   blockOrder?: string[] // ordered block_ids for sorting children
+  // Unified block fields
+  block_id?: string
+  block_type?: string
+  parent_block_id?: string | null
+  content_type?: string
+  title?: string
+  block?: Block
+}
+
+/**
+ * Convert a block tree (from GET /blocks/tree) into FileTreeNode format.
+ * This bridges the new block API with the existing tree rendering components.
+ */
+export function blockTreeToFileTree(blocks: Block[]): FileTreeNode[] {
+  return blocks.map((block) => {
+    const name = block.path.split("/").pop() || block.title || block.path
+    const node: FileTreeNode = {
+      name: block.title || name,
+      path: block.path,
+      type: block.block_type === "page" ? "folder" : "file",
+      block_id: block.block_id,
+      block_type: block.block_type,
+      parent_block_id: block.parent_block_id,
+      content_type: block.content_type,
+      title: block.title,
+      block: block,
+      isPage: block.block_type === "page",
+      loaded: true,
+    }
+
+    if (block.block_type !== "page") {
+      node.file = block
+    } else {
+      node.folderMeta = {
+        title: block.title,
+        description: block.description,
+        properties: block.properties,
+      }
+      node.hasSubpages = block.children?.some((c) => c.block_type === "page") ?? false
+    }
+
+    if (block.children && block.children.length > 0) {
+      node.children = blockTreeToFileTree(block.children)
+    } else if (block.block_type === "page") {
+      node.children = []
+    }
+
+    return node
+  })
 }
 
 /** Hidden metadata filenames that should not appear in the tree */
@@ -27,7 +76,7 @@ const HIDDEN_FILENAMES = new Set([".metadata", ".codex-page.json"])
 /**
  * Build a hierarchical tree structure from a flat list of files
  */
-export function buildFileTree(files: FileMetadata[]): FileTreeNode[] {
+export function buildFileTree(files: Block[]): FileTreeNode[] {
   const root: FileTreeNode[] = []
 
   // Create a map to track folders we've already created
@@ -35,7 +84,7 @@ export function buildFileTree(files: FileMetadata[]): FileTreeNode[] {
 
   // Sort files by path, filtering out hidden metadata files
   const sortedFiles = [...files]
-    .filter((f) => !HIDDEN_FILENAMES.has(f.filename))
+    .filter((f) => !HIDDEN_FILENAMES.has(f.filename || f.path.split("/").pop() || ""))
     .sort((a, b) => a.path.localeCompare(b.path))
 
   for (const file of sortedFiles) {
@@ -150,9 +199,9 @@ export function findParentNode(tree: FileTreeNode[], path: string): FileTreeNode
 /**
  * Insert a file node into the tree at the correct position
  */
-export function insertFileNode(tree: FileTreeNode[], file: FileMetadata): void {
-  // Skip hidden metadata files
-  if (HIDDEN_FILENAMES.has(file.filename)) return
+export function insertFileNode(tree: FileTreeNode[], file: Block): void {
+  const fname = file.filename || file.path.split("/").pop() || ""
+  if (HIDDEN_FILENAMES.has(fname)) return
 
   const pathParts = file.path.split("/").filter((p) => p !== "")
   if (pathParts.length === 0) return
@@ -286,7 +335,7 @@ export function removeNode(tree: FileTreeNode[], path: string): boolean {
 /**
  * Update a file node's metadata in the tree
  */
-export function updateFileNode(tree: FileTreeNode[], file: FileMetadata): boolean {
+export function updateFileNode(tree: FileTreeNode[], file: Block): boolean {
   const node = findNode(tree, file.path)
   if (!node || node.type !== "file") return false
 
@@ -360,16 +409,16 @@ export function mergeFolderContents(
     }
   }
 
-  // Add files (filtering out hidden metadata files)
   for (const file of folderData.files) {
-    if (HIDDEN_FILENAMES.has(file.filename)) continue
+    const fname = file.filename || file.path.split("/").pop() || ""
+    if (HIDDEN_FILENAMES.has(fname)) continue
 
     const existingFile = targetChildren.find((n) => n.path === file.path && n.type === "file")
     if (existingFile) {
       existingFile.file = file
     } else {
       targetChildren.push({
-        name: file.filename,
+        name: fname,
         path: file.path,
         type: "file",
         file: file,
@@ -383,8 +432,8 @@ export function mergeFolderContents(
 /**
  * Get all file metadata from the tree as a flat array
  */
-export function getAllFiles(tree: FileTreeNode[]): FileMetadata[] {
-  const files: FileMetadata[] = []
+export function getAllFiles(tree: FileTreeNode[]): Block[] {
+  const files: Block[] = []
 
   function walk(nodes: FileTreeNode[]) {
     for (const node of nodes) {

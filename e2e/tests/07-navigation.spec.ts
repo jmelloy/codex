@@ -29,16 +29,16 @@ test.describe("Navigation & URL Routing", () => {
     );
     const notebook = await nbResponse.json();
 
-    await page.request.post(
-      `${baseURL}/api/v1/workspaces/${ws.id}/notebooks/${notebook.id}/files/`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-        data: {
-          path: "nav-test.md",
-          content: "# Navigation Test",
-        },
-      }
-    );
+    await page.request.post(`${baseURL}/api/v1/snippets/`, {
+      headers: { Authorization: `Bearer ${token}` },
+      data: {
+        workspace: ws.slug,
+        notebook: notebook.slug,
+        filename: "nav-test.md",
+        content: "# Navigation Test",
+        title: "nav-test",
+      },
+    });
 
     // Navigate to the workspace/notebook URL to ensure the correct workspace is shown
     await page.goto(`/w/${ws.slug}/${notebook.slug}`);

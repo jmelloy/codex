@@ -75,15 +75,15 @@
         </div>
         <div class="property-row">
           <span class="property-label">Filename</span>
-          <span class="property-value">{{ file.filename }}</span>
+          <span class="property-value">{{ file.filename || file.path.split('/').pop() || file.path }}</span>
         </div>
         <div class="property-row">
           <span class="property-label">Type</span>
-          <span class="property-value">{{ file.content_type }}</span>
+          <span class="property-value">{{ file.content_type || 'unknown' }}</span>
         </div>
         <div class="property-row">
           <span class="property-label">Size</span>
-          <span class="property-value">{{ formatSize(file.size) }}</span>
+          <span class="property-value">{{ formatSize(file.size || 0) }}</span>
         </div>
       </div>
 
@@ -163,15 +163,15 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue"
-import type { FileWithContent, FileHistoryEntry } from "../services/codex"
-import { fileService } from "../services/codex"
+import type { Block, FileHistoryEntry } from "../services/codex"
+import { blockService } from "../services/codex"
 import { useProperties } from "../composables/useProperties"
 import { formatDate, formatCommitDate, formatSize } from "../utils/date"
 import TagsEditor from "./TagsEditor.vue"
 import CustomPropertiesEditor from "./CustomPropertiesEditor.vue"
 
 interface Props {
-  file: FileWithContent | null
+  file: (Block & { content?: string }) | null
   workspaceId: number
   notebookId: number
 }
@@ -225,7 +225,7 @@ const {
 watch(() => props.file, () => syncFromSource(), { immediate: true })
 
 function confirmDelete() {
-  const displayName = props.file?.properties?.title || props.file?.title || props.file?.filename
+  const displayName = props.file?.properties?.title || props.file?.title || props.file?.filename || props.file?.path.split("/").pop()
   if (confirm(`Are you sure you want to delete "${displayName}"?`)) {
     emit("delete")
   }
@@ -242,7 +242,7 @@ async function loadHistory() {
   commitContent.value = null
 
   try {
-    const result = await fileService.getHistory(props.file.id, props.workspaceId, props.notebookId)
+    const result = await blockService.getHistory(props.file.block_id, props.notebookId, props.workspaceId)
     history.value = result.history
   } catch (error: any) {
     historyError.value = error.response?.data?.detail || "Failed to load history"
@@ -270,10 +270,10 @@ async function selectCommit(commit: FileHistoryEntry) {
   commitContentLoading.value = true
 
   try {
-    const result = await fileService.getAtCommit(
-      props.file!.id,
-      props.workspaceId,
+    const result = await blockService.getAtCommit(
+      props.file!.block_id,
       props.notebookId,
+      props.workspaceId,
       commit.hash,
     )
     commitContent.value = result.content
@@ -286,7 +286,7 @@ async function selectCommit(commit: FileHistoryEntry) {
 
 function restoreCommit() {
   if (commitContent.value !== null) {
-    const displayName = props.file?.properties?.title || props.file?.title || props.file?.filename
+    const displayName = props.file?.properties?.title || props.file?.title || props.file?.filename || props.file?.path.split("/").pop()
     if (
       confirm(`Restore "${displayName}" to version ${selectedCommit.value?.hash.substring(0, 7)}?`)
     ) {
@@ -300,7 +300,7 @@ function restoreCommit() {
 
 // Reset history when file changes
 watch(
-  () => props.file?.id,
+  () => props.file?.block_id,
   () => {
     history.value = []
     historyError.value = null

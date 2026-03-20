@@ -1,117 +1,89 @@
-"""Tests for file creation with folder paths."""
+"""Tests for block creation with page hierarchy."""
 
 from pathlib import Path
 
 
-def test_create_file_with_folder_path(test_client, auth_headers, workspace_and_notebook):
-    """Test creating a file with a folder path creates the folder structure."""
+def test_create_page_and_block(test_client, auth_headers, workspace_and_notebook):
+    """Test creating a page and adding a block to it."""
     headers = auth_headers[0]
     workspace, notebook = workspace_and_notebook
 
-    # Get notebook path on disk
-    ws_detail = test_client.get(f"/api/v1/workspaces/{workspace['slug']}", headers=headers)
-    notebook_path = Path(ws_detail.json()["path"]) / notebook["path"]
-
-    # Create a file with a folder path using nested route
-    file_path = "folder1/folder2/testfile.md"
-    file_content = "# Test File\n\nThis is a test file in nested folders."
-
-    file_response = test_client.post(
-        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/files/",
+    # Create a page using block API
+    page_response = test_client.post(
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/blocks/pages",
         json={
-            "path": file_path,
-            "content": file_content,
+            "title": "Test Page",
+            "description": "A test page",
         },
         headers=headers,
     )
 
-    # Check that the file was created successfully
-    assert file_response.status_code == 200, f"Failed to create file: {file_response.json()}"
-    file_data = file_response.json()
-    assert file_data["path"] == file_path
-    assert file_data["filename"] == "testfile.md"
+    assert page_response.status_code == 200, f"Failed to create page: {page_response.json()}"
+    page_data = page_response.json()
+    assert page_data["title"] == "Test Page"
+    assert "block_id" in page_data
 
-    # Verify that the folder structure was created on disk
-    full_file_path = notebook_path / file_path
-    assert full_file_path.exists(), f"File does not exist at {full_file_path}"
-
-    # Verify the folder structure exists
-    folder1 = notebook_path / "folder1"
-    folder2 = notebook_path / "folder1" / "folder2"
-    assert folder1.exists() and folder1.is_dir(), f"Folder1 does not exist at {folder1}"
-    assert folder2.exists() and folder2.is_dir(), f"Folder2 does not exist at {folder2}"
-
-    # Verify the file content
-    with open(full_file_path, "r") as f:
-        content = f.read()
-    assert content == file_content
-
-
-def test_create_file_with_single_folder(test_client, auth_headers, workspace_and_notebook):
-    """Test creating a file with a single folder path."""
-    headers = auth_headers[0]
-    workspace, notebook = workspace_and_notebook
-
-    # Get notebook path on disk
-    ws_detail = test_client.get(f"/api/v1/workspaces/{workspace['slug']}", headers=headers)
-    notebook_path = Path(ws_detail.json()["path"]) / notebook["path"]
-
-    # Create a file with a single folder path using nested route
-    file_path = "docs/readme.md"
-    file_content = "# README\n\nDocumentation file."
-
-    file_response = test_client.post(
-        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/files/",
+    # Create a text block within the page
+    block_response = test_client.post(
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/blocks/",
         json={
-            "path": file_path,
-            "content": file_content,
+            "parent_block_id": page_data["block_id"],
+            "block_type": "text",
+            "content": "Hello, world!",
         },
         headers=headers,
     )
 
-    # Check that the file was created successfully
-    assert file_response.status_code == 200, f"Failed to create file: {file_response.json()}"
-    file_data = file_response.json()
-    assert file_data["path"] == file_path
-    assert file_data["filename"] == "readme.md"
-
-    # Verify that the folder was created on disk
-    full_file_path = notebook_path / file_path
-    assert full_file_path.exists(), f"File does not exist at {full_file_path}"
-
-    # Verify the folder exists
-    docs_folder = notebook_path / "docs"
-    assert docs_folder.exists() and docs_folder.is_dir(), f"Docs folder does not exist at {docs_folder}"
+    assert block_response.status_code == 200, f"Failed to create block: {block_response.json()}"
+    block_data = block_response.json()
+    assert block_data["type"] == "text"
 
 
-def test_create_file_without_folder(test_client, auth_headers, workspace_and_notebook):
-    """Test creating a file without a folder path (in the root)."""
+def test_create_nested_pages(test_client, auth_headers, workspace_and_notebook):
+    """Test creating nested pages."""
     headers = auth_headers[0]
     workspace, notebook = workspace_and_notebook
 
-    # Get notebook path on disk
-    ws_detail = test_client.get(f"/api/v1/workspaces/{workspace['slug']}", headers=headers)
-    notebook_path = Path(ws_detail.json()["path"]) / notebook["path"]
-
-    # Create a file in the root (no folder) using nested route
-    file_path = "notes.md"
-    file_content = "# Notes\n\nJust some notes."
-
-    file_response = test_client.post(
-        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/files/",
-        json={
-            "path": file_path,
-            "content": file_content,
-        },
+    # Create a parent page
+    parent_response = test_client.post(
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/blocks/pages",
+        json={"title": "Parent Page"},
         headers=headers,
     )
+    assert parent_response.status_code == 200
+    parent_data = parent_response.json()
 
-    # Check that the file was created successfully
-    assert file_response.status_code == 200, f"Failed to create file: {file_response.json()}"
-    file_data = file_response.json()
-    assert file_data["path"] == file_path
-    assert file_data["filename"] == "notes.md"
+    # Create a child page under the parent
+    child_response = test_client.post(
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/blocks/pages",
+        json={"title": "Child Page", "parent_path": parent_data["path"]},
+        headers=headers,
+    )
+    assert child_response.status_code == 200
+    child_data = child_response.json()
+    assert child_data["title"] == "Child Page"
 
-    # Verify that the file exists on disk
-    full_file_path = notebook_path / file_path
-    assert full_file_path.exists(), f"File does not exist at {full_file_path}"
+
+def test_block_tree(test_client, auth_headers, workspace_and_notebook):
+    """Test that the block tree returns created pages and blocks."""
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
+
+    # Create a page
+    page_response = test_client.post(
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/blocks/pages",
+        json={"title": "Tree Test Page"},
+        headers=headers,
+    )
+    assert page_response.status_code == 200
+
+    # Fetch the tree
+    tree_response = test_client.get(
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/blocks/tree",
+        headers=headers,
+    )
+    assert tree_response.status_code == 200
+    tree_data = tree_response.json()
+    assert "tree" in tree_data
+    # Should have at least the page we created
+    assert len(tree_data["tree"]) > 0

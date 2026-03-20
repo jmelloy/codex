@@ -253,31 +253,36 @@ class TestFileOperations:
         client = _fresh_client()
         headers, ws, nb = self._setup(client)
 
-        content = (
-            "---\ntitle: Integration Test File\n"
-            "tags: [test, integration]\n---\n\n"
-            "# Hello from integration tests\n"
+        # Create a page and block via block API
+        page_resp = client.post(
+            f"/api/v1/workspaces/{ws['id']}/notebooks/{nb['id']}/blocks/pages",
+            json={"title": "Integration Test Page"},
+            headers=headers,
         )
+        assert page_resp.status_code == 200
+        page = page_resp.json()
+
+        content = "# Hello from integration tests\n"
         resp = client.post(
-            f"/api/v1/workspaces/{ws['id']}/notebooks/{nb['id']}/files/",
-            json={"path": "test-file.md", "content": content},
+            f"/api/v1/workspaces/{ws['id']}/notebooks/{nb['id']}/blocks/",
+            json={"parent_block_id": page["block_id"], "content": content},
             headers=headers,
         )
         assert resp.status_code == 200
 
-    def test_list_files(self):
+    def test_list_blocks(self):
         client = _fresh_client()
         headers, ws, nb = self._setup(client)
 
-        # Create a file first
+        # Create a page first
         client.post(
-            f"/api/v1/workspaces/{ws['id']}/notebooks/{nb['id']}/files/",
-            json={"path": "list-test.md", "content": "# List test"},
+            f"/api/v1/workspaces/{ws['id']}/notebooks/{nb['id']}/blocks/pages",
+            json={"title": "List Test Page"},
             headers=headers,
         )
 
         resp = client.get(
-            f"/api/v1/workspaces/{ws['id']}/notebooks/{nb['id']}/files/",
+            f"/api/v1/workspaces/{ws['id']}/notebooks/{nb['id']}/blocks/",
             headers=headers,
         )
         assert resp.status_code == 200
@@ -452,21 +457,28 @@ class TestEndToEndFlow:
         assert nb_list.status_code == 200
         assert len(nb_list.json()) >= 1
 
-        # 9. Create file
-        file_content = "---\ntitle: E2E Test File\ntags: [e2e, integration]\n---\n\n" "# End-to-end test content\n"
-        file_resp = client.post(
-            f"/api/v1/workspaces/{ws['id']}/notebooks/{nb['id']}/files/",
-            json={"path": "e2e-test.md", "content": file_content},
+        # 9. Create page and block
+        page_resp = client.post(
+            f"/api/v1/workspaces/{ws['id']}/notebooks/{nb['id']}/blocks/pages",
+            json={"title": "E2E Test Page"},
             headers=headers,
         )
-        assert file_resp.status_code == 200
+        assert page_resp.status_code == 200
+        page = page_resp.json()
 
-        # 10. List files
-        files_list = client.get(
-            f"/api/v1/workspaces/{ws['id']}/notebooks/{nb['id']}/files/",
+        block_resp = client.post(
+            f"/api/v1/workspaces/{ws['id']}/notebooks/{nb['id']}/blocks/",
+            json={"parent_block_id": page["block_id"], "content": "# End-to-end test content\n"},
             headers=headers,
         )
-        assert files_list.status_code == 200
+        assert block_resp.status_code == 200
+
+        # 10. List blocks
+        blocks_list = client.get(
+            f"/api/v1/workspaces/{ws['id']}/notebooks/{nb['id']}/blocks/",
+            headers=headers,
+        )
+        assert blocks_list.status_code == 200
 
         # 11. Search
         search_resp = client.get(

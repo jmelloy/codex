@@ -865,6 +865,42 @@ class NotebookFileHandler(FileSystemEventHandler):
 
             if event_type == "deleted":
                 if file_meta:
+                    # Delete corresponding Block row
+                    try:
+                        from codex.db.models import Block as BlockModel
+
+                        block = session.execute(
+                            select(BlockModel).where(
+                                BlockModel.notebook_id == self.notebook_id,
+                                BlockModel.file_id == file_meta.id,
+                            )
+                        ).scalar_one_or_none()
+                        if not block:
+                            block = session.execute(
+                                select(BlockModel).where(
+                                    BlockModel.notebook_id == self.notebook_id,
+                                    BlockModel.path == rel_path,
+                                )
+                            ).scalar_one_or_none()
+                        if block:
+                            session.delete(block)
+                    except Exception:
+                        pass
+
+                    # Delete orphaned SearchIndex rows
+                    try:
+                        from codex.db.models.notebook import SearchIndex
+
+                        session.execute(
+                            select(SearchIndex).where(SearchIndex.file_id == file_meta.id)
+                        )
+                        for si in session.execute(
+                            select(SearchIndex).where(SearchIndex.file_id == file_meta.id)
+                        ).scalars():
+                            session.delete(si)
+                    except Exception:
+                        pass
+
                     session.delete(file_meta)
                     session.commit()
             else:

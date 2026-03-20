@@ -246,52 +246,10 @@ export const fileService = {
   },
 
   /**
-   * Get text content for a file by its path or filename.
-   */
-  async getContentByPath(
-    path: string,
-    workspaceId: number | string,
-    notebookId: number | string
-  ): Promise<FileTextContent> {
-    const encodedPath = encodeURIComponent(path)
-    const response = await apiClient.get<FileTextContent>(
-      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/path/${encodedPath}/text`
-    )
-    return response.data
-  },
-
-  /**
-   * Get the content URL for a file by path (for binary files like images).
-   */
-  getContentUrlByPath(path: string, workspaceId: number | string, notebookId: number | string): string {
-    const encodedPath = encodeURIComponent(path)
-    return `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/path/${encodedPath}/content`
-  },
-
-  /**
    * Get the content URL for a file by ID (for binary files like images).
    */
   getContentUrl(id: number, workspaceId: number | string, notebookId: number | string): string {
     return `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/${id}/content`
-  },
-
-  /**
-   * Resolve a link to a file, supporting relative paths and filenames.
-   */
-  async resolveLink(
-    link: string,
-    workspaceId: number | string,
-    notebookId: number | string,
-    currentFilePath?: string
-  ): Promise<FileMetadata & { resolved_path: string }> {
-    const response = await apiClient.post<FileMetadata & { resolved_path: string }>(
-      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/resolve-link`,
-      {
-        link,
-        current_file_path: currentFilePath,
-      }
-    )
-    return response.data
   },
 
   async create(
@@ -546,25 +504,6 @@ export const blockService = {
   },
 
   /**
-   * Move a block to a new parent and/or position.
-   */
-  async moveBlock(
-    blockId: string,
-    notebookId: number | string,
-    workspaceId: number | string,
-    data: {
-      new_parent_block_id?: string
-      position?: number
-    }
-  ): Promise<Block> {
-    const response = await apiClient.patch<Block>(
-      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/${blockId}/move`,
-      data
-    )
-    return response.data
-  },
-
-  /**
    * Reorder children of a page block.
    */
   async reorderBlocks(
@@ -591,21 +530,6 @@ export const blockService = {
     await apiClient.delete(
       `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/${blockId}`
     )
-  },
-
-  /**
-   * Convert an existing markdown file to a page of blocks.
-   */
-  async convertFileToBlocks(
-    notebookId: number | string,
-    workspaceId: number | string,
-    fileId: number
-  ): Promise<PageMetadata> {
-    const response = await apiClient.post<PageMetadata>(
-      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/convert-file`,
-      { file_id: fileId }
-    )
-    return response.data
   },
 
   /**
@@ -644,38 +568,5 @@ export const searchService = {
     return response.data
   },
 
-  /**
-   * Search files and content in a specific notebook.
-   */
-  async searchInNotebook(workspaceId: number | string, notebookId: number | string, query: string): Promise<any> {
-    const response = await apiClient.get(
-      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/search/?q=${encodeURIComponent(query)}`
-    )
-    return response.data
-  },
-
-  /**
-   * Search by tags across all notebooks in a workspace.
-   */
-  async searchByTags(workspaceId: number | string, tags: string[]): Promise<any> {
-    const response = await apiClient.get(
-      `/api/v1/workspaces/${workspaceId}/search/tags?tags=${encodeURIComponent(tags.join(","))}`
-    )
-    return response.data
-  },
-
-  /**
-   * Search by tags in a specific notebook.
-   */
-  async searchByTagsInNotebook(
-    workspaceId: number | string,
-    notebookId: number | string,
-    tags: string[]
-  ): Promise<any> {
-    const response = await apiClient.get(
-      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/search/tags?tags=${encodeURIComponent(tags.join(","))}`
-    )
-    return response.data
-  },
 }
 

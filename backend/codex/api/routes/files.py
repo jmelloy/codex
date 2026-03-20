@@ -867,53 +867,6 @@ async def delete_file_nested(
         nb_session.close()
 
 
-@nested_router.get("/{file_id}/versions")
-async def get_file_versions_nested(
-    workspace_identifier: str,
-    notebook_identifier: str,
-    file_id: int,
-    current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_system_session),
-):
-    """List S3 versions for a binary file.
-
-    Returns version history from S3 bucket versioning.  Only applicable
-    to files stored in S3 (``s3_key`` is set).
-    """
-    from codex.core.s3_storage import is_s3_configured, list_versions
-
-    notebook_path, notebook, workspace = await get_notebook_path_nested(
-        workspace_identifier, notebook_identifier, current_user, session
-    )
-
-    nb_session = get_notebook_session(str(notebook_path))
-    try:
-        result = nb_session.execute(
-            select(FileMetadata).where(FileMetadata.id == file_id, FileMetadata.notebook_id == notebook.id)
-        )
-        file_meta = result.scalar_one_or_none()
-
-        if not file_meta:
-            raise HTTPException(status_code=404, detail="File not found")
-
-        if not file_meta.s3_key:
-            return {"versions": [], "message": "File is not stored in S3"}
-
-        if not is_s3_configured():
-            raise HTTPException(status_code=503, detail="S3 storage is not configured")
-
-        versions = list_versions(file_meta.s3_key, file_meta.s3_bucket)
-        return {
-            "file_id": file_meta.id,
-            "path": file_meta.path,
-            "s3_key": file_meta.s3_key,
-            "current_version_id": file_meta.s3_version_id,
-            "versions": versions,
-        }
-    finally:
-        nb_session.close()
-
-
 @nested_router.post("/resolve-link")
 async def resolve_link_nested(
     workspace_identifier: str,

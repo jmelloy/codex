@@ -477,10 +477,10 @@
     <main class="flex-1 flex flex-col overflow-hidden pt-14 lg:pt-0">
       <!-- Loading State -->
       <div
-        v-if="workspaceStore.fileLoading || isConverting"
+        v-if="workspaceStore.fileLoading"
         class="flex flex-col items-center justify-center h-full text-text-tertiary"
       >
-        <span>{{ isConverting ? 'Converting to blocks...' : 'Loading...' }}</span>
+        <span>Loading...</span>
       </div>
 
       <!-- Error State -->
@@ -617,19 +617,13 @@
             </div>
           </div>
 
-          <!-- Markdown Viewer (default) -->
-          <MarkdownViewer
+          <!-- Text file fallback -->
+          <div
             v-else
-            :content="workspaceStore.currentFile.content"
-            :frontmatter="workspaceStore.currentFile.properties"
-            :workspace-id="workspaceStore.currentWorkspace?.id"
-            :notebook-id="workspaceStore.currentNotebook?.id"
-            :current-file-path="workspaceStore.currentFile.path"
-            :show-frontmatter="false"
-            :show-toolbar="false"
-            @copy="handleCopy"
-            class="flex-1"
-          />
+            class="flex-1 overflow-auto p-4 bg-bg-secondary rounded-lg"
+          >
+            <pre class="whitespace-pre-wrap text-sm" style="color: var(--notebook-text)">{{ workspaceStore.currentFile.content }}</pre>
+          </div>
         </div>
       </div>
 
@@ -819,7 +813,6 @@ import { searchService } from "../services/codex"
 import { getDisplayType } from "../utils/contentType"
 import Modal from "../components/Modal.vue"
 import FormGroup from "../components/FormGroup.vue"
-import MarkdownViewer from "../components/MarkdownViewer.vue"
 import CodeViewer from "../components/CodeViewer.vue"
 import FilePropertiesPanel from "../components/FilePropertiesPanel.vue"
 import FolderPropertiesPanel from "../components/FolderPropertiesPanel.vue"
@@ -941,29 +934,6 @@ function openInNewTab() {
     window.open(currentContentUrl.value, "_blank")
   }
 }
-
-// Auto-convert markdown files to blocks when they finish loading
-const isConverting = ref(false)
-watch([() => workspaceStore.currentFile, () => workspaceStore.fileLoading], async ([file, loading]) => {
-  if (
-    file &&
-    !loading &&
-    file.content !== undefined &&
-    getDisplayType(file.content_type) === "markdown" &&
-    !isConverting.value
-  ) {
-    // Convert markdown file to blocks automatically
-    isConverting.value = true
-    try {
-      await workspaceStore.convertFileToBlocks(file.id, file.notebook_id)
-    } catch {
-      // If conversion fails, just log and continue with markdown viewer
-      console.warn("Failed to convert markdown to blocks")
-    } finally {
-      isConverting.value = false
-    }
-  }
-})
 
 // Watch for route changes to restore file/folder selection from URL (path-based)
 watch(
@@ -1569,10 +1539,6 @@ function findFileById(fileId: number): FileMetadata | undefined {
     if (file) return file
   }
   return undefined
-}
-
-function handleCopy() {
-  showToast({ message: "Content copied to clipboard!" })
 }
 
 function toggleProperties() {

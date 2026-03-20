@@ -116,29 +116,9 @@ describe("Codex Services", () => {
       )
     })
 
-    it("gets content by path and returns content URLs", async () => {
-      const mockContent = { id: 1, content: "content" }
-      mockGet.mockResolvedValue({ data: mockContent })
-      await fileService.getContentByPath("folder/test.md", 1, 1)
-      expect(mockGet).toHaveBeenCalledWith(
-        "/api/v1/workspaces/1/notebooks/1/files/path/folder%2Ftest.md/text"
-      )
-
-      expect(fileService.getContentUrlByPath("folder/test.png", 1, 1)).toBe(
-        "/api/v1/workspaces/1/notebooks/1/files/path/folder%2Ftest.png/content"
-      )
+    it("returns content URLs", () => {
       expect(fileService.getContentUrl(1, 2, 3)).toBe(
         "/api/v1/workspaces/2/notebooks/3/files/1/content"
-      )
-    })
-
-    it("resolves links", async () => {
-      const mockResolved = { ...mockFile, resolved_path: "resolved/test.md" }
-      mockPost.mockResolvedValue({ data: mockResolved })
-      expect(await fileService.resolveLink("test.md", 1, 1, "current/path.md")).toEqual(mockResolved)
-      expect(mockPost).toHaveBeenCalledWith(
-        "/api/v1/workspaces/1/notebooks/1/files/resolve-link",
-        { link: "test.md", current_file_path: "current/path.md" }
       )
     })
 
@@ -270,17 +250,12 @@ describe("Codex Services", () => {
   })
 
   describe("searchService", () => {
-    it("searches by text and tags", async () => {
+    it("searches by text", async () => {
       const mockResults = { results: [{ id: 1, title: "Test" }] }
       mockGet.mockResolvedValue({ data: mockResults })
 
       expect(await searchService.search(1, "test query")).toEqual(mockResults)
       expect(mockGet).toHaveBeenCalledWith("/api/v1/workspaces/1/search/?q=test%20query")
-
-      const tagResults = { results: [{ id: 1, title: "Tagged File" }] }
-      mockGet.mockResolvedValue({ data: tagResults })
-      expect(await searchService.searchByTags(1, ["tag1", "tag2"])).toEqual(tagResults)
-      expect(mockGet).toHaveBeenCalledWith("/api/v1/workspaces/1/search/tags?tags=tag1%2Ctag2")
     })
   })
 })

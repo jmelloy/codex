@@ -746,26 +746,6 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   }
 
   /**
-   * Convert an existing markdown file to a block page
-   */
-  async function convertFileToBlocks(fileId: number, notebookId: number) {
-    if (!currentWorkspace.value) return
-    try {
-      const result = await blockService.convertFileToBlocks(notebookId, currentWorkspace.value.id, fileId)
-      // Refresh the file tree since the file was replaced with a folder
-      await fetchFiles(notebookId)
-      // Select the new page folder
-      if (result.path) {
-        await selectFolder(result.path, notebookId)
-      }
-      return result
-    } catch (e: any) {
-      error.value = e.response?.data?.detail || "Failed to convert file to blocks"
-      throw e
-    }
-  }
-
-  /**
    * Import a markdown file as a page of blocks
    */
   async function importMarkdown(notebookId: number, file: File) {
@@ -840,7 +820,6 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     createBlock,
     reorderBlocks,
     deleteBlock,
-    convertFileToBlocks,
     importMarkdown,
   }
 })

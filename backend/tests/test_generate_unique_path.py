@@ -3,7 +3,7 @@
 import os
 from pathlib import Path
 
-from codex.api.routes.files import generate_unique_path
+from codex.core.blocks import generate_unique_path
 
 
 def test_returns_path_unchanged_when_no_conflict(tmp_path):

@@ -1,4 +1,4 @@
-import type { FileMetadata, FolderWithFiles, SubfolderMetadata } from "../services/codex"
+import type { Block, FileMetadata, FolderWithFiles, SubfolderMetadata } from "../services/codex"
 
 export interface FileTreeNode {
   name: string
@@ -19,6 +19,68 @@ export interface FileTreeNode {
   isPage?: boolean // folder has .codex-page.json
   hasSubpages?: boolean // page has child pages
   blockOrder?: string[] // ordered block_ids for sorting children
+  // Unified block fields
+  block_id?: string
+  block_type?: string
+  parent_block_id?: string | null
+  content_type?: string
+  title?: string
+  block?: Block
+}
+
+/**
+ * Convert a block tree (from GET /blocks/tree) into FileTreeNode format.
+ * This bridges the new block API with the existing tree rendering components.
+ */
+export function blockTreeToFileTree(blocks: Block[]): FileTreeNode[] {
+  return blocks.map((block) => {
+    const name = block.path.split("/").pop() || block.title || block.path
+    const node: FileTreeNode = {
+      name: block.title || name,
+      path: block.path,
+      type: block.block_type === "page" ? "folder" : "file",
+      block_id: block.block_id,
+      block_type: block.block_type,
+      parent_block_id: block.parent_block_id,
+      content_type: block.content_type,
+      title: block.title,
+      block: block,
+      isPage: block.block_type === "page",
+      loaded: true,
+    }
+
+    // Synthesize a FileMetadata-like object for compatibility
+    if (block.block_type !== "page") {
+      node.file = {
+        id: block.file_id || block.id,
+        notebook_id: block.notebook_id,
+        path: block.path,
+        filename: name,
+        content_type: block.content_type || "application/octet-stream",
+        size: block.size || 0,
+        title: block.title,
+        description: block.description,
+        properties: block.properties,
+        created_at: block.created_at,
+        updated_at: block.updated_at,
+      }
+    } else {
+      node.folderMeta = {
+        title: block.title,
+        description: block.description,
+        properties: block.properties,
+      }
+      node.hasSubpages = block.children?.some((c) => c.block_type === "page") ?? false
+    }
+
+    if (block.children && block.children.length > 0) {
+      node.children = blockTreeToFileTree(block.children)
+    } else if (block.block_type === "page") {
+      node.children = []
+    }
+
+    return node
+  })
 }
 
 /** Hidden metadata filenames that should not appear in the tree */

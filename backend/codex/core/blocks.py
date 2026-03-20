@@ -6,6 +6,7 @@ containing a .codex-page.json metadata file that tracks ordering and properties.
 
 import json
 import logging
+import mimetypes
 import os
 import shutil
 import uuid
@@ -15,10 +16,28 @@ from typing import Any
 from sqlmodel import Session, select
 
 from codex.db.models import Block, FileMetadata
+from codex.db.models.base import utc_now
 
 logger = logging.getLogger(__name__)
 
 PAGE_METADATA_FILE = ".codex-page.json"
+
+
+def generate_unique_path(file_path: Path) -> Path:
+    """Generate a unique file path by appending a numeric suffix if the file already exists."""
+    if not file_path.exists():
+        return file_path
+
+    stem = file_path.stem
+    suffix = file_path.suffix
+    parent = file_path.parent
+
+    counter = 1
+    while True:
+        candidate = parent / f"{stem}-{counter}{suffix}"
+        if not candidate.exists():
+            return candidate
+        counter += 1
 
 # Block types
 BLOCK_TYPE_PAGE = "page"
@@ -230,7 +249,10 @@ def add_file_as_block(
     )
     write_page_metadata(page_full_path, page_meta)
 
-    # Create Block row
+    # Create Block row with denormalized fields
+    full_file = notebook_path / file_path
+    ct = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+    sz = full_file.stat().st_size if full_file.exists() else 0
     block = Block(
         notebook_id=notebook_id,
         block_id=block_id,
@@ -241,6 +263,8 @@ def add_file_as_block(
         order_index=order,
         title=None,
         file_id=file_id,
+        content_type=ct,
+        size=sz,
     )
     nb_session.add(block)
     nb_session.commit()
@@ -351,6 +375,8 @@ def create_page(
             content_format="markdown",
             order_index=0.0,  # Pages use their parent's order for them
             title=title,
+            description=description,
+            properties=json.dumps(properties) if properties else None,
         )
         nb_session.add(block)
         nb_session.commit()
@@ -448,6 +474,9 @@ def create_block(
 
     # Insert Block row if session provided
     if nb_session is not None:
+        file_full = page_full_path / filename
+        ct = mimetypes.guess_type(filename)[0] or "text/plain"
+        sz = file_full.stat().st_size if file_full.exists() else len(content.encode())
         block = Block(
             notebook_id=notebook_id,
             block_id=block_id,
@@ -457,6 +486,8 @@ def create_block(
             content_format=content_format,
             order_index=order,
             title=None,
+            content_type=ct,
+            size=sz,
         )
         nb_session.add(block)
         nb_session.commit()
@@ -910,3 +941,439 @@ def _sanitize_folder_name(name: str) -> str:
     safe = name.replace("/", "-").replace("\\", "-").replace("\0", "")
     safe = safe.strip().strip(".")
     return safe
+
+
+# ---------------------------------------------------------------------------
+# Unified block functions (Phase 1.3)
+# ---------------------------------------------------------------------------
+
+
+def get_block_tree(
+    notebook_path: Path,
+    notebook_id: int,
+    nb_session: Session,
+) -> list[dict[str, Any]]:
+    """Build a hierarchical tree of all blocks for sidebar navigation.
+
+    Returns a nested list where page blocks contain their children.
+    """
+    all_blocks = nb_session.exec(
+        select(Block).where(Block.notebook_id == notebook_id)
+    ).all()
+
+    # Index by block_id
+    by_id: dict[str, dict[str, Any]] = {}
+    for b in all_blocks:
+        by_id[b.block_id] = _block_dict(b)
+
+    # Build tree
+    roots: list[dict[str, Any]] = []
+    for b in all_blocks:
+        node = by_id[b.block_id]
+        if b.parent_block_id and b.parent_block_id in by_id:
+            parent = by_id[b.parent_block_id]
+            parent.setdefault("children", []).append(node)
+        else:
+            roots.append(node)
+
+    # Sort children by order_index recursively
+    def _sort(nodes: list[dict[str, Any]]) -> None:
+        nodes.sort(key=lambda n: n.get("order_index", 0))
+        for n in nodes:
+            if "children" in n:
+                _sort(n["children"])
+
+    _sort(roots)
+    return roots
+
+
+def _block_dict(block: Block) -> dict[str, Any]:
+    """Convert a Block to a dict suitable for API responses."""
+    return {
+        "id": block.id,
+        "block_id": block.block_id,
+        "parent_block_id": block.parent_block_id,
+        "notebook_id": block.notebook_id,
+        "path": block.path,
+        "block_type": block.block_type,
+        "content_format": block.content_format,
+        "order_index": block.order_index,
+        "title": block.title,
+        "file_id": block.file_id,
+        "content_type": block.content_type,
+        "size": block.size,
+        "description": block.description,
+        "properties": _parse_json(block.properties),
+        "created_at": block.created_at.isoformat() if block.created_at else None,
+        "updated_at": block.updated_at.isoformat() if block.updated_at else None,
+    }
+
+
+def _parse_json(value: str | None) -> dict | None:
+    if not value:
+        return None
+    try:
+        return json.loads(value)
+    except (json.JSONDecodeError, TypeError):
+        return None
+
+
+def get_block_content(notebook_path: Path, block: Block) -> str | None:
+    """Read text content from a block's backing file."""
+    file_path = notebook_path / block.path
+    if not file_path.exists() or file_path.is_dir():
+        return None
+    try:
+        content = file_path.read_text()
+        # Strip frontmatter from markdown files
+        if block.path.endswith(".md"):
+            from codex.core.metadata import MetadataParser
+            _, content = MetadataParser.parse_frontmatter(content)
+        return content
+    except Exception:
+        return None
+
+
+def serve_block_file(notebook_path: Path, block: Block):
+    """Return the path and media type for serving a block's file content."""
+    file_path = notebook_path / block.path
+    if not file_path.exists() or file_path.is_dir():
+        return None, None
+
+    media_type = mimetypes.guess_type(str(file_path))[0] or "application/octet-stream"
+    return str(file_path), media_type
+
+
+def import_folder_as_pages(
+    notebook_path: Path,
+    notebook_id: int,
+    folder_path: str,
+    nb_session: Session,
+) -> dict[str, Any]:
+    """Recursively convert a folder tree into pages and blocks.
+
+    Each subfolder becomes a page block, each file becomes a leaf block.
+    """
+    full_path = notebook_path / folder_path if folder_path else notebook_path
+    if not full_path.exists() or not full_path.is_dir():
+        raise FileNotFoundError(f"Folder not found: {folder_path}")
+
+    # Create page for this folder if not already a page
+    if not is_page_folder(full_path):
+        title = os.path.basename(folder_path) if folder_path else "Root"
+        parent_path = str(Path(folder_path).parent) if folder_path and "/" in folder_path else None
+        if parent_path == ".":
+            parent_path = None
+        create_page(
+            notebook_path=notebook_path,
+            notebook_id=notebook_id,
+            parent_path=parent_path,
+            title=title,
+            nb_session=nb_session,
+        )
+
+    page_meta = read_page_metadata(full_path)
+    if not page_meta:
+        raise ValueError(f"Failed to create page metadata for: {folder_path}")
+
+    # Process children
+    created_pages = []
+    created_blocks = []
+    for item in sorted(full_path.iterdir()):
+        if item.name.startswith("."):
+            continue
+
+        if item.is_dir():
+            child_path = f"{folder_path}/{item.name}" if folder_path else item.name
+            result = import_folder_as_pages(notebook_path, notebook_id, child_path, nb_session)
+            created_pages.append(result)
+        elif item.is_file():
+            rel_path = str(item.relative_to(notebook_path))
+            # Check if already a block
+            existing = nb_session.exec(
+                select(Block).where(Block.notebook_id == notebook_id, Block.path == rel_path)
+            ).first()
+            if not existing:
+                # Find FileMetadata
+                fm = nb_session.exec(
+                    select(FileMetadata).where(FileMetadata.notebook_id == notebook_id, FileMetadata.path == rel_path)
+                ).first()
+                file_id = fm.id if fm else None
+                try:
+                    result = add_file_as_block(
+                        notebook_path=notebook_path,
+                        notebook_id=notebook_id,
+                        page_path=folder_path,
+                        file_path=rel_path,
+                        file_id=file_id,
+                        nb_session=nb_session,
+                    )
+                    created_blocks.append(result)
+                except Exception as e:
+                    logger.warning(f"Could not add {rel_path} as block: {e}")
+
+    return {
+        "path": folder_path,
+        "block_id": page_meta.get("block_id"),
+        "pages_created": len(created_pages),
+        "blocks_created": len(created_blocks),
+    }
+
+
+def upload_to_block(
+    notebook_path: Path,
+    notebook_id: int,
+    page_block_id: str | None,
+    filename: str,
+    content: bytes,
+    nb_session: Session,
+) -> dict[str, Any]:
+    """Upload a file and create both FileMetadata and Block records.
+
+    Args:
+        notebook_path: Root path of the notebook
+        notebook_id: Notebook ID
+        page_block_id: Parent page block ID (None for root)
+        filename: Original filename
+        content: File content bytes
+        nb_session: Database session
+
+    Returns:
+        Block metadata dict.
+    """
+    import hashlib
+    from codex.core.watcher import get_content_type
+
+    # Determine target path
+    if page_block_id:
+        parent_block = nb_session.exec(
+            select(Block).where(Block.notebook_id == notebook_id, Block.block_id == page_block_id)
+        ).first()
+        if not parent_block:
+            raise FileNotFoundError(f"Parent block not found: {page_block_id}")
+        if parent_block.block_type != BLOCK_TYPE_PAGE:
+            raise ValueError("Parent must be a page block")
+        target_dir = parent_block.path
+    else:
+        target_dir = ""
+
+    file_path = f"{target_dir}/{filename}" if target_dir else filename
+    full_path = notebook_path / file_path
+
+    # Ensure unique name
+    if full_path.exists():
+        stem = full_path.stem
+        suffix = full_path.suffix
+        counter = 1
+        while full_path.exists():
+            file_path = f"{target_dir}/{stem}-{counter}{suffix}" if target_dir else f"{stem}-{counter}{suffix}"
+            full_path = notebook_path / file_path
+            counter += 1
+
+    # Write file to disk
+    full_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(full_path, "wb") as f:
+        f.write(content)
+
+    content_type = get_content_type(str(full_path))
+    file_hash = hashlib.sha256(content).hexdigest()
+
+    # Create FileMetadata
+    from datetime import datetime
+
+    file_stats = os.stat(full_path)
+    file_meta = FileMetadata(
+        notebook_id=notebook_id,
+        path=file_path,
+        filename=os.path.basename(file_path),
+        content_type=content_type,
+        size=len(content),
+        hash=file_hash,
+        file_created_at=datetime.fromtimestamp(file_stats.st_ctime),
+        file_modified_at=datetime.fromtimestamp(file_stats.st_mtime),
+    )
+    nb_session.add(file_meta)
+    nb_session.flush()  # Get the ID
+
+    # Create Block
+    block_id = str(uuid.uuid4())
+    ext = os.path.splitext(filename)[1].lower()
+    image_exts = {".jpg", ".jpeg", ".png", ".gif", ".svg", ".webp", ".bmp", ".ico"}
+    block_type = BLOCK_TYPE_IMAGE if ext in image_exts else BLOCK_TYPE_FILE
+
+    page_meta = None
+    parent_bid = None
+    order = 0.0
+    if page_block_id:
+        parent_bid = page_block_id
+        page_full = notebook_path / target_dir
+        page_meta = read_page_metadata(page_full)
+        if page_meta:
+            order = _next_order_index(page_meta)
+            page_meta.setdefault("blocks", []).append({
+                "block_id": block_id,
+                "type": block_type,
+                "file": os.path.basename(file_path),
+                "order": order,
+            })
+            write_page_metadata(page_full, page_meta)
+
+    block = Block(
+        notebook_id=notebook_id,
+        block_id=block_id,
+        parent_block_id=parent_bid,
+        path=file_path,
+        block_type=block_type,
+        content_format="binary",
+        order_index=order,
+        file_id=file_meta.id,
+        content_type=content_type,
+        size=len(content),
+    )
+    nb_session.add(block)
+    nb_session.commit()
+
+    return _block_dict(block)
+
+
+def update_block_properties(
+    notebook_path: Path,
+    notebook_id: int,
+    block_id: str,
+    properties: dict[str, Any],
+    nb_session: Session,
+) -> dict[str, Any]:
+    """Update block properties (denormalized and on-disk)."""
+    block = nb_session.exec(
+        select(Block).where(Block.notebook_id == notebook_id, Block.block_id == block_id)
+    ).first()
+    if not block:
+        raise FileNotFoundError(f"Block not found: {block_id}")
+
+    # Update denormalized fields
+    if "title" in properties:
+        block.title = properties["title"]
+    if "description" in properties:
+        block.description = properties["description"]
+    block.properties = json.dumps(properties)
+    block.updated_at = utc_now()
+
+    # If it's a page, also update .codex-page.json
+    if block.block_type == BLOCK_TYPE_PAGE:
+        page_full = notebook_path / block.path
+        page_meta = read_page_metadata(page_full)
+        if page_meta:
+            if "title" in properties:
+                page_meta["title"] = properties["title"]
+            if "description" in properties:
+                page_meta["description"] = properties["description"]
+            page_meta["properties"] = properties
+            write_page_metadata(page_full, page_meta)
+
+    # If it has a file_id, update FileMetadata too
+    if block.file_id:
+        fm = nb_session.exec(select(FileMetadata).where(FileMetadata.id == block.file_id)).first()
+        if fm:
+            if "title" in properties:
+                fm.title = properties["title"]
+            if "description" in properties:
+                fm.description = properties["description"]
+            fm.properties = json.dumps(properties)
+
+            # Write sidecar or frontmatter
+            file_path = notebook_path / block.path
+            if file_path.exists():
+                from codex.core.metadata import MetadataParser
+                if fm.content_type == "text/markdown":
+                    content = file_path.read_text()
+                    _, body = MetadataParser.parse_frontmatter(content)
+                    new_content = MetadataParser.write_frontmatter(body, properties)
+                    file_path.write_text(new_content)
+                else:
+                    MetadataParser.write_sidecar(str(file_path), properties)
+
+    nb_session.add(block)
+    nb_session.commit()
+    return _block_dict(block)
+
+
+def sync_block_from_file_metadata(
+    file_meta: FileMetadata,
+    notebook_id: int,
+    nb_session: Session,
+) -> Block | None:
+    """Ensure a Block row exists for a FileMetadata row and sync denormalized fields.
+
+    Called by the watcher after creating/updating FileMetadata.
+    """
+    # Check if block already exists for this file
+    block = None
+    if file_meta.id:
+        block = nb_session.exec(
+            select(Block).where(Block.notebook_id == notebook_id, Block.file_id == file_meta.id)
+        ).first()
+
+    if not block:
+        block = nb_session.exec(
+            select(Block).where(Block.notebook_id == notebook_id, Block.path == file_meta.path)
+        ).first()
+
+    if block:
+        # Update denormalized fields
+        block.content_type = file_meta.content_type
+        block.size = file_meta.size
+        block.title = file_meta.title
+        block.description = file_meta.description
+        block.properties = file_meta.properties
+        if file_meta.id and not block.file_id:
+            block.file_id = file_meta.id
+        block.updated_at = utc_now()
+        nb_session.add(block)
+        return block
+
+    # Skip hidden/metadata files
+    if file_meta.filename in (".metadata", ".codex-page.json"):
+        return None
+
+    # Determine block type
+    if file_meta.content_type and file_meta.content_type.startswith("image/"):
+        block_type = BLOCK_TYPE_IMAGE
+    elif file_meta.content_type and file_meta.content_type.startswith("text/"):
+        block_type = BLOCK_TYPE_TEXT
+    else:
+        block_type = BLOCK_TYPE_FILE
+
+    # Determine parent
+    parent_block_id = None
+    parts = file_meta.path.split("/")
+    if len(parts) > 1:
+        parent_path = "/".join(parts[:-1])
+        parent = nb_session.exec(
+            select(Block).where(
+                Block.notebook_id == notebook_id,
+                Block.path == parent_path,
+                Block.block_type == BLOCK_TYPE_PAGE,
+            )
+        ).first()
+        if parent:
+            parent_block_id = parent.block_id
+
+    content_format = "binary" if (file_meta.content_type and not file_meta.content_type.startswith("text/")) else "markdown"
+
+    block = Block(
+        notebook_id=notebook_id,
+        block_id=str(uuid.uuid4()),
+        parent_block_id=parent_block_id,
+        path=file_meta.path,
+        block_type=block_type,
+        content_format=content_format,
+        order_index=0.0,
+        title=file_meta.title,
+        file_id=file_meta.id,
+        content_type=file_meta.content_type,
+        size=file_meta.size,
+        description=file_meta.description,
+        properties=file_meta.properties,
+    )
+    nb_session.add(block)
+    return block

@@ -101,6 +101,13 @@ export interface Block {
   title?: string
   file_id?: number
   content?: string
+  // Denormalized fields
+  content_type?: string
+  size?: number
+  description?: string
+  properties?: Record<string, any>
+  // Tree children (populated by /tree endpoint)
+  children?: Block[]
   created_at: string
   updated_at: string
 }
@@ -631,6 +638,146 @@ export const blockService = {
       `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/import-markdown`,
       formData,
       { headers: { "Content-Type": "multipart/form-data" } }
+    )
+    return response.data
+  },
+
+  /**
+   * Get hierarchical block tree for sidebar navigation.
+   */
+  async getTree(
+    notebookId: number | string,
+    workspaceId: number | string
+  ): Promise<{ tree: Block[]; notebook_id: number; workspace_id: number }> {
+    const response = await apiClient.get(
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/tree`
+    )
+    return response.data
+  },
+
+  /**
+   * Get text content for a block (strips frontmatter).
+   */
+  async getText(
+    blockId: string,
+    notebookId: number | string,
+    workspaceId: number | string
+  ): Promise<{ content: string; properties?: Record<string, any> }> {
+    const response = await apiClient.get(
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/${blockId}/text`
+    )
+    return response.data
+  },
+
+  /**
+   * Get the content URL for a block (for binary files like images).
+   */
+  getContentUrl(blockId: string, notebookId: number | string, workspaceId: number | string): string {
+    return `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/${blockId}/content`
+  },
+
+  /**
+   * Get the content URL for a block by path.
+   */
+  getContentUrlByPath(path: string, notebookId: number | string, workspaceId: number | string): string {
+    const encodedPath = encodeURIComponent(path)
+    return `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/path/${encodedPath}/content`
+  },
+
+  /**
+   * Upload a file as a block within a page.
+   */
+  async upload(
+    notebookId: number | string,
+    workspaceId: number | string,
+    file: File,
+    parentBlockId?: string
+  ): Promise<Block> {
+    const formData = new FormData()
+    formData.append("file", file)
+    if (parentBlockId) {
+      formData.append("parent_block_id", parentBlockId)
+    }
+    const response = await apiClient.post<Block>(
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/upload`,
+      formData,
+      { headers: { "Content-Type": "multipart/form-data" } }
+    )
+    return response.data
+  },
+
+  /**
+   * Get git history for a block.
+   */
+  async getHistory(
+    blockId: string,
+    notebookId: number | string,
+    workspaceId: number | string
+  ): Promise<{ block_id: string; path: string; history: FileHistoryEntry[] }> {
+    const response = await apiClient.get(
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/${blockId}/history`
+    )
+    return response.data
+  },
+
+  /**
+   * Get block content at a specific commit.
+   */
+  async getAtCommit(
+    blockId: string,
+    notebookId: number | string,
+    workspaceId: number | string,
+    commitHash: string
+  ): Promise<{ block_id: string; path: string; commit_hash: string; content: string }> {
+    const response = await apiClient.get(
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/${blockId}/history/${commitHash}`
+    )
+    return response.data
+  },
+
+  /**
+   * Resolve a relative link to a block.
+   */
+  async resolveLink(
+    link: string,
+    notebookId: number | string,
+    workspaceId: number | string,
+    currentFilePath?: string
+  ): Promise<Block & { resolved_path: string }> {
+    const response = await apiClient.post<Block & { resolved_path: string }>(
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/resolve-link`,
+      { link, current_file_path: currentFilePath }
+    )
+    return response.data
+  },
+
+  /**
+   * Update block properties.
+   */
+  async updateProperties(
+    blockId: string,
+    notebookId: number | string,
+    workspaceId: number | string,
+    properties: Record<string, any>
+  ): Promise<Block> {
+    const response = await apiClient.patch<Block>(
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/${blockId}/properties`,
+      { properties }
+    )
+    return response.data
+  },
+
+  /**
+   * Import a folder tree as nested pages.
+   */
+  async importFolder(
+    notebookId: number | string,
+    workspaceId: number | string,
+    folderPath: string
+  ): Promise<any> {
+    const response = await apiClient.post(
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/import-folder`,
+      { folder_path: folderPath }
     )
     return response.data
   },

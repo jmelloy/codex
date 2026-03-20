@@ -461,6 +461,30 @@ def update_file_metadata(
 
         if event_type == "deleted":
             if file_meta:
+                # Also delete corresponding Block row
+                try:
+                    from codex.db.models import Block as BlockModel
+
+                    block = session.execute(
+                        select(BlockModel).where(
+                            BlockModel.notebook_id == notebook_id,
+                            BlockModel.file_id == file_meta.id,
+                        )
+                    ).scalar_one_or_none()
+                    if block:
+                        session.delete(block)
+                    else:
+                        # Try by path
+                        block = session.execute(
+                            select(BlockModel).where(
+                                BlockModel.notebook_id == notebook_id,
+                                BlockModel.path == rel_path,
+                            )
+                        ).scalar_one_or_none()
+                        if block:
+                            session.delete(block)
+                except Exception:
+                    pass
                 session.delete(file_meta)
                 session.commit()
         else:
@@ -608,6 +632,20 @@ def update_file_metadata(
                             session.commit()
                     else:
                         raise
+
+        # Upsert corresponding Block row for unified block API
+        if event_type != "deleted" and file_meta and session:
+            try:
+                from codex.core.blocks import sync_block_from_file_metadata
+
+                sync_block_from_file_metadata(file_meta, notebook_id, session)
+                session.commit()
+            except Exception as block_upsert_err:
+                logger.debug(f"Block upsert skipped for {filepath}: {block_upsert_err}")
+                try:
+                    session.rollback()
+                except Exception:
+                    pass
 
         # Sync block state if this file is inside a page folder or is a page metadata file
         try:

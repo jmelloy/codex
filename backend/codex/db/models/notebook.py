@@ -112,6 +112,11 @@ class Block(SQLModel, table=True):
     order_index: float  # Fractional indexing for ordering
     title: str | None = None
     file_id: int | None = Field(default=None, foreign_key="file_metadata.id")
+    # Denormalized fields from FileMetadata for display without joins
+    content_type: str | None = None  # MIME type
+    size: int | None = None  # File size in bytes
+    description: str | None = None
+    properties: str | None = None  # JSON-encoded dict
     created_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
     updated_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
 

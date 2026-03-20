@@ -677,15 +677,32 @@
         </div>
       </div>
 
-      <!-- Folder View Mode -->
+      <!-- Folder/Page View Mode (via BlockView) -->
       <div v-else-if="workspaceStore.currentFolder" class="flex-1 flex overflow-hidden p-4">
-        <FolderView
-          :folder="workspaceStore.currentFolder"
-          class="flex-1"
-          @select-file="selectFile"
-          @select-folder="handleSelectSubfolder"
-          @toggle-properties="toggleProperties"
-        />
+        <div class="flex-1 overflow-y-auto">
+          <BlockView
+            v-if="workspaceStore.currentPageBlockId && workspaceStore.currentPageBlocks.length > 0"
+            :blocks="workspaceStore.currentPageBlocks"
+            :page-block-id="workspaceStore.currentPageBlockId"
+            :notebook-id="workspaceStore.currentFolder.notebook_id"
+            :workspace-id="workspaceStore.currentWorkspace?.id ?? 0"
+            :notebook-path="''"
+            @navigate-page="handleNavigatePageBlock"
+            @delete-block="handleDeleteBlock"
+            @add-block="handleAddBlock"
+            @reorder="handleReorderBlocks"
+            @update-block="handleUpdateBlock"
+            @create-subpage="handleCreateSubpage"
+          />
+          <div v-else class="p-4">
+            <h2 class="text-lg font-medium mb-4" style="color: var(--notebook-text)">
+              {{ workspaceStore.currentFolder.title || workspaceStore.currentFolder.name }}
+            </h2>
+            <p v-if="workspaceStore.currentFolder.description" style="color: var(--pen-gray)">
+              {{ workspaceStore.currentFolder.description }}
+            </p>
+          </div>
+        </div>
       </div>
 
       <!-- Welcome State -->
@@ -723,13 +740,28 @@
       @restore="handleRestoreVersion"
     />
 
-    <!-- Folder Properties Panel -->
-    <FolderPropertiesPanel
-      v-if="showPropertiesPanel && workspaceStore.currentFolder && !workspaceStore.currentFile"
-      :folder="workspaceStore.currentFolder"
+    <!-- Folder Properties Panel (now uses FilePropertiesPanel for blocks) -->
+    <FilePropertiesPanel
+      v-if="showPropertiesPanel && workspaceStore.currentFolder && !workspaceStore.currentFile && workspaceStore.currentBlock"
+      :file="{
+        id: workspaceStore.currentBlock.id,
+        notebook_id: workspaceStore.currentBlock.notebook_id,
+        path: workspaceStore.currentBlock.path,
+        filename: workspaceStore.currentBlock.path.split('/').pop() || '',
+        content_type: workspaceStore.currentBlock.content_type || 'inode/directory',
+        size: workspaceStore.currentBlock.size || 0,
+        title: workspaceStore.currentBlock.title,
+        description: workspaceStore.currentBlock.description,
+        properties: workspaceStore.currentBlock.properties,
+        content: '',
+        created_at: workspaceStore.currentBlock.created_at,
+        updated_at: workspaceStore.currentBlock.updated_at,
+      }"
+      :workspace-id="workspaceStore.currentWorkspace?.id ?? 0"
+      :notebook-id="workspaceStore.currentBlock.notebook_id"
       class="w-full lg:w-[300px] lg:min-w-[300px] fixed lg:relative inset-0 lg:inset-auto z-50 lg:z-auto pt-14 lg:pt-0"
       @close="showPropertiesPanel = false"
-      @update-properties="handleUpdateFolderProperties"
+      @update-properties="handleUpdateProperties"
       @delete="handleDeleteFolder"
     />
   </div>
@@ -847,8 +879,6 @@ import FormGroup from "../components/FormGroup.vue"
 import MarkdownViewer from "../components/MarkdownViewer.vue"
 import CodeViewer from "../components/CodeViewer.vue"
 import FilePropertiesPanel from "../components/FilePropertiesPanel.vue"
-import FolderPropertiesPanel from "../components/FolderPropertiesPanel.vue"
-import FolderView from "../components/FolderView.vue"
 import BlockView from "../components/BlockView.vue"
 import FileHeader from "../components/FileHeader.vue"
 import FileTreeItem from "../components/FileTreeItem.vue"
@@ -1219,13 +1249,7 @@ async function handleSelectFolder(notebookId: number, folderPath: string) {
   }
 }
 
-async function handleSelectSubfolder(subfolder: { path: string }) {
-  // Get the notebook_id from the current folder
-  if (workspaceStore.currentFolder) {
-    const notebookId = workspaceStore.currentFolder.notebook_id
-    await handleSelectFolder(notebookId, subfolder.path)
-  }
-}
+// handleSelectSubfolder removed — folders are now navigated via block tree
 
 // Block/page event handlers
 async function handleNavigatePageBlock(block: any) {
@@ -1646,47 +1670,6 @@ async function handleRenameFile(newFilename: string) {
   } catch (e) {
     console.error("Failed to rename file:", e)
     showToast({ message: "Failed to rename file", type: "error" })
-  }
-}
-
-async function handleUpdateFolderProperties(properties: Record<string, any>) {
-  if (workspaceStore.currentFolder) {
-    try {
-      const notebookId = workspaceStore.currentFolder.notebook_id
-      const result = await workspaceStore.saveFolderProperties(properties)
-
-      // If the folder was renamed (path changed), update expanded folders and URL
-      if (result?.pathChanged && result.oldPath && result.newPath) {
-        // Update expanded folders set
-        const folders = expandedFolders.value.get(notebookId)
-        if (folders) {
-          // Update any expanded folder paths that start with the old path
-          const toRemove: string[] = []
-          const toAdd: string[] = []
-          for (const p of folders) {
-            if (p === result.oldPath) {
-              toRemove.push(p)
-              toAdd.push(result.newPath)
-            } else if (p.startsWith(result.oldPath + "/")) {
-              toRemove.push(p)
-              toAdd.push(result.newPath + p.substring(result.oldPath.length))
-            }
-          }
-          toRemove.forEach((p) => folders.delete(p))
-          toAdd.forEach((p) => folders.add(p))
-        }
-
-        // Update the URL to the new path
-        const newUrl = buildFolderUrl(result.newPath, notebookId)
-        if (newUrl !== "/" && route.path !== newUrl) {
-          router.replace(newUrl)
-        }
-      }
-
-      showToast({ message: "Folder properties updated" })
-    } catch {
-      // Error handled in store
-    }
   }
 }
 

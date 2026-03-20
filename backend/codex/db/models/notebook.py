@@ -3,7 +3,7 @@
 These models are stored in per-notebook databases (notebook.db):
 - FileMetadata: Metadata for files in a notebook
 - Tag: Tags for organizing content
-- FileTag: Link table for file tags
+- BlockTag: Link table for block tags
 - SearchIndex: Full-text search index for file content
 
 Note: notebook_id in these models is stored as an integer reference
@@ -12,7 +12,7 @@ to the system database (not a foreign key, since it's in a different database).
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, UniqueConstraint
+from sqlalchemy import DateTime, String, UniqueConstraint
 from sqlmodel import Field, Relationship, SQLModel
 
 from .base import utc_now
@@ -20,12 +20,12 @@ from .base import utc_now
 TZDateTime = DateTime(timezone=True)
 
 
-class FileTag(SQLModel, table=True):
-    """Link table for file tags."""
+class BlockTag(SQLModel, table=True):
+    """Link table for block tags."""
 
-    __tablename__ = "file_tags"  # type: ignore[assignment]
+    __tablename__ = "block_tags"  # type: ignore[assignment]
 
-    file_id: int = Field(foreign_key="file_metadata.id", primary_key=True)
+    block_id: int = Field(foreign_key="blocks.id", primary_key=True)
     tag_id: int = Field(foreign_key="tags.id", primary_key=True)
 
 
@@ -69,8 +69,6 @@ class FileMetadata(SQLModel, table=True):
     git_tracked: bool = Field(default=True)
     last_commit_hash: str | None = None
 
-    # Relationships
-    tags: list["Tag"] = Relationship(back_populates="files", link_model=FileTag)
 
 
 class Tag(SQLModel, table=True):
@@ -85,7 +83,7 @@ class Tag(SQLModel, table=True):
     created_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
 
     # Relationships
-    files: list[FileMetadata] = Relationship(back_populates="tags", link_model=FileTag)
+    blocks: list["Block"] = Relationship(back_populates="tags", link_model=BlockTag)
 
 
 class Block(SQLModel, table=True):
@@ -106,7 +104,7 @@ class Block(SQLModel, table=True):
     notebook_id: int  # Reference to notebook in system database (not a foreign key)
     block_id: str = Field(index=True)  # UUID, stable across renames
     parent_block_id: str | None = Field(default=None, index=True)  # NULL = root-level
-    path: str = Field(index=True)  # Filesystem path relative to notebook root
+    path: str = Field(index=True, sa_type=String(collation="BINARY"))  # Filesystem path relative to notebook root
     block_type: str  # "page", "text", "heading", "code", "image", "list", "quote", "divider", "embed", "file"
     content_format: str = Field(default="markdown")  # "markdown", "json", "binary"
     order_index: float  # Fractional indexing for ordering
@@ -119,6 +117,9 @@ class Block(SQLModel, table=True):
     properties: str | None = None  # JSON-encoded dict
     created_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
     updated_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
+
+    # Relationships
+    tags: list[Tag] = Relationship(back_populates="blocks", link_model=BlockTag)
 
 
 class SearchIndex(SQLModel, table=True):

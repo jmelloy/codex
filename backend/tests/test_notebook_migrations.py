@@ -23,7 +23,7 @@ class TestNotebookMigrations:
 
         assert "file_metadata" in tables
         assert "tags" in tables
-        assert "file_tags" in tables
+        assert "block_tags" in tables
         assert "search_index" in tables
 
         # Verify the alembic_version table exists (confirms Alembic was used)
@@ -126,7 +126,7 @@ class TestNotebookMigrations:
 
         assert "file_metadata" in tables
         assert "tags" in tables
-        assert "file_tags" in tables
+        assert "block_tags" in tables
         assert "search_index" in tables
 
         engine2.dispose()
@@ -143,8 +143,8 @@ class TestNotebookMigrations:
         with engine.connect() as conn:
             result = conn.execute(text("SELECT version_num FROM alembic_version"))
             version = result.scalar()
-            # Should be at the latest migration (008)
-            assert version == "008"
+            # Should be at the latest migration (009)
+            assert version == "009"
 
         engine.dispose()
 
@@ -268,9 +268,9 @@ class TestNotebookMigrations:
             result = conn.execute(text("SELECT COUNT(*) FROM file_metadata WHERE path = 'duplicate.md'"))
             assert result.scalar() == 1
 
-            # Verify we're at migration 008
+            # Verify we're at migration 009
             result = conn.execute(text("SELECT version_num FROM alembic_version"))
-            assert result.scalar() == "008"
+            assert result.scalar() == "009"
 
         engine.dispose()
 

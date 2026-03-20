@@ -1,4 +1,4 @@
-import type { Block, FolderWithFiles, SubfolderMetadata } from "../services/codex"
+import type { Block } from "../services/codex"
 
 export interface FileTreeNode {
   name: string
@@ -6,20 +6,17 @@ export interface FileTreeNode {
   type: "file" | "folder"
   file?: Block
   children?: FileTreeNode[]
-  // For folders, track if contents have been loaded
   loaded?: boolean
-  // Folder metadata from API
   folderMeta?: {
     title?: string
     description?: string
     properties?: Record<string, any>
     file_count?: number
   }
-  // Block/page support
-  isPage?: boolean // folder has .codex-page.json
-  hasSubpages?: boolean // page has child pages
-  blockOrder?: string[] // ordered block_ids for sorting children
-  // Unified block fields
+  // Block fields
+  isPage?: boolean
+  hasSubpages?: boolean
+  blockOrder?: string[]
   block_id?: string
   block_type?: string
   parent_block_id?: string | null
@@ -30,7 +27,6 @@ export interface FileTreeNode {
 
 /**
  * Convert a block tree (from GET /blocks/tree) into FileTreeNode format.
- * This bridges the new block API with the existing tree rendering components.
  */
 export function blockTreeToFileTree(blocks: Block[]): FileTreeNode[] {
   return blocks.map((block) => {
@@ -74,83 +70,6 @@ export function blockTreeToFileTree(blocks: Block[]): FileTreeNode[] {
 const HIDDEN_FILENAMES = new Set([".metadata", ".codex-page.json"])
 
 /**
- * Build a hierarchical tree structure from a flat list of files
- */
-export function buildFileTree(files: Block[]): FileTreeNode[] {
-  const root: FileTreeNode[] = []
-
-  // Create a map to track folders we've already created
-  const folderMap = new Map<string, FileTreeNode>()
-
-  // Sort files by path, filtering out hidden metadata files
-  const sortedFiles = [...files]
-    .filter((f) => !HIDDEN_FILENAMES.has(f.filename || f.path.split("/").pop() || ""))
-    .sort((a, b) => a.path.localeCompare(b.path))
-
-  for (const file of sortedFiles) {
-    const pathParts = file.path.split("/").filter((part) => part !== "")
-    if (pathParts.length === 0) continue
-
-    let currentLevel = root
-    let currentPath = ""
-
-    // Process each part of the path except the last (which is the filename)
-    for (let i = 0; i < pathParts.length - 1; i++) {
-      const part = pathParts[i]! // Safe because we're iterating within bounds
-      currentPath = currentPath ? `${currentPath}/${part}` : part
-
-      // Check if this folder already exists at current level
-      let folderNode = folderMap.get(currentPath)
-
-      if (!folderNode) {
-        // Create new folder node
-        folderNode = {
-          name: part,
-          path: currentPath,
-          type: "folder",
-          children: [],
-        }
-
-        currentLevel.push(folderNode)
-        folderMap.set(currentPath, folderNode)
-      }
-
-      // Move to next level
-      currentLevel = folderNode.children!
-    }
-
-    // Add the file itself
-    const filename = pathParts[pathParts.length - 1]! // Safe because pathParts.length > 0
-    currentLevel.push({
-      name: filename,
-      path: file.path,
-      type: "file",
-      file: file,
-    })
-  }
-
-  // Sort each level: folders first, then files, both alphabetically
-  const sortLevel = (nodes: FileTreeNode[]) => {
-    nodes.sort((a, b) => {
-      if (a.type !== b.type) {
-        return a.type === "folder" ? -1 : 1
-      }
-      return a.name.localeCompare(b.name)
-    })
-
-    // Recursively sort children
-    nodes.forEach((node) => {
-      if (node.children) {
-        sortLevel(node.children)
-      }
-    })
-  }
-
-  sortLevel(root)
-  return root
-}
-
-/**
  * Sort nodes: folders first, then files, both alphabetically
  */
 function sortNodes(nodes: FileTreeNode[]): void {
@@ -190,8 +109,7 @@ export function findNode(tree: FileTreeNode[], path: string): FileTreeNode | nul
  */
 export function findParentNode(tree: FileTreeNode[], path: string): FileTreeNode | null {
   const parts = path.split("/").filter((p) => p !== "")
-  if (parts.length <= 1) return null // No parent, it's at root
-
+  if (parts.length <= 1) return null
   const parentPath = parts.slice(0, -1).join("/")
   return findNode(tree, parentPath)
 }
@@ -206,7 +124,6 @@ export function insertFileNode(tree: FileTreeNode[], file: Block): void {
   const pathParts = file.path.split("/").filter((p) => p !== "")
   if (pathParts.length === 0) return
 
-  // Ensure all parent folders exist
   let currentLevel = tree
   let currentPath = ""
 
@@ -232,7 +149,6 @@ export function insertFileNode(tree: FileTreeNode[], file: Block): void {
     currentLevel = folderNode.children
   }
 
-  // Add the file node
   const filename = pathParts[pathParts.length - 1]!
   const existingIndex = currentLevel.findIndex((n) => n.path === file.path)
   const fileNode: FileTreeNode = {
@@ -251,58 +167,6 @@ export function insertFileNode(tree: FileTreeNode[], file: Block): void {
 }
 
 /**
- * Insert or update a folder node in the tree
- */
-export function insertFolderNode(
-  tree: FileTreeNode[],
-  folderPath: string,
-  meta?: SubfolderMetadata,
-): FileTreeNode {
-  const pathParts = folderPath.split("/").filter((p) => p !== "")
-  if (pathParts.length === 0) {
-    throw new Error("Cannot insert folder at root")
-  }
-
-  let currentLevel = tree
-  let currentPath = ""
-  let node: FileTreeNode | null = null
-
-  for (let i = 0; i < pathParts.length; i++) {
-    const part = pathParts[i]!
-    currentPath = currentPath ? `${currentPath}/${part}` : part
-
-    node = currentLevel.find((n) => n.name === part && n.type === "folder") || null
-    if (!node) {
-      node = {
-        name: part,
-        path: currentPath,
-        type: "folder",
-        children: [],
-        loaded: false,
-      }
-      currentLevel.push(node)
-      sortNodes(currentLevel)
-    }
-
-    if (i === pathParts.length - 1 && meta) {
-      // Apply metadata to the final folder
-      node.folderMeta = {
-        title: meta.title,
-        description: meta.description,
-        properties: meta.properties,
-      }
-    }
-
-    if (!node.children) {
-      node.children = []
-    }
-    currentLevel = node.children
-  }
-
-  return node!
-}
-
-/**
  * Remove a node from the tree by path
  */
 export function removeNode(tree: FileTreeNode[], path: string): boolean {
@@ -310,7 +174,6 @@ export function removeNode(tree: FileTreeNode[], path: string): boolean {
   if (parts.length === 0) return false
 
   if (parts.length === 1) {
-    // Remove from root
     const index = tree.findIndex((n) => n.path === path)
     if (index >= 0) {
       tree.splice(index, 1)
@@ -319,7 +182,6 @@ export function removeNode(tree: FileTreeNode[], path: string): boolean {
     return false
   }
 
-  // Find parent and remove from there
   const parentPath = parts.slice(0, -1).join("/")
   const parent = findNode(tree, parentPath)
   if (!parent || !parent.children) return false
@@ -338,95 +200,8 @@ export function removeNode(tree: FileTreeNode[], path: string): boolean {
 export function updateFileNode(tree: FileTreeNode[], file: Block): boolean {
   const node = findNode(tree, file.path)
   if (!node || node.type !== "file") return false
-
   node.file = file
   return true
-}
-
-/**
- * Merge folder contents into the tree at a specific path.
- * This is called when folder contents are loaded from the API.
- */
-export function mergeFolderContents(
-  tree: FileTreeNode[],
-  folderPath: string,
-  folderData: FolderWithFiles,
-): void {
-  // Get or create the folder node
-  let targetChildren: FileTreeNode[]
-
-  if (!folderPath) {
-    // Merging at root level
-    targetChildren = tree
-  } else {
-    const folderNode = insertFolderNode(tree, folderPath)
-    folderNode.loaded = true
-    folderNode.folderMeta = {
-      title: folderData.title,
-      description: folderData.description,
-      properties: folderData.properties,
-      file_count: folderData.file_count,
-    }
-    // Set page/block info if available
-    if (folderData.is_page) {
-      folderNode.isPage = true
-      folderNode.blockOrder = folderData.block_order
-    }
-    targetChildren = folderNode.children!
-  }
-
-  // Add subfolders
-  if (folderData.subfolders) {
-    for (const subfolder of folderData.subfolders) {
-      const existingFolder = targetChildren.find(
-        (n) => n.path === subfolder.path && n.type === "folder",
-      )
-      if (existingFolder) {
-        // Update metadata but preserve children and loaded state
-        existingFolder.folderMeta = {
-          title: subfolder.title,
-          description: subfolder.description,
-          properties: subfolder.properties,
-        }
-        if (subfolder.is_page) existingFolder.isPage = true
-        if (subfolder.has_subpages !== undefined) existingFolder.hasSubpages = subfolder.has_subpages
-      } else {
-        targetChildren.push({
-          name: subfolder.name,
-          path: subfolder.path,
-          type: "folder",
-          children: [],
-          loaded: false,
-          isPage: subfolder.is_page,
-          hasSubpages: subfolder.has_subpages,
-          folderMeta: {
-            title: subfolder.title,
-            description: subfolder.description,
-            properties: subfolder.properties,
-          },
-        })
-      }
-    }
-  }
-
-  for (const file of folderData.files) {
-    const fname = file.filename || file.path.split("/").pop() || ""
-    if (HIDDEN_FILENAMES.has(fname)) continue
-
-    const existingFile = targetChildren.find((n) => n.path === file.path && n.type === "file")
-    if (existingFile) {
-      existingFile.file = file
-    } else {
-      targetChildren.push({
-        name: fname,
-        path: file.path,
-        type: "file",
-        file: file,
-      })
-    }
-  }
-
-  sortNodes(targetChildren)
 }
 
 /**
@@ -457,17 +232,14 @@ export function moveNode(tree: FileTreeNode[], oldPath: string, newPath: string)
   const node = findNode(tree, oldPath)
   if (!node) return false
 
-  // Remove from old location
   if (!removeNode(tree, oldPath)) return false
 
-  // Update path and insert at new location
   if (node.type === "file" && node.file) {
     node.file = { ...node.file, path: newPath, filename: newPath.split("/").pop() || newPath }
     node.path = newPath
     node.name = newPath.split("/").pop() || newPath
     insertFileNode(tree, node.file)
   } else {
-    // For folders, need to recursively update all child paths
     const oldPrefix = oldPath
     const newPrefix = newPath
 
@@ -477,6 +249,7 @@ export function moveNode(tree: FileTreeNode[], oldPath: string, newPath: string)
       } else if (n.path.startsWith(oldPrefix + "/")) {
         n.path = newPrefix + n.path.substring(oldPrefix.length)
       }
+      n.name = n.path.split("/").pop() || n.path
       if (n.file) {
         n.file = { ...n.file, path: n.path, filename: n.path.split("/").pop() || n.path }
       }
@@ -486,12 +259,32 @@ export function moveNode(tree: FileTreeNode[], oldPath: string, newPath: string)
     }
 
     updatePaths(node)
-    insertFolderNode(tree, newPath)
-    const newNode = findNode(tree, newPath)
-    if (newNode) {
-      newNode.children = node.children
-      newNode.loaded = node.loaded
-      newNode.folderMeta = node.folderMeta
+
+    // Insert the folder at the new location
+    const pathParts = newPath.split("/").filter((p) => p !== "")
+    let currentLevel = tree
+    let currentPath = ""
+
+    for (let i = 0; i < pathParts.length - 1; i++) {
+      const part = pathParts[i]!
+      currentPath = currentPath ? `${currentPath}/${part}` : part
+      let folderNode = currentLevel.find((n) => n.name === part && n.type === "folder")
+      if (!folderNode) {
+        folderNode = { name: part, path: currentPath, type: "folder", children: [], loaded: false }
+        currentLevel.push(folderNode)
+        sortNodes(currentLevel)
+      }
+      if (!folderNode.children) folderNode.children = []
+      currentLevel = folderNode.children
+    }
+
+    // Place the moved node
+    const existingIndex = currentLevel.findIndex((n) => n.path === newPath)
+    if (existingIndex >= 0) {
+      currentLevel[existingIndex] = node
+    } else {
+      currentLevel.push(node)
+      sortNodes(currentLevel)
     }
   }
 

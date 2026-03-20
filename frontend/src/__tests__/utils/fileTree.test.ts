@@ -1,18 +1,15 @@
 import { describe, it, expect } from "vitest"
 import {
-  buildFileTree,
   findNode,
   findParentNode,
   insertFileNode,
-  insertFolderNode,
   removeNode,
   updateFileNode,
-  mergeFolderContents,
   getAllFiles,
   moveNode,
   type FileTreeNode,
 } from "../../utils/fileTree"
-import type { Block, FolderWithFiles } from "../../services/codex"
+import type { Block } from "../../services/codex"
 
 function createMockFile(overrides: Partial<Block> = {}): Block {
   return {
@@ -34,87 +31,6 @@ function createMockFile(overrides: Partial<Block> = {}): Block {
 }
 
 describe("fileTree utilities", () => {
-  describe("buildFileTree", () => {
-    it("builds a flat list for files without folders", () => {
-      const files = [
-        createMockFile({ id: 1, path: "README.md", filename: "README.md" }),
-        createMockFile({ id: 2, path: "notes.md", filename: "notes.md" }),
-      ]
-
-      const tree = buildFileTree(files)
-
-      expect(tree).toHaveLength(2)
-      expect(tree.every((n) => n.type === "file")).toBe(true)
-    })
-
-    it("creates folders for nested paths", () => {
-      const files = [
-        createMockFile({ id: 1, path: "docs/README.md", filename: "README.md" }),
-      ]
-
-      const tree = buildFileTree(files)
-
-      expect(tree).toHaveLength(1)
-      expect(tree[0].type).toBe("folder")
-      expect(tree[0].name).toBe("docs")
-      expect(tree[0].children).toHaveLength(1)
-      expect(tree[0].children![0].name).toBe("README.md")
-    })
-
-    it("handles deeply nested folders", () => {
-      const files = [
-        createMockFile({ id: 1, path: "a/b/c/d/file.md", filename: "file.md" }),
-      ]
-
-      const tree = buildFileTree(files)
-
-      expect(tree[0].name).toBe("a")
-      expect(tree[0].children![0].name).toBe("b")
-      expect(tree[0].children![0].children![0].name).toBe("c")
-      expect(tree[0].children![0].children![0].children![0].name).toBe("d")
-      expect(tree[0].children![0].children![0].children![0].children![0].name).toBe("file.md")
-    })
-
-    it("sorts folders before files", () => {
-      const files = [
-        createMockFile({ id: 1, path: "zebra.md", filename: "zebra.md" }),
-        createMockFile({ id: 2, path: "alpha/file.md", filename: "file.md" }),
-      ]
-
-      const tree = buildFileTree(files)
-
-      expect(tree[0].type).toBe("folder")
-      expect(tree[0].name).toBe("alpha")
-      expect(tree[1].type).toBe("file")
-      expect(tree[1].name).toBe("zebra.md")
-    })
-
-    it("sorts alphabetically within same type", () => {
-      const files = [
-        createMockFile({ id: 1, path: "zebra.md", filename: "zebra.md" }),
-        createMockFile({ id: 2, path: "alpha.md", filename: "alpha.md" }),
-      ]
-
-      const tree = buildFileTree(files)
-
-      expect(tree[0].name).toBe("alpha.md")
-      expect(tree[1].name).toBe("zebra.md")
-    })
-
-    it("handles empty file list", () => {
-      const tree = buildFileTree([])
-      expect(tree).toEqual([])
-    })
-
-    it("handles files with empty path parts", () => {
-      const files = [createMockFile({ id: 1, path: "", filename: "" })]
-
-      const tree = buildFileTree(files)
-
-      expect(tree).toEqual([])
-    })
-  })
-
   describe("findNode", () => {
     it("finds a file at root level", () => {
       const tree: FileTreeNode[] = [
@@ -327,68 +243,6 @@ describe("fileTree utilities", () => {
     })
   })
 
-  describe("insertFolderNode", () => {
-    it("inserts folder at root level", () => {
-      const tree: FileTreeNode[] = []
-
-      const node = insertFolderNode(tree, "new-folder")
-
-      expect(tree).toHaveLength(1)
-      expect(tree[0].name).toBe("new-folder")
-      expect(tree[0].type).toBe("folder")
-      expect(node.name).toBe("new-folder")
-    })
-
-    it("creates parent folders when needed", () => {
-      const tree: FileTreeNode[] = []
-
-      insertFolderNode(tree, "a/b/c")
-
-      expect(tree[0].name).toBe("a")
-      expect(tree[0].children![0].name).toBe("b")
-      expect(tree[0].children![0].children![0].name).toBe("c")
-    })
-
-    it("applies metadata to final folder", () => {
-      const tree: FileTreeNode[] = []
-      const meta = {
-        path: "folder",
-        name: "folder",
-        title: "My Folder",
-        description: "A test folder",
-        properties: { key: "value" },
-      }
-
-      insertFolderNode(tree, "folder", meta)
-
-      expect(tree[0].folderMeta?.title).toBe("My Folder")
-      expect(tree[0].folderMeta?.description).toBe("A test folder")
-      expect(tree[0].folderMeta?.properties).toEqual({ key: "value" })
-    })
-
-    it("throws error for empty path", () => {
-      const tree: FileTreeNode[] = []
-
-      expect(() => insertFolderNode(tree, "")).toThrow("Cannot insert folder at root")
-    })
-
-    it("reuses existing folder", () => {
-      const tree: FileTreeNode[] = [
-        {
-          name: "folder",
-          path: "folder",
-          type: "folder",
-          children: [{ name: "existing.md", path: "folder/existing.md", type: "file" }],
-        },
-      ]
-
-      const node = insertFolderNode(tree, "folder")
-
-      expect(tree).toHaveLength(1)
-      expect(node.children).toHaveLength(1)
-    })
-  })
-
   describe("removeNode", () => {
     it("removes file from root level", () => {
       const tree: FileTreeNode[] = [
@@ -527,174 +381,6 @@ describe("fileTree utilities", () => {
       const result = updateFileNode(tree, file)
 
       expect(result).toBe(false)
-    })
-  })
-
-  describe("mergeFolderContents", () => {
-    it("merges files into existing folder", () => {
-      const tree: FileTreeNode[] = []
-      const folderData: FolderWithFiles = {
-        path: "folder",
-        name: "folder",
-        notebook_id: 1,
-        file_count: 1,
-        files: [createMockFile({ id: 1, path: "folder/file.md", filename: "file.md" })],
-        subfolders: [],
-      }
-
-      mergeFolderContents(tree, "folder", folderData)
-
-      expect(tree[0].children).toHaveLength(1)
-      expect(tree[0].children![0].name).toBe("file.md")
-      expect(tree[0].loaded).toBe(true)
-    })
-
-    it("merges subfolders", () => {
-      const tree: FileTreeNode[] = []
-      const folderData: FolderWithFiles = {
-        path: "folder",
-        name: "folder",
-        notebook_id: 1,
-        file_count: 0,
-        files: [],
-        subfolders: [
-          { path: "folder/sub", name: "sub", title: "Subfolder" },
-        ],
-      }
-
-      mergeFolderContents(tree, "folder", folderData)
-
-      expect(tree[0].children).toHaveLength(1)
-      expect(tree[0].children![0].name).toBe("sub")
-      expect(tree[0].children![0].type).toBe("folder")
-      expect(tree[0].children![0].folderMeta?.title).toBe("Subfolder")
-    })
-
-    it("updates folder metadata", () => {
-      const tree: FileTreeNode[] = []
-      const folderData: FolderWithFiles = {
-        path: "folder",
-        name: "folder",
-        notebook_id: 1,
-        title: "My Folder",
-        description: "Description",
-        file_count: 5,
-        files: [],
-      }
-
-      mergeFolderContents(tree, "folder", folderData)
-
-      expect(tree[0].folderMeta?.title).toBe("My Folder")
-      expect(tree[0].folderMeta?.description).toBe("Description")
-      expect(tree[0].folderMeta?.file_count).toBe(5)
-    })
-
-    it("merges at root level when folderPath is empty", () => {
-      const tree: FileTreeNode[] = []
-      const folderData: FolderWithFiles = {
-        path: "",
-        name: "",
-        notebook_id: 1,
-        file_count: 1,
-        files: [createMockFile({ id: 1, path: "root.md", filename: "root.md" })],
-      }
-
-      mergeFolderContents(tree, "", folderData)
-
-      expect(tree).toHaveLength(1)
-      expect(tree[0].name).toBe("root.md")
-    })
-
-    it("updates existing subfolder metadata without replacing children", () => {
-      const tree: FileTreeNode[] = [
-        {
-          name: "folder",
-          path: "folder",
-          type: "folder",
-          children: [
-            {
-              name: "sub",
-              path: "folder/sub",
-              type: "folder",
-              children: [
-                { name: "existing.md", path: "folder/sub/existing.md", type: "file" },
-              ],
-              loaded: true,
-            },
-          ],
-        },
-      ]
-      const folderData: FolderWithFiles = {
-        path: "folder",
-        name: "folder",
-        notebook_id: 1,
-        file_count: 0,
-        files: [],
-        subfolders: [
-          { path: "folder/sub", name: "sub", title: "Updated Title" },
-        ],
-      }
-
-      mergeFolderContents(tree, "folder", folderData)
-
-      const subfolder = tree[0].children![0]
-      expect(subfolder.folderMeta?.title).toBe("Updated Title")
-      expect(subfolder.children).toHaveLength(1)
-      expect(subfolder.loaded).toBe(true)
-    })
-
-    it("updates existing file instead of duplicating", () => {
-      const tree: FileTreeNode[] = [
-        {
-          name: "folder",
-          path: "folder",
-          type: "folder",
-          children: [
-            {
-              name: "file.md",
-              path: "folder/file.md",
-              type: "file",
-              file: createMockFile({ id: 1, path: "folder/file.md", title: "Old" }),
-            },
-          ],
-        },
-      ]
-      const folderData: FolderWithFiles = {
-        path: "folder",
-        name: "folder",
-        notebook_id: 1,
-        file_count: 1,
-        files: [createMockFile({ id: 1, path: "folder/file.md", filename: "file.md", title: "New" })],
-      }
-
-      mergeFolderContents(tree, "folder", folderData)
-
-      expect(tree[0].children).toHaveLength(1)
-      expect(tree[0].children![0].file?.title).toBe("New")
-    })
-
-    it("sorts after merge", () => {
-      const tree: FileTreeNode[] = []
-      const folderData: FolderWithFiles = {
-        path: "folder",
-        name: "folder",
-        notebook_id: 1,
-        file_count: 2,
-        files: [
-          createMockFile({ id: 1, path: "folder/zebra.md", filename: "zebra.md" }),
-          createMockFile({ id: 2, path: "folder/alpha.md", filename: "alpha.md" }),
-        ],
-        subfolders: [
-          { path: "folder/sub", name: "sub" },
-        ],
-      }
-
-      mergeFolderContents(tree, "folder", folderData)
-
-      // Folder first, then files alphabetically
-      expect(tree[0].children![0].name).toBe("sub")
-      expect(tree[0].children![1].name).toBe("alpha.md")
-      expect(tree[0].children![2].name).toBe("zebra.md")
     })
   })
 

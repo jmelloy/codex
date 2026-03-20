@@ -3,7 +3,6 @@ import apiClient from "../../services/api"
 import {
   workspaceService,
   notebookService,
-  folderService,
   searchService,
 } from "../../services/codex"
 
@@ -73,43 +72,6 @@ describe("Codex Services", () => {
       mockPost.mockResolvedValue({ data: mockNotebooks[0] })
       expect(await notebookService.create(1, "New Notebook")).toEqual(mockNotebooks[0])
       expect(mockPost).toHaveBeenCalledWith("/api/v1/workspaces/1/notebooks/", { name: "New Notebook" })
-    })
-  })
-
-  describe("folderService", () => {
-    const mockFolder = {
-      path: "test-folder",
-      name: "test-folder",
-      notebook_id: 1,
-      file_count: 5,
-      files: [],
-      subfolders: [],
-    }
-
-    it("gets, updates, and deletes folders", async () => {
-      // get with URL encoding
-      mockGet.mockResolvedValue({ data: mockFolder })
-      expect(await folderService.get("folder with spaces", 1, 1)).toEqual(mockFolder)
-      expect(mockGet).toHaveBeenCalledWith(
-        "/api/v1/workspaces/1/notebooks/1/folders/folder%20with%20spaces"
-      )
-
-      // update properties
-      const updated = { ...mockFolder, title: "Updated Title" }
-      mockPut.mockResolvedValue({ data: updated })
-      expect(await folderService.updateProperties("test-folder", 1, 1, { title: "Updated Title" }))
-        .toEqual(updated)
-      expect(mockPut).toHaveBeenCalledWith(
-        "/api/v1/workspaces/1/notebooks/1/folders/test-folder",
-        { properties: { title: "Updated Title" } }
-      )
-
-      // delete
-      mockDelete.mockResolvedValue({})
-      await folderService.delete("test-folder", 1, 1)
-      expect(mockDelete).toHaveBeenCalledWith(
-        "/api/v1/workspaces/1/notebooks/1/folders/test-folder"
-      )
     })
   })
 

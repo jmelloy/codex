@@ -36,7 +36,7 @@
       <h1 class="m-0 text-xl font-semibold" style="color: var(--notebook-text)">Codex</h1>
       <!-- Mobile Properties Toggle -->
       <button
-        v-if="workspaceStore.currentFile || workspaceStore.currentFolder"
+        v-if="workspaceStore.currentBlock"
         @click="toggleProperties"
         class="sidebar-icon-button ml-auto"
         title="Properties"
@@ -640,7 +640,7 @@
 
       <!-- Block/Page View Mode -->
       <div
-        v-else-if="workspaceStore.currentFolder && workspaceStore.currentFolder.is_page"
+        v-else-if="workspaceStore.currentFolder"
         class="flex-1 flex overflow-hidden p-4"
       >
         <div class="flex-1 flex flex-col overflow-hidden">
@@ -677,34 +677,6 @@
         </div>
       </div>
 
-      <!-- Folder/Page View Mode (via BlockView) -->
-      <div v-else-if="workspaceStore.currentFolder" class="flex-1 flex overflow-hidden p-4">
-        <div class="flex-1 overflow-y-auto">
-          <BlockView
-            v-if="workspaceStore.currentPageBlockId && workspaceStore.currentPageBlocks.length > 0"
-            :blocks="workspaceStore.currentPageBlocks"
-            :page-block-id="workspaceStore.currentPageBlockId"
-            :notebook-id="workspaceStore.currentFolder.notebook_id"
-            :workspace-id="workspaceStore.currentWorkspace?.id ?? 0"
-            :notebook-path="''"
-            @navigate-page="handleNavigatePageBlock"
-            @delete-block="handleDeleteBlock"
-            @add-block="handleAddBlock"
-            @reorder="handleReorderBlocks"
-            @update-block="handleUpdateBlock"
-            @create-subpage="handleCreateSubpage"
-          />
-          <div v-else class="p-4">
-            <h2 class="text-lg font-medium mb-4" style="color: var(--notebook-text)">
-              {{ workspaceStore.currentFolder.title || workspaceStore.currentFolder.name }}
-            </h2>
-            <p v-if="workspaceStore.currentFolder.description" style="color: var(--pen-gray)">
-              {{ workspaceStore.currentFolder.description }}
-            </p>
-          </div>
-        </div>
-      </div>
-
       <!-- Welcome State -->
       <div
         v-else
@@ -723,7 +695,7 @@
     <!-- Right: Properties Panel (300px on desktop, full-screen overlay on mobile) -->
     <!-- Mobile Properties Backdrop -->
     <div
-      v-if="showPropertiesPanel && (workspaceStore.currentFile || workspaceStore.currentFolder)"
+      v-if="showPropertiesPanel && workspaceStore.currentBlock"
       class="fixed inset-0 bg-black/50 z-40 lg:hidden"
       @click="showPropertiesPanel = false"
     ></div>
@@ -740,30 +712,12 @@
       @restore="handleRestoreVersion"
     />
 
-    <!-- Folder Properties Panel (now uses FilePropertiesPanel for blocks) -->
+    <!-- Folder/Page Properties Panel -->
     <FilePropertiesPanel
-      v-if="showPropertiesPanel && workspaceStore.currentFolder && !workspaceStore.currentFile && workspaceStore.currentBlock"
-      :file="{
-        id: workspaceStore.currentBlock.id,
-        block_id: workspaceStore.currentBlock.block_id,
-        parent_block_id: workspaceStore.currentBlock.parent_block_id,
-        block_type: workspaceStore.currentBlock.block_type,
-        content_format: workspaceStore.currentBlock.content_format,
-        order_index: workspaceStore.currentBlock.order_index,
-        notebook_id: workspaceStore.currentBlock.notebook_id,
-        path: workspaceStore.currentBlock.path,
-        filename: workspaceStore.currentBlock.path.split('/').pop() || '',
-        content_type: workspaceStore.currentBlock.content_type || 'inode/directory',
-        size: workspaceStore.currentBlock.size || 0,
-        title: workspaceStore.currentBlock.title,
-        description: workspaceStore.currentBlock.description,
-        properties: workspaceStore.currentBlock.properties,
-        content: '',
-        created_at: workspaceStore.currentBlock.created_at,
-        updated_at: workspaceStore.currentBlock.updated_at,
-      }"
+      v-if="showPropertiesPanel && workspaceStore.currentFolder && !workspaceStore.currentFile"
+      :file="workspaceStore.currentBlock"
       :workspace-id="workspaceStore.currentWorkspace?.id ?? 0"
-      :notebook-id="workspaceStore.currentBlock.notebook_id"
+      :notebook-id="workspaceStore.currentBlock?.notebook_id ?? 0"
       class="w-full lg:w-[300px] lg:min-w-[300px] fixed lg:relative inset-0 lg:inset-auto z-50 lg:z-auto pt-14 lg:pt-0"
       @close="showPropertiesPanel = false"
       @update-properties="handleUpdateProperties"
@@ -962,20 +916,21 @@ function findNotebookBySlugOrId(identifier: string): Notebook | undefined {
   return workspaceStore.notebooks.find((n) => n.slug === identifier || String(n.id) === identifier)
 }
 
-// Build file URL path: /w/{workspace}/{notebook}/{filePath}
-function buildFileUrl(file: Block, notebook?: Notebook | null): string {
+// Build URL path: /w/{workspace}/{notebook}/{path}
+function buildBlockUrl(pathOrBlock: string | Block, notebookId?: number): string {
   const ws = workspaceStore.currentWorkspace
-  const nb = notebook || workspaceStore.notebooks.find((n) => n.id === file.notebook_id)
+  let path: string
+  let nbId: number | undefined
+  if (typeof pathOrBlock === "string") {
+    path = pathOrBlock
+    nbId = notebookId
+  } else {
+    path = pathOrBlock.path
+    nbId = pathOrBlock.notebook_id
+  }
+  const nb = workspaceStore.notebooks.find((n) => n.id === nbId)
   if (!ws || !nb) return "/"
-  return `/w/${getSlugOrId(ws)}/${getSlugOrId(nb)}/${file.path}`
-}
-
-// Build folder URL path: /w/{workspace}/{notebook}/{folderPath}
-function buildFolderUrl(folderPath: string, notebookId: number): string {
-  const ws = workspaceStore.currentWorkspace
-  const nb = workspaceStore.notebooks.find((n) => n.id === notebookId)
-  if (!ws || !nb) return "/"
-  return `/w/${getSlugOrId(ws)}/${getSlugOrId(nb)}/${folderPath}`
+  return `/w/${getSlugOrId(ws)}/${getSlugOrId(nb)}/${path}`
 }
 
 // Get content URL for current file (for binary files like images, PDFs, audio, video)
@@ -1029,10 +984,9 @@ watch(
           workspaceStore.toggleNotebookExpansion(notebook)
         }
 
-        // Try to resolve path directly via API instead of loading all files
-        if (workspaceStore.currentFile?.path !== itemPath && workspaceStore.currentFolder?.path !== itemPath) {
+        // Resolve path via API
+        if (workspaceStore.currentBlock?.path !== itemPath) {
           try {
-            // Try as file first
             const block = await blockService.resolveLink(itemPath, notebook.id, workspace!.id)
             await workspaceStore.selectBlock(block)
           } catch {
@@ -1041,9 +995,8 @@ watch(
         }
       }
     } else if (!workspaceSlug && !notebookSlug && !itemPath && route.name === "home") {
-      // Clear file/folder selection if on home route with no path params
-      workspaceStore.currentFile = null
-      workspaceStore.currentFolder = null
+      // Clear block selection if on home route with no path params
+      workspaceStore.currentBlock = null
     }
   },
   { immediate: false },
@@ -1088,7 +1041,6 @@ onMounted(async () => {
     }
 
     if (notebook) {
-      // Try to resolve path directly via API
       try {
         const block = await blockService.resolveLink(itemPath, notebook.id, workspaceStore.currentWorkspace!.id)
         await workspaceStore.selectBlock(block)
@@ -1121,34 +1073,21 @@ watch(
   { deep: true },
 )
 
-// Watch for file/folder selection to update document title
+// Watch for block selection to update document title
 watch(
-  () =>
-    [workspaceStore.currentFile, workspaceStore.currentFolder, workspaceStore.notebooks] as const,
+  () => [workspaceStore.currentBlock, workspaceStore.notebooks] as const,
   () => {
-    const file = workspaceStore.currentFile
-    const folder = workspaceStore.currentFolder
+    const block = workspaceStore.currentBlock
     const notebooks = workspaceStore.notebooks
 
-    if (file) {
-      // File selected: "Codex - Notebook / Title (or Filename)"
-      // Look up the notebook by the file's notebook_id for accuracy
-      const notebook = notebooks.find((n) => n.id === file.notebook_id)
+    if (block) {
+      const notebook = notebooks.find((n) => n.id === block.notebook_id)
       const notebookName = notebook?.name || "Notebook"
-      const fileTitle = file.title || file.filename || file.path.split("/").pop()
-      document.title = `Codex - ${notebookName} / ${fileTitle}`
-    } else if (folder) {
-      // Folder selected: "Codex - Notebook / Folder"
-      // Look up the notebook by the folder's notebook_id for accuracy
-      const notebook = notebooks.find((n) => n.id === folder.notebook_id)
-      const notebookName = notebook?.name || "Notebook"
-      const folderTitle = folder.title || folder.name
-      document.title = `Codex - ${notebookName} / ${folderTitle}`
+      const blockTitle = block.title || block.filename || block.path.split("/").pop()
+      document.title = `Codex - ${notebookName} / ${blockTitle}`
     } else if (workspaceStore.currentNotebook) {
-      // Only notebook selected: "Codex - Notebook"
       document.title = `Codex - ${workspaceStore.currentNotebook.name}`
     } else {
-      // Nothing selected: just "Codex"
       document.title = "Codex"
     }
   },
@@ -1194,7 +1133,7 @@ async function handleFolderClick(event: MouseEvent, notebookId: number, folderPa
   if (node?.isPage && !node?.hasSubpages && !isArrowClick) {
     await workspaceStore.selectFolder(folderPath, notebookId)
     closeSidebarOnMobile()
-    const newUrl = buildFolderUrl(folderPath, notebookId)
+    const newUrl = buildBlockUrl(folderPath, notebookId)
     if (newUrl !== "/" && route.path !== newUrl) {
       router.push(newUrl)
     }
@@ -1212,16 +1151,12 @@ async function expandOrCollapseFolder(
   const isExpanded = isFolderExpanded(notebookId, folderPath)
 
   if (isExpanded) {
-    // Just collapse
     toggleFolder(notebookId, folderPath)
   } else {
-    // Expand and select - fetch contents first
     await workspaceStore.selectFolder(folderPath, notebookId)
-    // Only expand in UI after successful fetch
-    if (workspaceStore.currentFolder?.path === folderPath) {
+    if (workspaceStore.currentBlock?.path === folderPath) {
       toggleFolder(notebookId, folderPath)
     }
-    // Close sidebar on mobile after selection if requested
     if (closeSidebar) {
       closeSidebarOnMobile()
     }
@@ -1229,13 +1164,10 @@ async function expandOrCollapseFolder(
 }
 
 async function handleSelectFolder(notebookId: number, folderPath: string) {
-  // Select the folder and show folder view - this fetches contents
   await workspaceStore.selectFolder(folderPath, notebookId)
-  // Close sidebar on mobile after selection
   closeSidebarOnMobile()
 
-  // Expand the folder in UI only after contents are loaded
-  if (workspaceStore.currentFolder?.path === folderPath) {
+  if (workspaceStore.currentBlock?.path === folderPath) {
     if (!expandedFolders.value.has(notebookId)) {
       expandedFolders.value.set(notebookId, new Set())
     }
@@ -1245,8 +1177,7 @@ async function handleSelectFolder(notebookId: number, folderPath: string) {
     }
   }
 
-  // Update URL with path-based format for browser history navigation
-  const newUrl = buildFolderUrl(folderPath, notebookId)
+  const newUrl = buildBlockUrl(folderPath, notebookId)
   if (newUrl !== "/" && route.path !== newUrl) {
     router.push(newUrl)
   }
@@ -1256,94 +1187,80 @@ async function handleSelectFolder(notebookId: number, folderPath: string) {
 
 // Block/page event handlers
 async function handleNavigatePageBlock(block: any) {
-  if (workspaceStore.currentFolder) {
-    const notebookId = workspaceStore.currentFolder.notebook_id
-    // Navigate to the nested page's folder path
+  if (workspaceStore.currentBlock) {
+    const notebookId = workspaceStore.currentBlock.notebook_id
     await handleSelectFolder(notebookId, block.path)
   }
 }
 
 async function handleDeleteBlock(blockId: string) {
-  if (workspaceStore.currentFolder && workspaceStore.currentFolder.is_page) {
-    const notebookId = workspaceStore.currentFolder.notebook_id
-    const pageBlockId = workspaceStore.currentPageBlockId
-    if (pageBlockId) {
-      try {
-        await workspaceStore.deleteBlock(notebookId, blockId, pageBlockId)
-        showToast({ message: "Block deleted" })
-      } catch {
-        showToast({ message: "Failed to delete block", type: "error" })
-      }
+  const pageBlockId = workspaceStore.currentPageBlockId
+  const notebookId = workspaceStore.currentBlock?.notebook_id
+  if (pageBlockId && notebookId) {
+    try {
+      await workspaceStore.deleteBlock(notebookId, blockId, pageBlockId)
+      showToast({ message: "Block deleted" })
+    } catch {
+      showToast({ message: "Failed to delete block", type: "error" })
     }
   }
 }
 
 async function handleAddBlock(blockType: string = "text", content: string = "", position?: number) {
-  if (workspaceStore.currentFolder && workspaceStore.currentFolder.is_page) {
-    const notebookId = workspaceStore.currentFolder.notebook_id
-    const pageBlockId = workspaceStore.currentPageBlockId
-    if (pageBlockId) {
-      try {
-        const result = await workspaceStore.createBlock(notebookId, pageBlockId, blockType, content, position)
-        return result
-      } catch {
-        showToast({ message: "Failed to add block", type: "error" })
-      }
+  const pageBlockId = workspaceStore.currentPageBlockId
+  const notebookId = workspaceStore.currentBlock?.notebook_id
+  if (pageBlockId && notebookId) {
+    try {
+      return await workspaceStore.createBlock(notebookId, pageBlockId, blockType, content, position)
+    } catch {
+      showToast({ message: "Failed to add block", type: "error" })
     }
   }
 }
 
 async function handleReorderBlocks(blockIds: string[]) {
-  if (workspaceStore.currentFolder && workspaceStore.currentFolder.is_page) {
-    const notebookId = workspaceStore.currentFolder.notebook_id
-    const pageBlockId = workspaceStore.currentPageBlockId
-    if (pageBlockId) {
-      try {
-        await workspaceStore.reorderBlocks(notebookId, pageBlockId, blockIds)
-      } catch {
-        showToast({ message: "Failed to reorder blocks", type: "error" })
-      }
+  const pageBlockId = workspaceStore.currentPageBlockId
+  const notebookId = workspaceStore.currentBlock?.notebook_id
+  if (pageBlockId && notebookId) {
+    try {
+      await workspaceStore.reorderBlocks(notebookId, pageBlockId, blockIds)
+    } catch {
+      showToast({ message: "Failed to reorder blocks", type: "error" })
     }
   }
 }
 
-
 async function handleUpdateBlock(block: { block_id: string; content: string; block_type?: string }) {
-  if (workspaceStore.currentFolder && workspaceStore.currentFolder.is_page) {
-    const notebookId = workspaceStore.currentFolder.notebook_id
-    try {
-      const { blockService } = await import("../services/codex")
-      const result = await blockService.updateBlock(
-        block.block_id,
-        notebookId,
-        workspaceStore.currentWorkspace!.id,
-        block.content,
-        block.block_type
-      )
-      // Backend returns updated siblings when type changed
-      if (result.blocks) {
-        workspaceStore.currentPageBlocks = result.blocks
-      }
-    } catch {
-      showToast({ message: "Failed to save block", type: "error" })
+  const notebookId = workspaceStore.currentBlock?.notebook_id
+  if (!notebookId) return
+  try {
+    const result = await blockService.updateBlock(
+      block.block_id,
+      notebookId,
+      workspaceStore.currentWorkspace!.id,
+      block.content,
+      block.block_type,
+    )
+    if (result.blocks) {
+      workspaceStore.currentPageBlocks = result.blocks
     }
+  } catch {
+    showToast({ message: "Failed to save block", type: "error" })
   }
 }
 
 async function handleCreateSubpage() {
-  if (workspaceStore.currentFolder && workspaceStore.currentFolder.is_page) {
-    const notebookId = workspaceStore.currentFolder.notebook_id
-    const parentPath = workspaceStore.currentFolder.path
-    const title = prompt("Page name")
-    if (!title) return
-    try {
-      await workspaceStore.createPage(notebookId, title, parentPath)
-      showToast({ message: "Subpage created!" })
-      // Re-select current folder to refresh blocks from backend
-      await workspaceStore.selectFolder(workspaceStore.currentFolder.path, notebookId)
-    } catch {
-      showToast({ message: "Failed to create subpage", type: "error" })
-    }
+  const notebookId = workspaceStore.currentBlock?.notebook_id
+  const parentPath = workspaceStore.currentBlock?.path
+  if (!notebookId || !parentPath) return
+  const title = prompt("Page name")
+  if (!title) return
+  try {
+    await workspaceStore.createPage(notebookId, title, parentPath)
+    showToast({ message: "Subpage created!" })
+    await workspaceStore.selectFolder(parentPath, notebookId)
+  } catch {
+    showToast({ message: "Failed to create subpage", type: "error" })
   }
 }
 
@@ -1391,11 +1308,9 @@ function getFileIcon(file: Block | undefined): string {
 }
 
 function selectFile(file: Block) {
-  workspaceStore.selectFile(file)
-  // Close sidebar on mobile after selection
+  workspaceStore.selectBlock(file)
   closeSidebarOnMobile()
-  // Update URL with path-based format for browser history navigation
-  const newUrl = buildFileUrl(file)
+  const newUrl = buildBlockUrl(file)
   if (newUrl !== "/" && route.path !== newUrl) {
     router.push(newUrl)
   }
@@ -1616,24 +1531,24 @@ function toggleProperties() {
 }
 
 async function handleUpdateProperties(properties: Record<string, any>) {
-  if (workspaceStore.currentFile) {
-    try {
-      await workspaceStore.saveFile(workspaceStore.currentFile.content, properties)
-    } catch {
-      // Error handled in store
-    }
-  } else if (workspaceStore.currentBlock && workspaceStore.currentWorkspace) {
-    // Handle folder/page block properties
-    try {
+  if (!workspaceStore.currentBlock || !workspaceStore.currentWorkspace) return
+
+  try {
+    if (workspaceStore.currentBlock.block_type === "page") {
       await blockService.updateProperties(
         workspaceStore.currentBlock.block_id,
         workspaceStore.currentBlock.notebook_id,
         workspaceStore.currentWorkspace.id,
-        properties
+        properties,
       )
-    } catch {
-      // Error handled by caller
+    } else {
+      await workspaceStore.saveFile(
+        (workspaceStore.currentBlock as any).content || "",
+        properties,
+      )
     }
+  } catch {
+    // Error handled in store
   }
 }
 
@@ -1649,9 +1564,9 @@ async function handleRestoreVersion(content: string) {
 }
 
 async function handleDeleteFile() {
-  if (workspaceStore.currentFile) {
+  if (workspaceStore.currentBlock) {
     try {
-      await workspaceStore.deleteFile(workspaceStore.currentFile.block_id)
+      await workspaceStore.deleteFile(workspaceStore.currentBlock.block_id)
       showPropertiesPanel.value = false
       showToast({ message: "File deleted" })
     } catch {
@@ -1662,9 +1577,9 @@ async function handleDeleteFile() {
 
 // Handle renaming a file by changing its filename while keeping the same directory
 async function handleRenameFile(newFilename: string) {
-  if (!workspaceStore.currentFile) return
+  if (!workspaceStore.currentBlock) return
 
-  const currentFile = workspaceStore.currentFile
+  const currentFile = workspaceStore.currentBlock
   const currentPath = currentFile.path
 
   // Get the directory part of the current path
@@ -1687,7 +1602,7 @@ async function handleRenameFile(newFilename: string) {
 }
 
 async function handleDeleteFolder() {
-  if (workspaceStore.currentFolder) {
+  if (workspaceStore.currentBlock) {
     try {
       await workspaceStore.deleteFolder()
       showPropertiesPanel.value = false

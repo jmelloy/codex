@@ -14,7 +14,6 @@ vi.mock("../../services/codex", () => ({
     list: vi.fn(),
   },
   blockService: {},
-  folderService: {},
 }))
 
 // Create a mock router for testing

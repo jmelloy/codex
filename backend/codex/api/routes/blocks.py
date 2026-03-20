@@ -17,6 +17,20 @@ from sqlmodel import select
 
 from codex.api.auth import get_current_active_user
 from codex.api.routes.helpers import get_notebook_path_nested
+from codex.api.schemas import (
+    BlockAtCommitResponse,
+    BlockChildrenResponse,
+    BlockDeleteResponse,
+    BlockReorderResponse,
+    BlockResolveLinkResponse,
+    BlockResponse,
+    BlockTextContentResponse,
+    BlockTreeResponse,
+    BlockHistoryResponse,
+    ImportFolderResponse,
+    PageResponse,
+    RootBlocksResponse,
+)
 from codex.core.blocks import (
     _block_dict,
     _parse_json,
@@ -141,7 +155,7 @@ nested_router = APIRouter()
 # ---- Routes with literal path segments MUST be registered before /{block_id} ----
 
 
-@nested_router.get("/tree")
+@nested_router.get("/tree", response_model=BlockTreeResponse)
 async def get_tree(
     workspace_identifier: str,
     notebook_identifier: str,
@@ -215,7 +229,7 @@ async def get_block_content_by_path(
 # ---- End literal routes ----
 
 
-@nested_router.get("/")
+@nested_router.get("/", response_model=RootBlocksResponse)
 async def list_root_blocks(
     workspace_identifier: str,
     notebook_identifier: str,
@@ -239,7 +253,7 @@ async def list_root_blocks(
         nb_session.close()
 
 
-@nested_router.get("/{block_id}")
+@nested_router.get("/{block_id}", response_model=BlockResponse)
 async def get_block_detail(
     workspace_identifier: str,
     notebook_identifier: str,
@@ -279,7 +293,7 @@ async def get_block_detail(
         nb_session.close()
 
 
-@nested_router.get("/{block_id}/children")
+@nested_router.get("/{block_id}/children", response_model=BlockChildrenResponse)
 async def get_children(
     workspace_identifier: str,
     notebook_identifier: str,
@@ -324,7 +338,7 @@ async def get_children(
         nb_session.close()
 
 
-@nested_router.post("/")
+@nested_router.post("/", response_model=BlockResponse)
 async def create_new_block(
     workspace_identifier: str,
     notebook_identifier: str,
@@ -377,7 +391,7 @@ async def create_new_block(
         nb_session.close()
 
 
-@nested_router.post("/pages")
+@nested_router.post("/pages", response_model=PageResponse)
 async def create_new_page(
     workspace_identifier: str,
     notebook_identifier: str,
@@ -409,7 +423,7 @@ async def create_new_page(
         nb_session.close()
 
 
-@nested_router.put("/{block_id}")
+@nested_router.put("/{block_id}", response_model=BlockResponse)
 async def update_block(
     workspace_identifier: str,
     notebook_identifier: str,
@@ -449,7 +463,7 @@ async def update_block(
         nb_session.close()
 
 
-@nested_router.patch("/{block_id}/move")
+@nested_router.patch("/{block_id}/move", response_model=BlockResponse)
 async def move_block_endpoint(
     workspace_identifier: str,
     notebook_identifier: str,
@@ -482,7 +496,7 @@ async def move_block_endpoint(
         nb_session.close()
 
 
-@nested_router.patch("/{block_id}/reorder")
+@nested_router.patch("/{block_id}/reorder", response_model=BlockReorderResponse)
 async def reorder_blocks_endpoint(
     workspace_identifier: str,
     notebook_identifier: str,
@@ -516,7 +530,7 @@ async def reorder_blocks_endpoint(
         nb_session.close()
 
 
-@nested_router.delete("/{block_id}")
+@nested_router.delete("/{block_id}", response_model=BlockDeleteResponse)
 async def delete_block_endpoint(
     workspace_identifier: str,
     notebook_identifier: str,
@@ -554,7 +568,7 @@ async def delete_block_endpoint(
         nb_session.close()
 
 
-@nested_router.post("/convert-file")
+@nested_router.post("/convert-file", response_model=PageResponse)
 async def convert_file_to_blocks(
     workspace_identifier: str,
     notebook_identifier: str,
@@ -609,7 +623,7 @@ async def convert_file_to_blocks(
         nb_session.close()
 
 
-@nested_router.post("/import-markdown")
+@nested_router.post("/import-markdown", response_model=PageResponse)
 async def import_markdown(
     workspace_identifier: str,
     notebook_identifier: str,
@@ -690,7 +704,7 @@ async def get_block_content_endpoint(
         nb_session.close()
 
 
-@nested_router.get("/{block_id}/text")
+@nested_router.get("/{block_id}/text", response_model=BlockTextContentResponse)
 async def get_block_text_endpoint(
     workspace_identifier: str,
     notebook_identifier: str,
@@ -718,7 +732,7 @@ async def get_block_text_endpoint(
         nb_session.close()
 
 
-@nested_router.post("/upload")
+@nested_router.post("/upload", response_model=BlockResponse)
 async def upload_block(
     workspace_identifier: str,
     notebook_identifier: str,
@@ -755,7 +769,7 @@ async def upload_block(
         nb_session.close()
 
 
-@nested_router.post("/import-folder")
+@nested_router.post("/import-folder", response_model=ImportFolderResponse)
 async def import_folder(
     workspace_identifier: str,
     notebook_identifier: str,
@@ -784,7 +798,7 @@ async def import_folder(
         nb_session.close()
 
 
-@nested_router.get("/{block_id}/history")
+@nested_router.get("/{block_id}/history", response_model=BlockHistoryResponse)
 async def get_block_history(
     workspace_identifier: str,
     notebook_identifier: str,
@@ -816,7 +830,7 @@ async def get_block_history(
         nb_session.close()
 
 
-@nested_router.get("/{block_id}/history/{commit_hash}")
+@nested_router.get("/{block_id}/history/{commit_hash}", response_model=BlockAtCommitResponse)
 async def get_block_at_commit(
     workspace_identifier: str,
     notebook_identifier: str,
@@ -850,7 +864,7 @@ async def get_block_at_commit(
         nb_session.close()
 
 
-@nested_router.post("/resolve-link")
+@nested_router.post("/resolve-link", response_model=BlockResolveLinkResponse)
 async def resolve_link_endpoint(
     workspace_identifier: str,
     notebook_identifier: str,
@@ -899,7 +913,7 @@ async def resolve_link_endpoint(
         nb_session.close()
 
 
-@nested_router.patch("/{block_id}/properties")
+@nested_router.patch("/{block_id}/properties", response_model=BlockResponse)
 async def update_block_properties_endpoint(
     workspace_identifier: str,
     notebook_identifier: str,

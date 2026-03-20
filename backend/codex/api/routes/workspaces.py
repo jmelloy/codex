@@ -12,6 +12,7 @@ from sqlmodel import select
 
 from codex.api.auth import get_current_active_user
 from codex.api.routes.utils import slugify
+from codex.api.schemas import MessageResponse, WorkspacePluginConfigResponse
 from codex.core.watcher import get_watcher_for_notebook, unregister_watcher
 from codex.db.database import DATA_DIRECTORY, get_system_session
 from codex.db.models import (
@@ -212,7 +213,7 @@ async def update_workspace_theme(
     return workspace
 
 
-@router.get("/{workspace_identifier}/plugins")
+@router.get("/{workspace_identifier}/plugins", response_model=list[WorkspacePluginConfigResponse])
 async def list_workspace_plugins(
     workspace_identifier: str,
     current_user: User = Depends(get_current_active_user),
@@ -246,7 +247,7 @@ async def list_workspace_plugins(
     ]
 
 
-@router.get("/{workspace_identifier}/plugins/{plugin_id}")
+@router.get("/{workspace_identifier}/plugins/{plugin_id}", response_model=WorkspacePluginConfigResponse)
 async def get_workspace_plugin_config(
     workspace_identifier: str,
     plugin_id: str,
@@ -290,7 +291,7 @@ async def get_workspace_plugin_config(
     }
 
 
-@router.put("/{workspace_identifier}/plugins/{plugin_id}")
+@router.put("/{workspace_identifier}/plugins/{plugin_id}", response_model=WorkspacePluginConfigResponse)
 async def update_workspace_plugin_config(
     workspace_identifier: str,
     plugin_id: str,
@@ -352,7 +353,7 @@ async def update_workspace_plugin_config(
     }
 
 
-@router.delete("/{workspace_identifier}")
+@router.delete("/{workspace_identifier}", response_model=MessageResponse)
 async def delete_workspace(
     workspace_identifier: str,
     current_user: User = Depends(get_current_active_user),
@@ -454,7 +455,7 @@ async def delete_workspace(
     return {"message": "Workspace deleted successfully"}
 
 
-@router.delete("/{workspace_identifier}/plugins/{plugin_id}")
+@router.delete("/{workspace_identifier}/plugins/{plugin_id}", response_model=MessageResponse)
 async def delete_workspace_plugin_config(
     workspace_identifier: str,
     plugin_id: str,

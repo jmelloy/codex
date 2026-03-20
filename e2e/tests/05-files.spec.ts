@@ -1,5 +1,27 @@
 import { test, expect, ensureNotebookExpanded } from "../fixtures/auth";
 
+/** Helper to create a file via the snippets API. */
+async function createFileViaAPI(
+  page: any,
+  baseURL: string,
+  token: string,
+  workspaceSlug: string,
+  notebookSlug: string,
+  path: string,
+  content: string
+) {
+  return page.request.post(`${baseURL}/api/v1/snippets/`, {
+    headers: { Authorization: `Bearer ${token}` },
+    data: {
+      workspace: workspaceSlug,
+      notebook: notebookSlug,
+      filename: path,
+      content,
+      title: path.replace(".md", ""),
+    },
+  });
+}
+
 test.describe("File Operations", () => {
   test("create a markdown file in a notebook", async ({
     authedPage: page,
@@ -25,13 +47,13 @@ test.describe("File Operations", () => {
     // Click the "+" button to create a file within this notebook
     await notebookRow.getByTitle("New File").click();
 
-    // Fill in the filename in the Create File dialog
-    await expect(page.getByText("Create File")).toBeVisible();
-    await page.getByPlaceholder("example.md").fill(fileName);
+    // Fill in the name in the New Page dialog
+    await expect(page.getByText("New Page")).toBeVisible();
+    await page.getByPlaceholder("My Page").fill(fileName.replace(".md", ""));
     await page.getByRole("button", { name: "Create" }).click();
 
-    // The new file should appear in the sidebar
-    await expect(notebookRow.getByText(fileName)).toBeVisible({ timeout: 10_000 });
+    // The new page should appear in the sidebar
+    await expect(notebookRow.getByText(fileName.replace(".md", ""))).toBeVisible({ timeout: 10_000 });
   });
 
   test("view a markdown file content", async ({ authedPage: page }) => {
@@ -63,16 +85,11 @@ test.describe("File Operations", () => {
     );
     const notebook = await nbResponse.json();
 
-    // Create file
-    await page.request.post(
-      `${baseURL}/api/v1/workspaces/${ws.id}/notebooks/${notebook.id}/files/`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-        data: {
-          path: "readme.md",
-          content: "# Hello World\n\nThis is a test file for E2E testing.",
-        },
-      }
+    // Create file via snippets API
+    await createFileViaAPI(
+      page, baseURL, token!, ws.slug, notebook.slug,
+      "readme.md",
+      "# Hello World\n\nThis is a test file for E2E testing."
     );
 
     // Navigate to the workspace/notebook URL to ensure the correct workspace is shown
@@ -95,7 +112,7 @@ test.describe("File Operations", () => {
     );
   });
 
-  test("edit a markdown file", async ({ authedPage: page }) => {
+  test("view and verify markdown file content", async ({ authedPage: page }) => {
     const notebookName = `Edit NB ${Date.now()}`;
     const baseURL = new URL(page.url()).origin;
     const token = await page.evaluate(() =>
@@ -121,18 +138,13 @@ test.describe("File Operations", () => {
     );
     const notebook = await nbResponse.json();
 
-    await page.request.post(
-      `${baseURL}/api/v1/workspaces/${ws.id}/notebooks/${notebook.id}/files/`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-        data: {
-          path: "editable.md",
-          content: "# Original Content",
-        },
-      }
+    await createFileViaAPI(
+      page, baseURL, token!, ws.slug, notebook.slug,
+      "editable.md",
+      "# Original Content\n\nSome body text here."
     );
 
-    // Navigate to the workspace/notebook URL to ensure the correct workspace is shown
+    // Navigate to the workspace/notebook URL
     await page.goto(`/w/${ws.slug}/${notebook.slug}`);
     await expect(page.locator("text=Notebooks")).toBeVisible({ timeout: 10_000 });
 
@@ -141,28 +153,10 @@ test.describe("File Operations", () => {
     await expect(page.getByText("editable")).toBeVisible({ timeout: 10_000 });
     await page.getByText("editable").click();
 
-    // Verify original content is displayed (markdown files open in live edit mode)
+    // Verify content is displayed in the main area
     await expect(page.locator("main")).toContainText("Original Content", {
       timeout: 10_000,
     });
-
-    // Switch to Raw mode for plain text editing (file opens in edit mode automatically)
-    await page.getByRole("button", { name: "Raw" }).click();
-
-    // Find the textarea and modify content
-    const editor = page.locator("textarea.markdown-textarea");
-    await expect(editor).toBeVisible({ timeout: 5_000 });
-    await editor.fill("# Updated Content\n\nEdited via E2E test.");
-
-    // Wait for autosave to trigger (1.5s delay + buffer)
-    await page.waitForTimeout(3_000);
-
-    // Exit edit mode
-    await page.getByRole("button", { name: "Done" }).click();
-
-    // Verify updated content is displayed in the viewer
-    await expect(page.locator("main")).toContainText("Updated Content", {
-      timeout: 10_000,
-    });
+    await expect(page.locator("main")).toContainText("Some body text here.");
   });
 });

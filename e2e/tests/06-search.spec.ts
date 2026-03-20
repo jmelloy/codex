@@ -29,16 +29,16 @@ test.describe("Search", () => {
 
     const fileNames = ["alpha-report.md", "beta-analysis.md", "gamma-notes.md"];
     for (const name of fileNames) {
-      await page.request.post(
-        `${baseURL}/api/v1/workspaces/${ws.id}/notebooks/${notebook.id}/files/`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-          data: {
-            path: name,
-            content: `# ${name}\n\nContent for ${name}`,
-          },
-        }
-      );
+      await page.request.post(`${baseURL}/api/v1/snippets/`, {
+        headers: { Authorization: `Bearer ${token}` },
+        data: {
+          workspace: ws.slug,
+          notebook: notebook.slug,
+          filename: name,
+          content: `# ${name}\n\nContent for ${name}`,
+          title: name.replace(".md", ""),
+        },
+      });
     }
 
     // Navigate to the workspace/notebook URL to ensure the correct workspace is shown

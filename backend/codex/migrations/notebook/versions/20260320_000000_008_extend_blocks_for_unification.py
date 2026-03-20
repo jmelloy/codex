@@ -8,10 +8,7 @@ Adds denormalized fields to blocks table and backfills Block rows
 for every FileMetadata row that doesn't already have one.
 """
 
-import json
-import os
 from collections.abc import Sequence
-from pathlib import Path
 
 from ulid import ULID
 

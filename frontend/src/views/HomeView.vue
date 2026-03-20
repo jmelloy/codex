@@ -317,16 +317,21 @@
                               workspaceStore.currentFolder?.notebook_id === notebook.id,
                           },
                         ]"
-                        @click="handleFolderClick($event, notebook.id, node.path)"
+                        @click="handleFolderClick($event, notebook.id, node.path, node)"
                         @dragover.prevent="handleFolderDragOver($event, notebook.id, node.path)"
                         @dragenter.prevent="handleFolderDragEnter(notebook.id, node.path)"
                         @dragleave="handleFolderDragLeave"
                         @drop.prevent.stop="handleFolderDrop($event, notebook.id, node.path)"
                       >
-                        <span class="text-[10px] mr-2 w-3" style="color: var(--pen-gray)">{{
+                        <span
+                          v-if="!node.isPage || hasSubpages(node)"
+                          class="text-[10px] mr-2 w-3"
+                          style="color: var(--pen-gray)"
+                        >{{
                           isFolderExpanded(notebook.id, node.path) ? "▼" : "▶"
                         }}</span>
-                        <span class="mr-2 text-sm">📁</span>
+                        <span v-else class="mr-2 w-3"></span>
+                        <span class="mr-2 text-sm">{{ node.isPage ? '📄' : '📁' }}</span>
                         <span class="overflow-hidden text-ellipsis whitespace-nowrap">{{
                           node.folderMeta?.title || node.name
                         }}</span>
@@ -477,10 +482,10 @@
     <main class="flex-1 flex flex-col overflow-hidden pt-14 lg:pt-0">
       <!-- Loading State -->
       <div
-        v-if="workspaceStore.fileLoading || isConverting"
+        v-if="workspaceStore.fileLoading"
         class="flex flex-col items-center justify-center h-full text-text-tertiary"
       >
-        <span>{{ isConverting ? 'Converting to blocks...' : 'Loading...' }}</span>
+        <span>Loading...</span>
       </div>
 
       <!-- Error State -->
@@ -638,18 +643,38 @@
         v-else-if="workspaceStore.currentFolder && workspaceStore.currentFolder.is_page"
         class="flex-1 flex overflow-hidden p-4"
       >
-        <BlockView
-          :blocks="workspaceStore.currentPageBlocks"
-          :page-title="workspaceStore.currentFolder.title"
-          :page-description="workspaceStore.currentFolder.description"
-          class="flex-1"
-          @navigate-page="handleNavigatePageBlock"
-          @delete-block="handleDeleteBlock"
-          @add-block="handleAddBlock"
-          @reorder="handleReorderBlocks"
-          @edit-block="handleEditBlock"
-          @update-block="handleUpdateBlock"
-        />
+        <div class="flex-1 flex flex-col overflow-hidden">
+          <!-- Page header bar -->
+          <div class="page-header-bar flex items-center justify-between px-4 py-2" style="border-bottom: 1px solid var(--page-border)">
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="text-sm">📄</span>
+              <span class="font-medium truncate" style="color: var(--notebook-text)">
+                {{ workspaceStore.currentFolder.title || workspaceStore.currentFolder.name }}
+              </span>
+            </div>
+            <button
+              @click="toggleProperties"
+              class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
+            >
+              Properties
+            </button>
+          </div>
+
+          <BlockView
+            :blocks="workspaceStore.currentPageBlocks"
+            :page-title="workspaceStore.currentFolder.title"
+            :page-description="workspaceStore.currentFolder.description"
+            :workspace-id="workspaceStore.currentWorkspace?.id"
+            :notebook-id="workspaceStore.currentFolder.notebook_id"
+            class="flex-1 overflow-y-auto"
+            @navigate-page="handleNavigatePageBlock"
+            @delete-block="handleDeleteBlock"
+            @add-block="handleAddBlock"
+            @reorder="handleReorderBlocks"
+            @update-block="handleUpdateBlock"
+            @create-subpage="handleCreateSubpage"
+          />
+        </div>
       </div>
 
       <!-- Folder View Mode -->
@@ -758,18 +783,18 @@
   </Modal>
 
   <!-- Create File Modal -->
-  <Modal v-model="showCreateFile" title="Create File" confirm-text="Create" hide-actions>
+  <Modal v-model="showCreateFile" title="New Page" confirm-text="Create" hide-actions>
     <form @submit.prevent="handleCreateFile">
-      <FormGroup label="Filename" v-slot="{ inputId }">
+      <FormGroup label="Name" v-slot="{ inputId }">
         <input
           :id="inputId"
           v-model="newFileName"
-          placeholder="example.md"
+          placeholder="My Page"
           required
           class="w-full px-3 py-2 border border-border-medium rounded-md bg-bg-primary text-text-primary"
         />
         <p class="text-sm text-text-secondary mt-1">
-          Enter any filename with extension (e.g., notes.md, data.json, script.py)
+          Enter a name for the page, or a filename with extension for other file types (e.g., data.json, script.py)
         </p>
       </FormGroup>
 
@@ -815,7 +840,7 @@ import { useRouter, useRoute } from "vue-router"
 import { useAuthStore } from "../stores/auth"
 import { useWorkspaceStore } from "../stores/workspace"
 import type { Workspace, Notebook, FileMetadata } from "../services/codex"
-import { searchService } from "../services/codex"
+import { fileService, searchService } from "../services/codex"
 import { getDisplayType } from "../utils/contentType"
 import Modal from "../components/Modal.vue"
 import FormGroup from "../components/FormGroup.vue"
@@ -942,28 +967,6 @@ function openInNewTab() {
   }
 }
 
-// Auto-convert markdown files to blocks when they finish loading
-const isConverting = ref(false)
-watch([() => workspaceStore.currentFile, () => workspaceStore.fileLoading], async ([file, loading]) => {
-  if (
-    file &&
-    !loading &&
-    file.content !== undefined &&
-    getDisplayType(file.content_type) === "markdown" &&
-    !isConverting.value
-  ) {
-    // Convert markdown file to blocks automatically
-    isConverting.value = true
-    try {
-      await workspaceStore.convertFileToBlocks(file.id, file.notebook_id)
-    } catch {
-      // If conversion fails, just log and continue with markdown viewer
-      console.warn("Failed to convert markdown to blocks")
-    } finally {
-      isConverting.value = false
-    }
-  }
-})
 
 // Watch for route changes to restore file/folder selection from URL (path-based)
 watch(
@@ -991,21 +994,16 @@ watch(
           workspaceStore.toggleNotebookExpansion(notebook)
         }
 
-        // Make sure files for this notebook are loaded
-        const files = workspaceStore.getFilesForNotebook(notebook.id)
-        if (files.length === 0) {
-          await workspaceStore.fetchFiles(notebook.id)
-        }
-
-        // Try to find as file first, then as folder
-        const file = workspaceStore
-          .getFilesForNotebook(notebook.id)
-          .find((f) => f.path === itemPath)
-        if (file && workspaceStore.currentFile?.path !== itemPath) {
-          await workspaceStore.selectFile(file)
-        } else if (!file && workspaceStore.currentFolder?.path !== itemPath) {
-          // Not a file, try as folder
-          await workspaceStore.selectFolder(itemPath, notebook.id)
+        // Try to resolve path directly via API instead of loading all files
+        if (workspaceStore.currentFile?.path !== itemPath && workspaceStore.currentFolder?.path !== itemPath) {
+          try {
+            // Try as file first
+            const file = await fileService.getByPath(itemPath, workspace!.id, notebook.id)
+            await workspaceStore.selectFile(file)
+          } catch {
+            // Not a file, try as folder
+            await workspaceStore.selectFolder(itemPath, notebook.id)
+          }
         }
       }
     } else if (!workspaceSlug && !notebookSlug && !itemPath && route.name === "home") {
@@ -1056,14 +1054,11 @@ onMounted(async () => {
     }
 
     if (notebook) {
-      // Fetch files for the notebook (in case toggle didn't complete yet)
-      await workspaceStore.fetchFiles(notebook.id)
-
-      // Try to find as file first, then as folder
-      const file = workspaceStore.getFilesForNotebook(notebook.id).find((f) => f.path === itemPath)
-      if (file) {
+      // Try to resolve path directly via API
+      try {
+        const file = await fileService.getByPath(itemPath, workspaceStore.currentWorkspace!.id, notebook.id)
         await workspaceStore.selectFile(file)
-      } else {
+      } catch {
         // Not a file, try as folder
         await workspaceStore.selectFolder(itemPath, notebook.id)
       }
@@ -1157,11 +1152,21 @@ function toggleFolder(notebookId: number, folderPath: string) {
   }
 }
 
-async function handleFolderClick(event: MouseEvent, notebookId: number, folderPath: string) {
-  // If clicking on the expand arrow area, just toggle expansion
+async function handleFolderClick(event: MouseEvent, notebookId: number, folderPath: string, node?: FileTreeNode) {
   const target = event.target as HTMLElement
   const isArrowClick =
     target.classList.contains("text-[10px]") || target.closest(".text-\\[10px\\]")
+
+  // Pages without subpages: always just select (no disclosure)
+  if (node?.isPage && !node?.hasSubpages && !isArrowClick) {
+    await workspaceStore.selectFolder(folderPath, notebookId)
+    closeSidebarOnMobile()
+    const newUrl = buildFolderUrl(folderPath, notebookId)
+    if (newUrl !== "/" && route.path !== newUrl) {
+      router.push(newUrl)
+    }
+    return
+  }
 
   await expandOrCollapseFolder(notebookId, folderPath, !isArrowClick)
 }
@@ -1246,14 +1251,14 @@ async function handleDeleteBlock(blockId: string) {
   }
 }
 
-async function handleAddBlock(blockType: string = "text", content: string = "") {
+async function handleAddBlock(blockType: string = "text", content: string = "", position?: number) {
   if (workspaceStore.currentFolder && workspaceStore.currentFolder.is_page) {
     const notebookId = workspaceStore.currentFolder.notebook_id
     const pageBlockId = workspaceStore.currentPageBlockId
     if (pageBlockId) {
       try {
-        await workspaceStore.createBlock(notebookId, pageBlockId, blockType, content)
-        showToast({ message: "Block added" })
+        const result = await workspaceStore.createBlock(notebookId, pageBlockId, blockType, content, position)
+        return result
       } catch {
         showToast({ message: "Failed to add block", type: "error" })
       }
@@ -1275,22 +1280,22 @@ async function handleReorderBlocks(blockIds: string[]) {
   }
 }
 
-async function handleEditBlock(block: any) {
-  // Open block for inline editing - handled by BlockView component
+
+async function handleUpdateBlock(block: { block_id: string; content: string; block_type?: string }) {
   if (workspaceStore.currentFolder && workspaceStore.currentFolder.is_page) {
     const notebookId = workspaceStore.currentFolder.notebook_id
     try {
       const { blockService } = await import("../services/codex")
-      await blockService.updateBlock(
+      const result = await blockService.updateBlock(
         block.block_id,
         notebookId,
         workspaceStore.currentWorkspace!.id,
-        block.content
+        block.content,
+        block.block_type
       )
-      // Refresh blocks
-      const pageBlockId = workspaceStore.currentPageBlockId
-      if (pageBlockId) {
-        await workspaceStore.fetchPageBlocks(pageBlockId, notebookId)
+      // Backend returns updated siblings when type changed
+      if (result.blocks) {
+        workspaceStore.currentPageBlocks = result.blocks
       }
     } catch {
       showToast({ message: "Failed to save block", type: "error" })
@@ -1298,21 +1303,27 @@ async function handleEditBlock(block: any) {
   }
 }
 
-async function handleUpdateBlock(block: { block_id: string; content: string }) {
+async function handleCreateSubpage() {
   if (workspaceStore.currentFolder && workspaceStore.currentFolder.is_page) {
     const notebookId = workspaceStore.currentFolder.notebook_id
+    const parentPath = workspaceStore.currentFolder.path
+    const title = prompt("Page name")
+    if (!title) return
     try {
-      const { blockService } = await import("../services/codex")
-      await blockService.updateBlock(
-        block.block_id,
-        notebookId,
-        workspaceStore.currentWorkspace!.id,
-        block.content
-      )
+      await workspaceStore.createPage(notebookId, title, parentPath)
+      showToast({ message: "Subpage created!" })
+      // Re-select current folder to refresh blocks from backend
+      await workspaceStore.selectFolder(workspaceStore.currentFolder.path, notebookId)
     } catch {
-      showToast({ message: "Failed to save block", type: "error" })
+      showToast({ message: "Failed to create subpage", type: "error" })
     }
   }
+}
+
+function hasSubpages(node: FileTreeNode): boolean {
+  if (node.hasSubpages !== undefined) return node.hasSubpages
+  if (!node.children) return false
+  return node.children.some((c) => c.type === "folder" && c.isPage)
 }
 
 function isFolderExpanded(notebookId: number, folderPath: string): boolean {
@@ -1718,29 +1729,26 @@ async function handleCreateFile() {
 
   try {
     const path = newFileName.value
-    const baseName = path.replace(/\.[^/.]+$/, "") || path
+    const hasExtension = /\.[^/.]+$/.test(path)
+    const isSpecialFile = hasExtension && !path.endsWith(".md")
 
-    if (path.endsWith(".md")) {
-      // Create as a block page instead of a flat markdown file
-      const notebookId = createFileNotebook.value.id
-      await workspaceStore.createPage(notebookId, baseName)
-      showCreateFile.value = false
-      newFileName.value = ""
-      createFileNotebook.value = null
-      showToast({ message: "Page created!" })
-      return
-    }
-
-    // Generate default content based on file extension
-    let content: string
-    if (path.endsWith(".json")) {
-      content = "{\n  \n}"
+    if (isSpecialFile) {
+      // Only create flat files for non-md extensions (.json, .py, .js, etc.)
+      let content: string
+      if (path.endsWith(".json")) {
+        content = "{\n  \n}"
+      } else {
+        content = ""
+      }
+      await workspaceStore.createFile(createFileNotebook.value.id, path, content)
     } else {
-      // Default: empty file for other types
-      content = ""
+      // Default: create a page (works with or without .md suffix)
+      const title = path.replace(/\.md$/, "")
+      const notebookId = createFileNotebook.value.id
+      await workspaceStore.createPage(notebookId, title)
+      showToast({ message: "Page created!" })
     }
 
-    await workspaceStore.createFile(createFileNotebook.value.id, path, content)
     showCreateFile.value = false
     newFileName.value = ""
     createFileNotebook.value = null

@@ -56,6 +56,7 @@ class UpdateBlockRequest(BaseModel):
     """Request to update block content."""
 
     content: str
+    block_type: str | None = None
 
 
 class MoveBlockRequest(BaseModel):
@@ -76,6 +77,25 @@ class ReorderBlocksRequest(BaseModel):
     """Request to reorder blocks within a page."""
 
     block_ids: list[str]
+
+
+def _get_children_with_content(
+    notebook_path, notebook_id: int, parent_block_id: str, nb_session
+) -> list[dict[str, Any]]:
+    """Get all children of a page block with their content."""
+    children = get_block_children(notebook_id, parent_block_id, nb_session)
+    result = []
+    for child in children:
+        child_dict = _block_to_dict(child)
+        if child.block_type != "page":
+            file_path = notebook_path / child.path
+            if file_path.exists():
+                try:
+                    child_dict["content"] = file_path.read_text()
+                except Exception:
+                    child_dict["content"] = None
+        result.append(child_dict)
+    return result
 
 
 def _block_to_dict(block: Block) -> dict[str, Any]:
@@ -249,6 +269,10 @@ async def create_new_block(
             nb_session=nb_session,
         )
 
+        # Return created block plus all siblings so frontend doesn't need a refetch
+        result["blocks"] = _get_children_with_content(
+            notebook_path, notebook.id, request.parent_block_id, nb_session
+        )
         return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -311,8 +335,18 @@ async def update_block(
             notebook_id=notebook.id,
             block_id=block_id,
             content=request.content,
+            block_type=request.block_type,
             nb_session=nb_session,
         )
+
+        # Include updated siblings when type changed (view needs refresh)
+        if request.block_type:
+            block = get_block(notebook.id, block_id, nb_session)
+            if block and block.parent_block_id:
+                result["blocks"] = _get_children_with_content(
+                    notebook_path, notebook.id, block.parent_block_id, nb_session
+                )
+
         return result
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -369,14 +403,16 @@ async def reorder_blocks_endpoint(
 
     nb_session = get_notebook_session(str(notebook_path))
     try:
-        result = reorder_blocks(
+        reorder_blocks(
             notebook_path=notebook_path,
             notebook_id=notebook.id,
             page_block_id=block_id,
             block_ids_in_order=request.block_ids,
             nb_session=nb_session,
         )
-        return {"parent_block_id": block_id, "blocks": result}
+        # Return reordered children with content
+        blocks = _get_children_with_content(notebook_path, notebook.id, block_id, nb_session)
+        return {"parent_block_id": block_id, "blocks": blocks}
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except ValueError as e:
@@ -400,13 +436,23 @@ async def delete_block_endpoint(
 
     nb_session = get_notebook_session(str(notebook_path))
     try:
+        # Get parent before deleting so we can return remaining siblings
+        block = get_block(notebook.id, block_id, nb_session)
+        parent_block_id = block.parent_block_id if block else None
+
         delete_block(
             notebook_path=notebook_path,
             notebook_id=notebook.id,
             block_id=block_id,
             nb_session=nb_session,
         )
-        return {"message": "Block deleted successfully"}
+
+        result: dict[str, Any] = {"message": "Block deleted successfully"}
+        if parent_block_id:
+            result["blocks"] = _get_children_with_content(
+                notebook_path, notebook.id, parent_block_id, nb_session
+            )
+        return result
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     finally:

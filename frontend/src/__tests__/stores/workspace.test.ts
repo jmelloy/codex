@@ -409,8 +409,15 @@ describe("Workspace Store", () => {
   })
 
   describe("toggleNotebookExpansion", () => {
-    it("expands notebook and fetches files", async () => {
-      vi.mocked(fileService.list).mockResolvedValue([])
+    it("expands notebook and fetches root contents", async () => {
+      vi.mocked(folderService.get).mockResolvedValue({
+        path: "",
+        name: "",
+        notebook_id: 1,
+        file_count: 0,
+        files: [],
+        subfolders: [],
+      } as any)
 
       const store = useWorkspaceStore()
       store.currentWorkspace = { id: 1 } as any
@@ -421,7 +428,7 @@ describe("Workspace Store", () => {
 
       expect(store.expandedNotebooks.has(1)).toBe(true)
       expect(store.currentNotebook).toEqual(notebook)
-      expect(fileService.list).toHaveBeenCalled()
+      expect(folderService.get).toHaveBeenCalledWith("", 1, 1)
     })
 
     it("collapses expanded notebook", () => {

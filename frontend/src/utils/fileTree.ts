@@ -17,6 +17,7 @@ export interface FileTreeNode {
   }
   // Block/page support
   isPage?: boolean // folder has .codex-page.json
+  hasSubpages?: boolean // page has child pages
   blockOrder?: string[] // ordered block_ids for sorting children
 }
 
@@ -338,6 +339,8 @@ export function mergeFolderContents(
           description: subfolder.description,
           properties: subfolder.properties,
         }
+        if (subfolder.is_page) existingFolder.isPage = true
+        if (subfolder.has_subpages !== undefined) existingFolder.hasSubpages = subfolder.has_subpages
       } else {
         targetChildren.push({
           name: subfolder.name,
@@ -345,6 +348,8 @@ export function mergeFolderContents(
           type: "folder",
           children: [],
           loaded: false,
+          isPage: subfolder.is_page,
+          hasSubpages: subfolder.has_subpages,
           folderMeta: {
             title: subfolder.title,
             description: subfolder.description,

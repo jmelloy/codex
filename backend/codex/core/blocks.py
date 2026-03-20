@@ -123,6 +123,137 @@ def _generate_block_filename(block_type: str, order: float, content: str = "") -
     return f"{prefix}-{type_slug}{ext}"
 
 
+def ensure_page_hierarchy(
+    notebook_path: Path,
+    notebook_id: int,
+    file_path: str,
+    nb_session: Session,
+) -> str | None:
+    """Ensure every directory in a file path is a page.
+
+    Given a file path like "photos/vacation/beach.jpg", ensures that
+    "photos" and "photos/vacation" are both pages (folders with .codex-page.json).
+
+    Args:
+        notebook_path: Root path of the notebook
+        notebook_id: Notebook ID
+        file_path: Relative file path (e.g., "photos/vacation/beach.jpg")
+        nb_session: Database session
+
+    Returns:
+        The page path of the immediate parent folder, or None if file is at root.
+    """
+    parts = file_path.split("/")
+    if len(parts) <= 1:
+        return None  # File is at notebook root, no pages to create
+
+    # Process each directory level (everything except the filename)
+    current_path = ""
+    parent_path = None
+
+    for part in parts[:-1]:
+        current_path = f"{parent_path}/{part}" if parent_path else part
+        full_path = notebook_path / current_path
+
+        if not full_path.exists():
+            full_path.mkdir(parents=True, exist_ok=True)
+
+        if not is_page_folder(full_path):
+            # Convert this directory into a page
+            create_page(
+                notebook_path=notebook_path,
+                notebook_id=notebook_id,
+                parent_path=parent_path,
+                title=part,
+                nb_session=nb_session,
+            )
+
+        parent_path = current_path
+
+    return parent_path
+
+
+def add_file_as_block(
+    notebook_path: Path,
+    notebook_id: int,
+    page_path: str,
+    file_path: str,
+    file_id: int | None,
+    nb_session: Session,
+) -> dict[str, Any]:
+    """Add an existing file as a block within a page.
+
+    The file stays where it is on disk. A block entry is created in the
+    page's .codex-page.json and in the database pointing to it.
+
+    Args:
+        notebook_path: Root path of the notebook
+        notebook_id: Notebook ID
+        page_path: Path to the parent page folder
+        file_path: Full relative path to the file (e.g., "photos/vacation/beach.jpg")
+        file_id: Optional FileMetadata ID to link
+        nb_session: Database session
+
+    Returns:
+        Block metadata dict.
+    """
+    filename = os.path.basename(file_path)
+    full_file = notebook_path / file_path
+    if not full_file.exists():
+        raise FileNotFoundError(f"File not found: {file_path}")
+
+    page_full_path = notebook_path / page_path
+    page_meta = read_page_metadata(page_full_path)
+    if page_meta is None:
+        raise ValueError(f"Not a page folder: {page_path}")
+
+    # Determine block type from file extension
+    ext = os.path.splitext(filename)[1].lower()
+    image_exts = {".jpg", ".jpeg", ".png", ".gif", ".svg", ".webp", ".bmp", ".ico"}
+    if ext in image_exts:
+        block_type = BLOCK_TYPE_IMAGE
+    else:
+        block_type = BLOCK_TYPE_FILE
+
+    # Calculate order
+    order = _next_order_index(page_meta)
+    block_id = str(uuid.uuid4())
+
+    # Add to page metadata
+    page_meta.setdefault("blocks", []).append(
+        {
+            "block_id": block_id,
+            "type": block_type,
+            "file": filename,
+            "order": order,
+        }
+    )
+    write_page_metadata(page_full_path, page_meta)
+
+    # Create Block row
+    block = Block(
+        notebook_id=notebook_id,
+        block_id=block_id,
+        parent_block_id=page_meta.get("block_id"),
+        path=file_path,
+        block_type=block_type,
+        content_format="binary",
+        order_index=order,
+        title=None,
+        file_id=file_id,
+    )
+    nb_session.add(block)
+    nb_session.commit()
+
+    return {
+        "block_id": block_id,
+        "type": block_type,
+        "file": filename,
+        "path": file_path,
+        "order": order,
+    }
+
+
 def create_page(
     notebook_path: Path,
     notebook_id: int,
@@ -224,13 +355,22 @@ def create_page(
         nb_session.add(block)
         nb_session.commit()
 
+        # Create an initial empty text block so the page isn't blank
+        create_block(
+            notebook_path=notebook_path,
+            notebook_id=notebook_id,
+            page_path=page_path,
+            block_type=BLOCK_TYPE_TEXT,
+            content="",
+            nb_session=nb_session,
+        )
+
     return {
         "block_id": block_id,
         "path": page_path,
         "title": title,
         "description": description,
         "properties": properties or {},
-        "blocks": [],
     }
 
 
@@ -336,15 +476,17 @@ def update_block_content(
     notebook_id: int,
     block_id: str,
     content: str,
-    nb_session: Session,
+    block_type: str | None = None,
+    nb_session: Session | None = None,
 ) -> dict[str, Any]:
-    """Update the content of a block.
+    """Update the content of a block, optionally changing its type.
 
     Args:
         notebook_path: Root path of the notebook
         notebook_id: Notebook ID
         block_id: Block UUID to update
         content: New content
+        block_type: Optional new block type
         nb_session: Database session
 
     Returns:
@@ -363,6 +505,22 @@ def update_block_content(
         f.write(content)
 
     from codex.db.models.base import utc_now
+
+    # Update block type if requested
+    if block_type and block_type in VALID_BLOCK_TYPES and block_type != BLOCK_TYPE_PAGE:
+        old_type = block.block_type
+        if old_type != block_type:
+            block.block_type = block_type
+            # Also update the page metadata
+            parent_path = str(Path(block.path).parent)
+            parent_full = notebook_path / parent_path
+            parent_meta = read_page_metadata(parent_full)
+            if parent_meta:
+                for entry in parent_meta.get("blocks", []):
+                    if entry.get("block_id") == block_id:
+                        entry["type"] = block_type
+                        break
+                write_page_metadata(parent_full, parent_meta)
 
     block.updated_at = utc_now()
     nb_session.add(block)

@@ -20,6 +20,7 @@ from codex.api.routes.helpers import get_notebook_path_nested
 from codex.core.git_manager import GitManager
 from codex.core.link_resolver import LinkResolver
 from codex.core.metadata import MetadataParser
+from codex.core.blocks import add_file_as_block, ensure_page_hierarchy, is_page_folder
 from codex.core.watcher import get_content_type
 from codex.db.database import get_notebook_session, get_system_session
 from codex.db.models import FileMetadata, User
@@ -111,6 +112,27 @@ async def list_files_nested(
         count_result = nb_session.execute(count_statement)
         total_count = count_result.scalar_one()
 
+        # Build set of block file paths to exclude using the Block table
+        block_file_paths: set[str] = set()
+        try:
+            from sqlalchemy import text as sa_text
+
+            has_blocks_table = nb_session.execute(
+                sa_text("SELECT name FROM sqlite_master WHERE type='table' AND name='blocks'")
+            ).first()
+            if has_blocks_table:
+                from codex.db.models import Block as BlockModel
+
+                block_rows = nb_session.execute(
+                    select(BlockModel.path).where(
+                        BlockModel.notebook_id == notebook.id,
+                        BlockModel.block_type != "page",
+                    )
+                ).scalars().all()
+                block_file_paths = set(block_rows)
+        except Exception:
+            pass
+
         # Get paginated files
         statement = select(FileMetadata).where(FileMetadata.notebook_id == notebook.id).offset(skip).limit(limit)
         files_result = nb_session.execute(statement)
@@ -118,6 +140,10 @@ async def list_files_nested(
 
         file_list = []
         for f in files:
+            # Skip block files (files managed by page folders)
+            if f.path in block_file_paths:
+                continue
+
             # Parse properties JSON if available
             properties = None
             if f.properties:
@@ -1218,6 +1244,28 @@ async def upload_file_nested(
 
         nb_session.commit()
         nb_session.refresh(file_meta)
+
+        # If the file is in a subdirectory, ensure the path is a page hierarchy
+        # and add the file as a block in its parent page
+        if "/" in target_path:
+            try:
+                page_path = ensure_page_hierarchy(
+                    notebook_path=notebook_path,
+                    notebook_id=notebook.id,
+                    file_path=target_path,
+                    nb_session=nb_session,
+                )
+                if page_path and is_page_folder(notebook_path / page_path):
+                    add_file_as_block(
+                        notebook_path=notebook_path,
+                        notebook_id=notebook.id,
+                        page_path=page_path,
+                        file_path=target_path,
+                        file_id=file_meta.id,
+                        nb_session=nb_session,
+                    )
+            except Exception as e:
+                logger.warning(f"Could not add uploaded file as block: {e}")
 
         result = {
             "id": file_meta.id,

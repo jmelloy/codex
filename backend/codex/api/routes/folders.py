@@ -203,6 +203,16 @@ def get_subfolders(folder_path: str, notebook_path: Path) -> list[dict]:
                     subfolder_title = subfolder_title or page_meta.get("title")
                     subfolder_desc = subfolder_desc or page_meta.get("description")
 
+            # Check if this folder has any subpage children
+            has_subpages = False
+            try:
+                for child in item.iterdir():
+                    if child.is_dir() and not child.name.startswith(".") and is_page_folder(child):
+                        has_subpages = True
+                        break
+            except OSError:
+                pass
+
             subfolders.append(
                 {
                     "path": subfolder_path,
@@ -211,6 +221,7 @@ def get_subfolders(folder_path: str, notebook_path: Path) -> list[dict]:
                     "description": subfolder_desc,
                     "properties": properties,
                     "is_page": subfolder_is_page,
+                    "has_subpages": has_subpages,
                     "created_at": datetime.fromtimestamp(folder_stats.st_ctime, tz=UTC).isoformat(),
                     "updated_at": datetime.fromtimestamp(folder_stats.st_mtime, tz=UTC).isoformat(),
                 }
@@ -301,10 +312,15 @@ async def get_folder(
 
         # Check if this folder is a page (has .codex-page.json)
         folder_is_page = is_page_folder(full_folder_path)
-        block_order = None
+        page_block_id = None
+        block_children = None
+        has_subpages = False
+
         if folder_is_page:
             page_meta = read_page_metadata(full_folder_path)
             if page_meta:
+                page_block_id = page_meta.get("block_id")
+
                 # Use page metadata for title/description if not set in .metadata
                 if not properties:
                     properties = {}
@@ -312,7 +328,59 @@ async def get_folder(
                     properties["title"] = page_meta["title"]
                 if not properties.get("description") and page_meta.get("description"):
                     properties["description"] = page_meta["description"]
-                block_order = [b.get("block_id") for b in page_meta.get("blocks", []) if b.get("block_id")]
+
+                # Exclude block files from the files list
+                block_filenames = {b.get("file", "").rstrip("/") for b in page_meta.get("blocks", []) if b.get("file")}
+                files = [f for f in files if f["filename"] not in block_filenames]
+                total_file_count = len(files)
+
+                # Include block children with content directly
+                if page_block_id:
+                    try:
+                        from sqlalchemy import text as sa_text
+
+                        has_blocks_table = nb_session.execute(
+                            sa_text("SELECT name FROM sqlite_master WHERE type='table' AND name='blocks'")
+                        ).first()
+                        if has_blocks_table:
+                            from codex.core.blocks import get_block_children
+
+                            children = get_block_children(notebook.id, page_block_id, nb_session)
+                            block_children = []
+                            for child in children:
+                                child_dict = {
+                                    "id": child.id,
+                                    "block_id": child.block_id,
+                                    "parent_block_id": child.parent_block_id,
+                                    "notebook_id": child.notebook_id,
+                                    "path": child.path,
+                                    "block_type": child.block_type,
+                                    "content_format": child.content_format,
+                                    "order_index": child.order_index,
+                                    "title": child.title,
+                                    "file_id": child.file_id,
+                                    "created_at": child.created_at.isoformat() if child.created_at else None,
+                                    "updated_at": child.updated_at.isoformat() if child.updated_at else None,
+                                }
+                                if child.block_type != "page":
+                                    file_path = notebook_path / child.path
+                                    if file_path.exists():
+                                        try:
+                                            child_dict["content"] = file_path.read_text()
+                                        except Exception:
+                                            child_dict["content"] = None
+                                block_children.append(child_dict)
+                    except Exception:
+                        block_children = None
+
+            # Check for subpages
+            try:
+                for child_dir in full_folder_path.iterdir():
+                    if child_dir.is_dir() and not child_dir.name.startswith(".") and is_page_folder(child_dir):
+                        has_subpages = True
+                        break
+            except OSError:
+                pass
 
         result = {
             "path": folder_path,
@@ -328,7 +396,9 @@ async def get_folder(
             "files": files,
             "subfolders": subfolders,
             "is_page": folder_is_page,
-            "block_order": block_order,
+            "page_block_id": page_block_id,
+            "blocks": block_children,
+            "has_subpages": has_subpages,
             "pagination": {
                 "skip": skip,
                 "limit": limit,

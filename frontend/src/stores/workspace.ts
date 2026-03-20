@@ -207,6 +207,33 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     }
   }
 
+  /**
+   * Fetch root-level folder contents (subfolders + root files) for a notebook.
+   * This is a lightweight alternative to fetchFiles that doesn't load all files.
+   */
+  async function fetchRootContents(notebookId: number) {
+    if (!currentWorkspace.value) return
+
+    fileLoading.value = true
+    error.value = null
+    try {
+      const folder = await folderService.get("", notebookId, currentWorkspace.value.id)
+
+      // Initialize tree if needed
+      if (!fileTrees.value.has(notebookId)) {
+        fileTrees.value.set(notebookId, [])
+      }
+      const tree = fileTrees.value.get(notebookId)!
+
+      // Merge root folder contents into the tree
+      mergeFolderContents(tree, "", folder)
+    } catch (e: any) {
+      error.value = e.response?.data?.detail || "Failed to fetch notebook contents"
+    } finally {
+      fileLoading.value = false
+    }
+  }
+
   async function selectFile(file: FileMetadata) {
     if (!currentWorkspace.value) return
 
@@ -343,8 +370,8 @@ export const useWorkspaceStore = defineStore("workspace", () => {
       websocketService.disconnect(notebookId)
     } else {
       expandedNotebooks.value.add(notebookId)
-      // Fetch files when expanding
-      fetchFiles(notebookId)
+      // Fetch root folder contents (subfolders + root files) instead of all files
+      fetchRootContents(notebookId)
       // Connect WebSocket for real-time updates
       websocketService.connect(notebookId)
     }
@@ -524,22 +551,10 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     if (folder) {
       currentFolder.value = folder
 
-      // If this folder is a page, also fetch its blocks
-      if (folder.is_page) {
-        try {
-          // Fetch the page block to get its block_id, then fetch children
-          const rootBlocks = await blockService.listRootBlocks(notebookId, currentWorkspace.value.id)
-          // Find the block matching this folder path
-          const pageBlock = rootBlocks.blocks.find((b: Block) => b.path === folderPath)
-          if (pageBlock) {
-            currentPageBlockId.value = pageBlock.block_id
-            await fetchPageBlocks(pageBlock.block_id, notebookId)
-          }
-        } catch {
-          // Block loading is optional - folder still works without it
-          currentPageBlocks.value = []
-          currentPageBlockId.value = null
-        }
+      // Backend returns page data directly in the folder response
+      if (folder.is_page && folder.page_block_id) {
+        currentPageBlockId.value = folder.page_block_id
+        currentPageBlocks.value = folder.blocks || []
       } else {
         currentPageBlocks.value = []
         currentPageMeta.value = null
@@ -670,9 +685,9 @@ export const useWorkspaceStore = defineStore("workspace", () => {
         parent_path: parentPath,
         description,
       })
-      // Refresh the file tree to show the new page folder
-      await fetchFiles(notebookId)
-      // Select the new page folder
+      // Refresh the parent folder contents to show the new page
+      await fetchRootContents(notebookId)
+      // Select the new page folder (backend already created initial block)
       if (result.path) {
         await selectFolder(result.path, notebookId)
       }
@@ -701,8 +716,10 @@ export const useWorkspaceStore = defineStore("workspace", () => {
         content,
         position,
       })
-      // Refresh blocks
-      await fetchPageBlocks(parentBlockId, notebookId)
+      // Backend returns updated siblings - use directly
+      if (result.blocks) {
+        currentPageBlocks.value = result.blocks
+      }
       return result
     } catch (e: any) {
       error.value = e.response?.data?.detail || "Failed to create block"
@@ -720,8 +737,11 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   ) {
     if (!currentWorkspace.value) return
     try {
-      await blockService.reorderBlocks(pageBlockId, notebookId, currentWorkspace.value.id, blockIds)
-      await fetchPageBlocks(pageBlockId, notebookId)
+      const result = await blockService.reorderBlocks(pageBlockId, notebookId, currentWorkspace.value.id, blockIds)
+      // Backend returns reordered children with content
+      if (result.blocks) {
+        currentPageBlocks.value = result.blocks
+      }
     } catch (e: any) {
       error.value = e.response?.data?.detail || "Failed to reorder blocks"
     }
@@ -733,12 +753,15 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   async function deleteBlock(
     notebookId: number,
     blockId: string,
-    parentBlockId: string,
+    _parentBlockId: string,
   ) {
     if (!currentWorkspace.value) return
     try {
-      await blockService.deleteBlock(blockId, notebookId, currentWorkspace.value.id)
-      await fetchPageBlocks(parentBlockId, notebookId)
+      const result = await blockService.deleteBlock(blockId, notebookId, currentWorkspace.value.id)
+      // Backend returns remaining siblings
+      if (result.blocks) {
+        currentPageBlocks.value = result.blocks
+      }
     } catch (e: any) {
       error.value = e.response?.data?.detail || "Failed to delete block"
       throw e
@@ -752,8 +775,8 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     if (!currentWorkspace.value) return
     try {
       const result = await blockService.convertFileToBlocks(notebookId, currentWorkspace.value.id, fileId)
-      // Refresh the file tree since the file was replaced with a folder
-      await fetchFiles(notebookId)
+      // Refresh the root contents since the file was replaced with a folder
+      await fetchRootContents(notebookId)
       // Select the new page folder
       if (result.path) {
         await selectFolder(result.path, notebookId)
@@ -772,7 +795,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     if (!currentWorkspace.value) return
     try {
       const result = await blockService.importMarkdown(notebookId, currentWorkspace.value.id, file)
-      await fetchFiles(notebookId)
+      await fetchRootContents(notebookId)
       return result
     } catch (e: any) {
       error.value = e.response?.data?.detail || "Failed to import markdown"
@@ -814,6 +837,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     setCurrentWorkspace,
     // File actions
     fetchFiles,
+    fetchRootContents,
     fetchFolderContents,
     selectFile,
     saveFile,

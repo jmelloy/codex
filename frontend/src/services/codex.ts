@@ -63,6 +63,8 @@ export interface SubfolderMetadata {
   title?: string
   description?: string
   properties?: Record<string, any>
+  is_page?: boolean
+  has_subpages?: boolean
   created_at?: string
   updated_at?: string
 }
@@ -71,6 +73,9 @@ export interface FolderWithFiles extends FolderMetadata {
   files: FileMetadata[]
   subfolders?: SubfolderMetadata[]
   is_page?: boolean
+  page_block_id?: string
+  blocks?: Block[]
+  has_subpages?: boolean
   block_order?: string[]
 }
 
@@ -501,8 +506,8 @@ export const blockService = {
       position?: number
       content_format?: string
     }
-  ): Promise<Block> {
-    const response = await apiClient.post<Block>(
+  ): Promise<Block & { blocks?: Block[] }> {
+    const response = await apiClient.post<Block & { blocks?: Block[] }>(
       `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/`,
       data
     )
@@ -536,11 +541,14 @@ export const blockService = {
     blockId: string,
     notebookId: number | string,
     workspaceId: number | string,
-    content: string
-  ): Promise<Block> {
-    const response = await apiClient.put<Block>(
+    content: string,
+    blockType?: string
+  ): Promise<Block & { blocks?: Block[] }> {
+    const data: { content: string; block_type?: string } = { content }
+    if (blockType) data.block_type = blockType
+    const response = await apiClient.put<Block & { blocks?: Block[] }>(
       `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/${blockId}`,
-      { content }
+      data
     )
     return response.data
   },
@@ -587,10 +595,11 @@ export const blockService = {
     blockId: string,
     notebookId: number | string,
     workspaceId: number | string
-  ): Promise<void> {
-    await apiClient.delete(
+  ): Promise<{ message: string; blocks?: Block[] }> {
+    const response = await apiClient.delete<{ message: string; blocks?: Block[] }>(
       `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/${blockId}`
     )
+    return response.data
   },
 
   /**

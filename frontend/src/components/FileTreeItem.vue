@@ -14,10 +14,14 @@
       @dragleave="handleDragLeave"
       @drop.prevent="handleDrop"
     >
-      <span class="text-[10px] mr-2 text-text-tertiary w-3">{{
+      <span
+        v-if="!node.isPage || hasSubpages"
+        class="text-[10px] mr-2 text-text-tertiary w-3"
+      >{{
         isFolderExpanded ? "▼" : "▶"
       }}</span>
-      <span class="mr-2 text-sm">{{ node.isPage ? '📑' : '📁' }}</span>
+      <span v-else class="mr-2 w-3"></span>
+      <span class="mr-2 text-sm">{{ node.isPage ? '📄' : '📁' }}</span>
       <span class="overflow-hidden text-ellipsis whitespace-nowrap">{{ node.folderMeta?.title || node.name }}</span>
     </div>
 
@@ -96,6 +100,14 @@ const isFolderExpanded = computed(() => {
   return props.expandedFolders.get(props.notebookId)?.has(props.node.path) || false
 })
 
+const hasSubpages = computed(() => {
+  if (props.node.type !== "folder") return false
+  // Use API-provided flag, fall back to checking children
+  if (props.node.hasSubpages !== undefined) return props.node.hasSubpages
+  if (!props.node.children) return false
+  return props.node.children.some((c) => c.type === "folder" && c.isPage)
+})
+
 const isSelectedFolder = computed(() => {
   if (props.node.type !== "folder") return false
   return (
@@ -105,16 +117,20 @@ const isSelectedFolder = computed(() => {
 })
 
 const handleFolderClick = async () => {
+  // Pages without subpages: just select, don't toggle disclosure
+  if (props.node.isPage && !hasSubpages.value) {
+    emit("selectFolder", props.notebookId, props.node.path)
+    return
+  }
+
   const wasExpanded = isFolderExpanded.value
-  
+
   if (wasExpanded) {
     // Just collapse
     emit("toggleFolder", props.notebookId, props.node.path)
   } else {
     // First select the folder to load contents
     emit("selectFolder", props.notebookId, props.node.path)
-    // Note: The parent component will handle toggling the folder expansion
-    // after the contents are loaded
   }
 }
 

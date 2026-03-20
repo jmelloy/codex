@@ -1,81 +1,95 @@
 <template>
-  <div class="block-view">
+  <div class="block-editor" @click="handleEditorClick">
     <div class="page-header" v-if="pageTitle">
-      <h1 class="page-title">{{ pageTitle }}</h1>
+      <div class="page-header-row">
+        <h1 class="page-title">{{ pageTitle }}</h1>
+        <button class="new-page-btn" @click.stop="$emit('createSubpage')" title="New subpage">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5">
+            <line x1="7" y1="2" x2="7" y2="12" /><line x1="2" y1="7" x2="12" y2="7" />
+          </svg>
+          New page
+        </button>
+      </div>
       <p class="page-description" v-if="pageDescription">{{ pageDescription }}</p>
     </div>
 
-    <div class="blocks-container" v-if="blocks.length > 0">
+    <div class="blocks-container">
       <div
         v-for="(block, index) in blocks"
         :key="block.block_id"
-        class="block-item"
-        :class="[`block-type-${block.block_type}`, { 'is-dragging': dragIndex === index }]"
-        :draggable="editingBlockId !== block.block_id"
-        @dragstart="onDragStart($event, index)"
-        @dragover.prevent="onDragOver($event, index)"
-        @drop="onDrop($event, index)"
-        @dragend="onDragEnd"
+        class="block-wrapper"
+        :class="{
+          'is-dragging': dragIndex === index,
+          'drag-over-top': dragOverIndex === index && dragPosition === 'top',
+          'drag-over-bottom': dragOverIndex === index && dragPosition === 'bottom',
+        }"
+        @mouseenter="hoveredIndex = index"
+        @mouseleave="handleBlockMouseLeave(index)"
       >
-        <div class="block-handle" title="Drag to reorder">
-          <span class="handle-icon">&#x2630;</span>
+        <!-- Left gutter -->
+        <div class="block-gutter" :class="{ visible: hoveredIndex === index || typeMenuIndex === index }">
+          <button
+            class="gutter-btn gutter-add"
+            title="Add block"
+            @click.stop="insertBlockAt(index)"
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="6" y1="1" x2="6" y2="11" /><line x1="1" y1="6" x2="11" y2="6" />
+            </svg>
+          </button>
+          <button
+            class="gutter-btn gutter-drag"
+            title="Drag to reorder / Change type"
+            draggable="true"
+            @click.stop="toggleTypeMenu(index)"
+            @dragstart="onDragStart($event, index)"
+            @dragend="onDragEnd"
+          >
+            <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor">
+              <circle cx="3" cy="2" r="1.2" /><circle cx="7" cy="2" r="1.2" />
+              <circle cx="3" cy="7" r="1.2" /><circle cx="7" cy="7" r="1.2" />
+              <circle cx="3" cy="12" r="1.2" /><circle cx="7" cy="12" r="1.2" />
+            </svg>
+          </button>
         </div>
 
-        <div class="block-content" @click="startEditing(block)">
-          <!-- Editing mode -->
-          <template v-if="editingBlockId === block.block_id">
-            <textarea
-              ref="editTextarea"
-              v-model="editContent"
-              class="block-editor-textarea"
-              :class="`edit-${block.block_type}`"
-              @blur="finishEditing(block)"
-              @keydown.escape="cancelEditing"
-              @keydown.enter.ctrl="finishEditing(block)"
-              @keydown.enter.meta="finishEditing(block)"
-              :placeholder="getPlaceholder(block.block_type)"
-              autofocus
-            ></textarea>
-          </template>
+        <!-- Type menu popover -->
+        <div
+          v-if="typeMenuIndex === index"
+          class="type-menu"
+          @mouseleave="typeMenuIndex = null"
+        >
+          <button
+            v-for="bt in blockTypes"
+            :key="bt.type"
+            class="type-menu-item"
+            :class="{ active: block.block_type === bt.type }"
+            @click.stop="changeBlockType(block, bt.type, bt.defaultContent)"
+          >
+            <span class="type-icon">{{ bt.icon }}</span>
+            <span class="type-label">{{ bt.label }}</span>
+          </button>
+          <div class="type-menu-divider"></div>
+          <button class="type-menu-item type-menu-delete" @click.stop="$emit('deleteBlock', block.block_id)">
+            <span class="type-icon">&#x2715;</span>
+            <span class="type-label">Delete</span>
+          </button>
+        </div>
 
-          <!-- View mode -->
-          <template v-else>
-            <!-- Heading -->
-            <template v-if="block.block_type === 'heading'">
-              <div class="block-heading" v-html="renderMarkdown(block.content || '')"></div>
-            </template>
-
-            <!-- Text -->
-            <template v-else-if="block.block_type === 'text'">
-              <div class="block-text" v-html="renderMarkdown(block.content || '')"></div>
-            </template>
-
-            <!-- Code -->
-            <template v-else-if="block.block_type === 'code'">
-              <div class="block-code" v-html="renderMarkdown(block.content || '')"></div>
-            </template>
-
-            <!-- Image -->
-            <template v-else-if="block.block_type === 'image'">
-              <div class="block-image" v-html="renderMarkdown(block.content || '')"></div>
-            </template>
-
-            <!-- List -->
-            <template v-else-if="block.block_type === 'list'">
-              <div class="block-list" v-html="renderMarkdown(block.content || '')"></div>
-            </template>
-
-            <!-- Quote -->
-            <template v-else-if="block.block_type === 'quote'">
-              <div class="block-quote" v-html="renderMarkdown(block.content || '')"></div>
-            </template>
-
-            <!-- Divider -->
-            <template v-else-if="block.block_type === 'divider'">
+        <!-- Drop zone -->
+        <div
+          class="block-drop-zone"
+          @dragover.prevent="onDragOver($event, index)"
+          @drop="onDrop($event, index)"
+        >
+          <!-- Block content area -->
+          <div class="block-content" :class="`block-type-${block.block_type}`">
+            <!-- Divider block -->
+            <template v-if="block.block_type === 'divider'">
               <hr class="block-divider" />
             </template>
 
-            <!-- Nested Page -->
+            <!-- Page link -->
             <template v-else-if="block.block_type === 'page'">
               <div class="block-page-link" @click.stop="$emit('navigatePage', block)">
                 <span class="page-icon">&#x1F4C4;</span>
@@ -83,55 +97,67 @@
               </div>
             </template>
 
-            <!-- File / Other -->
-            <template v-else>
-              <div class="block-file">
-                <span class="file-icon">&#x1F4CE;</span>
-                <span class="file-name">{{ block.path?.split('/').pop() }}</span>
+            <!-- Image block -->
+            <template v-else-if="block.block_type === 'image' && block.file_id">
+              <div class="block-image">
+                <img
+                  :src="getBlockFileUrl(block)"
+                  :alt="getBlockFileName(block)"
+                  loading="lazy"
+                />
+                <div class="block-image-caption">{{ getBlockFileName(block) }}</div>
               </div>
             </template>
-          </template>
-        </div>
 
-        <div class="block-actions">
-          <button
-            class="btn-block-action"
-            title="Delete block"
-            @click="$emit('deleteBlock', block.block_id)"
-          >
-            &times;
-          </button>
+            <!-- File block -->
+            <template v-else-if="block.block_type === 'file' && block.file_id">
+              <a class="block-file-link" :href="getBlockFileUrl(block)" target="_blank" download>
+                <span class="file-icon">&#x1F4CE;</span>
+                <span class="file-name">{{ getBlockFileName(block) }}</span>
+              </a>
+            </template>
+
+            <!-- Editable blocks -->
+            <template v-else>
+              <!-- Editing mode -->
+              <textarea
+                v-if="editingBlockId === block.block_id"
+                ref="textareaRefs"
+                v-model="editContent"
+                class="block-textarea"
+                :class="[`textarea-${block.block_type}`, { 'is-empty': !editContent }]"
+                :placeholder="getPlaceholder(block.block_type)"
+                :data-block-index="index"
+                @blur="finishEditing(block)"
+                @keydown="handleKeydown($event, block, index)"
+                @input="autoResize($event)"
+              ></textarea>
+
+              <!-- View mode -->
+              <div
+                v-else
+                class="block-rendered"
+                :class="{ 'is-empty': !block.content }"
+                @click.stop="startEditing(block, index)"
+              >
+                <div v-if="block.content" v-html="renderBlock(block)"></div>
+                <span v-else class="block-placeholder-text">{{ getPlaceholder(block.block_type) }}</span>
+              </div>
+            </template>
+          </div>
         </div>
       </div>
     </div>
 
-    <div class="blocks-empty" v-else>
-      <p>This page has no blocks yet.</p>
-      <button class="btn-add-block" @click="showAddMenu = !showAddMenu">Add a block</button>
-    </div>
-
-    <!-- Add block area at bottom -->
-    <div class="add-block-footer" v-if="blocks.length > 0">
-      <div class="add-block-row">
-        <button class="btn-add-block" @click="showAddMenu = !showAddMenu">+ Add block</button>
-      </div>
-      <div v-if="showAddMenu" class="add-block-menu">
-        <button
-          v-for="bt in blockTypes"
-          :key="bt.type"
-          class="add-block-option"
-          @click="addBlockOfType(bt.type, bt.defaultContent)"
-        >
-          <span class="add-block-icon">{{ bt.icon }}</span>
-          <span>{{ bt.label }}</span>
-        </button>
-      </div>
+    <!-- Trailing click area to add a new block -->
+    <div class="block-trailing-area" @click="addBlockAtEnd">
+      <span class="trailing-hint">&nbsp;</span>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, watch } from "vue"
+import { ref, nextTick, watch, onMounted } from "vue"
 import { marked } from "marked"
 import type { Block } from "../services/codex"
 
@@ -139,6 +165,8 @@ interface Props {
   blocks: Block[]
   pageTitle?: string
   pageDescription?: string
+  workspaceId?: number | string
+  notebookId?: number | string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -150,62 +178,98 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   navigatePage: [block: Block]
   deleteBlock: [blockId: string]
-  addBlock: [blockType: string, content: string]
+  addBlock: [blockType: string, content: string, position?: number]
   reorder: [blockIds: string[]]
-  editBlock: [block: Block]
-  updateBlock: [block: { block_id: string; content: string }]
+  updateBlock: [block: { block_id: string; content: string; block_type?: string }]
+  createSubpage: []
 }>()
+
+// Editing state
+const editingBlockId = ref<string | null>(null)
+const editContent = ref("")
+const textareaRefs = ref<HTMLTextAreaElement[]>([])
+
+// Hover state
+const hoveredIndex = ref<number | null>(null)
+
+// Type menu
+const typeMenuIndex = ref<number | null>(null)
 
 // Drag state
 const dragIndex = ref<number | null>(null)
 const dragOverIndex = ref<number | null>(null)
+const dragPosition = ref<"top" | "bottom">("bottom")
 
-// Inline editing state
-const editingBlockId = ref<string | null>(null)
-const editContent = ref("")
-const editTextarea = ref<HTMLTextAreaElement[] | null>(null)
-
-// Add block menu
-const showAddMenu = ref(false)
+// Focus tracking - when a new block is created, focus it
+const pendingFocusIndex = ref<number | null>(null)
 
 const blockTypes = [
   { type: "text", label: "Text", icon: "T", defaultContent: "" },
   { type: "heading", label: "Heading", icon: "H", defaultContent: "## " },
   { type: "code", label: "Code", icon: "<>", defaultContent: "```\n\n```" },
-  { type: "list", label: "List", icon: "-", defaultContent: "- " },
+  { type: "list", label: "List", icon: "=", defaultContent: "- " },
   { type: "quote", label: "Quote", icon: ">", defaultContent: "> " },
   { type: "divider", label: "Divider", icon: "--", defaultContent: "---" },
 ]
 
-function renderMarkdown(content: string): string {
+// Watch blocks for pending focus
+watch(
+  () => props.blocks,
+  () => {
+    if (pendingFocusIndex.value !== null) {
+      const idx = pendingFocusIndex.value
+      pendingFocusIndex.value = null
+      nextTick(() => {
+        const block = props.blocks[idx]
+        if (block && block.block_type !== "divider" && block.block_type !== "page") {
+          startEditing(block, idx)
+        }
+      })
+    }
+  },
+)
+
+// Auto-focus first empty block on mount
+onMounted(() => {
+  if (props.blocks.length === 1 && !props.blocks[0]!.content) {
+    nextTick(() => startEditing(props.blocks[0]!, 0))
+  }
+})
+
+function getBlockFileUrl(block: Block): string {
+  if (!props.workspaceId || !props.notebookId || !block.file_id) return ""
+  return `/api/v1/workspaces/${props.workspaceId}/notebooks/${props.notebookId}/files/${block.file_id}/content`
+}
+
+function getBlockFileName(block: Block): string {
+  if (!block.path) return ""
+  return block.path.split("/").pop() || block.path
+}
+
+function renderBlock(block: Block): string {
   try {
-    return marked.parse(content, { async: false }) as string
+    return marked.parse(block.content || "", { async: false }) as string
   } catch {
-    return content
+    return block.content || ""
   }
 }
 
-function getPlaceholder(blockType: string): string {
-  switch (blockType) {
-    case "heading": return "Heading text..."
-    case "code": return "Code..."
-    case "list": return "- List item..."
-    case "quote": return "> Quote..."
-    default: return "Type something..."
-  }
+function getPlaceholder(_blockType: string): string {
+  return ""
 }
 
-function startEditing(block: Block) {
+function startEditing(block: Block, _index: number) {
   if (block.block_type === "page" || block.block_type === "divider") return
   editingBlockId.value = block.block_id
   editContent.value = block.content || ""
   nextTick(() => {
-    if (editTextarea.value && editTextarea.value.length > 0) {
-      const ta = editTextarea.value[0]
-      if (ta) {
-        ta.focus()
-        autoResizeTextarea(ta)
-      }
+    const textareas = textareaRefs.value
+    if (textareas && textareas.length > 0) {
+      const ta = textareas[0]!
+      ta.focus()
+      // Place cursor at end
+      ta.selectionStart = ta.selectionEnd = ta.value.length
+      autoResizeElement(ta)
     }
   })
 }
@@ -215,35 +279,128 @@ function finishEditing(block: Block) {
   const newContent = editContent.value
   editingBlockId.value = null
   if (newContent !== (block.content || "")) {
+    // Update local content immediately so the view renders the new text
+    ;(block as any).content = newContent
     emit("updateBlock", { block_id: block.block_id, content: newContent })
   }
 }
 
-function cancelEditing() {
+function saveAndNavigate(block: Block, _fromIndex: number, toIndex: number) {
+  const newContent = editContent.value
   editingBlockId.value = null
-  editContent.value = ""
+  if (newContent !== (block.content || "")) {
+    ;(block as any).content = newContent
+    emit("updateBlock", { block_id: block.block_id, content: newContent })
+  }
+  const target = props.blocks[toIndex]
+  if (target && target.block_type !== "divider" && target.block_type !== "page") {
+    nextTick(() => startEditing(target, toIndex))
+  }
 }
 
-function autoResizeTextarea(el: HTMLTextAreaElement) {
+function autoResize(event: Event) {
+  const el = event.target as HTMLTextAreaElement
+  autoResizeElement(el)
+}
+
+function autoResizeElement(el: HTMLTextAreaElement) {
   el.style.height = "auto"
   el.style.height = el.scrollHeight + "px"
 }
 
-// Watch editContent for auto-resize
-watch(editContent, () => {
-  nextTick(() => {
-    if (editTextarea.value && editTextarea.value.length > 0) {
-      const ta = editTextarea.value[0]
-      if (ta) autoResizeTextarea(ta)
-    }
-  })
-})
+function handleKeydown(event: KeyboardEvent, block: Block, index: number) {
+  const ta = event.target as HTMLTextAreaElement
 
-function addBlockOfType(blockType: string, defaultContent: string) {
-  showAddMenu.value = false
-  emit("addBlock", blockType, defaultContent)
+  if (event.key === "Enter" && !event.shiftKey) {
+    // Create new block below
+    event.preventDefault()
+
+    // If cursor is at the end, create empty block below
+    // If cursor is in the middle, split the block
+    const cursorPos = ta.selectionStart
+    const content = editContent.value
+    const beforeCursor = content.substring(0, cursorPos)
+    const afterCursor = content.substring(cursorPos)
+
+    if (afterCursor.trim()) {
+      // Split: update current block with content before cursor
+      editContent.value = beforeCursor
+      finishEditing(block)
+      // Create new block with content after cursor
+      pendingFocusIndex.value = index + 1
+      emit("addBlock", "text", afterCursor.trimStart(), index + 1)
+    } else {
+      // Just create a new empty block below
+      finishEditing(block)
+      pendingFocusIndex.value = index + 1
+      emit("addBlock", "text", "", index + 1)
+    }
+  } else if (event.key === "Backspace" && ta.selectionStart === 0 && ta.selectionEnd === 0) {
+    // Backspace at start of empty block: delete block and focus previous
+    if (!editContent.value) {
+      event.preventDefault()
+      editingBlockId.value = null
+      emit("deleteBlock", block.block_id)
+      // Focus previous block
+      if (index > 0) {
+        const prevBlock = props.blocks[index - 1]
+        if (prevBlock && prevBlock.block_type !== "divider" && prevBlock.block_type !== "page") {
+          nextTick(() => startEditing(prevBlock, index - 1))
+        }
+      }
+    }
+  } else if (event.key === "ArrowUp" && ta.selectionStart === 0) {
+    // Save current block and move to previous
+    event.preventDefault()
+    saveAndNavigate(block, index, index - 1)
+  } else if (event.key === "ArrowDown" && ta.selectionStart === ta.value.length) {
+    // Save current block and move to next
+    event.preventDefault()
+    saveAndNavigate(block, index, index + 1)
+  } else if (event.key === "Escape") {
+    editingBlockId.value = null
+    editContent.value = ""
+  }
 }
 
+function handleEditorClick(event: Event) {
+  // Close type menu when clicking outside
+  const target = event.target as HTMLElement
+  if (!target.closest(".type-menu") && !target.closest(".gutter-drag")) {
+    typeMenuIndex.value = null
+  }
+}
+
+function handleBlockMouseLeave(index: number) {
+  if (typeMenuIndex.value !== index) {
+    hoveredIndex.value = null
+  }
+}
+
+function toggleTypeMenu(index: number) {
+  typeMenuIndex.value = typeMenuIndex.value === index ? null : index
+}
+
+function changeBlockType(block: Block, newType: string, defaultContent: string) {
+  typeMenuIndex.value = null
+  if (block.block_type === newType) return
+
+  // For divider, just update with divider content
+  const content = newType === "divider" ? "---" : (block.content || defaultContent)
+  emit("updateBlock", { block_id: block.block_id, content, block_type: newType })
+}
+
+function insertBlockAt(index: number) {
+  pendingFocusIndex.value = index
+  emit("addBlock", "text", "", index)
+}
+
+function addBlockAtEnd() {
+  pendingFocusIndex.value = props.blocks.length
+  emit("addBlock", "text", "")
+}
+
+// Drag and drop
 function onDragStart(event: DragEvent, index: number) {
   dragIndex.value = index
   if (event.dataTransfer) {
@@ -252,7 +409,12 @@ function onDragStart(event: DragEvent, index: number) {
   }
 }
 
-function onDragOver(_event: DragEvent, index: number) {
+function onDragOver(event: DragEvent, index: number) {
+  if (dragIndex.value === null || dragIndex.value === index) return
+  event.preventDefault()
+  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
+  const midY = rect.top + rect.height / 2
+  dragPosition.value = event.clientY < midY ? "top" : "bottom"
   dragOverIndex.value = index
 }
 
@@ -263,7 +425,8 @@ function onDrop(_event: DragEvent, targetIndex: number) {
   const newOrder = [...props.blocks]
   const [moved] = newOrder.splice(sourceIndex, 1)
   if (moved) {
-    newOrder.splice(targetIndex, 0, moved)
+    const insertAt = dragPosition.value === "top" ? targetIndex : targetIndex
+    newOrder.splice(insertAt, 0, moved)
     emit("reorder", newOrder.map((b) => b.block_id))
   }
   dragIndex.value = null
@@ -277,224 +440,266 @@ function onDragEnd() {
 </script>
 
 <style scoped>
-.block-view {
+.block-editor {
+  width: 100%;
   max-width: 900px;
   margin: 0 auto;
-  padding: 1.5rem;
-  overflow-y: auto;
+  padding: 1.5rem 2rem;
+  min-height: 100%;
 }
 
 .page-header {
   margin-bottom: 1.5rem;
   padding-bottom: 1rem;
-  border-bottom: 1px solid var(--border-color, #e0e0e0);
+}
+
+.page-header-row {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
 }
 
 .page-title {
-  font-size: 2rem;
+  font-size: 2.25rem;
   font-weight: 700;
-  margin: 0 0 0.5rem;
+  margin: 0 0 0.25rem;
+  color: var(--text-primary, #1a1a1a);
+  line-height: 1.2;
+}
+
+.new-page-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-secondary, #666);
+  font-size: 0.8125rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.new-page-btn:hover {
+  background: var(--hover-bg, #f5f5f5);
+  color: var(--text-primary, #333);
 }
 
 .page-description {
   color: var(--text-secondary, #666);
   margin: 0;
+  font-size: 1rem;
 }
 
-.block-item {
+/* Block wrapper */
+.block-wrapper {
+  position: relative;
   display: flex;
   align-items: flex-start;
-  gap: 0.5rem;
-  padding: 0.25rem 0;
+  width: 100%;
+  min-height: 1.5rem;
   border-radius: 4px;
-  transition: background-color 0.15s;
+  transition: background-color 0.1s;
 }
 
-.block-item:hover {
-  background-color: var(--hover-bg, #f5f5f5);
+.block-wrapper:hover {
+  background-color: transparent;
 }
 
-.block-item:hover .block-handle,
-.block-item:hover .block-actions {
+.block-wrapper.drag-over-top {
+  border-top: 2px solid var(--accent-color, #2563eb);
+}
+
+.block-wrapper.drag-over-bottom {
+  border-bottom: 2px solid var(--accent-color, #2563eb);
+}
+
+.block-wrapper.is-dragging {
+  opacity: 0.4;
+}
+
+/* Gutter */
+.block-gutter {
+  position: absolute;
+  left: -52px;
+  top: 0;
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.15s;
+  padding-top: 2px;
+}
+
+.block-gutter.visible {
   opacity: 1;
 }
 
-.block-handle {
-  opacity: 0;
-  cursor: grab;
-  padding: 0.25rem;
-  color: var(--text-tertiary, #999);
-  user-select: none;
-  flex-shrink: 0;
-  margin-top: 0.125rem;
-}
-
-.block-handle:active {
-  cursor: grabbing;
-}
-
-.handle-icon {
-  font-size: 0.75rem;
-}
-
-.block-content {
-  flex: 1;
-  min-width: 0;
-  cursor: text;
-}
-
-.block-editor-textarea {
-  width: 100%;
-  min-height: 2rem;
-  padding: 0.25rem 0.5rem;
-  border: 1px solid var(--border-color, #d0d0d0);
-  border-radius: 4px;
-  background: var(--bg-primary, #fff);
-  color: var(--text-primary, #333);
-  font-family: inherit;
-  font-size: inherit;
-  line-height: 1.5;
-  resize: vertical;
-  outline: none;
-}
-
-.block-editor-textarea:focus {
-  border-color: var(--accent-color, #2563eb);
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
-}
-
-.edit-code {
-  font-family: monospace;
-  font-size: 0.9em;
-}
-
-.block-actions {
-  opacity: 0;
-  flex-shrink: 0;
-}
-
-.btn-block-action {
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--text-tertiary, #999);
-  font-size: 1.2rem;
-  padding: 0 0.25rem;
-}
-
-.btn-block-action:hover {
-  color: var(--danger-color, #e74c3c);
-}
-
-.block-type-divider {
-  padding: 0.5rem 0;
-}
-
-.block-divider {
-  border: none;
-  border-top: 1px solid var(--border-color, #e0e0e0);
-  margin: 0;
-}
-
-.block-page-link {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem;
-  border-radius: 4px;
-  cursor: pointer;
-  color: var(--link-color, #2563eb);
-}
-
-.block-page-link:hover {
-  background-color: var(--hover-bg, #f0f0f0);
-}
-
-.page-icon {
-  font-size: 1.2rem;
-}
-
-.block-file {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem;
-  color: var(--text-secondary, #666);
-}
-
-.blocks-empty {
-  text-align: center;
-  padding: 3rem;
-  color: var(--text-secondary, #666);
-}
-
-.btn-add-block {
-  background: none;
-  border: 1px dashed var(--border-color, #ccc);
-  border-radius: 4px;
-  padding: 0.5rem 1rem;
-  cursor: pointer;
-  color: var(--text-secondary, #666);
-  width: 100%;
-  text-align: center;
-  margin-top: 0.5rem;
-}
-
-.btn-add-block:hover {
-  background-color: var(--hover-bg, #f5f5f5);
-  border-color: var(--text-secondary, #999);
-}
-
-.add-block-footer {
-  margin-top: 0.5rem;
-}
-
-.add-block-menu {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  padding: 0.75rem;
-  margin-top: 0.5rem;
-  border: 1px solid var(--border-color, #e0e0e0);
-  border-radius: 6px;
-  background: var(--bg-primary, #fff);
-}
-
-.add-block-option {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--border-color, #e0e0e0);
-  border-radius: 4px;
-  background: var(--bg-secondary, #f9f9f9);
-  cursor: pointer;
-  color: var(--text-primary, #333);
-  font-size: 0.875rem;
-}
-
-.add-block-option:hover {
-  background: var(--hover-bg, #f0f0f0);
-  border-color: var(--accent-color, #2563eb);
-}
-
-.add-block-icon {
-  font-weight: 700;
-  font-size: 0.8rem;
-  width: 1.5rem;
-  height: 1.5rem;
+.gutter-btn {
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary, #999);
+  cursor: pointer;
   border-radius: 3px;
-  background: var(--bg-tertiary, #eee);
+  padding: 0;
 }
 
-.is-dragging {
-  opacity: 0.5;
+.gutter-btn:hover {
+  background: var(--hover-bg, #f0f0f0);
+  color: var(--text-secondary, #666);
 }
 
-/* Markdown content styling */
+.gutter-drag {
+  cursor: grab;
+}
+
+.gutter-drag:active {
+  cursor: grabbing;
+}
+
+/* Type menu */
+.type-menu {
+  position: absolute;
+  left: -52px;
+  top: 26px;
+  z-index: 50;
+  background: var(--bg-primary, #fff);
+  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  padding: 4px;
+  min-width: 140px;
+}
+
+.type-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  background: transparent;
+  color: var(--text-primary, #333);
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 0.8125rem;
+  text-align: left;
+}
+
+.type-menu-item:hover {
+  background: var(--hover-bg, #f5f5f5);
+}
+
+.type-menu-item.active {
+  background: var(--accent-color, #2563eb);
+  color: white;
+}
+
+.type-menu-delete {
+  color: var(--danger-color, #e74c3c);
+}
+
+.type-menu-delete:hover {
+  background: rgba(231, 76, 60, 0.1);
+}
+
+.type-menu-divider {
+  height: 1px;
+  background: var(--border-color, #e0e0e0);
+  margin: 4px 0;
+}
+
+.type-icon {
+  font-weight: 600;
+  font-size: 0.75rem;
+  width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+/* Drop zone */
+.block-drop-zone {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Block content */
+.block-content {
+  width: 100%;
+}
+
+/* Textarea - seamless editing */
+.block-textarea {
+  width: 100%;
+  min-height: 1.5em;
+  padding: 3px 2px;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-primary, #333);
+  font-family: inherit;
+  font-size: 1rem;
+  line-height: 1.6;
+  resize: none;
+  outline: none;
+  overflow: hidden;
+  display: block;
+}
+
+.block-textarea:focus {
+  background: var(--bg-secondary, #fafafa);
+  box-shadow: inset 0 0 0 1px var(--border-color, #e0e0e0);
+}
+
+.block-textarea.is-empty::placeholder {
+  color: var(--text-tertiary, #bbb);
+}
+
+/* Type-specific textarea styles */
+.textarea-heading {
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.textarea-code {
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+  font-size: 0.875rem;
+  background: var(--bg-secondary, #f5f5f5);
+  padding: 8px 12px;
+  border-radius: 6px;
+  line-height: 1.5;
+}
+
+/* Rendered block */
+.block-rendered {
+  padding: 3px 2px;
+  cursor: text;
+  min-height: 1.5em;
+  border-radius: 3px;
+  transition: background-color 0.1s;
+}
+
+.block-rendered:hover {
+  background: var(--hover-bg, rgba(0, 0, 0, 0.03));
+}
+
+.block-rendered.is-empty {
+  color: var(--text-tertiary, #bbb);
+}
+
+.block-placeholder-text {
+  font-style: normal;
+  user-select: none;
+}
+
+/* Block type styling */
 .block-content :deep(h1),
 .block-content :deep(h2),
 .block-content :deep(h3),
@@ -502,21 +707,36 @@ function onDragEnd() {
 .block-content :deep(h5),
 .block-content :deep(h6) {
   margin: 0;
+  line-height: 1.3;
 }
 
+.block-content :deep(h1) { font-size: 2rem; }
+.block-content :deep(h2) { font-size: 1.5rem; }
+.block-content :deep(h3) { font-size: 1.25rem; }
+
 .block-content :deep(p) {
-  margin: 0.25rem 0;
+  margin: 0;
+  line-height: 1.6;
 }
 
 .block-content :deep(pre) {
   margin: 0;
-  border-radius: 4px;
+  border-radius: 6px;
+  background: var(--bg-secondary, #f5f5f5);
+  padding: 12px 16px;
+  font-size: 0.875rem;
+  overflow-x: auto;
+}
+
+.block-content :deep(code) {
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
 }
 
 .block-content :deep(blockquote) {
   margin: 0;
   padding-left: 1rem;
-  border-left: 3px solid var(--border-color, #e0e0e0);
+  border-left: 3px solid var(--accent-color, #2563eb);
+  color: var(--text-secondary, #555);
 }
 
 .block-content :deep(ul),
@@ -525,8 +745,104 @@ function onDragEnd() {
   padding-left: 1.5rem;
 }
 
+.block-content :deep(li) {
+  line-height: 1.6;
+}
+
 .block-content :deep(img) {
   max-width: 100%;
-  border-radius: 4px;
+  border-radius: 6px;
+}
+
+/* Image block */
+.block-image {
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.block-image img {
+  max-width: 100%;
+  display: block;
+  border-radius: 6px;
+}
+
+.block-image-caption {
+  font-size: 0.75rem;
+  color: var(--text-tertiary, #999);
+  margin-top: 4px;
+}
+
+/* File block */
+.block-file-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 6px;
+  color: var(--text-primary, #333);
+  text-decoration: none;
+  transition: background-color 0.1s;
+}
+
+.block-file-link:hover {
+  background: var(--hover-bg, #f5f5f5);
+}
+
+.file-icon {
+  font-size: 1.2rem;
+}
+
+.file-name {
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+
+/* Divider */
+.block-divider {
+  border: none;
+  border-top: 1px solid var(--border-color, #e0e0e0);
+  margin: 8px 0;
+}
+
+/* Page link */
+.block-page-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--text-primary, #333);
+  transition: background-color 0.1s;
+}
+
+.block-page-link:hover {
+  background: var(--hover-bg, #f5f5f5);
+}
+
+.page-icon {
+  font-size: 1.1rem;
+}
+
+.page-name {
+  font-weight: 500;
+}
+
+/* Trailing area */
+.block-trailing-area {
+  min-height: 200px;
+  cursor: text;
+  padding: 8px 2px;
+}
+
+.trailing-hint {
+  color: var(--text-tertiary, #ccc);
+  font-size: 1rem;
+  user-select: none;
+}
+
+.block-trailing-area:hover .trailing-hint {
+  color: var(--text-secondary, #999);
 }
 </style>

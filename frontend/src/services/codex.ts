@@ -700,8 +700,7 @@ export const blockService = {
     }
     const response = await apiClient.post<Block>(
       `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/upload`,
-      formData,
-      { headers: { "Content-Type": "multipart/form-data" } }
+      formData
     )
     return response.data
   },

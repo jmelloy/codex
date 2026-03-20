@@ -92,6 +92,27 @@ def run_notebook_alembic_migrations(notebook_path: str):
     alembic_cfg.set_main_option("script_location", str(backend_dir / "codex" / "migrations" / "notebook"))
     alembic_cfg.set_main_option("sqlalchemy.url", f"sqlite:///{db_path}")
 
+    # Stamp pre-Alembic databases that already have the initial schema so that
+    # migration 001 (which creates file_metadata) is not re-applied on top of
+    # an existing table, which would raise "table already exists".
+    import sqlite3
+
+    if os.path.exists(db_path):
+        con = sqlite3.connect(db_path)
+        try:
+            cur = con.execute("SELECT name FROM sqlite_master WHERE type='table'")
+            existing_tables = {row[0] for row in cur.fetchall()}
+        finally:
+            con.close()
+
+        has_version = "alembic_version" in existing_tables
+        has_initial_schema = "file_metadata" in existing_tables or "blocks" in existing_tables
+
+        if not has_version and has_initial_schema:
+            # Database was created without Alembic; stamp at revision 001 so
+            # Alembic knows the initial schema is already applied.
+            command.stamp(alembic_cfg, "001")
+
     command.upgrade(alembic_cfg, "head")
 
 

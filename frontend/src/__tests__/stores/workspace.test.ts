@@ -5,7 +5,6 @@ import {
   workspaceService,
   notebookService,
   blockService,
-  folderService,
 } from "../../services/codex"
 
 vi.mock("../../services/codex", () => ({
@@ -21,18 +20,14 @@ vi.mock("../../services/codex", () => ({
     getTree: vi.fn(),
     getBlock: vi.fn(),
     getText: vi.fn(),
+    getChildren: vi.fn(),
     updateBlock: vi.fn(),
     updateProperties: vi.fn(),
     deleteBlock: vi.fn(),
     upload: vi.fn(),
     moveBlock: vi.fn(),
     createPage: vi.fn(),
-    getChildren: vi.fn(),
-  },
-  folderService: {
-    get: vi.fn(),
-    updateProperties: vi.fn(),
-    delete: vi.fn(),
+    resolveLink: vi.fn(),
   },
 }))
 
@@ -51,10 +46,10 @@ describe("Workspace Store", () => {
       expect(store.notebooks).toEqual([])
       expect(store.loading).toBe(false)
       expect(store.error).toBeNull()
+      expect(store.currentBlock).toBeNull()
       expect(store.currentFile).toBeNull()
       expect(store.currentFolder).toBeNull()
-      expect(store.fileLoading).toBe(false)
-      expect(store.folderLoading).toBe(false)
+      expect(store.blockLoading).toBe(false)
     })
   })
 
@@ -82,7 +77,6 @@ describe("Workspace Store", () => {
       const store = useWorkspaceStore()
       const promise = store.fetchWorkspaces()
 
-      // Loading should be true during fetch
       expect(store.loading).toBe(true)
 
       await promise
@@ -193,20 +187,17 @@ describe("Workspace Store", () => {
     it("clears state when setting workspace to null", () => {
       const store = useWorkspaceStore()
 
-      // Set some initial state
       store.currentWorkspace = { id: 1 } as any
-      store.currentFile = { id: 1 } as any
-      store.currentFolder = { path: "folder" } as any
+      store.currentBlock = { id: 1, block_type: "file" } as any
 
       store.setCurrentWorkspace(null)
 
       expect(store.currentWorkspace).toBeNull()
-      expect(store.currentFile).toBeNull()
-      expect(store.currentFolder).toBeNull()
+      expect(store.currentBlock).toBeNull()
     })
   })
 
-  describe("fetchFiles", () => {
+  describe("fetchBlockTree", () => {
     it("fetches block tree", async () => {
       const mockTree = { tree: [], notebook_id: 1, workspace_id: 1 }
       vi.mocked(blockService.getTree).mockResolvedValue(mockTree as any)
@@ -214,7 +205,7 @@ describe("Workspace Store", () => {
       const store = useWorkspaceStore()
       store.currentWorkspace = { id: 1 } as any
 
-      await store.fetchFiles(1)
+      await store.fetchBlockTree(1)
 
       expect(blockService.getTree).toHaveBeenCalledWith(1, 1)
       expect(store.fileTrees.has(1)).toBe(true)
@@ -222,14 +213,14 @@ describe("Workspace Store", () => {
 
     it("does nothing without current workspace", async () => {
       const store = useWorkspaceStore()
-      await store.fetchFiles(1)
+      await store.fetchBlockTree(1)
 
       expect(blockService.getTree).not.toHaveBeenCalled()
     })
   })
 
-  describe("selectFile", () => {
-    it("fetches and sets current file", async () => {
+  describe("selectBlock", () => {
+    it("loads leaf block content", async () => {
       const mockBlock = {
         id: 1,
         block_id: "blk_1",
@@ -251,24 +242,59 @@ describe("Workspace Store", () => {
       const store = useWorkspaceStore()
       store.currentWorkspace = { id: 1 } as any
 
-      await store.selectFile(mockBlock as any)
+      await store.selectBlock(mockBlock as any)
 
       expect(blockService.getBlock).toHaveBeenCalledWith("blk_1", 1, 1)
+      expect(store.currentBlock?.block_id).toBe("blk_1")
       expect(store.currentFile?.content).toBe("# Test")
       expect(store.currentFolder).toBeNull()
+    })
+
+    it("loads page children", async () => {
+      const mockPage = {
+        id: 2,
+        block_id: "page_1",
+        parent_block_id: null,
+        notebook_id: 1,
+        path: "my-page",
+        block_type: "page",
+        content_format: "markdown",
+        order_index: 0,
+        title: "My Page",
+        created_at: "2024-01-01",
+        updated_at: "2024-01-01",
+      }
+
+      const mockChildren = {
+        parent_block_id: "page_1",
+        children: [{ id: 3, block_id: "child_1", block_type: "text" }],
+      }
+
+      vi.mocked(blockService.getChildren).mockResolvedValue(mockChildren as any)
+
+      const store = useWorkspaceStore()
+      store.currentWorkspace = { id: 1 } as any
+
+      await store.selectBlock(mockPage as any)
+
+      expect(blockService.getChildren).toHaveBeenCalledWith("page_1", 1, 1)
+      expect(store.currentBlock?.block_type).toBe("page")
+      expect(store.currentFile).toBeNull()
+      expect(store.currentFolder).not.toBeNull()
+      expect(store.currentFolder?.is_page).toBe(true)
+      expect(store.currentPageBlocks).toHaveLength(1)
     })
   })
 
   describe("saveFile", () => {
-    it("updates file content via blockService", async () => {
+    it("updates block content via blockService", async () => {
       const mockUpdated = { id: 1, block_id: "blk_1", path: "test.md" }
       vi.mocked(blockService.updateBlock).mockResolvedValue(mockUpdated as any)
       vi.mocked(blockService.updateProperties).mockResolvedValue(mockUpdated as any)
 
       const store = useWorkspaceStore()
       store.currentWorkspace = { id: 1 } as any
-      store.currentFile = { id: 1, block_id: "blk_1", notebook_id: 1, content: "old" } as any
-      store.fileTrees.set(1, [])
+      store.currentBlock = { id: 1, block_id: "blk_1", notebook_id: 1, block_type: "file", content: "old" } as any
 
       await store.saveFile("new content", { key: "value" })
 
@@ -276,10 +302,10 @@ describe("Workspace Store", () => {
       expect(blockService.updateProperties).toHaveBeenCalledWith("blk_1", 1, 1, { key: "value" })
     })
 
-    it("throws error when file has no notebook_id", async () => {
+    it("throws error when block has no notebook_id", async () => {
       const store = useWorkspaceStore()
       store.currentWorkspace = { id: 1 } as any
-      store.currentFile = { id: 1, block_id: "blk_1", notebook_id: undefined } as any
+      store.currentBlock = { id: 1, block_id: "blk_1", notebook_id: undefined } as any
 
       await expect(store.saveFile("content")).rejects.toThrow("File has no notebook_id")
     })
@@ -292,9 +318,7 @@ describe("Workspace Store", () => {
 
       vi.mocked(blockService.createPage).mockResolvedValue(mockPage as any)
       vi.mocked(blockService.getTree).mockResolvedValue(mockTree as any)
-      vi.mocked(folderService.get).mockResolvedValue({
-        path: "new.md", name: "new.md", notebook_id: 1, file_count: 0, files: [], subfolders: [],
-      } as any)
+      vi.mocked(blockService.resolveLink).mockRejectedValue(new Error("not found"))
 
       const store = useWorkspaceStore()
       store.currentWorkspace = { id: 1 } as any
@@ -306,18 +330,18 @@ describe("Workspace Store", () => {
   })
 
   describe("deleteFile", () => {
-    it("deletes file via blockService and clears current file", async () => {
+    it("deletes file via blockService and clears current block", async () => {
       vi.mocked(blockService.deleteBlock).mockResolvedValue({ message: "deleted" } as any)
 
       const store = useWorkspaceStore()
       store.currentWorkspace = { id: 1 } as any
-      store.currentFile = { id: 1, block_id: "blk_1", notebook_id: 1, path: "test.md", content: "" } as any
+      store.currentBlock = { id: 1, block_id: "blk_1", notebook_id: 1, path: "test.md", block_type: "file" } as any
       store.fileTrees.set(1, [{ name: "test.md", path: "test.md", type: "file" }])
 
       await store.deleteFile("blk_1")
 
       expect(blockService.deleteBlock).toHaveBeenCalledWith("blk_1", 1, 1)
-      expect(store.currentFile).toBeNull()
+      expect(store.currentBlock).toBeNull()
     })
   })
 
@@ -433,73 +457,19 @@ describe("Workspace Store", () => {
     })
   })
 
-  describe("folder operations", () => {
-    describe("selectFolder", () => {
-      it("selects folder and clears current file", async () => {
-        const mockFolder = {
-          path: "test-folder",
-          name: "test-folder",
-          notebook_id: 1,
-          files: [],
-          subfolders: [],
-          file_count: 0,
-        }
-        vi.mocked(folderService.get).mockResolvedValue(mockFolder as any)
+  describe("deleteFolder", () => {
+    it("deletes page block and clears state", async () => {
+      vi.mocked(blockService.deleteBlock).mockResolvedValue({ message: "deleted" } as any)
 
-        const store = useWorkspaceStore()
-        store.currentWorkspace = { id: 1 } as any
-        store.currentFile = { id: 1 } as any
+      const store = useWorkspaceStore()
+      store.currentWorkspace = { id: 1 } as any
+      store.currentBlock = { id: 1, block_id: "page_1", notebook_id: 1, path: "folder", block_type: "page" } as any
+      store.fileTrees.set(1, [{ name: "folder", path: "folder", type: "folder" }])
 
-        await store.selectFolder("test-folder", 1)
+      await store.deleteFolder()
 
-        expect(store.currentFile).toBeNull()
-        expect(store.currentFolder).toEqual(mockFolder)
-      })
-    })
-
-    describe("saveFolderProperties", () => {
-      it("updates folder properties", async () => {
-        const updatedFolder = { path: "folder", title: "New Title", notebook_id: 1 }
-        vi.mocked(folderService.updateProperties).mockResolvedValue(updatedFolder as any)
-
-        const store = useWorkspaceStore()
-        store.currentWorkspace = { id: 1 } as any
-        store.currentFolder = { path: "folder", notebook_id: 1, file_count: 0 } as any
-        store.fileTrees.set(1, [])
-
-        await store.saveFolderProperties({ title: "New Title" })
-
-        expect(folderService.updateProperties).toHaveBeenCalledWith("folder", 1, 1, {
-          title: "New Title",
-        })
-      })
-    })
-
-    describe("deleteFolder", () => {
-      it("deletes folder and clears current folder", async () => {
-        vi.mocked(folderService.delete).mockResolvedValue(undefined)
-
-        const store = useWorkspaceStore()
-        store.currentWorkspace = { id: 1 } as any
-        store.currentFolder = { path: "folder", notebook_id: 1, file_count: 0 } as any
-        store.fileTrees.set(1, [{ name: "folder", path: "folder", type: "folder" }])
-
-        await store.deleteFolder()
-
-        expect(folderService.delete).toHaveBeenCalledWith("folder", 1, 1)
-        expect(store.currentFolder).toBeNull()
-      })
-    })
-
-    describe("clearFolderSelection", () => {
-      it("clears current folder", () => {
-        const store = useWorkspaceStore()
-        store.currentFolder = { path: "folder" } as any
-
-        store.clearFolderSelection()
-
-        expect(store.currentFolder).toBeNull()
-      })
+      expect(blockService.deleteBlock).toHaveBeenCalledWith("page_1", 1, 1)
+      expect(store.currentBlock).toBeNull()
     })
   })
 })

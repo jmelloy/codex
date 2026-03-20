@@ -21,40 +21,6 @@ export interface Notebook {
   updated_at: string
 }
 
-export interface FolderMetadata {
-  path: string
-  name: string
-  notebook_id: number
-  title?: string
-  description?: string
-  properties?: Record<string, any>
-  file_count: number
-  created_at?: string
-  updated_at?: string
-}
-
-export interface SubfolderMetadata {
-  path: string
-  name: string
-  title?: string
-  description?: string
-  properties?: Record<string, any>
-  is_page?: boolean
-  has_subpages?: boolean
-  created_at?: string
-  updated_at?: string
-}
-
-export interface FolderWithFiles extends FolderMetadata {
-  files: Block[]
-  subfolders?: SubfolderMetadata[]
-  is_page?: boolean
-  page_block_id?: string
-  blocks?: Block[]
-  has_subpages?: boolean
-  block_order?: string[]
-}
-
 export interface Block {
   id: number
   block_id: string
@@ -272,48 +238,6 @@ export const notebookService = {
 }
 
 
-
-export const folderService = {
-  /**
-   * Get folder metadata and contents.
-   * The folder metadata is stored in a .metadata file within the folder.
-   */
-  async get(path: string, notebookId: number | string, workspaceId: number | string): Promise<FolderWithFiles> {
-    const encodedPath = encodeURIComponent(path)
-    const response = await apiClient.get<FolderWithFiles>(
-      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/folders/${encodedPath}`
-    )
-    return response.data
-  },
-
-  /**
-   * Update folder properties.
-   * This updates the .metadata file within the folder.
-   */
-  async updateProperties(
-    path: string,
-    notebookId: number | string,
-    workspaceId: number | string,
-    properties: Record<string, any>
-  ): Promise<FolderMetadata> {
-    const encodedPath = encodeURIComponent(path)
-    const response = await apiClient.put<FolderMetadata>(
-      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/folders/${encodedPath}`,
-      { properties }
-    )
-    return response.data
-  },
-
-  /**
-   * Delete a folder and all its contents.
-   */
-  async delete(path: string, notebookId: number | string, workspaceId: number | string): Promise<void> {
-    const encodedPath = encodeURIComponent(path)
-    await apiClient.delete(
-      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/folders/${encodedPath}`
-    )
-  },
-}
 
 export const blockService = {
   /**

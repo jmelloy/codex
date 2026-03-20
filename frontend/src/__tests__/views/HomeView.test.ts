@@ -13,7 +13,7 @@ vi.mock("../../services/codex", () => ({
   notebookService: {
     list: vi.fn(),
   },
-  fileService: {},
+  blockService: {},
   folderService: {},
 }))
 

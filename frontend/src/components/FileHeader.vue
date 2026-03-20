@@ -43,7 +43,7 @@
             <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
             <polyline points="13 2 13 9 20 9" />
           </svg>
-          {{ file.content_type }}
+          {{ file.content_type || 'unknown' }}
         </span>
         <span class="meta-item">
           <svg
@@ -59,7 +59,7 @@
               d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"
             />
           </svg>
-          {{ formatSize(file.size) }}
+          {{ formatSize(file.size || 0) }}
         </span>
         <span class="meta-item">
           <svg
@@ -90,11 +90,11 @@
 
 <script setup lang="ts">
 import { computed, h, ref, nextTick } from "vue"
-import type { FileMetadata } from "../services/codex"
+import type { Block } from "../services/codex"
 import { getDisplayType } from "../utils/contentType"
 
 interface Props {
-  file: FileMetadata
+  file: Block
 }
 
 const props = defineProps<Props>()
@@ -110,7 +110,7 @@ const titleInput = ref<HTMLInputElement | null>(null)
 
 async function startEditing() {
   isEditing.value = true
-  editingTitle.value = props.file.filename
+  editingTitle.value = props.file.filename || props.file.path.split("/").pop() || props.file.path
   await nextTick()
   titleInput.value?.focus()
   titleInput.value?.select()
@@ -158,7 +158,7 @@ function finishEditing() {
   }
   
   // Only emit rename if the filename actually changed
-  if (newFilename !== props.file.filename) {
+  if (newFilename !== (props.file.filename || props.file.path.split("/").pop() || "")) {
     emit("rename", newFilename)
   }
   
@@ -171,7 +171,7 @@ function cancelEditing() {
 }
 
 const displayTitle = computed(() => {
-  return props.file.properties?.title || props.file.title || props.file.filename
+  return props.file.properties?.title || props.file.title || props.file.filename || props.file.path.split("/").pop() || props.file.path
 })
 
 function formatSize(bytes: number): string {
@@ -196,7 +196,7 @@ function formatDate(dateStr: string): string {
 }
 
 const fileIcon = computed(() => {
-  const displayType = getDisplayType(props.file.content_type)
+  const displayType = getDisplayType(props.file.content_type || "")
   const iconProps = {
     width: 48,
     height: 48,

@@ -21,30 +21,6 @@ export interface Notebook {
   updated_at: string
 }
 
-export interface FileMetadata {
-  id: number
-  notebook_id: number
-  path: string
-  filename: string
-  content_type: string // MIME type (e.g., text/markdown, image/jpeg)
-  size: number
-  title?: string
-  description?: string
-  properties?: Record<string, any> // Unified properties from frontmatter
-  created_at: string
-  updated_at: string
-}
-
-export interface FileWithContent extends FileMetadata {
-  content: string
-}
-
-export interface FileTextContent {
-  id: number
-  content: string
-  properties?: Record<string, any>
-}
-
 export interface FolderMetadata {
   path: string
   name: string
@@ -70,7 +46,7 @@ export interface SubfolderMetadata {
 }
 
 export interface FolderWithFiles extends FolderMetadata {
-  files: FileMetadata[]
+  files: Block[]
   subfolders?: SubfolderMetadata[]
   is_page?: boolean
   page_block_id?: string
@@ -99,14 +75,22 @@ export interface Block {
   content_format: "markdown" | "json" | "binary"
   order_index: number
   title?: string
-  file_id?: number
+  filename?: string
   content?: string
-  // Denormalized fields
   content_type?: string
   size?: number
   description?: string
   properties?: Record<string, any>
-  // Tree children (populated by /tree endpoint)
+  hash?: string
+  file_type?: string
+  sidecar_path?: string
+  file_created_at?: string
+  file_modified_at?: string
+  s3_bucket?: string
+  s3_key?: string
+  s3_version_id?: string
+  git_tracked?: boolean
+  last_commit_hash?: string
   children?: Block[]
   created_at: string
   updated_at: string
@@ -136,31 +120,6 @@ export interface FileHistoryEntry {
   author: string
   date: string
   message: string
-}
-
-export interface FileHistory {
-  file_id: number
-  path: string
-  history: FileHistoryEntry[]
-}
-
-export interface FileAtCommit {
-  file_id: number
-  path: string
-  commit_hash: string
-  content: string
-}
-
-export interface PaginationInfo {
-  total: number
-  page: number
-  per_page: number
-  pages: number
-}
-
-export interface FileListResponse {
-  files: FileMetadata[]
-  pagination: PaginationInfo
 }
 
 export interface RootBlocksResponse {
@@ -313,210 +272,6 @@ export const notebookService = {
 }
 
 
-
-export const fileService = {
-  async list(notebookId: number | string, workspaceId: number | string): Promise<FileMetadata[]> {
-    const response = await apiClient.get<FileListResponse>(
-      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/`
-    )
-    // For backwards compatibility, return just the files array
-    // The frontend currently loads all files at once for the tree
-    return response.data.files || (response.data as unknown as FileMetadata[])
-  },
-
-  /**
-   * Get file metadata (without content).
-   * Use getContent() to fetch the file content separately.
-   */
-  async get(id: number, workspaceId: number | string, notebookId: number | string): Promise<FileMetadata> {
-    const response = await apiClient.get<FileMetadata>(
-      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/${id}`
-    )
-    return response.data
-  },
-
-  /**
-   * Get text content for a file.
-   * For markdown files, returns body content without frontmatter.
-   */
-  async getContent(id: number, workspaceId: number | string, notebookId: number | string): Promise<FileTextContent> {
-    const response = await apiClient.get<FileTextContent>(
-      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/${id}/text`
-    )
-    return response.data
-  },
-
-  /**
-   * Get file metadata by its path or filename (without content).
-   * Supports exact path match or filename-only search.
-   * Use getContentByPath() to fetch content separately.
-   */
-  async getByPath(path: string, workspaceId: number | string, notebookId: number | string): Promise<FileMetadata> {
-    const encodedPath = encodeURIComponent(path)
-    const response = await apiClient.get<FileMetadata>(
-      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/path/${encodedPath}`
-    )
-    return response.data
-  },
-
-  /**
-   * Get text content for a file by its path or filename.
-   */
-  async getContentByPath(
-    path: string,
-    workspaceId: number | string,
-    notebookId: number | string
-  ): Promise<FileTextContent> {
-    const encodedPath = encodeURIComponent(path)
-    const response = await apiClient.get<FileTextContent>(
-      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/path/${encodedPath}/text`
-    )
-    return response.data
-  },
-
-  /**
-   * Get the content URL for a file by path (for binary files like images).
-   */
-  getContentUrlByPath(path: string, workspaceId: number | string, notebookId: number | string): string {
-    const encodedPath = encodeURIComponent(path)
-    return `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/path/${encodedPath}/content`
-  },
-
-  /**
-   * Get the content URL for a file by ID (for binary files like images).
-   */
-  getContentUrl(id: number, workspaceId: number | string, notebookId: number | string): string {
-    return `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/${id}/content`
-  },
-
-  /**
-   * Resolve a link to a file, supporting relative paths and filenames.
-   */
-  async resolveLink(
-    link: string,
-    workspaceId: number | string,
-    notebookId: number | string,
-    currentFilePath?: string
-  ): Promise<FileMetadata & { resolved_path: string }> {
-    const response = await apiClient.post<FileMetadata & { resolved_path: string }>(
-      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/resolve-link`,
-      {
-        link,
-        current_file_path: currentFilePath,
-      }
-    )
-    return response.data
-  },
-
-  async create(
-    notebookId: number | string,
-    workspaceId: number | string,
-    path: string,
-    content: string
-  ): Promise<FileMetadata> {
-    const response = await apiClient.post<FileMetadata>(
-      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/`, 
-      {
-        path,
-        content,
-      }
-    )
-    return response.data
-  },
-
-  async update(
-    id: number,
-    workspaceId: number | string,
-    notebookId: number | string,
-    content?: string | null,
-    properties?: Record<string, any>
-  ): Promise<FileMetadata> {
-    // Only include content in body if it's a string (not null/undefined)
-    // This allows updating just properties on binary files like images
-    const body: { content?: string; properties?: Record<string, any> } = {}
-    if (typeof content === "string") {
-      body.content = content
-    }
-    if (properties !== undefined) {
-      body.properties = properties
-    }
-    const response = await apiClient.put<FileMetadata>(
-      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/${id}`,
-      body
-    )
-    return response.data
-  },
-
-  async delete(id: number, workspaceId: number | string, notebookId: number | string): Promise<void> {
-    await apiClient.delete(`/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/${id}`)
-  },
-
-  async upload(
-    notebookId: number | string,
-    workspaceId: number | string,
-    file: File,
-    path?: string
-  ): Promise<FileMetadata> {
-    const formData = new FormData()
-    formData.append("file", file)
-    if (path) {
-      formData.append("path", path)
-    }
-    const response = await apiClient.post<FileMetadata>(
-      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/upload`,
-      formData,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      }
-    )
-    return response.data
-  },
-
-  async move(
-    id: number,
-    workspaceId: number | string,
-    notebookId: number | string,
-    newPath: string
-  ): Promise<FileMetadata> {
-    const response = await apiClient.patch<FileMetadata>(
-      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/${id}/move`,
-      { new_path: newPath }
-    )
-    return response.data
-  },
-
-  /**
-   * Get git history for a file.
-   */
-  async getHistory(
-    id: number,
-    workspaceId: number | string,
-    notebookId: number | string,
-    maxCount: number = 20
-  ): Promise<FileHistory> {
-    const response = await apiClient.get<FileHistory>(
-      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/${id}/history?max_count=${maxCount}`
-    )
-    return response.data
-  },
-
-  /**
-   * Get file content at a specific commit.
-   */
-  async getAtCommit(
-    id: number,
-    workspaceId: number | string,
-    notebookId: number | string,
-    commitHash: string
-  ): Promise<FileAtCommit> {
-    const response = await apiClient.get<FileAtCommit>(
-      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/files/${id}/history/${commitHash}`
-    )
-    return response.data
-  },
-}
 
 export const folderService = {
   /**
@@ -707,21 +462,6 @@ export const blockService = {
   ): Promise<{ message: string; blocks?: Block[] }> {
     const response = await apiClient.delete<{ message: string; blocks?: Block[] }>(
       `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/${blockId}`
-    )
-    return response.data
-  },
-
-  /**
-   * Convert an existing markdown file to a page of blocks.
-   */
-  async convertFileToBlocks(
-    notebookId: number | string,
-    workspaceId: number | string,
-    fileId: number
-  ): Promise<PageMetadata> {
-    const response = await apiClient.post<PageMetadata>(
-      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/convert-file`,
-      { file_id: fileId }
     )
     return response.data
   },

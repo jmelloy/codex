@@ -12,15 +12,19 @@ import {
   moveNode,
   type FileTreeNode,
 } from "../../utils/fileTree"
-import type { FileMetadata, FolderWithFiles } from "../../services/codex"
+import type { Block, FolderWithFiles } from "../../services/codex"
 
-// Helper to create a mock file
-function createMockFile(overrides: Partial<FileMetadata> = {}): FileMetadata {
+function createMockFile(overrides: Partial<Block> = {}): Block {
   return {
     id: 1,
+    block_id: "blk_1",
+    parent_block_id: null,
     notebook_id: 1,
     path: "test.md",
     filename: "test.md",
+    block_type: "file",
+    content_format: "markdown",
+    order_index: 0,
     content_type: "text/markdown",
     size: 100,
     created_at: "2024-01-01",

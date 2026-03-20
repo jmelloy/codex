@@ -20,7 +20,7 @@ from codex.core.git_manager import GitManager
 from codex.core.metadata import MetadataParser
 from codex.core.watcher import get_content_type, get_watcher_for_notebook
 from codex.db.database import get_notebook_session, get_system_session
-from codex.db.models import FileMetadata, Notebook, User, Workspace
+from codex.db.models import Block, Notebook, User, Workspace
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -202,22 +202,28 @@ async def post_snippet(
             logger.error(f"Error processing snippet creation: {op.error}")
             raise HTTPException(status_code=500, detail=f"Error creating snippet: {str(op.error)}")
 
-    # Get or create file metadata
+    # Get or create block
     nb_session = get_notebook_session(str(notebook_path))
     try:
         result = nb_session.execute(
-            select(FileMetadata).where(FileMetadata.notebook_id == notebook.id, FileMetadata.path == rel_path)
+            select(Block).where(Block.notebook_id == notebook.id, Block.path == rel_path)
         )
-        file_meta = result.scalar_one_or_none()
+        block = result.scalar_one_or_none()
 
-        if not file_meta:
+        if not block:
+            from ulid import ULID
+
             content_type = get_content_type(str(file_path))
             file_stats = os.stat(file_path)
 
-            file_meta = FileMetadata(
+            block = Block(
                 notebook_id=notebook.id,
+                block_id=str(ULID()),
                 path=rel_path,
                 filename=os.path.basename(rel_path),
+                block_type="text",
+                content_format="markdown",
+                order_index=0.0,
                 content_type=content_type,
                 size=file_stats.st_size,
                 hash=hashlib.sha256(full_content.encode()).hexdigest(),
@@ -226,26 +232,26 @@ async def post_snippet(
                 file_created_at=datetime.fromtimestamp(file_stats.st_ctime),
                 file_modified_at=datetime.fromtimestamp(file_stats.st_mtime),
             )
-            nb_session.add(file_meta)
+            nb_session.add(block)
 
             # Commit to git if no watcher
             if not watcher:
                 git_manager = GitManager(str(notebook_path))
                 commit_hash = git_manager.commit(f"Snippet: {request.title or filename}", [str(file_path)])
                 if commit_hash:
-                    file_meta.last_commit_hash = commit_hash
+                    block.last_commit_hash = commit_hash
 
             nb_session.commit()
-            nb_session.refresh(file_meta)
+            nb_session.refresh(block)
 
         return SnippetResponse(
-            id=file_meta.id,
-            path=file_meta.path,
-            filename=file_meta.filename,
-            content_type=file_meta.content_type,
-            size=file_meta.size,
+            id=block.id,
+            path=block.path,
+            filename=block.filename or os.path.basename(block.path),
+            content_type=block.content_type or "text/markdown",
+            size=block.size or 0,
             title=request.title,
-            created_at=file_meta.created_at.isoformat() if file_meta.created_at else datetime.now(UTC).isoformat(),
+            created_at=block.created_at.isoformat() if block.created_at else datetime.now(UTC).isoformat(),
             message="Snippet created successfully",
         )
     except HTTPException:

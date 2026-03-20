@@ -3,24 +3,18 @@ import { ref, computed, type ComputedRef } from "vue"
 import {
   workspaceService,
   notebookService,
-  fileService,
   folderService,
   blockService,
   type Workspace,
   type Notebook,
-  type FileMetadata,
-  type FileWithContent,
   type FolderWithFiles,
   type Block,
   type PageMetadata,
 } from "../services/codex"
 import {
   type FileTreeNode,
-  buildFileTree,
   blockTreeToFileTree,
-  insertFileNode,
   removeNode,
-  updateFileNode,
   mergeFolderContents,
   getAllFiles,
   findNode,
@@ -37,7 +31,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
 
   // File state - now using tree structure
   const fileTrees = ref<Map<number, FileTreeNode[]>>(new Map()) // notebook_id -> file tree
-  const currentFile = ref<FileWithContent | null>(null)
+  const currentFile = ref<(Block & { content: string }) | null>(null)
   const expandedNotebooks = ref<Set<number>>(new Set())
   const fileLoading = ref(false)
 
@@ -63,7 +57,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
 
   // Backwards-compatible files accessor (returns flat list from tree)
   const files = computed(() => {
-    const flatMap = new Map<number, FileMetadata[]>()
+    const flatMap = new Map<number, Block[]>()
     for (const [notebookId, tree] of fileTrees.value) {
       flatMap.set(notebookId, getAllFiles(tree))
     }
@@ -164,9 +158,8 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     fileLoading.value = true
     error.value = null
     try {
-      const fileList = await fileService.list(notebookId, currentWorkspace.value.id)
-      // Build tree from flat file list
-      const tree = buildFileTree(fileList)
+      const result = await blockService.getTree(notebookId, currentWorkspace.value.id)
+      const tree = blockTreeToFileTree(result.tree)
       fileTrees.value.set(notebookId, tree)
     } catch (e: any) {
       error.value = e.response?.data?.detail || "Failed to fetch files"
@@ -265,37 +258,39 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     }
   }
 
-  async function selectFile(file: FileMetadata) {
+  async function selectFile(file: Block) {
     if (!currentWorkspace.value) return
 
     fileLoading.value = true
     error.value = null
-    currentFolder.value = null // Clear folder selection when selecting a file
+    currentFolder.value = null
     try {
-      // First fetch file metadata (fast, no content)
-      const fileMeta = await fileService.get(file.id, currentWorkspace.value.id, file.notebook_id)
+      const blockDetail = await blockService.getBlock(
+        file.block_id,
+        file.notebook_id,
+        currentWorkspace.value.id,
+      )
 
-      // Set file with empty content initially so UI can render metadata immediately
-      currentFile.value = { ...fileMeta, content: "" }
+      currentFile.value = { ...blockDetail, content: blockDetail.content || "" }
 
-      // Then fetch content for text-based files
       const isTextFile =
-        fileMeta.content_type.startsWith("text/") ||
-        ["application/json", "application/xml"].includes(
-          fileMeta.content_type,
-        )
+        (blockDetail.content_type || "").startsWith("text/") ||
+        ["application/json", "application/xml"].includes(blockDetail.content_type || "")
 
-      if (isTextFile) {
-        const textContent = await fileService.getContent(
-          file.id,
-          currentWorkspace.value.id,
-          file.notebook_id,
-        )
-        // Update with content and any refreshed properties
-        currentFile.value = {
-          ...fileMeta,
-          content: textContent.content,
-          properties: textContent.properties ?? fileMeta.properties,
+      if (isTextFile && !blockDetail.content) {
+        try {
+          const textContent = await blockService.getText(
+            file.block_id,
+            file.notebook_id,
+            currentWorkspace.value.id,
+          )
+          currentFile.value = {
+            ...blockDetail,
+            content: textContent.content,
+            properties: textContent.properties ?? blockDetail.properties,
+          }
+        } catch {
+          // Content might not be text-readable
         }
       }
     } catch (e: any) {
@@ -308,7 +303,6 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   async function saveFile(content: string, properties?: Record<string, any>, keepEditing: boolean = false) {
     if (!currentWorkspace.value || !currentFile.value) return
 
-    // Don't set fileLoading during autosave (keepEditing) — it unmounts the editor and resets the cursor
     if (!keepEditing) {
       fileLoading.value = true
     }
@@ -317,20 +311,21 @@ export const useWorkspaceStore = defineStore("workspace", () => {
       if (!currentFile.value.notebook_id) {
         throw new Error("File has no notebook_id")
       }
-      const updated = await fileService.update(
-        currentFile.value.id,
-        currentWorkspace.value.id,
+      const updated = await blockService.updateBlock(
+        currentFile.value.block_id,
         currentFile.value.notebook_id,
+        currentWorkspace.value.id,
         content,
-        properties,
       )
-      // Update currentFile with new content and properties
-      currentFile.value = { ...currentFile.value, ...updated, content }
-      // Update the file node in the tree (incremental update)
-      const tree = fileTrees.value.get(currentFile.value.notebook_id)
-      if (tree) {
-        updateFileNode(tree, currentFile.value)
+      if (properties) {
+        await blockService.updateProperties(
+          currentFile.value.block_id,
+          currentFile.value.notebook_id,
+          currentWorkspace.value.id,
+          properties,
+        )
       }
+      currentFile.value = { ...currentFile.value, ...updated, content }
     } catch (e: any) {
       error.value = e.response?.data?.detail || "Failed to save file"
       throw e
@@ -341,24 +336,20 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     }
   }
 
-  async function createFile(notebookId: number, path: string, content: string) {
+  async function createFile(notebookId: number, path: string, _content: string) {
     if (!currentWorkspace.value) return
 
     fileLoading.value = true
     error.value = null
     try {
-      const newFile = await fileService.create(notebookId, currentWorkspace.value.id, path, content)
-
-      // Insert the new file into the tree (incremental update)
-      if (!fileTrees.value.has(notebookId)) {
-        fileTrees.value.set(notebookId, [])
+      const result = await blockService.createPage(notebookId, currentWorkspace.value.id, {
+        title: path,
+      })
+      await fetchBlockTree(notebookId)
+      if (result.path) {
+        await selectFolder(result.path, notebookId)
       }
-      const tree = fileTrees.value.get(notebookId)!
-      insertFileNode(tree, newFile)
-
-      // Select the new file
-      await selectFile(newFile)
-      return newFile
+      return result
     } catch (e: any) {
       error.value = e.response?.data?.detail || "Failed to create file"
       throw e
@@ -367,18 +358,17 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     }
   }
 
-  async function deleteFile(fileId: number) {
+  async function deleteFile(blockId: string) {
     if (!currentWorkspace.value || !currentFile.value) return
 
     fileLoading.value = true
     error.value = null
     try {
       const notebookId = currentFile.value.notebook_id
-      await fileService.delete(fileId, currentWorkspace.value.id, notebookId)
+      await blockService.deleteBlock(blockId, notebookId, currentWorkspace.value.id)
       const filePath = currentFile.value.path
       currentFile.value = null
 
-      // Remove the file from the tree (incremental update)
       if (notebookId) {
         const tree = fileTrees.value.get(notebookId)
         if (tree) {
@@ -423,36 +413,17 @@ export const useWorkspaceStore = defineStore("workspace", () => {
       case "created":
       case "modified":
       case "scanned":
-        // Fetch the updated file metadata from the API
         if (currentWorkspace.value) {
           try {
-            const file = await fileService.getByPath(
-              event.path,
-              currentWorkspace.value.id,
-              event.notebook_id,
-            )
-            if (event.event_type === "created") {
-              insertFileNode(tree, file)
-            } else {
-              // For modified, update the existing node
-              if (!updateFileNode(tree, file)) {
-                // If node not found, insert it (might have been created outside our view)
-                insertFileNode(tree, file)
-              }
-            }
-
-            // Update current file if it's the one that changed
-            if (currentFile.value?.path === event.path && currentFile.value?.notebook_id === event.notebook_id) {
-              // Refresh the file content
-              await selectFile(file)
-            }
+            // Refresh the block tree to pick up changes
+            await fetchBlockTree(event.notebook_id)
 
             // Also update currentBlock if relevant
             if (currentBlock.value?.path === event.path && currentBlock.value?.notebook_id === event.notebook_id) {
               await selectBlock(currentBlock.value)
             }
           } catch (e) {
-            console.warn(`Failed to fetch file metadata for ${event.path}:`, e)
+            console.warn(`Failed to refresh tree for ${event.path}:`, e)
           }
         }
         break
@@ -471,25 +442,13 @@ export const useWorkspaceStore = defineStore("workspace", () => {
 
       case "moved":
         if (event.old_path) {
-          // Move node from old path to new path
           moveNode(tree, event.old_path, event.path)
 
-          // Fetch updated metadata for the moved file
           if (currentWorkspace.value) {
             try {
-              const file = await fileService.getByPath(
-                event.path,
-                currentWorkspace.value.id,
-                event.notebook_id,
-              )
-              updateFileNode(tree, file)
-
-              // Update current file if it was moved
-              if (currentFile.value?.path === event.old_path && currentFile.value?.notebook_id === event.notebook_id) {
-                currentFile.value = { ...currentFile.value, ...file }
-              }
+              await fetchBlockTree(event.notebook_id)
             } catch (e) {
-              console.warn(`Failed to fetch moved file metadata for ${event.path}:`, e)
+              console.warn(`Failed to refresh tree after move for ${event.path}:`, e)
             }
           }
         }
@@ -497,26 +456,19 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     }
   }
 
-  function getFilesForNotebook(notebookId: number): FileMetadata[] {
+  function getFilesForNotebook(notebookId: number): Block[] {
     return files.value.get(notebookId) || []
   }
 
-  async function uploadFile(notebookId: number, file: File, path?: string) {
+  async function uploadFile(notebookId: number, file: File, _path?: string) {
     if (!currentWorkspace.value) return
 
     fileLoading.value = true
     error.value = null
     try {
-      const newFile = await fileService.upload(notebookId, currentWorkspace.value.id, file, path)
-
-      // Insert the new file into the tree (incremental update)
-      if (!fileTrees.value.has(notebookId)) {
-        fileTrees.value.set(notebookId, [])
-      }
-      const tree = fileTrees.value.get(notebookId)!
-      insertFileNode(tree, newFile)
-
-      return newFile
+      const newBlock = await blockService.upload(notebookId, currentWorkspace.value.id, file)
+      await fetchBlockTree(notebookId)
+      return newBlock
     } catch (e: any) {
       error.value = e.response?.data?.detail || "Failed to upload file"
       throw e
@@ -525,42 +477,24 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     }
   }
 
-  async function moveFile(fileId: number, notebookId: number, newPath: string) {
+  async function moveFile(blockId: string, notebookId: number, _newPath: string) {
     if (!currentWorkspace.value) return
 
     fileLoading.value = true
     error.value = null
     try {
-      // Find the old path before moving
-      const tree = fileTrees.value.get(notebookId)
-      let oldPath: string | null = null
-      if (tree) {
-        const allFiles = getAllFiles(tree)
-        const file = allFiles.find((f) => f.id === fileId)
-        if (file) {
-          oldPath = file.path
-        }
-      }
-
-      const movedFile = await fileService.move(
-        fileId,
-        currentWorkspace.value.id,
+      const movedBlock = await blockService.moveBlock(
+        blockId,
         notebookId,
-        newPath,
+        currentWorkspace.value.id,
+        {},
       )
+      await fetchBlockTree(notebookId)
 
-      // Update the tree: move the node from old path to new path
-      if (tree && oldPath) {
-        moveNode(tree, oldPath, newPath)
-        // Also update the file metadata in the node
-        updateFileNode(tree, movedFile)
+      if (currentFile.value?.block_id === blockId) {
+        currentFile.value = { ...currentFile.value, ...movedBlock, content: currentFile.value.content }
       }
-
-      // Update current file if it was the one moved
-      if (currentFile.value?.id === fileId) {
-        currentFile.value = { ...currentFile.value, ...movedFile }
-      }
-      return movedFile
+      return movedBlock
     } catch (e: any) {
       error.value = e.response?.data?.detail || "Failed to move file"
       throw e
@@ -806,26 +740,6 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   }
 
   /**
-   * Convert an existing markdown file to a block page
-   */
-  async function convertFileToBlocks(fileId: number, notebookId: number) {
-    if (!currentWorkspace.value) return
-    try {
-      const result = await blockService.convertFileToBlocks(notebookId, currentWorkspace.value.id, fileId)
-      // Refresh the root contents since the file was replaced with a folder
-      await fetchRootContents(notebookId)
-      // Select the new page folder
-      if (result.path) {
-        await selectFolder(result.path, notebookId)
-      }
-      return result
-    } catch (e: any) {
-      error.value = e.response?.data?.detail || "Failed to convert file to blocks"
-      throw e
-    }
-  }
-
-  /**
    * Import a markdown file as a page of blocks
    */
   async function importMarkdown(notebookId: number, file: File) {
@@ -929,18 +843,8 @@ export const useWorkspaceStore = defineStore("workspace", () => {
         }
 
         currentFile.value = {
-          id: block.file_id || block.id,
-          notebook_id: block.notebook_id,
-          path: block.path,
-          filename: block.path.split("/").pop() || block.path,
-          content_type: block.content_type || "application/octet-stream",
-          size: block.size || 0,
-          title: block.title,
-          description: block.description,
-          properties: block.properties,
+          ...blockDetail,
           content,
-          created_at: block.created_at,
-          updated_at: block.updated_at,
         }
       }
     } catch (e: any) {
@@ -1014,7 +918,6 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     createBlock,
     reorderBlocks,
     deleteBlock,
-    convertFileToBlocks,
     importMarkdown,
   }
 })

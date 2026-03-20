@@ -4,11 +4,10 @@ import { useWorkspaceStore } from "../../stores/workspace"
 import {
   workspaceService,
   notebookService,
-  fileService,
+  blockService,
   folderService,
 } from "../../services/codex"
 
-// Mock the services
 vi.mock("../../services/codex", () => ({
   workspaceService: {
     list: vi.fn(),
@@ -18,15 +17,17 @@ vi.mock("../../services/codex", () => ({
     list: vi.fn(),
     create: vi.fn(),
   },
-  fileService: {
-    list: vi.fn(),
-    get: vi.fn(),
-    getContent: vi.fn(),
-    create: vi.fn(),
-    update: vi.fn(),
-    delete: vi.fn(),
+  blockService: {
+    getTree: vi.fn(),
+    getBlock: vi.fn(),
+    getText: vi.fn(),
+    updateBlock: vi.fn(),
+    updateProperties: vi.fn(),
+    deleteBlock: vi.fn(),
     upload: vi.fn(),
-    move: vi.fn(),
+    moveBlock: vi.fn(),
+    createPage: vi.fn(),
+    getChildren: vi.fn(),
   },
   folderService: {
     get: vi.fn(),
@@ -206,19 +207,16 @@ describe("Workspace Store", () => {
   })
 
   describe("fetchFiles", () => {
-    it("fetches files and builds tree", async () => {
-      const mockFiles = [
-        { id: 1, path: "file1.md", filename: "file1.md" },
-        { id: 2, path: "folder/file2.md", filename: "file2.md" },
-      ]
-      vi.mocked(fileService.list).mockResolvedValue(mockFiles as any)
+    it("fetches block tree", async () => {
+      const mockTree = { tree: [], notebook_id: 1, workspace_id: 1 }
+      vi.mocked(blockService.getTree).mockResolvedValue(mockTree as any)
 
       const store = useWorkspaceStore()
       store.currentWorkspace = { id: 1 } as any
 
       await store.fetchFiles(1)
 
-      expect(fileService.list).toHaveBeenCalledWith(1, 1)
+      expect(blockService.getTree).toHaveBeenCalledWith(1, 1)
       expect(store.fileTrees.has(1)).toBe(true)
     })
 
@@ -226,144 +224,109 @@ describe("Workspace Store", () => {
       const store = useWorkspaceStore()
       await store.fetchFiles(1)
 
-      expect(fileService.list).not.toHaveBeenCalled()
+      expect(blockService.getTree).not.toHaveBeenCalled()
     })
   })
 
   describe("selectFile", () => {
     it("fetches and sets current file", async () => {
-      const mockFile = {
+      const mockBlock = {
         id: 1,
+        block_id: "blk_1",
+        parent_block_id: null,
         notebook_id: 1,
         path: "test.md",
-        filename: "test.md",
+        block_type: "file",
+        content_format: "markdown",
+        order_index: 0,
         content_type: "text/markdown",
+        content: "# Test",
         size: 100,
+        created_at: "2024-01-01",
+        updated_at: "2024-01-01",
       }
-      const mockContent = { id: 1, content: "# Test", properties: {} }
 
-      vi.mocked(fileService.get).mockResolvedValue(mockFile as any)
-      vi.mocked(fileService.getContent).mockResolvedValue(mockContent as any)
+      vi.mocked(blockService.getBlock).mockResolvedValue(mockBlock as any)
 
       const store = useWorkspaceStore()
       store.currentWorkspace = { id: 1 } as any
 
-      await store.selectFile(mockFile as any)
+      await store.selectFile(mockBlock as any)
 
-      expect(fileService.get).toHaveBeenCalledWith(1, 1, 1)
-      expect(fileService.getContent).toHaveBeenCalledWith(1, 1, 1)
+      expect(blockService.getBlock).toHaveBeenCalledWith("blk_1", 1, 1)
       expect(store.currentFile?.content).toBe("# Test")
       expect(store.currentFolder).toBeNull()
     })
-
-    it("does not fetch content for non-text files", async () => {
-      const mockFile = {
-        id: 1,
-        notebook_id: 1,
-        path: "image.png",
-        filename: "image.png",
-        content_type: "image/png",
-        size: 1000,
-      }
-
-      vi.mocked(fileService.get).mockResolvedValue(mockFile as any)
-
-      const store = useWorkspaceStore()
-      store.currentWorkspace = { id: 1 } as any
-
-      await store.selectFile(mockFile as any)
-
-      expect(fileService.get).toHaveBeenCalled()
-      expect(fileService.getContent).not.toHaveBeenCalled()
-    })
-
-    it("fetches content for JSON files", async () => {
-      const mockFile = {
-        id: 1,
-        notebook_id: 1,
-        path: "data.json",
-        filename: "data.json",
-        content_type: "application/json",
-        size: 50,
-      }
-      const mockContent = { id: 1, content: "{}" }
-
-      vi.mocked(fileService.get).mockResolvedValue(mockFile as any)
-      vi.mocked(fileService.getContent).mockResolvedValue(mockContent as any)
-
-      const store = useWorkspaceStore()
-      store.currentWorkspace = { id: 1 } as any
-
-      await store.selectFile(mockFile as any)
-
-      expect(fileService.getContent).toHaveBeenCalled()
-    })
-
   })
 
   describe("saveFile", () => {
-    it("updates file content", async () => {
-      const mockUpdated = { id: 1, path: "test.md", filename: "test.md" }
-      vi.mocked(fileService.update).mockResolvedValue(mockUpdated as any)
+    it("updates file content via blockService", async () => {
+      const mockUpdated = { id: 1, block_id: "blk_1", path: "test.md" }
+      vi.mocked(blockService.updateBlock).mockResolvedValue(mockUpdated as any)
+      vi.mocked(blockService.updateProperties).mockResolvedValue(mockUpdated as any)
 
       const store = useWorkspaceStore()
       store.currentWorkspace = { id: 1 } as any
-      store.currentFile = { id: 1, notebook_id: 1, content: "old" } as any
+      store.currentFile = { id: 1, block_id: "blk_1", notebook_id: 1, content: "old" } as any
       store.fileTrees.set(1, [])
 
       await store.saveFile("new content", { key: "value" })
 
-      expect(fileService.update).toHaveBeenCalledWith(1, 1, 1, "new content", { key: "value" })
+      expect(blockService.updateBlock).toHaveBeenCalledWith("blk_1", 1, 1, "new content")
+      expect(blockService.updateProperties).toHaveBeenCalledWith("blk_1", 1, 1, { key: "value" })
     })
 
     it("throws error when file has no notebook_id", async () => {
       const store = useWorkspaceStore()
       store.currentWorkspace = { id: 1 } as any
-      store.currentFile = { id: 1, notebook_id: undefined } as any
+      store.currentFile = { id: 1, block_id: "blk_1", notebook_id: undefined } as any
 
       await expect(store.saveFile("content")).rejects.toThrow("File has no notebook_id")
     })
   })
 
   describe("createFile", () => {
-    it("creates file and selects it", async () => {
-      const mockFile = { id: 1, path: "new.md", filename: "new.md", notebook_id: 1 }
-      const mockContent = { id: 1, content: "" }
+    it("creates file via blockService", async () => {
+      const mockPage = { block_id: "blk_1", path: "new.md" }
+      const mockTree = { tree: [], notebook_id: 1, workspace_id: 1 }
 
-      vi.mocked(fileService.create).mockResolvedValue(mockFile as any)
-      vi.mocked(fileService.get).mockResolvedValue({ ...mockFile, content_type: "text/markdown" } as any)
-      vi.mocked(fileService.getContent).mockResolvedValue(mockContent as any)
+      vi.mocked(blockService.createPage).mockResolvedValue(mockPage as any)
+      vi.mocked(blockService.getTree).mockResolvedValue(mockTree as any)
+      vi.mocked(folderService.get).mockResolvedValue({
+        path: "new.md", name: "new.md", notebook_id: 1, file_count: 0, files: [], subfolders: [],
+      } as any)
 
       const store = useWorkspaceStore()
       store.currentWorkspace = { id: 1 } as any
 
       const result = await store.createFile(1, "new.md", "# New File")
 
-      expect(fileService.create).toHaveBeenCalledWith(1, 1, "new.md", "# New File")
-      expect(result).toEqual(mockFile)
+      expect(blockService.createPage).toHaveBeenCalledWith(1, 1, { title: "new.md" })
     })
   })
 
   describe("deleteFile", () => {
-    it("deletes file and clears current file", async () => {
-      vi.mocked(fileService.delete).mockResolvedValue(undefined)
+    it("deletes file via blockService and clears current file", async () => {
+      vi.mocked(blockService.deleteBlock).mockResolvedValue({ message: "deleted" } as any)
 
       const store = useWorkspaceStore()
       store.currentWorkspace = { id: 1 } as any
-      store.currentFile = { id: 1, notebook_id: 1, path: "test.md" } as any
+      store.currentFile = { id: 1, block_id: "blk_1", notebook_id: 1, path: "test.md", content: "" } as any
       store.fileTrees.set(1, [{ name: "test.md", path: "test.md", type: "file" }])
 
-      await store.deleteFile(1)
+      await store.deleteFile("blk_1")
 
-      expect(fileService.delete).toHaveBeenCalledWith(1, 1, 1)
+      expect(blockService.deleteBlock).toHaveBeenCalledWith("blk_1", 1, 1)
       expect(store.currentFile).toBeNull()
     })
   })
 
   describe("uploadFile", () => {
-    it("uploads file and adds to tree", async () => {
-      const mockFile = { id: 1, path: "upload.png", filename: "upload.png" }
-      vi.mocked(fileService.upload).mockResolvedValue(mockFile as any)
+    it("uploads file via blockService", async () => {
+      const mockBlock = { id: 1, block_id: "blk_1", path: "upload.png" }
+      const mockTree = { tree: [], notebook_id: 1, workspace_id: 1 }
+      vi.mocked(blockService.upload).mockResolvedValue(mockBlock as any)
+      vi.mocked(blockService.getTree).mockResolvedValue(mockTree as any)
 
       const store = useWorkspaceStore()
       store.currentWorkspace = { id: 1 } as any
@@ -371,53 +334,31 @@ describe("Workspace Store", () => {
       const file = new File(["content"], "upload.png", { type: "image/png" })
       const result = await store.uploadFile(1, file, "images/upload.png")
 
-      expect(fileService.upload).toHaveBeenCalledWith(1, 1, file, "images/upload.png")
-      expect(result).toEqual(mockFile)
+      expect(blockService.upload).toHaveBeenCalledWith(1, 1, file)
     })
   })
 
   describe("moveFile", () => {
-    it("moves file and updates tree", async () => {
-      const movedFile = { id: 1, path: "new/path.md", filename: "path.md" }
-      vi.mocked(fileService.move).mockResolvedValue(movedFile as any)
+    it("moves file via blockService", async () => {
+      const movedBlock = { id: 1, block_id: "blk_1", path: "new/path.md" }
+      const mockTree = { tree: [], notebook_id: 1, workspace_id: 1 }
+      vi.mocked(blockService.moveBlock).mockResolvedValue(movedBlock as any)
+      vi.mocked(blockService.getTree).mockResolvedValue(mockTree as any)
 
       const store = useWorkspaceStore()
       store.currentWorkspace = { id: 1 } as any
-      store.fileTrees.set(1, [
-        { name: "old.md", path: "old.md", type: "file", file: { id: 1, path: "old.md" } as any },
-      ])
-
-      const result = await store.moveFile(1, 1, "new/path.md")
-
-      expect(fileService.move).toHaveBeenCalledWith(1, 1, 1, "new/path.md")
-      expect(result).toEqual(movedFile)
-    })
-
-    it("updates current file if it was moved", async () => {
-      const movedFile = { id: 1, path: "new/path.md", filename: "path.md" }
-      vi.mocked(fileService.move).mockResolvedValue(movedFile as any)
-
-      const store = useWorkspaceStore()
-      store.currentWorkspace = { id: 1 } as any
-      store.currentFile = { id: 1, path: "old.md", content: "content" } as any
       store.fileTrees.set(1, [])
 
-      await store.moveFile(1, 1, "new/path.md")
+      const result = await store.moveFile("blk_1", 1, "new/path.md")
 
-      expect(store.currentFile?.path).toBe("new/path.md")
+      expect(blockService.moveBlock).toHaveBeenCalledWith("blk_1", 1, 1, {})
     })
   })
 
   describe("toggleNotebookExpansion", () => {
-    it("expands notebook and fetches root contents", async () => {
-      vi.mocked(folderService.get).mockResolvedValue({
-        path: "",
-        name: "",
-        notebook_id: 1,
-        file_count: 0,
-        files: [],
-        subfolders: [],
-      } as any)
+    it("expands notebook and fetches block tree", async () => {
+      const mockTree = { tree: [], notebook_id: 1, workspace_id: 1 }
+      vi.mocked(blockService.getTree).mockResolvedValue(mockTree as any)
 
       const store = useWorkspaceStore()
       store.currentWorkspace = { id: 1 } as any
@@ -428,7 +369,7 @@ describe("Workspace Store", () => {
 
       expect(store.expandedNotebooks.has(1)).toBe(true)
       expect(store.currentNotebook).toEqual(notebook)
-      expect(folderService.get).toHaveBeenCalledWith("", 1, 1)
+      expect(blockService.getTree).toHaveBeenCalledWith(1, 1)
     })
 
     it("collapses expanded notebook", () => {

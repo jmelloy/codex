@@ -112,8 +112,9 @@ def run_notebook_alembic_migrations(notebook_path: str):
     # Check if alembic_version table exists
     has_alembic_version = "alembic_version" in inspector.get_table_names()
 
-    # Check if file_metadata table exists (pre-Alembic database)
-    has_file_metadata = "file_metadata" in inspector.get_table_names()
+    # Check if file_metadata or blocks table exists (pre-Alembic database)
+    tables = inspector.get_table_names()
+    has_file_metadata = "file_metadata" in tables
 
     if has_file_metadata and not has_alembic_version:
         # This is a pre-Alembic database - check which schema version it has

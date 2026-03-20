@@ -17,7 +17,7 @@ from ulid import ULID
 
 from sqlmodel import Session, select
 
-from codex.db.models import Block, FileMetadata
+from codex.db.models import Block
 from codex.db.models.base import utc_now
 
 logger = logging.getLogger(__name__)
@@ -199,7 +199,6 @@ def add_file_as_block(
     notebook_id: int,
     page_path: str,
     file_path: str,
-    file_id: int | None,
     nb_session: Session,
 ) -> dict[str, Any]:
     """Add an existing file as a block within a page.
@@ -212,7 +211,6 @@ def add_file_as_block(
         notebook_id: Notebook ID
         page_path: Path to the parent page folder
         file_path: Full relative path to the file (e.g., "photos/vacation/beach.jpg")
-        file_id: Optional FileMetadata ID to link
         nb_session: Database session
 
     Returns:
@@ -251,7 +249,7 @@ def add_file_as_block(
     )
     write_page_metadata(page_full_path, page_meta)
 
-    # Create Block row with denormalized fields
+    # Create Block row
     full_file = notebook_path / file_path
     ct = mimetypes.guess_type(filename)[0] or "application/octet-stream"
     sz = full_file.stat().st_size if full_file.exists() else 0
@@ -264,7 +262,7 @@ def add_file_as_block(
         content_format="binary",
         order_index=order,
         title=None,
-        file_id=file_id,
+        filename=os.path.basename(file_path),
         content_type=ct,
         size=sz,
     )
@@ -775,17 +773,6 @@ def delete_block(
         for child in child_blocks:
             nb_session.delete(child)
 
-        # Delete child FileMetadata
-        prefix = f"{block.path}/"
-        child_files = nb_session.exec(
-            select(FileMetadata).where(
-                FileMetadata.notebook_id == notebook_id,
-                FileMetadata.path.startswith(prefix),
-            )
-        ).all()
-        for cf in child_files:
-            nb_session.delete(cf)
-
         shutil.rmtree(file_path, ignore_errors=True)
     elif file_path.exists():
         file_path.unlink()
@@ -1001,7 +988,7 @@ def _block_dict(block: Block) -> dict[str, Any]:
         "content_format": block.content_format,
         "order_index": block.order_index,
         "title": block.title,
-        "file_id": block.file_id,
+        "filename": block.filename,
         "content_type": block.content_type,
         "size": block.size,
         "description": block.description,
@@ -1096,18 +1083,12 @@ def import_folder_as_pages(
                 select(Block).where(Block.notebook_id == notebook_id, Block.path == rel_path)
             ).first()
             if not existing:
-                # Find FileMetadata
-                fm = nb_session.exec(
-                    select(FileMetadata).where(FileMetadata.notebook_id == notebook_id, FileMetadata.path == rel_path)
-                ).first()
-                file_id = fm.id if fm else None
                 try:
                     result = add_file_as_block(
                         notebook_path=notebook_path,
                         notebook_id=notebook_id,
                         page_path=folder_path,
                         file_path=rel_path,
-                        file_id=file_id,
                         nb_session=nb_session,
                     )
                     created_blocks.append(result)
@@ -1130,7 +1111,7 @@ def upload_to_block(
     content: bytes,
     nb_session: Session,
 ) -> dict[str, Any]:
-    """Upload a file and create both FileMetadata and Block records.
+    """Upload a file and create a Block record.
 
     Args:
         notebook_path: Root path of the notebook
@@ -1180,22 +1161,9 @@ def upload_to_block(
     content_type = get_content_type(str(full_path))
     file_hash = hashlib.sha256(content).hexdigest()
 
-    # Create FileMetadata
     from datetime import datetime
 
     file_stats = os.stat(full_path)
-    file_meta = FileMetadata(
-        notebook_id=notebook_id,
-        path=file_path,
-        filename=os.path.basename(file_path),
-        content_type=content_type,
-        size=len(content),
-        hash=file_hash,
-        file_created_at=datetime.fromtimestamp(file_stats.st_ctime),
-        file_modified_at=datetime.fromtimestamp(file_stats.st_mtime),
-    )
-    nb_session.add(file_meta)
-    nb_session.flush()  # Get the ID
 
     # Create Block
     block_id = str(ULID())
@@ -1228,9 +1196,12 @@ def upload_to_block(
         block_type=block_type,
         content_format="binary",
         order_index=order,
-        file_id=file_meta.id,
+        filename=os.path.basename(file_path),
         content_type=content_type,
         size=len(content),
+        hash=file_hash,
+        file_created_at=datetime.fromtimestamp(file_stats.st_ctime),
+        file_modified_at=datetime.fromtimestamp(file_stats.st_mtime),
     )
     nb_session.add(block)
     nb_session.commit()
@@ -1272,110 +1243,20 @@ def update_block_properties(
             page_meta["properties"] = properties
             write_page_metadata(page_full, page_meta)
 
-    # If it has a file_id, update FileMetadata too
-    if block.file_id:
-        fm = nb_session.exec(select(FileMetadata).where(FileMetadata.id == block.file_id)).first()
-        if fm:
-            if "title" in properties:
-                fm.title = properties["title"]
-            if "description" in properties:
-                fm.description = properties["description"]
-            fm.properties = json.dumps(properties)
-
-            # Write sidecar or frontmatter
-            file_path = notebook_path / block.path
-            if file_path.exists():
-                from codex.core.metadata import MetadataParser
-                if fm.content_type == "text/markdown":
-                    content = file_path.read_text()
-                    _, body = MetadataParser.parse_frontmatter(content)
-                    new_content = MetadataParser.write_frontmatter(body, properties)
-                    file_path.write_text(new_content)
-                else:
-                    MetadataParser.write_sidecar(str(file_path), properties)
+    # Write sidecar or frontmatter to disk
+    file_path = notebook_path / block.path
+    if file_path.exists() and file_path.is_file():
+        from codex.core.metadata import MetadataParser
+        if block.content_type == "text/markdown":
+            content = file_path.read_text()
+            _, body = MetadataParser.parse_frontmatter(content)
+            new_content = MetadataParser.write_frontmatter(body, properties)
+            file_path.write_text(new_content)
+        else:
+            MetadataParser.write_sidecar(str(file_path), properties)
 
     nb_session.add(block)
     nb_session.commit()
     return _block_dict(block)
 
 
-def sync_block_from_file_metadata(
-    file_meta: FileMetadata,
-    notebook_id: int,
-    nb_session: Session,
-) -> Block | None:
-    """Ensure a Block row exists for a FileMetadata row and sync denormalized fields.
-
-    Called by the watcher after creating/updating FileMetadata.
-    """
-    # Check if block already exists for this file
-    block = None
-    if file_meta.id:
-        block = nb_session.exec(
-            select(Block).where(Block.notebook_id == notebook_id, Block.file_id == file_meta.id)
-        ).first()
-
-    if not block:
-        block = nb_session.exec(
-            select(Block).where(Block.notebook_id == notebook_id, Block.path == file_meta.path)
-        ).first()
-
-    if block:
-        # Update denormalized fields
-        block.content_type = file_meta.content_type
-        block.size = file_meta.size
-        block.title = file_meta.title
-        block.description = file_meta.description
-        block.properties = file_meta.properties
-        if file_meta.id and not block.file_id:
-            block.file_id = file_meta.id
-        block.updated_at = utc_now()
-        nb_session.add(block)
-        return block
-
-    # Skip hidden/metadata files
-    if file_meta.filename in (".metadata", ".codex-page.json"):
-        return None
-
-    # Determine block type
-    if file_meta.content_type and file_meta.content_type.startswith("image/"):
-        block_type = BLOCK_TYPE_IMAGE
-    elif file_meta.content_type and file_meta.content_type.startswith("text/"):
-        block_type = BLOCK_TYPE_TEXT
-    else:
-        block_type = BLOCK_TYPE_FILE
-
-    # Determine parent
-    parent_block_id = None
-    parts = file_meta.path.split("/")
-    if len(parts) > 1:
-        parent_path = "/".join(parts[:-1])
-        parent = nb_session.exec(
-            select(Block).where(
-                Block.notebook_id == notebook_id,
-                Block.path == parent_path,
-                Block.block_type == BLOCK_TYPE_PAGE,
-            )
-        ).first()
-        if parent:
-            parent_block_id = parent.block_id
-
-    content_format = "binary" if (file_meta.content_type and not file_meta.content_type.startswith("text/")) else "markdown"
-
-    block = Block(
-        notebook_id=notebook_id,
-        block_id=str(ULID()),
-        parent_block_id=parent_block_id,
-        path=file_meta.path,
-        block_type=block_type,
-        content_format=content_format,
-        order_index=0.0,
-        title=file_meta.title,
-        file_id=file_meta.id,
-        content_type=file_meta.content_type,
-        size=file_meta.size,
-        description=file_meta.description,
-        properties=file_meta.properties,
-    )
-    nb_session.add(block)
-    return block

@@ -53,7 +53,7 @@ from codex.core.blocks import (
 )
 from codex.core.md_import import import_markdown_to_page
 from codex.db.database import get_notebook_session, get_system_session
-from codex.db.models import Block, FileMetadata, User
+from codex.db.models import Block, User
 
 logger = logging.getLogger(__name__)
 
@@ -207,14 +207,9 @@ async def get_block_content_by_path(
             select(Block).where(Block.notebook_id == notebook.id, Block.path == path)
         ).first()
         if not block and "/" not in path:
-            fm = nb_session.exec(
-                select(FileMetadata).where(FileMetadata.notebook_id == notebook.id, FileMetadata.filename == path)
+            block = nb_session.exec(
+                select(Block).where(Block.notebook_id == notebook.id, Block.filename == path)
             ).first()
-            if fm:
-                file_path = notebook_path / fm.path
-                if file_path.exists():
-                    media_type = mimetypes.guess_type(str(file_path))[0] or "application/octet-stream"
-                    return FileResponse(path=str(file_path), media_type=media_type, filename=fm.filename)
 
         if block:
             file_path_str, media_type = serve_block_file(notebook_path, block)
@@ -582,21 +577,20 @@ async def convert_file_to_blocks(
     )
 
     # Resolve the file path
-    if request.file_id:
+    if request.path:
+        md_path = request.path
+    elif request.file_id:
+        # Legacy support: look up block by integer id
         nb_session = get_notebook_session(str(notebook_path))
         try:
-            from codex.db.models import FileMetadata as FM
-
-            from sqlmodel import select as sel
-
-            file_meta = nb_session.exec(sel(FM).where(FM.notebook_id == notebook.id, FM.id == request.file_id)).first()
-            if not file_meta:
-                raise HTTPException(status_code=404, detail="File not found")
-            md_path = file_meta.path
+            block_row = nb_session.exec(
+                select(Block).where(Block.notebook_id == notebook.id, Block.id == request.file_id)
+            ).first()
+            if not block_row:
+                raise HTTPException(status_code=404, detail="Block not found")
+            md_path = block_row.path
         finally:
             nb_session.close()
-    elif request.path:
-        md_path = request.path
     else:
         raise HTTPException(status_code=400, detail="Either file_id or path is required")
 
@@ -687,16 +681,14 @@ async def get_block_content_endpoint(
 
         file_path_str, media_type = serve_block_file(notebook_path, block)
         if not file_path_str:
-            # Check S3
-            if block.file_id:
-                fm = nb_session.exec(select(FileMetadata).where(FileMetadata.id == block.file_id)).first()
-                if fm and fm.s3_key and fm.s3_bucket:
-                    from codex.core.s3_storage import generate_presigned_url, is_s3_configured
-                    from fastapi.responses import RedirectResponse
+            # Check S3 (fields now directly on Block)
+            if block.s3_key and block.s3_bucket:
+                from codex.core.s3_storage import generate_presigned_url, is_s3_configured
+                from fastapi.responses import RedirectResponse
 
-                    if is_s3_configured():
-                        url = generate_presigned_url(fm.s3_key, fm.s3_version_id, fm.s3_bucket)
-                        return RedirectResponse(url=url)
+                if is_s3_configured():
+                    url = generate_presigned_url(block.s3_key, block.s3_version_id, block.s3_bucket)
+                    return RedirectResponse(url=url)
             raise HTTPException(status_code=404, detail="Block content not found")
 
         return FileResponse(path=file_path_str, media_type=media_type, filename=block.path.split("/")[-1])
@@ -885,29 +877,16 @@ async def resolve_link_endpoint(
 
     nb_session = get_notebook_session(str(notebook_path))
     try:
-        # Try block lookup first
+        # Look up block by path
         block = nb_session.exec(
             select(Block).where(Block.notebook_id == notebook.id, Block.path == resolved_path)
         ).first()
+        if not block and "/" not in resolved_path:
+            block = nb_session.exec(
+                select(Block).where(Block.notebook_id == notebook.id, Block.filename == resolved_path)
+            ).first()
         if block:
             return {**_block_to_dict(block), "resolved_path": resolved_path}
-
-        # Fall back to FileMetadata
-        fm = nb_session.exec(
-            select(FileMetadata).where(FileMetadata.notebook_id == notebook.id, FileMetadata.path == resolved_path)
-        ).first()
-        if not fm and "/" not in resolved_path:
-            fm = nb_session.exec(
-                select(FileMetadata).where(FileMetadata.notebook_id == notebook.id, FileMetadata.filename == resolved_path)
-            ).first()
-        if fm:
-            return {
-                "id": fm.id,
-                "path": fm.path,
-                "filename": fm.filename,
-                "content_type": fm.content_type,
-                "resolved_path": resolved_path,
-            }
         raise HTTPException(status_code=404, detail=f"Not found: {resolved_path}")
     finally:
         nb_session.close()

@@ -1622,6 +1622,18 @@ async function handleUpdateProperties(properties: Record<string, any>) {
     } catch {
       // Error handled in store
     }
+  } else if (workspaceStore.currentBlock && workspaceStore.currentWorkspace) {
+    // Handle folder/page block properties
+    try {
+      await blockService.updateProperties(
+        workspaceStore.currentBlock.block_id,
+        workspaceStore.currentBlock.notebook_id,
+        workspaceStore.currentWorkspace.id,
+        properties
+      )
+    } catch {
+      // Error handled by caller
+    }
   }
 }
 

@@ -1223,12 +1223,21 @@ def update_block_properties(
     if not block:
         raise FileNotFoundError(f"Block not found: {block_id}")
 
+    # Merge with existing properties (PATCH semantics)
+    existing = {}
+    if block.properties:
+        try:
+            existing = json.loads(block.properties)
+        except (json.JSONDecodeError, TypeError):
+            pass
+    merged = {**existing, **properties}
+
     # Update denormalized fields
     if "title" in properties:
         block.title = properties["title"]
     if "description" in properties:
         block.description = properties["description"]
-    block.properties = json.dumps(properties)
+    block.properties = json.dumps(merged)
     block.updated_at = utc_now()
 
     # If it's a page, also update .codex-page.json
@@ -1240,7 +1249,7 @@ def update_block_properties(
                 page_meta["title"] = properties["title"]
             if "description" in properties:
                 page_meta["description"] = properties["description"]
-            page_meta["properties"] = properties
+            page_meta["properties"] = merged
             write_page_metadata(page_full, page_meta)
 
     # Write sidecar or frontmatter to disk
@@ -1250,10 +1259,10 @@ def update_block_properties(
         if block.content_type == "text/markdown":
             content = file_path.read_text()
             _, body = MetadataParser.parse_frontmatter(content)
-            new_content = MetadataParser.write_frontmatter(body, properties)
+            new_content = MetadataParser.write_frontmatter(body, merged)
             file_path.write_text(new_content)
         else:
-            MetadataParser.write_sidecar(str(file_path), properties)
+            MetadataParser.write_sidecar(str(file_path), merged)
 
     nb_session.add(block)
     nb_session.commit()

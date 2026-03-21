@@ -56,7 +56,7 @@ Both configured in `backend/alembic.ini` with named sections `[alembic:workspace
 ### Backend
 
 - `backend/codex/main.py` - FastAPI app with lifespan management for file watchers
-- `backend/codex/api/routes/` - REST API (files, folders, notebooks, workspaces, search, tasks, blocks, agents, plugins, integrations)
+- `backend/codex/api/routes/` - REST API (blocks, notebooks, workspaces, search, tasks, agents, plugins, integrations)
 - `backend/codex/core/watcher.py` - Filesystem watcher syncing file changes to notebook databases
 - `backend/codex/core/metadata.py` - Frontmatter and sidecar metadata parsing
 - `backend/codex/db/models/` - SQLModel models (system.py, notebook.py)
@@ -65,9 +65,9 @@ Both configured in `backend/alembic.ini` with named sections `[alembic:workspace
 
 ### Frontend
 
-- `frontend/src/views/HomeView.vue` - Main view (read-only file/folder/block display)
+- `frontend/src/views/HomeView.vue` - Main view (read-only block/page display)
 - `frontend/src/stores/` - Pinia stores (auth, workspace, theme, integration)
-- `frontend/src/services/codex.ts` - API service (workspaces, notebooks, files, folders, blocks, search)
+- `frontend/src/services/codex.ts` - API service (workspaces, notebooks, blocks, search)
 - `frontend/src/services/pluginLoader.ts` - Loads theme/block plugins from `/api/v1/plugins/manifest`
 - `frontend/src/components/MarkdownViewer.vue` - Markdown rendering with custom blocks
 
@@ -77,9 +77,7 @@ All prefixed with `/api/v1/`:
 - `/users/` - Auth, registration, profile
 - `/workspaces/` - Workspace CRUD
 - `/workspaces/{ws}/notebooks/` - Notebook CRUD
-- `/workspaces/{ws}/notebooks/{nb}/files/` - File CRUD, upload, history
-- `/workspaces/{ws}/notebooks/{nb}/folders/` - Folder metadata
-- `/workspaces/{ws}/notebooks/{nb}/blocks/` - Block/page operations
+- `/workspaces/{ws}/notebooks/{nb}/blocks/` - Block/page CRUD, upload, history
 - `/workspaces/{ws}/search/` - Full-text search
 - `/tasks/` - Task queue for agents
 - `/plugins/manifest` - Plugin manifest for frontend

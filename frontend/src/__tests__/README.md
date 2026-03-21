@@ -19,7 +19,7 @@ The tests are organized by type:
 - **Modal.test.ts** - Modal dialog component tests (15 tests)
 - **MarkdownEditor.test.ts** - Rich markdown editor tests (20 tests)
 - **MarkdownViewer.test.ts** - Markdown rendering tests (6 tests)
-- **FilePropertiesPanel.test.ts** - File properties panel tests (26 tests)
+- **BlockPropertiesPanel.test.ts** - Block properties panel tests (26 tests)
 
 ### Services (`services/`)
 

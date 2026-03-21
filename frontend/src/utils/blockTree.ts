@@ -1,19 +1,19 @@
 import type { Block } from "../services/codex"
 
-export interface FileTreeNode {
+export interface BlockTreeNode {
   name: string
   path: string
-  type: "file" | "folder"
-  file?: Block
-  children?: FileTreeNode[]
+  type: "leaf" | "page"
+  block?: Block
+  leafBlock?: Block
+  children?: BlockTreeNode[]
   loaded?: boolean
-  folderMeta?: {
+  pageMeta?: {
     title?: string
     description?: string
     properties?: Record<string, any>
-    file_count?: number
+    block_count?: number
   }
-  // Block fields
   isPage?: boolean
   hasSubpages?: boolean
   blockOrder?: string[]
@@ -22,19 +22,18 @@ export interface FileTreeNode {
   parent_block_id?: string | null
   content_type?: string
   title?: string
-  block?: Block
 }
 
 /**
- * Convert a block tree (from GET /blocks/tree) into FileTreeNode format.
+ * Convert a block tree (from GET /blocks/tree) into BlockTreeNode format.
  */
-export function blockTreeToFileTree(blocks: Block[]): FileTreeNode[] {
+export function blockTreeToBlockTree(blocks: Block[]): BlockTreeNode[] {
   return blocks.map((block) => {
     const name = block.path.split("/").pop() || block.title || block.path
-    const node: FileTreeNode = {
+    const node: BlockTreeNode = {
       name: block.title || name,
       path: block.path,
-      type: block.block_type === "page" ? "folder" : "file",
+      type: block.block_type === "page" ? "page" : "leaf",
       block_id: block.block_id,
       block_type: block.block_type,
       parent_block_id: block.parent_block_id,
@@ -46,9 +45,9 @@ export function blockTreeToFileTree(blocks: Block[]): FileTreeNode[] {
     }
 
     if (block.block_type !== "page") {
-      node.file = block
+      node.leafBlock = block
     } else {
-      node.folderMeta = {
+      node.pageMeta = {
         title: block.title,
         description: block.description,
         properties: block.properties,
@@ -57,7 +56,7 @@ export function blockTreeToFileTree(blocks: Block[]): FileTreeNode[] {
     }
 
     if (block.children && block.children.length > 0) {
-      node.children = blockTreeToFileTree(block.children)
+      node.children = blockTreeToBlockTree(block.children)
     } else if (block.block_type === "page") {
       node.children = []
     }
@@ -70,12 +69,12 @@ export function blockTreeToFileTree(blocks: Block[]): FileTreeNode[] {
 const HIDDEN_FILENAMES = new Set([".metadata", ".codex-page.json"])
 
 /**
- * Sort nodes: folders first, then files, both alphabetically
+ * Sort nodes: pages first, then leaf blocks, both alphabetically
  */
-function sortNodes(nodes: FileTreeNode[]): void {
+function sortNodes(nodes: BlockTreeNode[]): void {
   nodes.sort((a, b) => {
     if (a.type !== b.type) {
-      return a.type === "folder" ? -1 : 1
+      return a.type === "page" ? -1 : 1
     }
     return a.name.localeCompare(b.name)
   })
@@ -84,12 +83,12 @@ function sortNodes(nodes: FileTreeNode[]): void {
 /**
  * Find a node in the tree by path
  */
-export function findNode(tree: FileTreeNode[], path: string): FileTreeNode | null {
+export function findNode(tree: BlockTreeNode[], path: string): BlockTreeNode | null {
   const parts = path.split("/").filter((p) => p !== "")
   if (parts.length === 0) return null
 
   let currentLevel = tree
-  let node: FileTreeNode | null = null
+  let node: BlockTreeNode | null = null
 
   for (let i = 0; i < parts.length; i++) {
     const part = parts[i]
@@ -105,9 +104,9 @@ export function findNode(tree: FileTreeNode[], path: string): FileTreeNode | nul
 }
 
 /**
- * Find the parent folder node for a given path
+ * Find the parent node for a given path
  */
-export function findParentNode(tree: FileTreeNode[], path: string): FileTreeNode | null {
+export function findParentNode(tree: BlockTreeNode[], path: string): BlockTreeNode | null {
   const parts = path.split("/").filter((p) => p !== "")
   if (parts.length <= 1) return null
   const parentPath = parts.slice(0, -1).join("/")
@@ -115,13 +114,13 @@ export function findParentNode(tree: FileTreeNode[], path: string): FileTreeNode
 }
 
 /**
- * Insert a file node into the tree at the correct position
+ * Insert a leaf block node into the tree at the correct position
  */
-export function insertFileNode(tree: FileTreeNode[], file: Block): void {
-  const fname = file.filename || file.path.split("/").pop() || ""
+export function insertBlockNode(tree: BlockTreeNode[], block: Block): void {
+  const fname = block.filename || block.path.split("/").pop() || ""
   if (HIDDEN_FILENAMES.has(fname)) return
 
-  const pathParts = file.path.split("/").filter((p) => p !== "")
+  const pathParts = block.path.split("/").filter((p) => p !== "")
   if (pathParts.length === 0) return
 
   let currentLevel = tree
@@ -131,37 +130,37 @@ export function insertFileNode(tree: FileTreeNode[], file: Block): void {
     const part = pathParts[i]!
     currentPath = currentPath ? `${currentPath}/${part}` : part
 
-    let folderNode = currentLevel.find((n) => n.name === part && n.type === "folder")
-    if (!folderNode) {
-      folderNode = {
+    let pageNode = currentLevel.find((n) => n.name === part && n.type === "page")
+    if (!pageNode) {
+      pageNode = {
         name: part,
         path: currentPath,
-        type: "folder",
+        type: "page",
         children: [],
         loaded: false,
       }
-      currentLevel.push(folderNode)
+      currentLevel.push(pageNode)
       sortNodes(currentLevel)
     }
-    if (!folderNode.children) {
-      folderNode.children = []
+    if (!pageNode.children) {
+      pageNode.children = []
     }
-    currentLevel = folderNode.children
+    currentLevel = pageNode.children
   }
 
   const filename = pathParts[pathParts.length - 1]!
-  const existingIndex = currentLevel.findIndex((n) => n.path === file.path)
-  const fileNode: FileTreeNode = {
+  const existingIndex = currentLevel.findIndex((n) => n.path === block.path)
+  const blockNode: BlockTreeNode = {
     name: filename,
-    path: file.path,
-    type: "file",
-    file: file,
+    path: block.path,
+    type: "leaf",
+    leafBlock: block,
   }
 
   if (existingIndex >= 0) {
-    currentLevel[existingIndex] = fileNode
+    currentLevel[existingIndex] = blockNode
   } else {
-    currentLevel.push(fileNode)
+    currentLevel.push(blockNode)
     sortNodes(currentLevel)
   }
 }
@@ -169,7 +168,7 @@ export function insertFileNode(tree: FileTreeNode[], file: Block): void {
 /**
  * Remove a node from the tree by path
  */
-export function removeNode(tree: FileTreeNode[], path: string): boolean {
+export function removeNode(tree: BlockTreeNode[], path: string): boolean {
   const parts = path.split("/").filter((p) => p !== "")
   if (parts.length === 0) return false
 
@@ -195,25 +194,25 @@ export function removeNode(tree: FileTreeNode[], path: string): boolean {
 }
 
 /**
- * Update a file node's metadata in the tree
+ * Update a leaf block node's metadata in the tree
  */
-export function updateFileNode(tree: FileTreeNode[], file: Block): boolean {
-  const node = findNode(tree, file.path)
-  if (!node || node.type !== "file") return false
-  node.file = file
+export function updateBlockNode(tree: BlockTreeNode[], block: Block): boolean {
+  const node = findNode(tree, block.path)
+  if (!node || node.type !== "leaf") return false
+  node.leafBlock = block
   return true
 }
 
 /**
- * Get all file metadata from the tree as a flat array
+ * Get all leaf block metadata from the tree as a flat array
  */
-export function getAllFiles(tree: FileTreeNode[]): Block[] {
-  const files: Block[] = []
+export function getAllBlocks(tree: BlockTreeNode[]): Block[] {
+  const blocks: Block[] = []
 
-  function walk(nodes: FileTreeNode[]) {
+  function walk(nodes: BlockTreeNode[]) {
     for (const node of nodes) {
-      if (node.type === "file" && node.file) {
-        files.push(node.file)
+      if (node.type === "leaf" && node.leafBlock) {
+        blocks.push(node.leafBlock)
       }
       if (node.children) {
         walk(node.children)
@@ -222,36 +221,36 @@ export function getAllFiles(tree: FileTreeNode[]): Block[] {
   }
 
   walk(tree)
-  return files
+  return blocks
 }
 
 /**
  * Move a node from one path to another
  */
-export function moveNode(tree: FileTreeNode[], oldPath: string, newPath: string): boolean {
+export function moveNode(tree: BlockTreeNode[], oldPath: string, newPath: string): boolean {
   const node = findNode(tree, oldPath)
   if (!node) return false
 
   if (!removeNode(tree, oldPath)) return false
 
-  if (node.type === "file" && node.file) {
-    node.file = { ...node.file, path: newPath, filename: newPath.split("/").pop() || newPath }
+  if (node.type === "leaf" && node.leafBlock) {
+    node.leafBlock = { ...node.leafBlock, path: newPath, filename: newPath.split("/").pop() || newPath }
     node.path = newPath
     node.name = newPath.split("/").pop() || newPath
-    insertFileNode(tree, node.file)
+    insertBlockNode(tree, node.leafBlock)
   } else {
     const oldPrefix = oldPath
     const newPrefix = newPath
 
-    function updatePaths(n: FileTreeNode) {
+    function updatePaths(n: BlockTreeNode) {
       if (n.path === oldPrefix) {
         n.path = newPrefix
       } else if (n.path.startsWith(oldPrefix + "/")) {
         n.path = newPrefix + n.path.substring(oldPrefix.length)
       }
       n.name = n.path.split("/").pop() || n.path
-      if (n.file) {
-        n.file = { ...n.file, path: n.path, filename: n.path.split("/").pop() || n.path }
+      if (n.leafBlock) {
+        n.leafBlock = { ...n.leafBlock, path: n.path, filename: n.path.split("/").pop() || n.path }
       }
       if (n.children) {
         n.children.forEach(updatePaths)
@@ -260,7 +259,7 @@ export function moveNode(tree: FileTreeNode[], oldPath: string, newPath: string)
 
     updatePaths(node)
 
-    // Insert the folder at the new location
+    // Insert the page at the new location
     const pathParts = newPath.split("/").filter((p) => p !== "")
     let currentLevel = tree
     let currentPath = ""
@@ -268,14 +267,14 @@ export function moveNode(tree: FileTreeNode[], oldPath: string, newPath: string)
     for (let i = 0; i < pathParts.length - 1; i++) {
       const part = pathParts[i]!
       currentPath = currentPath ? `${currentPath}/${part}` : part
-      let folderNode = currentLevel.find((n) => n.name === part && n.type === "folder")
-      if (!folderNode) {
-        folderNode = { name: part, path: currentPath, type: "folder", children: [], loaded: false }
-        currentLevel.push(folderNode)
+      let pageNode = currentLevel.find((n) => n.name === part && n.type === "page")
+      if (!pageNode) {
+        pageNode = { name: part, path: currentPath, type: "page", children: [], loaded: false }
+        currentLevel.push(pageNode)
         sortNodes(currentLevel)
       }
-      if (!folderNode.children) folderNode.children = []
-      currentLevel = folderNode.children
+      if (!pageNode.children) pageNode.children = []
+      currentLevel = pageNode.children
     }
 
     // Place the moved node

@@ -1,12 +1,12 @@
 <template>
-  <div class="file-header">
-    <div class="file-icon">
-      <component :is="fileIcon" />
+  <div class="block-header">
+    <div class="block-icon">
+      <component :is="blockIcon" />
     </div>
-    <div class="file-info">
-      <h1 
-        v-if="!isEditing" 
-        class="file-title" 
+    <div class="block-info">
+      <h1
+        v-if="!isEditing"
+        class="block-title"
         @click="startEditing"
         @keydown.enter="startEditing"
         @keydown.space="startEditing"
@@ -22,14 +22,14 @@
         @blur="finishEditing"
         @keydown.enter="finishEditing"
         @keydown.esc="cancelEditing"
-        class="file-title-input"
+        class="block-title-input"
         type="text"
-        aria-label="Edit file name"
+        aria-label="Edit block name"
       />
-      <p v-if="file.properties?.description" class="file-description">
-        {{ file.properties.description }}
+      <p v-if="block.properties?.description" class="block-description">
+        {{ block.properties.description }}
       </p>
-      <div class="file-meta">
+      <div class="block-meta">
         <span class="meta-item">
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -43,7 +43,7 @@
             <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
             <polyline points="13 2 13 9 20 9" />
           </svg>
-          {{ file.content_type || 'unknown' }}
+          {{ block.content_type || 'unknown' }}
         </span>
         <span class="meta-item">
           <svg
@@ -59,7 +59,7 @@
               d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"
             />
           </svg>
-          {{ formatSize(file.size || 0) }}
+          {{ formatSize(block.size || 0) }}
         </span>
         <span class="meta-item">
           <svg
@@ -76,11 +76,11 @@
             <line x1="8" y1="2" x2="8" y2="6" />
             <line x1="3" y1="10" x2="21" y2="10" />
           </svg>
-          {{ formatDate(file.updated_at) }}
+          {{ formatDate(block.updated_at) }}
         </span>
       </div>
     </div>
-    <div class="file-actions">
+    <div class="block-actions">
       <slot name="actions">
         <button @click="$emit('toggleProperties')" class="properties-btn">Properties</button>
       </slot>
@@ -94,7 +94,7 @@ import type { Block } from "../services/codex"
 import { getDisplayType } from "../utils/contentType"
 
 interface Props {
-  file: Block
+  block: Block
 }
 
 const props = defineProps<Props>()
@@ -110,7 +110,7 @@ const titleInput = ref<HTMLInputElement | null>(null)
 
 async function startEditing() {
   isEditing.value = true
-  editingTitle.value = props.file.filename || props.file.path.split("/").pop() || props.file.path
+  editingTitle.value = props.block.filename || props.block.path.split("/").pop() || props.block.path
   await nextTick()
   titleInput.value?.focus()
   titleInput.value?.select()
@@ -158,7 +158,7 @@ function finishEditing() {
   }
   
   // Only emit rename if the filename actually changed
-  if (newFilename !== (props.file.filename || props.file.path.split("/").pop() || "")) {
+  if (newFilename !== (props.block.filename || props.block.path.split("/").pop() || "")) {
     emit("rename", newFilename)
   }
   
@@ -171,7 +171,7 @@ function cancelEditing() {
 }
 
 const displayTitle = computed(() => {
-  return props.file.properties?.title || props.file.title || props.file.filename || props.file.path.split("/").pop() || props.file.path
+  return props.block.properties?.title || props.block.title || props.block.filename || props.block.path.split("/").pop() || props.block.path
 })
 
 function formatSize(bytes: number): string {
@@ -195,8 +195,8 @@ function formatDate(dateStr: string): string {
   }
 }
 
-const fileIcon = computed(() => {
-  const displayType = getDisplayType(props.file.content_type || "")
+const blockIcon = computed(() => {
+  const displayType = getDisplayType(props.block.content_type || "")
   const iconProps = {
     width: 48,
     height: 48,
@@ -295,7 +295,7 @@ const fileIcon = computed(() => {
 </script>
 
 <style scoped>
-.file-header {
+.block-header {
   display: flex;
   align-items: flex-start;
   gap: var(--spacing-xl);
@@ -304,17 +304,17 @@ const fileIcon = computed(() => {
   background: var(--color-bg-secondary);
 }
 
-.file-icon {
+.block-icon {
   color: var(--color-primary);
   flex-shrink: 0;
 }
 
-.file-info {
+.block-info {
   flex: 1;
   min-width: 0;
 }
 
-.file-actions {
+.block-actions {
   flex-shrink: 0;
   display: flex;
   gap: var(--spacing-sm);
@@ -336,15 +336,13 @@ const fileIcon = computed(() => {
   border-color: var(--color-border);
 }
 
-.file-title {
+.block-title {
   margin: 0 0 var(--spacing-sm);
   font-size: var(--text-2xl);
   font-weight: var(--font-semibold);
   color: var(--color-text-primary);
-  /* Enable wrapping for long file names */
   overflow-wrap: break-word;
   word-break: break-word;
-  /* Limit to 2 lines with ellipsis */
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -354,11 +352,11 @@ const fileIcon = computed(() => {
   transition: color 0.2s;
 }
 
-.file-title:hover {
+.block-title:hover {
   color: var(--color-primary);
 }
 
-.file-title-input {
+.block-title-input {
   margin: 0 0 var(--spacing-sm);
   font-size: var(--text-2xl);
   font-weight: var(--font-semibold);
@@ -373,14 +371,14 @@ const fileIcon = computed(() => {
   line-height: 1.4;
 }
 
-.file-description {
+.block-description {
   margin: 0 0 var(--spacing-md);
   font-size: var(--text-sm);
   color: var(--color-text-secondary);
   line-height: 1.5;
 }
 
-.file-meta {
+.block-meta {
   display: flex;
   gap: var(--spacing-lg);
   flex-wrap: wrap;

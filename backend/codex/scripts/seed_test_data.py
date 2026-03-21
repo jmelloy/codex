@@ -432,17 +432,17 @@ def seed_data() -> None:
                     nb_slug = nb["slug"]
                     _log(f"      Created notebook: {nb_name}")
 
-                # Create files
+                # Create blocks (pages)
                 for file_data in nb_data.get("files", []):
                     r = httpx.post(
-                        f"{base_url}/api/v1/workspaces/{ws_id}/notebooks/{nb_slug}/files/",
+                        f"{base_url}/api/v1/workspaces/{ws_id}/notebooks/{nb_slug}/blocks/pages",
                         headers=headers,
-                        json={"path": file_data["name"], "content": file_data["content"]},
+                        json={"title": file_data["name"]},
                     )
                     if r.is_success:
-                        _log(f"        Created file: {file_data['name']}")
+                        _log(f"        Created page: {file_data['name']}")
                     else:
-                        _log(f"        File '{file_data['name']}': {r.status_code} (may already exist)")
+                        _log(f"        Page '{file_data['name']}': {r.status_code} (may already exist)")
 
     _log("\nTest data seeding complete!")
     _log("\nTest User Credentials:")

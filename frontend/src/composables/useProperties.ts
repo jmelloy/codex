@@ -12,7 +12,7 @@ interface PropertiesSource {
 
 /**
  * Composable for managing editable properties (title, description, tags, custom metadata).
- * Shared between FilePropertiesPanel and FolderPropertiesPanel.
+ * Shared property editing logic for BlockPropertiesPanel.
  */
 export function useProperties(
   source: Ref<PropertiesSource | null>,

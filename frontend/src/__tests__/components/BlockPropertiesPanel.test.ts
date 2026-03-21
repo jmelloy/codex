@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest"
 import { mount } from "@vue/test-utils"
-import FilePropertiesPanel from "../../components/FilePropertiesPanel.vue"
+import BlockPropertiesPanel from "../../components/BlockPropertiesPanel.vue"
 
 vi.mock("../../services/codex", () => ({
   blockService: {
@@ -14,7 +14,7 @@ vi.mock("../../services/codex", () => ({
   },
 }))
 
-const mockFile = {
+const mockBlock = {
   id: 1,
   block_id: "blk_1",
   parent_block_id: null,
@@ -40,25 +40,25 @@ const mockFile = {
 
 const defaultProps = { workspaceId: 1, notebookId: 1 }
 
-function mountPanel(file: any = mockFile) {
-  return mount(FilePropertiesPanel, { props: { file, ...defaultProps } })
+function mountPanel(block: any = mockBlock) {
+  return mount(BlockPropertiesPanel, { props: { block, ...defaultProps } })
 }
 
-describe("FilePropertiesPanel", () => {
-  it("displays empty state when no file is provided", () => {
+describe("BlockPropertiesPanel", () => {
+  it("displays empty state when no block is provided", () => {
     const wrapper = mountPanel(null)
 
     expect(wrapper.find(".empty-state").exists()).toBe(true)
-    expect(wrapper.text()).toContain("No file selected")
+    expect(wrapper.text()).toContain("No block selected")
   })
 
-  it("displays file properties when file is provided", () => {
+  it("displays block properties when block is provided", () => {
     const wrapper = mountPanel()
 
     expect(wrapper.find(".panel-content").exists()).toBe(true)
     expect(wrapper.find(".empty-state").exists()).toBe(false)
 
-    // Title, description, path, filename, type, size
+    // Title, description, path, name, type, size
     expect(wrapper.find(".property-input").element.value).toBe("Test File")
     expect(wrapper.find(".property-textarea").element.value).toBe("Test description")
     expect(wrapper.html()).toContain("/test/path")
@@ -71,8 +71,8 @@ describe("FilePropertiesPanel", () => {
     [500, "500 B"],
     [1024, "1 KB"],
     [5242880, "5 MB"],
-  ])("formats file size %d as '%s'", (size, expected) => {
-    const wrapper = mountPanel({ ...mockFile, size })
+  ])("formats block size %d as '%s'", (size, expected) => {
+    const wrapper = mountPanel({ ...mockBlock, size })
     expect(wrapper.text()).toContain(expected)
   })
 
@@ -90,7 +90,7 @@ describe("FilePropertiesPanel", () => {
     expect(wrapper.text()).toContain("example")
 
     const noTags = mountPanel({
-      ...mockFile,
+      ...mockBlock,
       properties: { title: "Test File", description: "Test description" },
     })
     expect(noTags.findAll(".tag").length).toBe(0)
@@ -149,25 +149,25 @@ describe("FilePropertiesPanel", () => {
     expect(wrapper2.emitted("delete")).toBeFalsy()
   })
 
-  it("updates editable fields when file prop changes", async () => {
+  it("updates editable fields when block prop changes", async () => {
     const wrapper = mountPanel()
-    const newFile = {
-      ...mockFile,
+    const newBlock = {
+      ...mockBlock,
       title: "Updated Title",
       description: "Updated description",
       properties: { title: "Updated Title", description: "Updated description", tags: ["test", "example"] },
     }
-    await wrapper.setProps({ file: newFile })
+    await wrapper.setProps({ block: newBlock })
 
     expect(wrapper.find(".property-input").element.value).toBe("Updated Title")
     expect(wrapper.find(".property-textarea").element.value).toBe("Updated description")
   })
 
-  it("handles file with no title or description gracefully", () => {
-    const noTitle = mountPanel({ ...mockFile, title: null, properties: { description: "Test", tags: [] } })
+  it("handles block with no title or description gracefully", () => {
+    const noTitle = mountPanel({ ...mockBlock, title: null, properties: { description: "Test", tags: [] } })
     expect(noTitle.find(".property-input").element.value).toBe("")
 
-    const noDesc = mountPanel({ ...mockFile, description: null, properties: { title: "Test", tags: [] } })
+    const noDesc = mountPanel({ ...mockBlock, description: null, properties: { title: "Test", tags: [] } })
     expect(noDesc.find(".property-textarea").element.value).toBe("")
   })
 

@@ -20,7 +20,7 @@
       <button @click="$emit('close')" class="btn-close" title="Close">×</button>
     </div>
 
-    <div v-if="file && activeTab === 'properties'" class="panel-content">
+    <div v-if="block && activeTab === 'properties'" class="panel-content">
       <!-- Title (editable) -->
       <div class="property-group">
         <label>Title</label>
@@ -66,24 +66,24 @@
         @focus-value="focusValueInput"
       />
 
-      <!-- File Info (read-only) -->
+      <!-- Block Info (read-only) -->
       <div class="property-section">
-        <h4>File Info</h4>
+        <h4>Block Info</h4>
         <div class="property-row">
           <span class="property-label">Path</span>
-          <span class="property-value">{{ file.path }}</span>
+          <span class="property-value">{{ block.path }}</span>
         </div>
         <div class="property-row">
-          <span class="property-label">Filename</span>
-          <span class="property-value">{{ file.filename || file.path.split('/').pop() || file.path }}</span>
+          <span class="property-label">Name</span>
+          <span class="property-value">{{ block.filename || block.path.split('/').pop() || block.path }}</span>
         </div>
         <div class="property-row">
           <span class="property-label">Type</span>
-          <span class="property-value">{{ file.content_type || 'unknown' }}</span>
+          <span class="property-value">{{ block.content_type || 'unknown' }}</span>
         </div>
         <div class="property-row">
           <span class="property-label">Size</span>
-          <span class="property-value">{{ formatSize(file.size || 0) }}</span>
+          <span class="property-value">{{ formatSize(block.size || 0) }}</span>
         </div>
       </div>
 
@@ -92,22 +92,22 @@
         <h4>Dates</h4>
         <div class="property-row">
           <span class="property-label">Created</span>
-          <span class="property-value">{{ formatDate(file.created_at) }}</span>
+          <span class="property-value">{{ formatDate(block.created_at) }}</span>
         </div>
         <div class="property-row">
           <span class="property-label">Modified</span>
-          <span class="property-value">{{ formatDate(file.updated_at) }}</span>
+          <span class="property-value">{{ formatDate(block.updated_at) }}</span>
         </div>
       </div>
 
       <!-- Actions -->
       <div class="property-actions">
-        <button @click="confirmDelete" class="btn-delete">Delete File</button>
+        <button @click="confirmDelete" class="btn-delete">Delete Block</button>
       </div>
     </div>
 
     <!-- History Tab -->
-    <div v-else-if="file && activeTab === 'history'" class="panel-content history-content">
+    <div v-else-if="block && activeTab === 'history'" class="panel-content history-content">
       <div v-if="historyLoading" class="history-loading">
         <span class="loading-spinner"></span>
         Loading history...
@@ -116,7 +116,7 @@
         {{ historyError }}
       </div>
       <div v-else-if="history.length === 0" class="history-empty">
-        No history available for this file.
+        No history available for this block.
       </div>
       <div v-else class="history-list">
         <div
@@ -156,7 +156,7 @@
     </div>
 
     <div v-else class="empty-state">
-      <p>No file selected</p>
+      <p>No block selected</p>
     </div>
   </div>
 </template>
@@ -171,7 +171,7 @@ import TagsEditor from "./TagsEditor.vue"
 import CustomPropertiesEditor from "./CustomPropertiesEditor.vue"
 
 interface Props {
-  file: (Block & { content?: string }) | null
+  block: (Block & { content?: string }) | null
   workspaceId: number
   notebookId: number
 }
@@ -197,7 +197,7 @@ const commitContent = ref<string | null>(null)
 const commitContentLoading = ref(false)
 
 // Use shared properties composable
-const fileRef = computed(() => props.file)
+const fileRef = computed(() => props.block)
 const {
   editableTitle,
   editableDescription,
@@ -222,10 +222,10 @@ const {
 } = useProperties(fileRef, (event, properties) => emit(event, properties))
 
 // Sync with prop changes
-watch(() => props.file, () => syncFromSource(), { immediate: true })
+watch(() => props.block, () => syncFromSource(), { immediate: true })
 
 function confirmDelete() {
-  const displayName = props.file?.properties?.title || props.file?.title || props.file?.filename || props.file?.path.split("/").pop()
+  const displayName = props.block?.properties?.title || props.block?.title || props.block?.filename || props.block?.path.split("/").pop()
   if (confirm(`Are you sure you want to delete "${displayName}"?`)) {
     emit("delete")
   }
@@ -233,7 +233,7 @@ function confirmDelete() {
 
 // History functions
 async function loadHistory() {
-  if (!props.file || !props.workspaceId || !props.notebookId) return
+  if (!props.block || !props.workspaceId || !props.notebookId) return
 
   historyLoading.value = true
   historyError.value = null
@@ -242,7 +242,7 @@ async function loadHistory() {
   commitContent.value = null
 
   try {
-    const result = await blockService.getHistory(props.file.block_id, props.notebookId, props.workspaceId)
+    const result = await blockService.getHistory(props.block.block_id, props.notebookId, props.workspaceId)
     history.value = result.history
   } catch (error: any) {
     historyError.value = error.response?.data?.detail || "Failed to load history"
@@ -271,7 +271,7 @@ async function selectCommit(commit: FileHistoryEntry) {
 
   try {
     const result = await blockService.getAtCommit(
-      props.file!.block_id,
+      props.block!.block_id,
       props.notebookId,
       props.workspaceId,
       commit.hash,
@@ -286,7 +286,7 @@ async function selectCommit(commit: FileHistoryEntry) {
 
 function restoreCommit() {
   if (commitContent.value !== null) {
-    const displayName = props.file?.properties?.title || props.file?.title || props.file?.filename || props.file?.path.split("/").pop()
+    const displayName = props.block?.properties?.title || props.block?.title || props.block?.filename || props.block?.path.split("/").pop()
     if (
       confirm(`Restore "${displayName}" to version ${selectedCommit.value?.hash.substring(0, 7)}?`)
     ) {
@@ -300,7 +300,7 @@ function restoreCommit() {
 
 // Reset history when file changes
 watch(
-  () => props.file?.block_id,
+  () => props.block?.block_id,
   () => {
     history.value = []
     historyError.value = null

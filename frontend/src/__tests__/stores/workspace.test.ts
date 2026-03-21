@@ -47,8 +47,8 @@ describe("Workspace Store", () => {
       expect(store.loading).toBe(false)
       expect(store.error).toBeNull()
       expect(store.currentBlock).toBeNull()
-      expect(store.currentFile).toBeNull()
-      expect(store.currentFolder).toBeNull()
+      expect(store.currentLeafBlock).toBeNull()
+      expect(store.currentPageBlock).toBeNull()
       expect(store.blockLoading).toBe(false)
     })
   })
@@ -208,7 +208,7 @@ describe("Workspace Store", () => {
       await store.fetchBlockTree(1)
 
       expect(blockService.getTree).toHaveBeenCalledWith(1, 1)
-      expect(store.fileTrees.has(1)).toBe(true)
+      expect(store.blockTrees.has(1)).toBe(true)
     })
 
     it("does nothing without current workspace", async () => {
@@ -246,8 +246,8 @@ describe("Workspace Store", () => {
 
       expect(blockService.getBlock).toHaveBeenCalledWith("blk_1", 1, 1)
       expect(store.currentBlock?.block_id).toBe("blk_1")
-      expect(store.currentFile?.content).toBe("# Test")
-      expect(store.currentFolder).toBeNull()
+      expect(store.currentLeafBlock?.content).toBe("# Test")
+      expect(store.currentPageBlock).toBeNull()
     })
 
     it("loads page children", async () => {
@@ -279,14 +279,14 @@ describe("Workspace Store", () => {
 
       expect(blockService.getChildren).toHaveBeenCalledWith("page_1", 1, 1)
       expect(store.currentBlock?.block_type).toBe("page")
-      expect(store.currentFile).toBeNull()
-      expect(store.currentFolder).not.toBeNull()
-      expect(store.currentFolder?.is_page).toBe(true)
+      expect(store.currentLeafBlock).toBeNull()
+      expect(store.currentPageBlock).not.toBeNull()
+      expect(store.currentPageBlock?.is_page).toBe(true)
       expect(store.currentPageBlocks).toHaveLength(1)
     })
   })
 
-  describe("saveFile", () => {
+  describe("saveBlock", () => {
     it("updates block content via blockService", async () => {
       const mockUpdated = { id: 1, block_id: "blk_1", path: "test.md" }
       vi.mocked(blockService.updateBlock).mockResolvedValue(mockUpdated as any)
@@ -296,7 +296,7 @@ describe("Workspace Store", () => {
       store.currentWorkspace = { id: 1 } as any
       store.currentBlock = { id: 1, block_id: "blk_1", notebook_id: 1, block_type: "file", content: "old" } as any
 
-      await store.saveFile("new content", { key: "value" })
+      await store.saveBlock("new content", { key: "value" })
 
       expect(blockService.updateBlock).toHaveBeenCalledWith("blk_1", 1, 1, "new content")
       expect(blockService.updateProperties).toHaveBeenCalledWith("blk_1", 1, 1, { key: "value" })
@@ -307,13 +307,13 @@ describe("Workspace Store", () => {
       store.currentWorkspace = { id: 1 } as any
       store.currentBlock = { id: 1, block_id: "blk_1", notebook_id: undefined } as any
 
-      await expect(store.saveFile("content")).rejects.toThrow("File has no notebook_id")
+      await expect(store.saveBlock("content")).rejects.toThrow("Block has no notebook_id")
     })
   })
 
-  describe("createFile", () => {
-    it("creates file via blockService", async () => {
-      const mockPage = { block_id: "blk_1", path: "new.md" }
+  describe("createPage", () => {
+    it("creates page via blockService", async () => {
+      const mockPage = { block_id: "blk_1", path: "new-page" }
       const mockTree = { tree: [], notebook_id: 1, workspace_id: 1 }
 
       vi.mocked(blockService.createPage).mockResolvedValue(mockPage as any)
@@ -323,30 +323,30 @@ describe("Workspace Store", () => {
       const store = useWorkspaceStore()
       store.currentWorkspace = { id: 1 } as any
 
-      const result = await store.createFile(1, "new.md", "# New File")
+      const result = await store.createPage(1, "New Page")
 
-      expect(blockService.createPage).toHaveBeenCalledWith(1, 1, { title: "new.md" })
+      expect(blockService.createPage).toHaveBeenCalledWith(1, 1, { title: "New Page" })
     })
   })
 
-  describe("deleteFile", () => {
-    it("deletes file via blockService and clears current block", async () => {
+  describe("deleteBlock", () => {
+    it("deletes block via blockService and clears current block", async () => {
       vi.mocked(blockService.deleteBlock).mockResolvedValue({ message: "deleted" } as any)
 
       const store = useWorkspaceStore()
       store.currentWorkspace = { id: 1 } as any
       store.currentBlock = { id: 1, block_id: "blk_1", notebook_id: 1, path: "test.md", block_type: "file" } as any
-      store.fileTrees.set(1, [{ name: "test.md", path: "test.md", type: "file" }])
+      store.blockTrees.set(1, [{ name: "test.md", path: "test.md", type: "leaf" as const }])
 
-      await store.deleteFile("blk_1")
+      await store.deleteBlock(1, "blk_1")
 
       expect(blockService.deleteBlock).toHaveBeenCalledWith("blk_1", 1, 1)
       expect(store.currentBlock).toBeNull()
     })
   })
 
-  describe("uploadFile", () => {
-    it("uploads file via blockService", async () => {
+  describe("uploadBlock", () => {
+    it("uploads block via blockService", async () => {
       const mockBlock = { id: 1, block_id: "blk_1", path: "upload.png" }
       const mockTree = { tree: [], notebook_id: 1, workspace_id: 1 }
       vi.mocked(blockService.upload).mockResolvedValue(mockBlock as any)
@@ -356,14 +356,14 @@ describe("Workspace Store", () => {
       store.currentWorkspace = { id: 1 } as any
 
       const file = new File(["content"], "upload.png", { type: "image/png" })
-      const result = await store.uploadFile(1, file, "images/upload.png")
+      const result = await store.uploadBlock(1, file, "images/upload.png")
 
       expect(blockService.upload).toHaveBeenCalledWith(1, 1, file)
     })
   })
 
-  describe("moveFile", () => {
-    it("moves file via blockService", async () => {
+  describe("moveBlock", () => {
+    it("moves block via blockService", async () => {
       const movedBlock = { id: 1, block_id: "blk_1", path: "new/path.md" }
       const mockTree = { tree: [], notebook_id: 1, workspace_id: 1 }
       vi.mocked(blockService.moveBlock).mockResolvedValue(movedBlock as any)
@@ -371,9 +371,9 @@ describe("Workspace Store", () => {
 
       const store = useWorkspaceStore()
       store.currentWorkspace = { id: 1 } as any
-      store.fileTrees.set(1, [])
+      store.blockTrees.set(1, [])
 
-      const result = await store.moveFile("blk_1", 1, "new/path.md")
+      const result = await store.moveBlock("blk_1", 1, "new/path.md")
 
       expect(blockService.moveBlock).toHaveBeenCalledWith("blk_1", 1, 1, {})
     })
@@ -407,66 +407,66 @@ describe("Workspace Store", () => {
     })
   })
 
-  describe("getFilesForNotebook", () => {
-    it("returns flat file list from tree", () => {
+  describe("getBlocksForNotebook", () => {
+    it("returns flat block list from tree", () => {
       const store = useWorkspaceStore()
-      store.fileTrees.set(1, [
-        { name: "file1.md", path: "file1.md", type: "file", file: { id: 1, path: "file1.md" } as any },
+      store.blockTrees.set(1, [
+        { name: "block1.md", path: "block1.md", type: "leaf", leafBlock: { id: 1, path: "block1.md" } as any },
         {
-          name: "folder",
-          path: "folder",
-          type: "folder",
+          name: "page",
+          path: "page",
+          type: "page",
           children: [
-            { name: "file2.md", path: "folder/file2.md", type: "file", file: { id: 2, path: "folder/file2.md" } as any },
+            { name: "block2.md", path: "page/block2.md", type: "leaf", leafBlock: { id: 2, path: "page/block2.md" } as any },
           ],
         },
       ])
 
-      const files = store.getFilesForNotebook(1)
+      const blocks = store.getBlocksForNotebook(1)
 
-      expect(files).toHaveLength(2)
-      expect(files.map((f) => f.path)).toContain("file1.md")
-      expect(files.map((f) => f.path)).toContain("folder/file2.md")
+      expect(blocks).toHaveLength(2)
+      expect(blocks.map((b) => b.path)).toContain("block1.md")
+      expect(blocks.map((b) => b.path)).toContain("page/block2.md")
     })
 
     it("returns empty array for unknown notebook", () => {
       const store = useWorkspaceStore()
-      const files = store.getFilesForNotebook(999)
+      const blocks = store.getBlocksForNotebook(999)
 
-      expect(files).toEqual([])
+      expect(blocks).toEqual([])
     })
   })
 
-  describe("getFileTree", () => {
-    it("returns file tree for notebook", () => {
-      const mockTree = [{ name: "file.md", path: "file.md", type: "file" as const }]
+  describe("getBlockTree", () => {
+    it("returns block tree for notebook", () => {
+      const mockTree = [{ name: "block.md", path: "block.md", type: "leaf" as const }]
 
       const store = useWorkspaceStore()
-      store.fileTrees.set(1, mockTree)
+      store.blockTrees.set(1, mockTree)
 
-      const tree = store.getFileTree(1)
+      const tree = store.getBlockTree(1)
 
       expect(tree).toEqual(mockTree)
     })
 
     it("returns empty array for unknown notebook", () => {
       const store = useWorkspaceStore()
-      const tree = store.getFileTree(999)
+      const tree = store.getBlockTree(999)
 
       expect(tree).toEqual([])
     })
   })
 
-  describe("deleteFolder", () => {
+  describe("deleteBlock (page)", () => {
     it("deletes page block and clears state", async () => {
       vi.mocked(blockService.deleteBlock).mockResolvedValue({ message: "deleted" } as any)
 
       const store = useWorkspaceStore()
       store.currentWorkspace = { id: 1 } as any
-      store.currentBlock = { id: 1, block_id: "page_1", notebook_id: 1, path: "folder", block_type: "page" } as any
-      store.fileTrees.set(1, [{ name: "folder", path: "folder", type: "folder" }])
+      store.currentBlock = { id: 1, block_id: "page_1", notebook_id: 1, path: "page", block_type: "page" } as any
+      store.blockTrees.set(1, [{ name: "page", path: "page", type: "page" }])
 
-      await store.deleteFolder()
+      await store.deleteBlock(1, "page_1")
 
       expect(blockService.deleteBlock).toHaveBeenCalledWith("page_1", 1, 1)
       expect(store.currentBlock).toBeNull()

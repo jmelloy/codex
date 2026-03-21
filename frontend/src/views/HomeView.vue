@@ -185,7 +185,7 @@
               @click="selectSearchResult(file)"
             >
               <div class="flex items-center">
-                <span class="mr-2 text-sm">{{ getFileIcon(file) }}</span>
+                <span class="mr-2 text-sm">{{ getBlockIcon(file) }}</span>
                 <div class="flex-1 min-w-0">
                   <div class="truncate font-medium" style="color: var(--notebook-text)">
                     {{ file.title || file.filename || file.path.split('/').pop() }}
@@ -281,7 +281,7 @@
                 <span class="flex-1 font-medium">{{ notebook.name }}</span>
                 <button
                   v-if="workspaceStore.expandedNotebooks.has(notebook.id)"
-                  @click.stop="startCreateFile(notebook)"
+                  @click.stop="startCreatePage(notebook)"
                   class="notebook-button w-5 h-5 text-sm ml-auto opacity-0 hover:opacity-100 transition text-white border-none rounded-full cursor-pointer flex items-center justify-center"
                   title="New File"
                 >
@@ -299,63 +299,63 @@
                 @dragleave="handleNotebookDragLeave"
                 @drop.prevent="handleNotebookDrop($event, notebook.id)"
               >
-                <template v-if="notebookFileTrees.get(notebook.id)?.length">
-                  <template v-for="node in notebookFileTrees.get(notebook.id)" :key="node.path">
+                <template v-if="notebookBlockTrees.get(notebook.id)?.length">
+                  <template v-for="node in notebookBlockTrees.get(notebook.id)" :key="node.path">
                     <!-- Render folder or file -->
-                    <li v-if="node.type === 'folder'">
+                    <li v-if="node.type === 'page'">
                       <!-- Folder -->
                       <div
                         :class="[
-                          'folder-item flex items-center py-2 px-4 pl-8 cursor-pointer text-[13px] transition',
+                          'page-item flex items-center py-2 px-4 pl-8 cursor-pointer text-[13px] transition',
                           {
                             'bg-primary/20 border-t-2 border-primary':
-                              dragOverFolder === `${notebook.id}:${node.path}`,
+                              dragOverPage === `${notebook.id}:${node.path}`,
                           },
                           {
-                            'folder-active':
-                              workspaceStore.currentFolder?.path === node.path &&
-                              workspaceStore.currentFolder?.notebook_id === notebook.id,
+                            'page-active':
+                              workspaceStore.currentPageBlock?.path === node.path &&
+                              workspaceStore.currentPageBlock?.notebook_id === notebook.id,
                           },
                         ]"
-                        @click="handleFolderClick($event, notebook.id, node.path, node)"
-                        @dragover.prevent="handleFolderDragOver($event, notebook.id, node.path)"
-                        @dragenter.prevent="handleFolderDragEnter(notebook.id, node.path)"
-                        @dragleave="handleFolderDragLeave"
-                        @drop.prevent.stop="handleFolderDrop($event, notebook.id, node.path)"
+                        @click="handlePageClick($event, notebook.id, node.path, node)"
+                        @dragover.prevent="handlePageDragOver($event, notebook.id, node.path)"
+                        @dragenter.prevent="handlePageDragEnter(notebook.id, node.path)"
+                        @dragleave="handlePageDragLeave"
+                        @drop.prevent.stop="handlePageDrop($event, notebook.id, node.path)"
                       >
                         <span
                           v-if="!node.isPage || hasSubpages(node)"
                           class="text-[10px] mr-2 w-3"
                           style="color: var(--pen-gray)"
                         >{{
-                          isFolderExpanded(notebook.id, node.path) ? "▼" : "▶"
+                          isPageExpanded(notebook.id, node.path) ? "▼" : "▶"
                         }}</span>
                         <span v-else class="mr-2 w-3"></span>
                         <span class="mr-2 text-sm">{{ node.isPage ? '📄' : '📁' }}</span>
                         <span class="overflow-hidden text-ellipsis whitespace-nowrap">{{
-                          node.folderMeta?.title || node.name
+                          node.pageMeta?.title || node.name
                         }}</span>
                       </div>
 
                       <!-- Folder contents -->
                       <ul
-                        v-if="isFolderExpanded(notebook.id, node.path) && node.children"
+                        v-if="isPageExpanded(notebook.id, node.path) && node.children"
                         class="list-none p-0 m-0"
                       >
-                        <FileTreeItem
+                        <BlockTreeItem
                           v-for="child in node.children"
                           :key="child.path"
                           :node="child"
                           :notebook-id="notebook.id"
                           :depth="1"
-                          :expanded-folders="expandedFolders"
-                          :current-file-id="workspaceStore.currentFile?.id"
-                          :current-folder-path="workspaceStore.currentFolder?.path"
-                          :current-folder-notebook-id="workspaceStore.currentFolder?.notebook_id"
-                          @toggle-folder="toggleFolder"
-                          @select-folder="handleSelectFolder"
-                          @select-file="selectFile"
-                          @move-file="handleMoveFile"
+                          :expanded-pages="expandedPages"
+                          :current-block-id="workspaceStore.currentLeafBlock?.id"
+                          :current-page-path="workspaceStore.currentPageBlock?.path"
+                          :current-page-notebook-id="workspaceStore.currentPageBlock?.notebook_id"
+                          @toggle-page="togglePage"
+                          @select-page="handleSelectPage"
+                          @select-block="selectLeafBlock"
+                          @move-block="handleMoveBlock"
                         />
                       </ul>
                     </li>
@@ -364,19 +364,19 @@
                     <li v-else>
                       <div
                         :class="[
-                          'file-item flex items-center py-2 px-4 pl-8 cursor-grab text-[13px] transition',
+                          'leaf-item flex items-center py-2 px-4 pl-8 cursor-grab text-[13px] transition',
                           {
-                            'file-active font-medium':
-                              workspaceStore.currentFile?.id === node.file?.id,
+                            'leaf-active font-medium':
+                              workspaceStore.currentLeafBlock?.id === node.leafBlock?.id,
                           },
                         ]"
                         draggable="true"
-                        @click="node.file && selectFile(node.file)"
-                        @dragstart="handleFileDragStart($event, node.file!, notebook.id)"
+                        @click="node.leafBlock && selectLeafBlock(node.leafBlock)"
+                        @dragstart="handleBlockDragStart($event, node.leafBlock!, notebook.id)"
                       >
-                        <span class="mr-2 text-sm">{{ getFileIcon(node.file) }}</span>
+                        <span class="mr-2 text-sm">{{ getBlockIcon(node.leafBlock) }}</span>
                         <span class="overflow-hidden text-ellipsis whitespace-nowrap">{{
-                          node.file?.title || node.name
+                          node.leafBlock?.title || node.name
                         }}</span>
                       </div>
                     </li>
@@ -482,7 +482,7 @@
     <main class="flex-1 flex flex-col overflow-hidden pt-14 lg:pt-0">
       <!-- Loading State -->
       <div
-        v-if="workspaceStore.fileLoading"
+        v-if="workspaceStore.blockLoading"
         class="flex flex-col items-center justify-center h-full text-text-tertiary"
       >
         <span>Loading...</span>
@@ -503,13 +503,13 @@
       </div>
 
       <!-- Viewer Mode -->
-      <div v-else-if="workspaceStore.currentFile" class="flex-1 flex overflow-hidden p-4">
+      <div v-else-if="workspaceStore.currentLeafBlock" class="flex-1 flex overflow-hidden p-4">
         <!-- All file types use a consistent header + content pattern -->
         <div class="flex-1 flex flex-col overflow-hidden">
-          <FileHeader
-            :file="workspaceStore.currentFile"
+          <BlockHeader
+            :block="workspaceStore.currentLeafBlock"
             @toggle-properties="toggleProperties"
-            @rename="handleRenameFile"
+            @rename="handleRenameBlock"
           >
             <template #actions>
               <!-- Media files (image, pdf, audio, video, html) get Open button -->
@@ -540,7 +540,7 @@
                 Properties
               </button>
             </template>
-          </FileHeader>
+          </BlockHeader>
 
           <!-- Image Viewer -->
           <div
@@ -549,7 +549,7 @@
           >
             <img
               :src="currentContentUrl"
-              :alt="workspaceStore.currentFile.title || workspaceStore.currentFile.filename"
+              :alt="workspaceStore.currentLeafBlock.title || workspaceStore.currentLeafBlock.filename"
               class="max-w-full max-h-full object-contain"
             />
           </div>
@@ -562,7 +562,7 @@
             <iframe
               :src="currentContentUrl"
               class="w-full h-full border-0"
-              :title="workspaceStore.currentFile.title || workspaceStore.currentFile.filename"
+              :title="workspaceStore.currentLeafBlock.title || workspaceStore.currentLeafBlock.filename"
             />
           </div>
 
@@ -596,7 +596,7 @@
             <iframe
               :src="currentContentUrl"
               class="w-full h-full border-0"
-              :title="workspaceStore.currentFile.title || workspaceStore.currentFile.filename"
+              :title="workspaceStore.currentLeafBlock.title || workspaceStore.currentLeafBlock.filename"
               sandbox="allow-scripts allow-same-origin"
             />
           </div>
@@ -604,8 +604,8 @@
           <!-- Code Viewer -->
           <CodeViewer
             v-else-if="displayType === 'code'"
-            :content="workspaceStore.currentFile.content"
-            :filename="workspaceStore.currentFile.filename"
+            :content="workspaceStore.currentLeafBlock.content"
+            :filename="workspaceStore.currentLeafBlock.filename"
             :show-line-numbers="true"
             :show-toolbar="false"
             class="flex-1"
@@ -625,11 +625,11 @@
           <!-- Markdown Viewer (default) -->
           <MarkdownViewer
             v-else
-            :content="workspaceStore.currentFile.content"
-            :frontmatter="workspaceStore.currentFile.properties"
+            :content="workspaceStore.currentLeafBlock.content"
+            :frontmatter="workspaceStore.currentLeafBlock.properties"
             :workspace-id="workspaceStore.currentWorkspace?.id"
             :notebook-id="workspaceStore.currentNotebook?.id"
-            :current-file-path="workspaceStore.currentFile.path"
+            :current-file-path="workspaceStore.currentLeafBlock.path"
             :show-frontmatter="false"
             :show-toolbar="false"
             @copy="handleCopy"
@@ -640,7 +640,7 @@
 
       <!-- Block/Page View Mode -->
       <div
-        v-else-if="workspaceStore.currentFolder"
+        v-else-if="workspaceStore.currentPageBlock"
         class="flex-1 flex overflow-hidden p-4"
       >
         <div class="flex-1 flex flex-col overflow-hidden">
@@ -649,7 +649,7 @@
             <div class="flex items-center gap-2 min-w-0">
               <span class="text-sm">📄</span>
               <span class="font-medium truncate" style="color: var(--notebook-text)">
-                {{ workspaceStore.currentFolder.title || workspaceStore.currentFolder.name }}
+                {{ workspaceStore.currentPageBlock.title || workspaceStore.currentPageBlock.name }}
               </span>
             </div>
             <button
@@ -662,10 +662,10 @@
 
           <BlockView
             :blocks="workspaceStore.currentPageBlocks"
-            :page-title="workspaceStore.currentFolder.title"
-            :page-description="workspaceStore.currentFolder.description"
+            :page-title="workspaceStore.currentPageBlock.title"
+            :page-description="workspaceStore.currentPageBlock.description"
             :workspace-id="workspaceStore.currentWorkspace?.id"
-            :notebook-id="workspaceStore.currentFolder.notebook_id"
+            :notebook-id="workspaceStore.currentPageBlock.notebook_id"
             class="flex-1 overflow-y-auto"
             @navigate-page="handleNavigatePageBlock"
             @delete-block="handleDeleteBlock"
@@ -700,28 +700,28 @@
       @click="showPropertiesPanel = false"
     ></div>
 
-    <FilePropertiesPanel
-      v-if="showPropertiesPanel && workspaceStore.currentFile && workspaceStore.currentWorkspace"
-      :file="workspaceStore.currentFile"
+    <BlockPropertiesPanel
+      v-if="showPropertiesPanel && workspaceStore.currentLeafBlock && workspaceStore.currentWorkspace"
+      :block="workspaceStore.currentLeafBlock"
       :workspace-id="workspaceStore.currentWorkspace.id"
-      :notebook-id="workspaceStore.currentFile.notebook_id"
+      :notebook-id="workspaceStore.currentLeafBlock.notebook_id"
       class="w-full lg:w-[300px] lg:min-w-[300px] fixed lg:relative inset-0 lg:inset-auto z-50 lg:z-auto pt-14 lg:pt-0"
       @close="showPropertiesPanel = false"
       @update-properties="handleUpdateProperties"
-      @delete="handleDeleteFile"
+      @delete="handleDeleteLeafBlock"
       @restore="handleRestoreVersion"
     />
 
-    <!-- Folder/Page Properties Panel -->
-    <FilePropertiesPanel
-      v-if="showPropertiesPanel && workspaceStore.currentFolder && !workspaceStore.currentFile"
-      :file="workspaceStore.currentBlock"
+    <!-- Page Properties Panel -->
+    <BlockPropertiesPanel
+      v-if="showPropertiesPanel && workspaceStore.currentPageBlock && !workspaceStore.currentLeafBlock"
+      :block="workspaceStore.currentBlock"
       :workspace-id="workspaceStore.currentWorkspace?.id ?? 0"
       :notebook-id="workspaceStore.currentBlock?.notebook_id ?? 0"
       class="w-full lg:w-[300px] lg:min-w-[300px] fixed lg:relative inset-0 lg:inset-auto z-50 lg:z-auto pt-14 lg:pt-0"
       @close="showPropertiesPanel = false"
       @update-properties="handleUpdateProperties"
-      @delete="handleDeleteFolder"
+      @delete="handleDeletePageBlock"
     />
   </div>
 
@@ -774,12 +774,12 @@
   </Modal>
 
   <!-- Create File Modal -->
-  <Modal v-model="showCreateFile" title="New Page" confirm-text="Create" hide-actions>
-    <form @submit.prevent="handleCreateFile">
+  <Modal v-model="showCreatePage" title="New Page" confirm-text="Create" hide-actions>
+    <form @submit.prevent="handleCreatePage">
       <FormGroup label="Name" v-slot="{ inputId }">
         <input
           :id="inputId"
-          v-model="newFileName"
+          v-model="newPageName"
           placeholder="My Page"
           required
           class="w-full px-3 py-2 border border-border-medium rounded-md bg-bg-primary text-text-primary"
@@ -792,7 +792,7 @@
       <div class="flex gap-2 justify-end mt-6">
         <button
           type="button"
-          @click="showCreateFile = false"
+          @click="showCreatePage = false"
           class="notebook-button-secondary px-4 py-2 border-none rounded cursor-pointer"
         >
           Cancel
@@ -837,16 +837,16 @@ import Modal from "../components/Modal.vue"
 import FormGroup from "../components/FormGroup.vue"
 import MarkdownViewer from "../components/MarkdownViewer.vue"
 import CodeViewer from "../components/CodeViewer.vue"
-import FilePropertiesPanel from "../components/FilePropertiesPanel.vue"
+import BlockPropertiesPanel from "../components/BlockPropertiesPanel.vue"
 import BlockView from "../components/BlockView.vue"
-import FileHeader from "../components/FileHeader.vue"
-import FileTreeItem from "../components/FileTreeItem.vue"
+import BlockHeader from "../components/BlockHeader.vue"
+import BlockTreeItem from "../components/BlockTreeItem.vue"
 import SettingsDialog from "../components/SettingsDialog.vue"
 import AgentChat from "../components/agent/AgentChat.vue"
 import { useAgentStore } from "../stores/agent"
 import type { Agent } from "../services/agent"
 import { showToast } from "../utils/toast"
-import type { FileTreeNode } from "../utils/fileTree"
+import type { BlockTreeNode } from "../utils/blockTree"
 
 const router = useRouter()
 const route = useRoute()
@@ -857,14 +857,14 @@ const agentStore = useAgentStore()
 // Modal state
 const showCreateWorkspace = ref(false)
 const showCreateNotebook = ref(false)
-const showCreateFile = ref(false)
+const showCreatePage = ref(false)
 const showSettingsDialog = ref(false)
 
 // Form state
 const newWorkspaceName = ref("")
 const newNotebookName = ref("")
-const newFileName = ref("")
-const createFileNotebook = ref<Notebook | null>(null)
+const newPageName = ref("")
+const createPageNotebook = ref<Notebook | null>(null)
 
 // View state
 const showPropertiesPanel = ref(false)
@@ -884,18 +884,18 @@ const searchQuery = ref("")
 const searchResults = ref<Block[]>([])
 const isSearching = ref(false)
 
-// Folder expansion state - tracks which folder paths are expanded
-const expandedFolders = ref<Map<number, Set<string>>>(new Map())
+// Page expansion state - tracks which page paths are expanded
+const expandedPages = ref<Map<number, Set<string>>>(new Map())
 
 // Drag-drop state
 const dragOverNotebook = ref<number | null>(null)
-const dragOverFolder = ref<string | null>(null)
+const dragOverPage = ref<string | null>(null)
 
-// Get file trees from the store (now pre-built and maintained)
-const notebookFileTrees = computed(() => {
-  const trees = new Map<number, FileTreeNode[]>()
+// Get block trees from the store (pre-built and maintained)
+const notebookBlockTrees = computed(() => {
+  const trees = new Map<number, BlockTreeNode[]>()
   workspaceStore.notebooks.forEach((notebook) => {
-    trees.set(notebook.id, workspaceStore.getFileTree(notebook.id))
+    trees.set(notebook.id, workspaceStore.getBlockTree(notebook.id))
   })
   return trees
 })
@@ -933,21 +933,21 @@ function buildBlockUrl(pathOrBlock: string | Block, notebookId?: number): string
   return `/w/${getSlugOrId(ws)}/${getSlugOrId(nb)}/${path}`
 }
 
-// Get content URL for current file (for binary files like images, PDFs, audio, video)
+// Get content URL for current block (for binary content like images, PDFs, audio, video)
 const currentContentUrl = computed(() => {
-  if (!workspaceStore.currentFile || !workspaceStore.currentWorkspace) return ""
+  if (!workspaceStore.currentLeafBlock || !workspaceStore.currentWorkspace) return ""
   const workspaceId = workspaceStore.currentWorkspace.id || workspaceStore.currentWorkspace.slug
   const notebook = workspaceStore.notebooks.find(
-    (n: any) => n.id === workspaceStore.currentFile?.notebook_id,
+    (n: any) => n.id === workspaceStore.currentLeafBlock?.notebook_id,
   )
   const notebookId = notebook?.id || notebook?.slug
-  return `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/${workspaceStore.currentFile.block_id}/content`
+  return `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/${workspaceStore.currentLeafBlock.block_id}/content`
 })
 
-// Get display type for current file
+// Get display type for current block
 const displayType = computed(() => {
-  if (!workspaceStore.currentFile) return "markdown"
-  return getDisplayType(workspaceStore.currentFile.content_type || "")
+  if (!workspaceStore.currentLeafBlock) return "markdown"
+  return getDisplayType(workspaceStore.currentLeafBlock.content_type || "")
 })
 
 // Open file in a new tab
@@ -958,7 +958,7 @@ function openInNewTab() {
 }
 
 
-// Watch for route changes to restore file/folder selection from URL (path-based)
+// Watch for route changes to restore block selection from URL (path-based)
 watch(
   () => route.params,
   async (params) => {
@@ -990,7 +990,7 @@ watch(
             const block = await blockService.resolveLink(itemPath, notebook.id, workspace!.id)
             await workspaceStore.selectBlock(block)
           } catch {
-            await workspaceStore.selectFolder(itemPath, notebook.id)
+            await workspaceStore.selectBlockByPath(itemPath, notebook.id)
           }
         }
       }
@@ -1045,7 +1045,7 @@ onMounted(async () => {
         const block = await blockService.resolveLink(itemPath, notebook.id, workspaceStore.currentWorkspace!.id)
         await workspaceStore.selectBlock(block)
       } catch {
-        await workspaceStore.selectFolder(itemPath, notebook.id)
+        await workspaceStore.selectBlockByPath(itemPath, notebook.id)
       }
     }
   }
@@ -1112,50 +1112,50 @@ function toggleNotebook(notebook: Notebook) {
   workspaceStore.toggleNotebookExpansion(notebook)
 }
 
-function toggleFolder(notebookId: number, folderPath: string) {
-  if (!expandedFolders.value.has(notebookId)) {
-    expandedFolders.value.set(notebookId, new Set())
+function togglePage(notebookId: number, pagePath: string) {
+  if (!expandedPages.value.has(notebookId)) {
+    expandedPages.value.set(notebookId, new Set())
   }
-  const folders = expandedFolders.value.get(notebookId)!
-  if (folders.has(folderPath)) {
-    folders.delete(folderPath)
+  const folders = expandedPages.value.get(notebookId)!
+  if (folders.has(pagePath)) {
+    folders.delete(pagePath)
   } else {
-    folders.add(folderPath)
+    folders.add(pagePath)
   }
 }
 
-async function handleFolderClick(event: MouseEvent, notebookId: number, folderPath: string, node?: FileTreeNode) {
+async function handlePageClick(event: MouseEvent, notebookId: number, pagePath: string, node?: BlockTreeNode) {
   const target = event.target as HTMLElement
   const isArrowClick =
     target.classList.contains("text-[10px]") || target.closest(".text-\\[10px\\]")
 
   // Pages without subpages: always just select (no disclosure)
   if (node?.isPage && !node?.hasSubpages && !isArrowClick) {
-    await workspaceStore.selectFolder(folderPath, notebookId)
+    await workspaceStore.selectBlockByPath(pagePath, notebookId)
     closeSidebarOnMobile()
-    const newUrl = buildBlockUrl(folderPath, notebookId)
+    const newUrl = buildBlockUrl(pagePath, notebookId)
     if (newUrl !== "/" && route.path !== newUrl) {
       router.push(newUrl)
     }
     return
   }
 
-  await expandOrCollapseFolder(notebookId, folderPath, !isArrowClick)
+  await expandOrCollapsePage(notebookId, pagePath, !isArrowClick)
 }
 
-async function expandOrCollapseFolder(
+async function expandOrCollapsePage(
   notebookId: number,
-  folderPath: string,
+  pagePath: string,
   closeSidebar: boolean = false,
 ) {
-  const isExpanded = isFolderExpanded(notebookId, folderPath)
+  const isExpanded = isPageExpanded(notebookId, pagePath)
 
   if (isExpanded) {
-    toggleFolder(notebookId, folderPath)
+    togglePage(notebookId, pagePath)
   } else {
-    await workspaceStore.selectFolder(folderPath, notebookId)
-    if (workspaceStore.currentBlock?.path === folderPath) {
-      toggleFolder(notebookId, folderPath)
+    await workspaceStore.selectBlockByPath(pagePath, notebookId)
+    if (workspaceStore.currentBlock?.path === pagePath) {
+      togglePage(notebookId, pagePath)
     }
     if (closeSidebar) {
       closeSidebarOnMobile()
@@ -1163,33 +1163,33 @@ async function expandOrCollapseFolder(
   }
 }
 
-async function handleSelectFolder(notebookId: number, folderPath: string) {
-  await workspaceStore.selectFolder(folderPath, notebookId)
+async function handleSelectPage(notebookId: number, pagePath: string) {
+  await workspaceStore.selectBlockByPath(pagePath, notebookId)
   closeSidebarOnMobile()
 
-  if (workspaceStore.currentBlock?.path === folderPath) {
-    if (!expandedFolders.value.has(notebookId)) {
-      expandedFolders.value.set(notebookId, new Set())
+  if (workspaceStore.currentBlock?.path === pagePath) {
+    if (!expandedPages.value.has(notebookId)) {
+      expandedPages.value.set(notebookId, new Set())
     }
-    const folders = expandedFolders.value.get(notebookId)!
-    if (!folders.has(folderPath)) {
-      folders.add(folderPath)
+    const folders = expandedPages.value.get(notebookId)!
+    if (!folders.has(pagePath)) {
+      folders.add(pagePath)
     }
   }
 
-  const newUrl = buildBlockUrl(folderPath, notebookId)
+  const newUrl = buildBlockUrl(pagePath, notebookId)
   if (newUrl !== "/" && route.path !== newUrl) {
     router.push(newUrl)
   }
 }
 
-// handleSelectSubfolder removed — folders are now navigated via block tree
+// handleSelectSubpage removed — pages are now navigated via block tree
 
 // Block/page event handlers
 async function handleNavigatePageBlock(block: any) {
   if (workspaceStore.currentBlock) {
     const notebookId = workspaceStore.currentBlock.notebook_id
-    await handleSelectFolder(notebookId, block.path)
+    await handleSelectPage(notebookId, block.path)
   }
 }
 
@@ -1258,23 +1258,23 @@ async function handleCreateSubpage() {
   try {
     await workspaceStore.createPage(notebookId, title, parentPath)
     showToast({ message: "Subpage created!" })
-    await workspaceStore.selectFolder(parentPath, notebookId)
+    await workspaceStore.selectBlockByPath(parentPath, notebookId)
   } catch {
     showToast({ message: "Failed to create subpage", type: "error" })
   }
 }
 
-function hasSubpages(node: FileTreeNode): boolean {
+function hasSubpages(node: BlockTreeNode): boolean {
   if (node.hasSubpages !== undefined) return node.hasSubpages
   if (!node.children) return false
-  return node.children.some((c) => c.type === "folder" && c.isPage)
+  return node.children.some((c) => c.type === "page" && c.isPage)
 }
 
-function isFolderExpanded(notebookId: number, folderPath: string): boolean {
-  return expandedFolders.value.get(notebookId)?.has(folderPath) || false
+function isPageExpanded(notebookId: number, pagePath: string): boolean {
+  return expandedPages.value.get(notebookId)?.has(pagePath) || false
 }
 
-function getFileIcon(file: Block | undefined): string {
+function getBlockIcon(file: Block | undefined): string {
   if (!file) return "📄"
 
   const displayType = getDisplayType(file.content_type || "")
@@ -1307,21 +1307,21 @@ function getFileIcon(file: Block | undefined): string {
   }
 }
 
-function selectFile(file: Block) {
-  workspaceStore.selectBlock(file)
+function selectLeafBlock(block: Block) {
+  workspaceStore.selectBlock(block)
   closeSidebarOnMobile()
-  const newUrl = buildBlockUrl(file)
+  const newUrl = buildBlockUrl(block)
   if (newUrl !== "/" && route.path !== newUrl) {
     router.push(newUrl)
   }
 }
 
 // Drag-drop handlers for files within the sidebar
-function handleFileDragStart(event: DragEvent, file: Block, notebookId: number) {
+function handleBlockDragStart(event: DragEvent, file: Block, notebookId: number) {
   if (!event.dataTransfer) return
   event.dataTransfer.effectAllowed = "move"
   event.dataTransfer.setData(
-    "application/x-codex-file",
+    "application/x-codex-block",
     JSON.stringify({
       blockId: file.block_id,
       notebookId: notebookId,
@@ -1332,41 +1332,41 @@ function handleFileDragStart(event: DragEvent, file: Block, notebookId: number) 
 }
 
 // Folder drag-over handlers
-function handleFolderDragOver(event: DragEvent, _notebookId: number, _folderPath: string) {
+function handlePageDragOver(event: DragEvent, _notebookId: number, _pagePath: string) {
   if (!event.dataTransfer) return
-  const hasFile = event.dataTransfer.types.includes("application/x-codex-file")
+  const hasFile = event.dataTransfer.types.includes("application/x-codex-block")
   const hasExternalFile = event.dataTransfer.types.includes("Files")
   if (hasFile || hasExternalFile) {
     event.dataTransfer.dropEffect = "move"
   }
 }
 
-function handleFolderDragEnter(notebookId: number, folderPath: string) {
-  dragOverFolder.value = `${notebookId}:${folderPath}`
+function handlePageDragEnter(notebookId: number, pagePath: string) {
+  dragOverPage.value = `${notebookId}:${pagePath}`
 }
 
-function handleFolderDragLeave() {
-  dragOverFolder.value = null
+function handlePageDragLeave() {
+  dragOverPage.value = null
 }
 
-async function handleFolderDrop(event: DragEvent, notebookId: number, folderPath: string) {
-  dragOverFolder.value = null
+async function handlePageDrop(event: DragEvent, notebookId: number, pagePath: string) {
+  dragOverPage.value = null
   if (!event.dataTransfer) return
 
   // Handle external file drop (upload)
-  if (event.dataTransfer.types.includes("Files") && !event.dataTransfer.types.includes("application/x-codex-file")) {
-    await handleFileUpload(event.dataTransfer, notebookId, folderPath)
+  if (event.dataTransfer.types.includes("Files") && !event.dataTransfer.types.includes("application/x-codex-block")) {
+    await handleBlockUpload(event.dataTransfer, notebookId, pagePath)
     return
   }
 
   // Handle internal file move
-  const data = event.dataTransfer.getData("application/x-codex-file")
+  const data = event.dataTransfer.getData("application/x-codex-block")
   if (!data) return
 
   try {
     const { blockId, filename } = JSON.parse(data)
-    const newPath = folderPath ? `${folderPath}/${filename}` : filename
-    await handleMoveFile(blockId, newPath)
+    const newPath = pagePath ? `${pagePath}/${filename}` : filename
+    await handleMoveBlock(blockId, newPath)
   } catch (e) {
     console.error("Failed to parse drag data:", e)
   }
@@ -1375,7 +1375,7 @@ async function handleFolderDrop(event: DragEvent, notebookId: number, folderPath
 // Notebook-level drag handlers (for root-level drops)
 function handleNotebookDragOver(event: DragEvent, _notebookId: number) {
   if (!event.dataTransfer) return
-  const hasFile = event.dataTransfer.types.includes("application/x-codex-file")
+  const hasFile = event.dataTransfer.types.includes("application/x-codex-block")
   const hasExternalFile = event.dataTransfer.types.includes("Files")
   if (hasFile || hasExternalFile) {
     event.dataTransfer.dropEffect = "move"
@@ -1395,19 +1395,19 @@ async function handleNotebookDrop(event: DragEvent, notebookId: number) {
   if (!event.dataTransfer) return
 
   // Handle external file drop (upload)
-  if (event.dataTransfer.types.includes("Files") && !event.dataTransfer.types.includes("application/x-codex-file")) {
-    await handleFileUpload(event.dataTransfer, notebookId, "")
+  if (event.dataTransfer.types.includes("Files") && !event.dataTransfer.types.includes("application/x-codex-block")) {
+    await handleBlockUpload(event.dataTransfer, notebookId, "")
     return
   }
 
   // Handle internal file move to root
-  const data = event.dataTransfer.getData("application/x-codex-file")
+  const data = event.dataTransfer.getData("application/x-codex-block")
   if (!data) return
 
   try {
     const { blockId, filename, path } = JSON.parse(data)
     if (path !== filename) {
-      await handleMoveFile(blockId, filename)
+      await handleMoveBlock(blockId, filename)
     }
   } catch (e) {
     console.error("Failed to parse drag data:", e)
@@ -1486,12 +1486,12 @@ async function collectDroppedFiles(
 }
 
 // Handle file upload from drag-drop
-async function handleFileUpload(dataTransfer: DataTransfer, notebookId: number, folderPath: string) {
+async function handleBlockUpload(dataTransfer: DataTransfer, notebookId: number, pagePath: string) {
   const droppedFiles = await collectDroppedFiles(dataTransfer)
   for (const { file, relativePath } of droppedFiles) {
     try {
-      const targetPath = folderPath ? `${folderPath}/${relativePath}` : relativePath
-      await workspaceStore.uploadFile(notebookId, file, targetPath)
+      const targetPath = pagePath ? `${pagePath}/${relativePath}` : relativePath
+      await workspaceStore.uploadBlock(notebookId, file, targetPath)
       showToast({ message: `Uploaded ${relativePath}` })
     } catch (e) {
       console.error(`Failed to upload ${relativePath}:`, e)
@@ -1501,23 +1501,23 @@ async function handleFileUpload(dataTransfer: DataTransfer, notebookId: number, 
 }
 
 // Handle moving a file to a new path
-async function handleMoveFile(blockId: string, newPath: string) {
+async function handleMoveBlock(blockId: string, newPath: string) {
   const block = findBlockById(blockId)
   if (!block) return
 
   try {
-    await workspaceStore.moveFile(blockId, block.notebook_id, newPath)
-    showToast({ message: "File moved successfully" })
+    await workspaceStore.moveBlock(blockId, block.notebook_id, newPath)
+    showToast({ message: "Block moved successfully" })
   } catch (e) {
     console.error("Failed to move file:", e)
-    showToast({ message: "Failed to move file", type: "error" })
+    showToast({ message: "Failed to move block", type: "error" })
   }
 }
 
 function findBlockById(blockId: string): Block | undefined {
-  for (const files of workspaceStore.files.values()) {
-    const file = files.find((f) => f.block_id === blockId)
-    if (file) return file
+  for (const blocks of workspaceStore.allBlocks.values()) {
+    const block = blocks.find((b) => b.block_id === blockId)
+    if (block) return block
   }
   return undefined
 }
@@ -1542,7 +1542,7 @@ async function handleUpdateProperties(properties: Record<string, any>) {
         properties,
       )
     } else {
-      await workspaceStore.saveFile(
+      await workspaceStore.saveBlock(
         (workspaceStore.currentBlock as any).content || "",
         properties,
       )
@@ -1553,60 +1553,57 @@ async function handleUpdateProperties(properties: Record<string, any>) {
 }
 
 async function handleRestoreVersion(content: string) {
-  if (workspaceStore.currentFile) {
+  if (workspaceStore.currentLeafBlock) {
     try {
-      await workspaceStore.saveFile(content)
-      showToast({ message: "File restored to previous version" })
+      await workspaceStore.saveBlock(content)
+      showToast({ message: "Block restored to previous version" })
     } catch {
       showToast({ message: "Failed to restore file", type: "error" })
     }
   }
 }
 
-async function handleDeleteFile() {
+async function handleDeleteLeafBlock() {
   if (workspaceStore.currentBlock) {
     try {
-      await workspaceStore.deleteFile(workspaceStore.currentBlock.block_id)
+      await workspaceStore.deleteBlock(workspaceStore.currentBlock.notebook_id, workspaceStore.currentBlock.block_id)
       showPropertiesPanel.value = false
-      showToast({ message: "File deleted" })
+      showToast({ message: "Block deleted" })
     } catch {
       // Error handled in store
     }
   }
 }
 
-// Handle renaming a file by changing its filename while keeping the same directory
-async function handleRenameFile(newFilename: string) {
+async function handleRenameBlock(newName: string) {
   if (!workspaceStore.currentBlock) return
 
-  const currentFile = workspaceStore.currentBlock
-  const currentPath = currentFile.path
+  const block = workspaceStore.currentBlock
+  const currentPath = block.path
 
-  // Get the directory part of the current path
+  // Get the parent path
   const lastSlashIndex = currentPath.lastIndexOf("/")
   const directory = lastSlashIndex >= 0 ? currentPath.substring(0, lastSlashIndex + 1) : ""
 
-  // Construct the new path with the same directory but new filename
-  const newPath = directory + newFilename
+  const newPath = directory + newName
 
-  // Don't do anything if the path hasn't changed
   if (newPath === currentPath) return
 
   try {
-    await workspaceStore.moveFile(currentFile.block_id, currentFile.notebook_id, newPath)
-    showToast({ message: "File renamed successfully" })
+    await workspaceStore.moveBlock(block.block_id, block.notebook_id, newPath)
+    showToast({ message: "Block renamed successfully" })
   } catch (e) {
-    console.error("Failed to rename file:", e)
-    showToast({ message: "Failed to rename file", type: "error" })
+    console.error("Failed to rename block:", e)
+    showToast({ message: "Failed to rename block", type: "error" })
   }
 }
 
-async function handleDeleteFolder() {
+async function handleDeletePageBlock() {
   if (workspaceStore.currentBlock) {
     try {
-      await workspaceStore.deleteFolder()
+      await workspaceStore.deleteBlock(workspaceStore.currentBlock.notebook_id, workspaceStore.currentBlock.block_id)
       showPropertiesPanel.value = false
-      showToast({ message: "Folder deleted" })
+      showToast({ message: "Page deleted" })
     } catch {
       // Error handled in store
     }
@@ -1635,44 +1632,31 @@ async function handleCreateNotebook() {
   }
 }
 
-async function handleCreateFile() {
-  if (!createFileNotebook.value || !workspaceStore.currentWorkspace) return
+async function handleCreatePage() {
+  if (!createPageNotebook.value || !workspaceStore.currentWorkspace) return
 
   try {
-    const path = newFileName.value
+    const path = newPageName.value
     const hasExtension = /\.[^/.]+$/.test(path)
     const isSpecialFile = hasExtension && !path.endsWith(".md")
 
-    if (isSpecialFile) {
-      // Only create flat files for non-md extensions (.json, .py, .js, etc.)
-      let content: string
-      if (path.endsWith(".json")) {
-        content = "{\n  \n}"
-      } else {
-        content = ""
-      }
-      await workspaceStore.createFile(createFileNotebook.value.id, path, content)
-    } else {
-      // Default: create a page (works with or without .md suffix)
-      const title = path.replace(/\.md$/, "")
-      const notebookId = createFileNotebook.value.id
-      await workspaceStore.createPage(notebookId, title)
-      showToast({ message: "Page created!" })
-    }
+    const title = isSpecialFile ? path : path.replace(/\.md$/, "")
+    await workspaceStore.createPage(createPageNotebook.value.id, title)
+    showToast({ message: "Page created!" })
 
-    showCreateFile.value = false
-    newFileName.value = ""
-    createFileNotebook.value = null
+    showCreatePage.value = false
+    newPageName.value = ""
+    createPageNotebook.value = null
   } catch {
     // Error handled in store
   }
 }
 
 
-function startCreateFile(notebook: Notebook) {
-  createFileNotebook.value = notebook
-  newFileName.value = ""
-  showCreateFile.value = true
+function startCreatePage(notebook: Notebook) {
+  createPageNotebook.value = notebook
+  newPageName.value = ""
+  showCreatePage.value = true
 }
 
 // Search functionality
@@ -1684,19 +1668,19 @@ async function handleSearch() {
 
   isSearching.value = true
   try {
-    // First, do a local search through all loaded files
+    // First, do a local search through all loaded blocks
     const query = searchQuery.value.toLowerCase()
     const localResults: Block[] = []
 
-    for (const [_notebookId, files] of workspaceStore.files) {
-      for (const file of files) {
-        const fname = file.filename || file.path.split("/").pop() || ""
+    for (const [_notebookId, blocks] of workspaceStore.allBlocks) {
+      for (const block of blocks) {
+        const fname = block.filename || block.path.split("/").pop() || ""
         if (
           fname.toLowerCase().includes(query) ||
-          file.title?.toLowerCase().includes(query) ||
-          file.path.toLowerCase().includes(query)
+          block.title?.toLowerCase().includes(query) ||
+          block.path.toLowerCase().includes(query)
         ) {
-          localResults.push(file)
+          localResults.push(block)
         }
       }
     }
@@ -1726,31 +1710,31 @@ async function handleSearch() {
   }
 }
 
-function selectSearchResult(file: Block) {
-  // Switch back to files tab and select the file
+function selectSearchResult(block: Block) {
+  // Switch back to browse tab and select the block
   sidebarTab.value = "files"
-  selectFile(file)
+  selectLeafBlock(block)
 
-  // Expand the notebook containing the file
-  const notebook = workspaceStore.notebooks.find((n) => n.id === file.notebook_id)
+  // Expand the notebook containing the block
+  const notebook = workspaceStore.notebooks.find((n) => n.id === block.notebook_id)
   if (notebook && !workspaceStore.expandedNotebooks.has(notebook.id)) {
     workspaceStore.toggleNotebookExpansion(notebook)
   }
 
-  // Expand parent folders if the file is in a folder
-  if (file.path.includes("/")) {
-    const pathParts = file.path.split("/")
-    pathParts.pop() // Remove filename
+  // Expand parent pages if the block is nested
+  if (block.path.includes("/")) {
+    const pathParts = block.path.split("/")
+    pathParts.pop() // Remove leaf name
 
-    if (!expandedFolders.value.has(file.notebook_id)) {
-      expandedFolders.value.set(file.notebook_id, new Set())
+    if (!expandedPages.value.has(block.notebook_id)) {
+      expandedPages.value.set(block.notebook_id, new Set())
     }
 
-    // Expand each parent folder
+    // Expand each parent page
     let currentPath = ""
     for (const part of pathParts) {
       currentPath = currentPath ? `${currentPath}/${part}` : part
-      expandedFolders.value.get(file.notebook_id)!.add(currentPath)
+      expandedPages.value.get(block.notebook_id)!.add(currentPath)
     }
   }
 }
@@ -1807,30 +1791,30 @@ function handleOpenAgentChat(agent: Agent) {
   background: color-mix(in srgb, var(--notebook-text) var(--active-opacity), transparent);
 }
 
-/* Folder items */
-.folder-item {
+/* Page items */
+.page-item {
   color: var(--pen-gray);
 }
 
-.folder-item:hover:not(.folder-active) {
+.page-item:hover:not(.page-active) {
   background: color-mix(in srgb, var(--notebook-text) var(--subtle-hover-opacity), transparent);
 }
 
-.folder-active {
+.page-active {
   background: color-mix(in srgb, var(--notebook-accent) var(--selected-opacity), transparent);
   color: var(--notebook-accent);
 }
 
-/* File items */
-.file-item {
+/* Leaf block items */
+.leaf-item {
   color: var(--pen-gray);
 }
 
-.file-item:hover:not(.file-active) {
+.leaf-item:hover:not(.leaf-active) {
   background: color-mix(in srgb, var(--notebook-text) var(--subtle-hover-opacity), transparent);
 }
 
-.file-active {
+.leaf-active {
   background: color-mix(in srgb, var(--notebook-accent) var(--selected-opacity), transparent);
   color: var(--notebook-accent);
 }

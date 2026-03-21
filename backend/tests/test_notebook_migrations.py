@@ -135,8 +135,11 @@ class TestNotebookMigrations:
         from alembic.script import ScriptDirectory
 
         # Determine expected head revision from the migration scripts on disk
-        ini_path = os.path.join(os.path.dirname(__file__), "..", "alembic.ini")
-        cfg = Config(os.path.abspath(ini_path), ini_section="alembic:notebook")
+        ini_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "alembic.ini"))
+        cfg = Config(ini_path, ini_section="alembic:notebook")
+        # Set script_location to an absolute path so it works regardless of CWD
+        backend_dir = os.path.dirname(ini_path)
+        cfg.set_main_option("script_location", os.path.join(backend_dir, "codex", "migrations", "notebook"))
         expected_head = ScriptDirectory.from_config(cfg).get_current_head()
 
         notebook_path = tmp_path / "test_notebook"

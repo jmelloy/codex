@@ -172,7 +172,7 @@ async def test_opengraph_io_api_call():
             async def mock_get(*args, **kwargs):
                 return mock_response
 
-            async def mock_raise_for_status():
+            def mock_raise_for_status():
                 pass
 
             mock_response.raise_for_status = mock_raise_for_status

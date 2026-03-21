@@ -216,8 +216,7 @@ All API routes are prefixed with `/api/v1/`:
 - `/api/v1/users/me` - Current user profile
 - `/api/v1/workspaces/` - Workspace CRUD
 - `/api/v1/notebooks/` - Notebook CRUD
-- `/api/v1/files/` - File operations
-- `/api/v1/folders/` - Folder operations and metadata
+- `/api/v1/blocks/` - Block CRUD (unified files, pages, folders)
 - `/api/v1/search/` - Full-text search
 - `/api/v1/tasks/` - Task queue for agents
 - `/api/v1/query/` - Advanced query interface

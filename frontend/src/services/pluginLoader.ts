@@ -11,6 +11,35 @@
 
 import { defineAsyncComponent, h, type Component } from "vue"
 
+// ---------------------------------------------------------------------------
+// Built-in dynamic block types (bundled with frontend, no plugin build needed)
+// ---------------------------------------------------------------------------
+const builtinBlockTypes: Map<
+  string,
+  { pluginId: string; pluginName: string; icon?: string; description?: string; loader: () => Promise<any> }
+> = new Map([
+  [
+    "api",
+    {
+      pluginId: "api-fetch",
+      pluginName: "API Fetch",
+      icon: "\u{1F310}",
+      description: "Fetch and display data from any REST API endpoint",
+      loader: () => import("../components/blocks/ApiBlock.vue"),
+    },
+  ],
+  [
+    "database",
+    {
+      pluginId: "database-query",
+      pluginName: "Database Query",
+      icon: "\u{1F5C4}",
+      description: "Query the notebook database and display results",
+      loader: () => import("../components/blocks/DatabaseBlock.vue"),
+    },
+  ],
+])
+
 // Component info within a plugin (from plugins.json)
 export interface ComponentInfo {
   blockId: string
@@ -196,6 +225,21 @@ const LoadingComponent: Component = {
  * @returns A Vue component (async) that renders the block
  */
 export function loadPluginComponent(blockType: string): Component {
+  // Check built-in block types first (no network loading needed)
+  const builtin = builtinBlockTypes.get(blockType)
+  if (builtin) {
+    return defineAsyncComponent({
+      loader: async () => {
+        const module = await builtin.loader()
+        return module.default || module
+      },
+      errorComponent: createFallbackComponent(blockType, "Failed to load component"),
+      loadingComponent: LoadingComponent,
+      delay: 200,
+      timeout: 10000,
+    })
+  }
+
   return defineAsyncComponent({
     loader: async () => {
       const componentsMap = await getComponentsMap()
@@ -240,19 +284,34 @@ export async function getAvailableBlockTypes(): Promise<
 > {
   const componentsMap = await getComponentsMap()
 
-  return Array.from(componentsMap.values()).map((entry) => ({
-    blockType: entry.blockId,
+  // Start with built-in block types
+  const result = Array.from(builtinBlockTypes.entries()).map(([blockType, entry]) => ({
+    blockType,
     pluginId: entry.pluginId,
     pluginName: entry.pluginName,
     icon: entry.icon,
     description: entry.description,
   }))
+
+  // Add plugin-loaded block types
+  for (const entry of componentsMap.values()) {
+    result.push({
+      blockType: entry.blockId,
+      pluginId: entry.pluginId,
+      pluginName: entry.pluginName,
+      icon: entry.icon,
+      description: entry.description,
+    })
+  }
+
+  return result
 }
 
 /**
  * Check if a block type is available
  */
 export async function isBlockTypeAvailable(blockType: string): Promise<boolean> {
+  if (builtinBlockTypes.has(blockType)) return true
   const componentsMap = await getComponentsMap()
   return componentsMap.has(blockType)
 }

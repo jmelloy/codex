@@ -256,10 +256,97 @@ async def _update_integration_config(
     return IntegrationConfigResponse(plugin_id=integration_id, config=config.config)
 
 
+async def _execute_database_query(
+    request_data: IntegrationExecuteRequest,
+    notebook_path: str | None,
+    config: dict[str, Any],
+) -> IntegrationExecuteResponse:
+    """Execute a read-only SQL query against a notebook SQLite database.
+
+    Only SELECT statements are allowed. The query runs against the notebook's
+    own SQLite database (.codex/notebook.db).
+    """
+    import re
+    import sqlite3
+
+    query = (request_data.parameters or {}).get("query", "").strip()
+    if not query:
+        return IntegrationExecuteResponse(success=False, data=None, error="Missing required parameter: query")
+
+    # Security: only allow SELECT statements
+    normalized = re.sub(r"--.*$", "", query, flags=re.MULTILINE)  # strip comments
+    normalized = re.sub(r"/\*.*?\*/", "", normalized, flags=re.DOTALL)  # strip block comments
+    normalized = normalized.strip().upper()
+    if not normalized.startswith("SELECT") and not normalized.startswith("WITH"):
+        return IntegrationExecuteResponse(
+            success=False, data=None, error="Only SELECT queries are allowed"
+        )
+
+    # Block dangerous keywords that could appear in CTEs or subqueries
+    dangerous = re.search(
+        r"\b(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|ATTACH|DETACH|PRAGMA\s+(?!table_info|database_list))\b",
+        query,
+        re.IGNORECASE,
+    )
+    if dangerous:
+        return IntegrationExecuteResponse(
+            success=False, data=None, error=f"Forbidden SQL keyword: {dangerous.group(0)}"
+        )
+
+    if not notebook_path:
+        return IntegrationExecuteResponse(
+            success=False, data=None, error="Notebook context required for database queries"
+        )
+
+    db_path = Path(notebook_path) / ".codex" / "notebook.db"
+    if not db_path.exists():
+        return IntegrationExecuteResponse(success=False, data=None, error="Notebook database not found")
+
+    max_rows = min(int(config.get("max_rows", 100)), 1000)
+    limit_override = (request_data.parameters or {}).get("limit")
+    if limit_override:
+        max_rows = min(int(limit_override), max_rows)
+
+    try:
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute(query)
+        rows = cursor.fetchmany(max_rows)
+        columns = [desc[0] for desc in cursor.description] if cursor.description else []
+        data = [dict(row) for row in rows]
+        total = len(data)
+        conn.close()
+
+        return IntegrationExecuteResponse(
+            success=True,
+            data={"columns": columns, "rows": data, "total": total, "truncated": total >= max_rows},
+            error=None,
+        )
+    except sqlite3.Error as e:
+        return IntegrationExecuteResponse(success=False, data=None, error=f"SQL error: {e}")
+    except Exception as e:
+        logger.error(f"Database query error: {e}")
+        return IntegrationExecuteResponse(success=False, data=None, error=f"Query failed: {e}")
+
+
 async def _execute_integration(
-    integration_id: str, workspace_id: int, request_data: IntegrationExecuteRequest, session: AsyncSession
+    integration_id: str, workspace_id: int, request_data: IntegrationExecuteRequest, session: AsyncSession,
+    notebook_path: str | None = None,
 ) -> IntegrationExecuteResponse:
     """Core logic: execute an integration endpoint with artifact caching."""
+    # Special handling for database-query integration (needs direct DB access)
+    if integration_id == "database-query":
+        config_stmt = select(PluginConfig).where(
+            PluginConfig.workspace_id == workspace_id,
+            PluginConfig.plugin_id == integration_id,
+        )
+        config_result = await session.execute(config_stmt)
+        configuration = config_result.scalar_one_or_none()
+        return await _execute_database_query(
+            request_data, notebook_path, configuration.config if configuration else {}
+        )
+
     integration = await PluginRegistry.get_plugin(session, integration_id)
 
     if not integration or not integration.has_integration():
@@ -483,23 +570,36 @@ async def execute_integration_endpoint(
     integration_id: str,
     workspace_id: int,
     request_data: IntegrationExecuteRequest,
+    notebook_id: int | None = None,
     session: AsyncSession = Depends(get_system_session),
     current_user: User = Depends(get_current_user),
 ):
     """Execute an integration endpoint with artifact caching."""
-    # Validate workspace config exists
-    stmt = select(PluginConfig).where(
-        PluginConfig.workspace_id == workspace_id,
-        PluginConfig.plugin_id == integration_id,
-    )
-    result = await session.execute(stmt)
-    if not result.scalar_one_or_none():
-        raise HTTPException(
-            status_code=400,
-            detail="Integration not configured for this workspace",
-        )
+    from codex.db.models import Notebook
 
-    return await _execute_integration(integration_id, workspace_id, request_data, session)
+    # Validate workspace config exists (skip for built-in integrations that need no config)
+    if integration_id not in ("database-query", "api-fetch"):
+        stmt = select(PluginConfig).where(
+            PluginConfig.workspace_id == workspace_id,
+            PluginConfig.plugin_id == integration_id,
+        )
+        result = await session.execute(stmt)
+        if not result.scalar_one_or_none():
+            raise HTTPException(
+                status_code=400,
+                detail="Integration not configured for this workspace",
+            )
+
+    # Resolve notebook path if notebook_id is provided
+    notebook_path = None
+    if notebook_id:
+        stmt = select(Notebook).where(Notebook.id == notebook_id, Notebook.workspace_id == workspace_id)
+        result = await session.execute(stmt)
+        notebook = result.scalar_one_or_none()
+        if notebook:
+            notebook_path = notebook.path
+
+    return await _execute_integration(integration_id, workspace_id, request_data, session, notebook_path)
 
 
 @router.get("/{integration_id}/blocks")
@@ -614,6 +714,8 @@ async def execute_integration_endpoint_nested(
     from codex.api.routes.workspaces import get_workspace_by_slug_or_id
 
     workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
-    await get_notebook_by_slug_or_id(notebook_identifier, workspace, session)
+    notebook = await get_notebook_by_slug_or_id(notebook_identifier, workspace, session)
 
-    return await _execute_integration(integration_id, workspace.id, request_data, session)
+    return await _execute_integration(
+        integration_id, workspace.id, request_data, session, notebook_path=notebook.path
+    )

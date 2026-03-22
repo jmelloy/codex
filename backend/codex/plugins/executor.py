@@ -90,6 +90,10 @@ class IntegrationExecutor:
         if hasattr(integration, "id") and integration.id == "opengraph-unfurl":
             return await self._execute_opengraph(endpoint, config, parameters)
 
+        # Special handling for api-fetch integration (generic HTTP fetch)
+        if hasattr(integration, "id") and integration.id == "api-fetch":
+            return await self._execute_api_fetch(endpoint, config, parameters)
+
         # Build request parameters
         request_params = self._build_parameters(endpoint, config, parameters)
 
@@ -147,6 +151,82 @@ class IntegrationExecutor:
         metadata = await self.opengraph_scraper.scrape_url(url)
 
         return ExecutionResult(data=metadata, content_type="application/json")
+
+    async def _execute_api_fetch(
+        self,
+        endpoint: dict[str, Any],
+        config: dict[str, Any],
+        parameters: dict[str, Any],
+    ) -> ExecutionResult:
+        """Execute a generic HTTP fetch request.
+
+        The api-fetch integration acts as a server-side proxy, making HTTP
+        requests on behalf of the user and returning the response.
+
+        Args:
+            endpoint: Endpoint definition
+            config: Integration configuration (default_headers, allowed_domains, timeout)
+            parameters: Request parameters (url, method, headers, body)
+
+        Returns:
+            ExecutionResult with response data
+
+        Raises:
+            ValueError: If URL is missing or domain not allowed
+        """
+        from urllib.parse import urlparse
+
+        url = parameters.get("url")
+        if not url:
+            raise ValueError("Missing required parameter: url")
+
+        # Validate domain against allowlist
+        allowed_domains = config.get("allowed_domains", "")
+        if allowed_domains:
+            allowed = [d.strip().lower() for d in allowed_domains.split(",") if d.strip()]
+            parsed = urlparse(url)
+            hostname = (parsed.hostname or "").lower()
+            if allowed and hostname not in allowed:
+                raise ValueError(f"Domain not allowed: {hostname}. Allowed: {', '.join(allowed)}")
+
+        method = parameters.get("method", "GET").upper()
+        if method not in ("GET", "POST", "PUT", "DELETE"):
+            raise ValueError(f"Unsupported HTTP method: {method}")
+
+        # Merge default headers with request-specific headers
+        headers = {"User-Agent": "Codex API Fetch/1.0", "Accept": "*/*"}
+        default_headers_str = config.get("default_headers", "{}")
+        try:
+            import json
+
+            default_headers = json.loads(default_headers_str) if isinstance(default_headers_str, str) else {}
+            headers.update(default_headers)
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+        request_headers = parameters.get("headers")
+        if isinstance(request_headers, dict):
+            headers.update(request_headers)
+
+        body = parameters.get("body")
+        timeout = int(config.get("timeout", 30))
+
+        logger.info(f"API fetch: {method} {url}")
+
+        async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
+            if method == "GET":
+                response = await client.get(url, headers=headers)
+            elif method == "POST":
+                response = await client.post(url, headers=headers, content=body)
+            elif method == "PUT":
+                response = await client.put(url, headers=headers, content=body)
+            elif method == "DELETE":
+                response = await client.delete(url, headers=headers)
+            else:
+                raise ValueError(f"Unsupported HTTP method: {method}")
+
+            response.raise_for_status()
+            return self._parse_response(response)
 
     async def test_connection(
         self,

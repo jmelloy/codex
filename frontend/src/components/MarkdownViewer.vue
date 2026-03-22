@@ -232,14 +232,32 @@ const parseCustomBlocks = async (html: string): Promise<{ html: string; blocks: 
       // This is a custom block
       const content = codeBlock.textContent || ""
 
-      // Try to parse as YAML config
+      // Try to parse as YAML config (supports nested key: value for one level)
       let config: Record<string, any> = {}
       try {
-        // Simple YAML parser for key: value pairs
+        let currentParent: string | null = null
         content.split("\n").forEach((line) => {
-          const match = line.match(/^(\w+):\s*(.+)$/)
+          // Indented line (child of current parent)
+          const indentedMatch = line.match(/^[ \t]+([\w-]+):\s*(.+)$/)
+          if (indentedMatch && indentedMatch[1] && indentedMatch[2] && currentParent) {
+            if (typeof config[currentParent] !== "object" || config[currentParent] === null) {
+              config[currentParent] = {}
+            }
+            config[currentParent][indentedMatch[1]] = indentedMatch[2].trim()
+            return
+          }
+          // Top-level key with value
+          const match = line.match(/^([\w-]+):\s*(.+)$/)
           if (match && match[1] && match[2]) {
             config[match[1]] = match[2].trim()
+            currentParent = null
+            return
+          }
+          // Top-level key without value (parent for nested keys)
+          const parentMatch = line.match(/^([\w-]+):\s*$/)
+          if (parentMatch && parentMatch[1]) {
+            currentParent = parentMatch[1]
+            config[currentParent] = {}
           }
         })
       } catch (e) {

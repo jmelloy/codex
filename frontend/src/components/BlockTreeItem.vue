@@ -25,10 +25,10 @@
       <span class="overflow-hidden text-ellipsis whitespace-nowrap">{{ node.pageMeta?.title || node.name }}</span>
     </div>
 
-    <!-- Page contents -->
+    <!-- Page contents (only show sub-pages, not leaf blocks) -->
     <ul v-if="isPageExpanded && node.children" class="list-none p-0 m-0">
       <BlockTreeItem
-        v-for="child in node.children"
+        v-for="child in node.children.filter(c => c.type === 'page')"
         :key="child.path"
         :node="child"
         :notebook-id="notebookId"
@@ -45,33 +45,13 @@
     </ul>
   </li>
 
-  <!-- Leaf block -->
-  <li v-else>
-    <div
-      :class="[
-        'flex items-center py-2 cursor-grab text-[13px] text-text-secondary transition hover:bg-bg-hover',
-        { 'bg-bg-active text-primary font-medium': currentBlockId === node.leafBlock?.id },
-        { 'opacity-50': isDragging },
-      ]"
-      :style="{ paddingLeft: `${(depth + 1) * 16 + 32}px` }"
-      draggable="true"
-      @click="node.leafBlock && emit('selectBlock', node.leafBlock)"
-      @dragstart="handleDragStart"
-      @dragend="handleDragEnd"
-    >
-      <span class="mr-2 text-sm">{{ getBlockIcon(node.leafBlock) }}</span>
-      <span class="overflow-hidden text-ellipsis whitespace-nowrap">{{
-        node.leafBlock?.title || node.name
-      }}</span>
-    </div>
-  </li>
+  <!-- Leaf blocks are not shown in the sidebar -->
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from "vue"
 import type { BlockTreeNode } from "../utils/blockTree"
 import type { Block } from "../services/codex"
-import { getDisplayType } from "../utils/contentType"
 
 interface Props {
   node: BlockTreeNode
@@ -92,7 +72,6 @@ const emit = defineEmits<{
   moveBlock: [blockId: string, targetPath: string]
 }>()
 
-const isDragging = ref(false)
 const isDragOver = ref(false)
 
 const isPageExpanded = computed(() => {
@@ -134,26 +113,6 @@ const handlePageClick = async () => {
   }
 }
 
-// Drag handlers for leaf blocks
-const handleDragStart = (event: DragEvent) => {
-  if (!props.node.leafBlock || !event.dataTransfer) return
-  isDragging.value = true
-  event.dataTransfer.effectAllowed = "move"
-  event.dataTransfer.setData(
-    "application/x-codex-block",
-    JSON.stringify({
-      blockId: props.node.leafBlock.block_id,
-      notebookId: props.notebookId,
-      filename: props.node.leafBlock.filename || props.node.leafBlock.path.split("/").pop() || props.node.leafBlock.path,
-      path: props.node.leafBlock.path,
-    })
-  )
-}
-
-const handleDragEnd = () => {
-  isDragging.value = false
-}
-
 // Drag handlers for pages (drop targets)
 const handleDragOver = (event: DragEvent) => {
   if (!event.dataTransfer) return
@@ -189,35 +148,4 @@ const handleDrop = (event: DragEvent) => {
   }
 }
 
-const getBlockIcon = (block: Block | undefined): string => {
-  if (!block) return "📄"
-
-  const displayType = getDisplayType(block.content_type || "")
-
-  switch (displayType) {
-    case "markdown":
-      return "📝"
-    case "json":
-      return "📋"
-    case "xml":
-      return "🏷️"
-    case "image":
-      return "🖼️"
-    case "pdf":
-      return "📕"
-    case "audio":
-      return "🎵"
-    case "video":
-      return "🎬"
-    case "html":
-      return "🌐"
-    case "text":
-    case "code":
-      return "📄"
-    case "binary":
-      return "📦"
-    default:
-      return "📄"
-  }
-}
 </script>

@@ -1,0 +1,126 @@
+# Integration Metadata
+id: api-fetch
+name: API Fetch
+version: 1.0.0
+author: Codex Team
+description: Generic REST API block for fetching and displaying data from any HTTP endpoint
+license: MIT
+
+# Integration Type
+type: integration
+
+# Codex Compatibility
+codex_version: ">=1.0.0"
+api_version: 1
+
+# Integration Configuration
+integration:
+  api_type: rest
+  auth_method: none
+  test_endpoint: fetch
+
+# Configuration Properties
+properties:
+  - name: default_headers
+    type: string
+    description: Default HTTP headers as JSON (applied to all requests)
+    required: false
+    default: "{}"
+    ui:
+      type: textarea
+      label: Default Headers (JSON)
+      help: "JSON object of headers to include with every request"
+
+  - name: allowed_domains
+    type: string
+    description: Comma-separated list of allowed domains (empty = allow all)
+    required: false
+    default: ""
+    ui:
+      type: text
+      label: Allowed Domains
+      placeholder: "api.example.com, data.gov"
+      help: "Leave empty to allow all domains. Comma-separated list of allowed hostnames."
+
+  - name: timeout
+    type: integer
+    description: Request timeout in seconds
+    required: false
+    default: 30
+    ui:
+      type: number
+      label: Timeout (seconds)
+
+# API Endpoints
+endpoints:
+  - id: fetch
+    name: Fetch URL
+    method: GET
+    description: Make an HTTP request to any URL and return the response
+    parameters:
+      - name: url
+        type: string
+        description: The URL to fetch
+        required: true
+      - name: method
+        type: string
+        description: HTTP method (GET, POST, PUT, DELETE)
+        required: false
+        default: GET
+      - name: headers
+        type: object
+        description: Additional HTTP headers
+        required: false
+      - name: body
+        type: string
+        description: Request body (for POST/PUT)
+        required: false
+
+# Block Types
+blocks:
+  - id: api
+    name: API Block
+    description: Fetch and display data from any REST API endpoint
+    icon: "\U0001F310"
+    syntax: |
+      ```api
+      url: https://api.example.com/data
+      method: GET
+      display: json
+      ```
+    config_schema:
+      url:
+        type: string
+        description: URL to fetch
+        required: true
+      method:
+        type: string
+        description: HTTP method
+        required: false
+        default: GET
+        enum: [GET, POST, PUT, DELETE]
+      headers:
+        type: object
+        description: HTTP headers
+        required: false
+      body:
+        type: string
+        description: Request body
+        required: false
+      display:
+        type: string
+        description: Display format (json, table, text)
+        required: false
+        default: json
+        enum: [json, table, text]
+      refresh:
+        type: integer
+        description: Auto-refresh interval in seconds (0 = disabled)
+        required: false
+        default: 0
+
+# Permissions
+permissions:
+  - network_request
+  - store_config
+  - render_blocks

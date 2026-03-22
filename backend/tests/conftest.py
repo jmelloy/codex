@@ -129,6 +129,97 @@ TEST_PLUGINS = [
             "blocks": [],
         },
     },
+    {
+        "plugin_id": "api-fetch",
+        "name": "API Fetch",
+        "version": "1.0.0",
+        "type": "integration",
+        "manifest": {
+            "id": "api-fetch",
+            "name": "API Fetch",
+            "version": "1.0.0",
+            "type": "integration",
+            "description": "Generic REST API block for fetching and displaying data from any HTTP endpoint",
+            "author": "Codex Team",
+            "integration": {
+                "api_type": "rest",
+                "auth_method": "none",
+                "test_endpoint": "fetch",
+            },
+            "properties": [
+                {"name": "default_headers", "type": "string", "required": False, "default": "{}"},
+                {"name": "allowed_domains", "type": "string", "required": False, "default": ""},
+                {"name": "timeout", "type": "integer", "required": False, "default": 30},
+            ],
+            "endpoints": [
+                {
+                    "id": "fetch",
+                    "name": "Fetch URL",
+                    "method": "GET",
+                    "description": "Make an HTTP request to any URL",
+                    "parameters": [
+                        {"name": "url", "type": "string", "required": True},
+                        {"name": "method", "type": "string", "required": False, "default": "GET"},
+                        {"name": "headers", "type": "object", "required": False},
+                        {"name": "body", "type": "string", "required": False},
+                    ],
+                },
+            ],
+            "blocks": [
+                {
+                    "id": "api",
+                    "name": "API Block",
+                    "description": "Fetch and display data from any REST API endpoint",
+                    "icon": "\U0001F310",
+                    "syntax": "```api\nurl: https://api.example.com/data\nmethod: GET\ndisplay: json\n```",
+                },
+            ],
+        },
+    },
+    {
+        "plugin_id": "database-query",
+        "name": "Database Query",
+        "version": "1.0.0",
+        "type": "integration",
+        "manifest": {
+            "id": "database-query",
+            "name": "Database Query",
+            "version": "1.0.0",
+            "type": "integration",
+            "description": "Query the notebook SQLite database and display results as tables",
+            "author": "Codex Team",
+            "integration": {
+                "api_type": "rest",
+                "auth_method": "none",
+                "test_endpoint": "query",
+            },
+            "properties": [
+                {"name": "max_rows", "type": "integer", "required": False, "default": 100},
+            ],
+            "endpoints": [
+                {
+                    "id": "query",
+                    "name": "Execute Query",
+                    "method": "POST",
+                    "description": "Execute a read-only SQL query against the notebook database",
+                    "parameters": [
+                        {"name": "query", "type": "string", "required": True},
+                        {"name": "source", "type": "string", "required": False, "default": "notebook"},
+                        {"name": "notebook_id", "type": "integer", "required": False},
+                    ],
+                },
+            ],
+            "blocks": [
+                {
+                    "id": "database",
+                    "name": "Database Block",
+                    "description": "Query the notebook database and display results",
+                    "icon": "\U0001F5C4",
+                    "syntax": "```database\nsource: notebook\nquery: SELECT title, block_type FROM blocks LIMIT 10\n```",
+                },
+            ],
+        },
+    },
 ]
 
 

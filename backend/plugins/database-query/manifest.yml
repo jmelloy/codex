@@ -1,0 +1,101 @@
+# Integration Metadata
+id: database-query
+name: Database Query
+version: 1.0.0
+author: Codex Team
+description: Query the notebook SQLite database and display results as tables
+license: MIT
+
+# Integration Type
+type: integration
+
+# Codex Compatibility
+codex_version: ">=1.0.0"
+api_version: 1
+
+# Integration Configuration
+integration:
+  api_type: rest
+  auth_method: none
+  test_endpoint: query
+
+# Configuration Properties
+properties:
+  - name: max_rows
+    type: integer
+    description: Maximum number of rows to return
+    required: false
+    default: 100
+    ui:
+      type: number
+      label: Max Rows
+      help: Maximum number of rows returned per query (1-1000)
+
+  - name: allow_system_db
+    type: boolean
+    description: Allow querying the system database (admin only)
+    required: false
+    default: false
+    ui:
+      type: checkbox
+      label: Allow System DB Access
+
+# API Endpoints
+endpoints:
+  - id: query
+    name: Execute Query
+    method: POST
+    description: Execute a read-only SQL query against the notebook database
+    parameters:
+      - name: query
+        type: string
+        description: SQL SELECT query to execute
+        required: true
+      - name: source
+        type: string
+        description: "Database source: notebook (default)"
+        required: false
+        default: notebook
+      - name: notebook_id
+        type: integer
+        description: Notebook ID (required for notebook source)
+        required: false
+
+# Block Types
+blocks:
+  - id: database
+    name: Database Block
+    description: Query the notebook database and display results
+    icon: "\U0001F5C4"
+    syntax: |
+      ```database
+      source: notebook
+      query: SELECT title, block_type FROM blocks LIMIT 10
+      display: table
+      ```
+    config_schema:
+      query:
+        type: string
+        description: SQL SELECT query
+        required: true
+      source:
+        type: string
+        description: "Database source: notebook"
+        required: false
+        default: notebook
+        enum: [notebook]
+      display:
+        type: string
+        description: Display format (table, json)
+        required: false
+        default: table
+        enum: [table, json]
+      limit:
+        type: integer
+        description: Override LIMIT clause (max rows to return)
+        required: false
+
+# Permissions
+permissions:
+  - database_read
+  - render_blocks

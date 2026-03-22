@@ -301,7 +301,7 @@
               >
                 <template v-if="notebookBlockTrees.get(notebook.id)?.length">
                   <template v-for="node in notebookBlockTrees.get(notebook.id)" :key="node.path">
-                    <!-- Render folder or file -->
+                    <!-- Only render pages in the sidebar, not leaf blocks -->
                     <li v-if="node.type === 'page'">
                       <!-- Folder -->
                       <div
@@ -360,26 +360,7 @@
                       </ul>
                     </li>
 
-                    <!-- Root level file -->
-                    <li v-else>
-                      <div
-                        :class="[
-                          'leaf-item flex items-center py-2 px-4 pl-8 cursor-grab text-[13px] transition',
-                          {
-                            'leaf-active font-medium':
-                              workspaceStore.currentLeafBlock?.id === node.leafBlock?.id,
-                          },
-                        ]"
-                        draggable="true"
-                        @click="node.leafBlock && selectLeafBlock(node.leafBlock)"
-                        @dragstart="handleBlockDragStart($event, node.leafBlock!, notebook.id)"
-                      >
-                        <span class="mr-2 text-sm">{{ getBlockIcon(node.leafBlock) }}</span>
-                        <span class="overflow-hidden text-ellipsis whitespace-nowrap">{{
-                          node.leafBlock?.title || node.name
-                        }}</span>
-                      </div>
-                    </li>
+                    <!-- Root level blocks are hidden from sidebar -->
                   </template>
                 </template>
                 <li
@@ -1314,21 +1295,6 @@ function selectLeafBlock(block: Block) {
   if (newUrl !== "/" && route.path !== newUrl) {
     router.push(newUrl)
   }
-}
-
-// Drag-drop handlers for files within the sidebar
-function handleBlockDragStart(event: DragEvent, file: Block, notebookId: number) {
-  if (!event.dataTransfer) return
-  event.dataTransfer.effectAllowed = "move"
-  event.dataTransfer.setData(
-    "application/x-codex-block",
-    JSON.stringify({
-      blockId: file.block_id,
-      notebookId: notebookId,
-      filename: file.filename || file.path.split("/").pop() || file.path,
-      path: file.path,
-    }),
-  )
 }
 
 // Folder drag-over handlers

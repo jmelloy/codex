@@ -27,6 +27,30 @@ test.describe("API: Workspaces", () => {
     headers = { Authorization: `Bearer ${token}` };
   });
 
+  test.afterAll(async ({ request }) => {
+    // Clean up all workspaces created for this user, including the default one.
+    try {
+      const listResp = await request.get(`${BASE}/api/v1/workspaces/`, {
+        headers,
+      });
+      if (listResp.ok()) {
+        const workspaces = await listResp.json();
+        if (Array.isArray(workspaces)) {
+          for (const ws of workspaces) {
+            if (ws && typeof ws.id !== "undefined") {
+              await request.delete(
+                `${BASE}/api/v1/workspaces/${ws.id}`,
+                { headers }
+              );
+            }
+          }
+        }
+      }
+    } finally {
+      // Best-effort user cleanup after workspaces have been deleted.
+      await request.delete(`${BASE}/api/v1/users/me`, { headers });
+    }
+  });
   test("create a workspace", async ({ request }) => {
     const resp = await request.post(`${BASE}/api/v1/workspaces/`, {
       headers,

@@ -40,7 +40,7 @@ export default defineConfig({
     // All other tests run in parallel with shared auth
     {
       name: "chromium",
-      testMatch: /0[3-9]-.*\.spec\.ts/,
+      testMatch: /(?:0[3-9]|[1-9]\d)-.*\.spec\.ts/,
       use: {
         ...devices["Desktop Chrome"],
         storageState: STORAGE_STATE,

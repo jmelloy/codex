@@ -43,7 +43,47 @@ test.describe("API: Blocks & Pages", () => {
   });
 
   test.afterAll(async ({ request }) => {
-    await request.delete(`${BASE}/api/v1/workspaces/${ws.id}`, { headers });
+    // Best-effort cleanup of all workspaces and the test user created for this suite.
+    if (!token) {
+      return;
+    }
+
+    try {
+      // Fetch all workspaces for this user.
+      const listResp = await request.get(`${BASE}/api/v1/workspaces/`, {
+        headers,
+      });
+
+      if (listResp.ok()) {
+        const workspaces = await listResp.json();
+
+        if (Array.isArray(workspaces)) {
+          for (const workspace of workspaces) {
+            if (workspace && workspace.id) {
+              await request.delete(
+                `${BASE}/api/v1/workspaces/${workspace.id}`,
+                { headers }
+              );
+            }
+          }
+        }
+      }
+
+      // After attempting to delete all workspaces, check if any remain for this user.
+      const remainingResp = await request.get(`${BASE}/api/v1/workspaces/`, {
+        headers,
+      });
+
+      if (remainingResp.ok()) {
+        const remaining = await remainingResp.json();
+        if (Array.isArray(remaining) && remaining.length === 0) {
+          // No workspaces remain; safe to delete the user account.
+          await request.delete(`${BASE}/api/v1/users/me`, { headers });
+        }
+      }
+    } catch {
+      // Ignore teardown errors to avoid masking test failures.
+    }
   });
 
   async function createPage(

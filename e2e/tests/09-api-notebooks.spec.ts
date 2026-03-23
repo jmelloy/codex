@@ -34,7 +34,32 @@ test.describe("API: Notebooks", () => {
   });
 
   test.afterAll(async ({ request }) => {
-    await request.delete(`${BASE}/api/v1/workspaces/${ws.id}`, { headers });
+    if (!headers) {
+      return;
+    }
+
+    // Delete all workspaces owned by this user (including the default one)
+    const workspacesResp = await request.get(
+      `${BASE}/api/v1/workspaces/`,
+      { headers }
+    );
+
+    if (workspacesResp.ok()) {
+      const workspaces = await workspacesResp.json();
+      if (Array.isArray(workspaces)) {
+        await Promise.all(
+          workspaces.map((workspace: any) =>
+            request.delete(
+              `${BASE}/api/v1/workspaces/${workspace.id}`,
+              { headers }
+            )
+          )
+        );
+      }
+    }
+
+    // Finally, delete the user created for this test suite
+    await request.delete(`${BASE}/api/v1/users/me`, { headers });
   });
 
   test("create a notebook", async ({ request }) => {

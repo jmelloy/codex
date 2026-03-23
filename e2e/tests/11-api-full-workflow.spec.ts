@@ -161,15 +161,25 @@ test.describe("API: Full User Journey", () => {
     expect(search.status()).toBe(200);
 
     // 17. Cleanup
-    expect(
-      (
-        await request.delete(`${BASE}/api/v1/workspaces/${ws.id}`, { headers })
-      ).status()
-    ).toBe(200);
+    // Delete all workspaces owned by this user (including the auto-created default)
+    const allWsResp = await request.get(`${BASE}/api/v1/workspaces/`, { headers });
+    expect(allWsResp.status()).toBe(200);
+    const allWorkspaces = await allWsResp.json();
+    for (const w of allWorkspaces) {
+      const delResp = await request.delete(`${BASE}/api/v1/workspaces/${w.id}`, {
+        headers,
+      });
+      expect(delResp.status()).toBe(200);
+    }
+
+    // Verify the explicitly created workspace is gone
     expect(
       (
         await request.get(`${BASE}/api/v1/workspaces/${ws.id}`, { headers })
       ).status()
     ).toBe(404);
+
+    // Finally, delete the user account to avoid accumulating users across runs
+    await request.delete(`${BASE}/api/v1/users/me`, { headers });
   });
 });

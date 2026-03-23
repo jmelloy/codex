@@ -133,15 +133,10 @@ def _insert_order_index(metadata: dict[str, Any], position: int | None) -> float
     return (before + after) / 2.0
 
 
-def _generate_block_filename(block_type: str, order: float, content: str = "") -> str:
-    """Generate a filename for a block based on its type and order."""
-    index = int(order)
-    prefix = f"{index:03d}"
-
+def _generate_block_filename(block_type: str, block_id: str) -> str:
+    """Generate a filename for a block using its block_id."""
     ext = BLOCK_TYPE_TO_EXTENSION.get(block_type, ".md")
-    type_slug = block_type.replace("_", "-")
-
-    return f"{prefix}-{type_slug}{ext}"
+    return f"{block_id}{ext}"
 
 
 def ensure_page_hierarchy(
@@ -446,7 +441,7 @@ def create_block(
 
     # Generate block ID and filename
     block_id = str(ULID())
-    filename = _generate_block_filename(block_type, len(page_meta.get("blocks", [])) + 1, content)
+    filename = _generate_block_filename(block_type, block_id)
 
     # Ensure unique filename
     while (page_full_path / filename).exists():

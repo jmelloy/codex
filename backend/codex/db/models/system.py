@@ -12,7 +12,7 @@ These models are stored in the system database (codex_system.db):
 - PluginAPILog: Plugin API request logs
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import DateTime, UniqueConstraint
 from sqlmodel import JSON, Column, Field, Relationship, SQLModel
@@ -34,8 +34,12 @@ class User(SQLModel, table=True):
     hashed_password: str
     is_active: bool = Field(default=True)
     theme_setting: str | None = Field(default="cream")  # User's preferred theme
-    created_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
-    updated_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
+    )
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
+    )
 
     # Relationships
     workspaces: list["Workspace"] = Relationship(back_populates="owner")
@@ -53,8 +57,12 @@ class Workspace(SQLModel, table=True):
     path: str = Field(unique=True)  # Filesystem path
     owner_id: int = Field(foreign_key="users.id")
     theme_setting: str | None = Field(default="cream")  # User's preferred theme
-    created_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
-    updated_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
+    )
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
+    )
 
     # Relationships
     owner: User = Relationship(back_populates="workspaces")
@@ -72,7 +80,9 @@ class WorkspacePermission(SQLModel, table=True):
     workspace_id: int = Field(foreign_key="workspaces.id")
     user_id: int = Field(foreign_key="users.id")
     permission_level: str = Field(default="read")  # read, write, admin
-    created_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
+    )
 
     # Relationships
     workspace: Workspace = Relationship(back_populates="permissions")
@@ -89,9 +99,13 @@ class Task(SQLModel, table=True):
     description: str | None = None
     status: str = Field(default="pending")  # pending, in_progress, completed, failed
     assigned_to: str | None = None  # Agent identifier
-    created_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
-    updated_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
-    completed_at: datetime | None = Field(default=None, sa_type=TZDateTime)
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
+    )
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
+    )
+    completed_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
 
 
 class Notebook(SQLModel, table=True):
@@ -105,8 +119,12 @@ class Notebook(SQLModel, table=True):
     slug: str = Field(index=True)  # URL-safe identifier (unique per workspace)
     path: str = Field(index=True)  # Relative path from workspace
     description: str | None = None
-    created_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
-    updated_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
+    )
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
+    )
 
     # Relationships
     workspace: Workspace = Relationship(back_populates="notebooks")
@@ -123,8 +141,12 @@ class Plugin(SQLModel, table=True):
     version: str
     type: str  # 'view', 'theme', 'integration'
     enabled: bool = Field(default=True)
-    installed_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
-    updated_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
+    installed_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
+    )
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
+    )
     manifest: dict = Field(default={}, sa_column=Column(JSON))  # Full plugin manifest
 
     # Relationships
@@ -142,8 +164,12 @@ class PluginConfig(SQLModel, table=True):
     version: str | None = Field(default=None)  # Pinned plugin version (None = latest)
     enabled: bool = Field(default=True)  # Workspace-level enable/disable
     config: dict = Field(default={}, sa_column=Column(JSON))
-    created_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
-    updated_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
+    )
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
+    )
 
     # Relationships
     plugin: Plugin = Relationship(back_populates="configs")
@@ -160,8 +186,12 @@ class NotebookPluginConfig(SQLModel, table=True):
     version: str | None = Field(default=None)  # Pinned plugin version (None = latest)
     enabled: bool = Field(default=True)  # Notebook-level enable/disable (overrides workspace)
     config: dict = Field(default={}, sa_column=Column(JSON))
-    created_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
-    updated_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
+    )
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
+    )
 
 
 class PluginSecret(SQLModel, table=True):
@@ -174,8 +204,12 @@ class PluginSecret(SQLModel, table=True):
     plugin_id: str = Field(foreign_key="plugins.plugin_id", index=True)
     key: str
     encrypted_value: str
-    created_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
-    updated_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
+    )
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
+    )
 
 
 class PluginAPILog(SQLModel, table=True):
@@ -187,7 +221,9 @@ class PluginAPILog(SQLModel, table=True):
     workspace_id: int = Field(foreign_key="workspaces.id", index=True)
     plugin_id: str = Field(foreign_key="plugins.plugin_id", index=True)
     endpoint_id: str
-    timestamp: datetime = Field(default_factory=utc_now, index=True, sa_type=TZDateTime)
+    timestamp: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
+    )
     status_code: int | None = None
     error: str | None = None
 
@@ -228,8 +264,12 @@ class Agent(SQLModel, table=True):
     # Status
     is_active: bool = Field(default=True)
     system_prompt: str | None = None
-    created_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
-    updated_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
+    )
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
+    )
 
     # Relationships
     workspace: Workspace = Relationship(back_populates="agents")
@@ -246,7 +286,12 @@ class AgentCredential(SQLModel, table=True):
     agent_id: int = Field(foreign_key="agents.id", index=True)
     key_name: str  # "api_key", "organization_id", etc.
     encrypted_value: str  # Fernet-encrypted
-    created_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
+    )
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
+    )
 
     # Relationships
     agent: Agent = Relationship(back_populates="credentials")
@@ -270,8 +315,10 @@ class AgentSession(SQLModel, table=True):
     api_calls_made: int = Field(default=0)
     files_modified: list = Field(default=[], sa_column=Column(JSON))
 
-    started_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
-    completed_at: datetime | None = Field(default=None, sa_type=TZDateTime)
+    started_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
+    )
+    completed_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
     error_message: str | None = None
 
     # Relationships
@@ -293,7 +340,9 @@ class AgentActionLog(SQLModel, table=True):
 
     was_allowed: bool = Field(default=True)  # Did scope guard permit this?
     execution_time_ms: int = Field(default=0)
-    created_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
+    )
 
 
 class PasswordResetToken(SQLModel, table=True):
@@ -308,9 +357,12 @@ class PasswordResetToken(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="users.id", index=True)
     token_hash: str = Field(unique=True, index=True)  # SHA-256 of the plain token
-    expires_at: datetime = Field(sa_type=TZDateTime)
-    used_at: datetime | None = Field(default=None, sa_type=TZDateTime)
-    created_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
+    expires_at: datetime = Field(sa_column=Column(DateTime(timezone=True)))
+    used_at: datetime | None = Field(sa_column=Column(DateTime(timezone=True)))
+
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
+    )
 
     # Relationships
     user: User = Relationship()
@@ -333,10 +385,12 @@ class PersonalAccessToken(SQLModel, table=True):
     scopes: str | None = None  # Comma-separated scopes, e.g. "snippets:write"
     workspace_id: int | None = Field(default=None, foreign_key="workspaces.id")  # Optional scope to workspace
     notebook_id: int | None = Field(default=None, foreign_key="notebooks.id")  # Optional scope to notebook
-    last_used_at: datetime | None = Field(default=None, sa_type=TZDateTime)
-    expires_at: datetime | None = Field(default=None, sa_type=TZDateTime)
+    last_used_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    expires_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
     is_active: bool = Field(default=True)
-    created_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
+    )
 
     # Relationships
     user: User = Relationship()
@@ -357,11 +411,15 @@ class OAuthConnection(SQLModel, table=True):
     provider_email: str | None = None  # Email from the provider
     access_token: str  # Encrypted access token
     refresh_token: str | None = None  # Encrypted refresh token
-    token_expires_at: datetime | None = Field(default=None, sa_type=TZDateTime)
+    token_expires_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
     scopes: str | None = None  # Comma-separated OAuth scopes granted
     is_active: bool = Field(default=True)
-    created_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
-    updated_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
+    )
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
+    )
 
     # Relationships
     user: User = Relationship()
@@ -387,5 +445,9 @@ class IntegrationArtifact(SQLModel, table=True):
     parameters_hash: str = Field(index=True)  # Hash of request parameters for cache key
     artifact_path: str  # Relative path to artifact file within workspace
     content_type: str = Field(default="application/json")  # MIME type of the artifact
-    fetched_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
-    expires_at: datetime | None = Field(default=None, sa_type=TZDateTime)  # Optional expiration time for cache
+    fetched_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
+    )
+    expires_at: datetime | None = Field(
+        default=None, sa_column=Column(DateTime(timezone=True))
+    )  # Optional expiration time for cache

@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from codex.api.auth import get_current_active_user
+from codex.core.blocks import create_page
 from codex.core.git_manager import GitManager
 from codex.core.metadata import MetadataParser
 from codex.core.watcher import get_content_type, get_watcher_for_notebook
@@ -140,11 +141,65 @@ async def post_snippet(
     # Generate filename
     filename = request.filename or _generate_snippet_filename(request.title)
 
-    # Prepend folder if specified
+    # When no folder is specified, auto-create a parent page so the snippet
+    # appears in the sidebar (which only renders page-type blocks).
+    auto_create_page = not request.folder
     if request.folder:
-        rel_path = os.path.join(request.folder, filename)
+        page_folder = request.folder
     else:
-        rel_path = filename
+        page_folder = os.path.splitext(filename)[0]
+
+    # Create the parent page BEFORE writing the file, since create_page
+    # also creates the directory and checks for uniqueness.
+    nb_session = get_notebook_session(str(notebook_path))
+    parent_block_id = None
+    try:
+        if auto_create_page:
+            parent_page = nb_session.execute(
+                select(Block).where(
+                    Block.notebook_id == notebook.id,
+                    Block.path == page_folder,
+                    Block.block_type == "page",
+                )
+            ).scalar_one_or_none()
+
+            if not parent_page:
+                page_result = create_page(
+                    notebook_path=notebook_path,
+                    notebook_id=notebook.id,
+                    parent_path=None,
+                    title=request.title or page_folder,
+                    nb_session=nb_session,
+                )
+                nb_session.commit()
+                parent_block_id = page_result["block_id"]
+                page_folder = page_result["path"]
+            else:
+                parent_block_id = parent_page.block_id
+        else:
+            # For explicit folders, look up existing page if any
+            parts = page_folder.rstrip("/").split("/")
+            for i in range(len(parts), 0, -1):
+                candidate = "/".join(parts[:i])
+                parent_page = nb_session.execute(
+                    select(Block).where(
+                        Block.notebook_id == notebook.id,
+                        Block.path == candidate,
+                        Block.block_type == "page",
+                    )
+                ).scalar_one_or_none()
+                if parent_page:
+                    parent_block_id = parent_page.block_id
+                    break
+    except HTTPException:
+        nb_session.close()
+        raise
+    except Exception as e:
+        nb_session.close()
+        logger.error(f"Error creating parent page: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error creating snippet: {str(e)}")
+
+    rel_path = os.path.join(page_folder, filename)
 
     # Build frontmatter properties
     frontmatter_props: dict = {}
@@ -202,8 +257,7 @@ async def post_snippet(
             logger.error(f"Error processing snippet creation: {op.error}")
             raise HTTPException(status_code=500, detail=f"Error creating snippet: {str(op.error)}")
 
-    # Get or create block
-    nb_session = get_notebook_session(str(notebook_path))
+    # Get or create the block record
     try:
         result = nb_session.execute(
             select(Block).where(Block.notebook_id == notebook.id, Block.path == rel_path)
@@ -219,6 +273,7 @@ async def post_snippet(
             block = Block(
                 notebook_id=notebook.id,
                 block_id=str(ULID()),
+                parent_block_id=parent_block_id,
                 path=rel_path,
                 filename=os.path.basename(rel_path),
                 block_type="text",

@@ -88,6 +88,29 @@ export const authService = {
   // Save token (use this instead of directly setting localStorage)
   saveToken,
 
+  async changePassword(currentPassword: string, newPassword: string): Promise<{ message: string }> {
+    const response = await apiClient.post<{ message: string }>("/api/v1/users/me/password", {
+      current_password: currentPassword,
+      new_password: newPassword,
+    })
+    return response.data
+  },
+
+  async forgotPassword(email: string): Promise<{ message: string }> {
+    const response = await apiClient.post<{ message: string }>("/api/v1/users/forgot-password", {
+      email,
+    })
+    return response.data
+  },
+
+  async resetPassword(token: string, newPassword: string): Promise<{ message: string }> {
+    const response = await apiClient.post<{ message: string }>("/api/v1/users/reset-password", {
+      token,
+      new_password: newPassword,
+    })
+    return response.data
+  },
+
   async updateTheme(theme: string): Promise<User> {
     const response = await apiClient.patch<User>("/api/v1/users/me/theme", {
       theme,

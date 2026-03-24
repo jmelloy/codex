@@ -50,7 +50,51 @@
             class="field-input field-input-disabled"
           />
         </div>
-        <p class="info-text">Additional account options coming soon</p>
+      </section>
+
+      <!-- Change Password -->
+      <section class="config-section">
+        <h3 class="section-heading">Change Password</h3>
+        <form @submit.prevent="handleChangePassword">
+          <div class="form-field">
+            <label class="field-label">Current Password</label>
+            <input
+              v-model="currentPassword"
+              type="password"
+              class="field-input"
+              required
+            />
+          </div>
+          <div class="form-field">
+            <label class="field-label">New Password</label>
+            <input
+              v-model="newPassword"
+              type="password"
+              class="field-input"
+              required
+              minlength="8"
+            />
+          </div>
+          <div class="form-field">
+            <label class="field-label">Confirm New Password</label>
+            <input
+              v-model="confirmPassword"
+              type="password"
+              class="field-input"
+              required
+              minlength="8"
+            />
+          </div>
+          <div v-if="passwordError" class="password-error">{{ passwordError }}</div>
+          <div v-if="passwordSuccess" class="save-notification">{{ passwordSuccess }}</div>
+          <button
+            type="submit"
+            :disabled="changingPassword"
+            class="password-submit-btn"
+          >
+            {{ changingPassword ? 'Changing...' : 'Change Password' }}
+          </button>
+        </form>
       </section>
     </div>
   </div>
@@ -60,12 +104,52 @@
 import { ref, computed } from 'vue'
 import { useAuthStore } from '../../stores/auth'
 import { useThemeStore, type ThemeName } from '../../stores/theme'
+import { authService } from '../../services/auth'
+import { validatePassword, validatePasswordsMatch } from '../../utils/validation'
 
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
 
 const themeSaveNotification = ref(false)
 let notificationTimer: ReturnType<typeof setTimeout> | null = null
+
+// Change password state
+const currentPassword = ref('')
+const newPassword = ref('')
+const confirmPassword = ref('')
+const passwordError = ref('')
+const passwordSuccess = ref('')
+const changingPassword = ref(false)
+
+async function handleChangePassword() {
+  passwordError.value = ''
+  passwordSuccess.value = ''
+
+  const pwValid = validatePassword(newPassword.value)
+  if (!pwValid.valid) {
+    passwordError.value = pwValid.error!
+    return
+  }
+
+  const matchValid = validatePasswordsMatch(newPassword.value, confirmPassword.value)
+  if (!matchValid.valid) {
+    passwordError.value = matchValid.error!
+    return
+  }
+
+  changingPassword.value = true
+  try {
+    const result = await authService.changePassword(currentPassword.value, newPassword.value)
+    passwordSuccess.value = result.message
+    currentPassword.value = ''
+    newPassword.value = ''
+    confirmPassword.value = ''
+  } catch (e: any) {
+    passwordError.value = e.response?.data?.detail || 'Failed to change password'
+  } finally {
+    changingPassword.value = false
+  }
+}
 
 interface ThemeOption {
   id: ThemeName
@@ -181,6 +265,38 @@ function applyTheme(themeId: ThemeName) {
 
 .save-notification {
   font-size: 0.9375rem;
+}
+
+.password-error {
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  color: #991b1b;
+  font-size: 0.9375rem;
+}
+
+.password-submit-btn {
+  margin-top: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: var(--notebook-accent);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.password-submit-btn:hover {
+  opacity: 0.9;
+}
+
+.password-submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .theme-cream {

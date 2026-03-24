@@ -34,6 +34,7 @@ from .system import (
     Notebook,
     NotebookPluginConfig,
     OAuthConnection,
+    PasswordResetToken,
     PersonalAccessToken,
     Plugin,
     PluginAPILog,
@@ -61,6 +62,7 @@ __all__ = [
     "PluginAPILog",
     "IntegrationArtifact",
     # Token models
+    "PasswordResetToken",
     "PersonalAccessToken",
     # OAuth models
     "OAuthConnection",

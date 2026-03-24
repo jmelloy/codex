@@ -1,6 +1,8 @@
 """User and authentication routes."""
 
-from datetime import timedelta
+import logging
+import secrets
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
@@ -12,12 +14,34 @@ from codex.api.auth import (
     create_access_token,
     get_current_active_user,
     get_password_hash,
+    hash_token,
     verify_password,
 )
 from codex.api.routes.workspaces import WorkspaceCreate, create_workspace
-from codex.api.schemas import MessageResponse, ThemeUpdate, TokenResponse, UserCreate, UserResponse
+from codex.api.schemas import (
+    ChangePasswordRequest,
+    ForgotPasswordRequest,
+    MessageResponse,
+    ResetPasswordRequest,
+    ThemeUpdate,
+    TokenResponse,
+    UserCreate,
+    UserResponse,
+)
 from codex.db.database import get_system_session
-from codex.db.models import AgentSession, OAuthConnection, PersonalAccessToken, User, Workspace, WorkspacePermission
+from codex.db.models import (
+    AgentSession,
+    OAuthConnection,
+    PasswordResetToken,
+    PersonalAccessToken,
+    User,
+    Workspace,
+    WorkspacePermission,
+)
+
+logger = logging.getLogger(__name__)
+
+PASSWORD_RESET_EXPIRE_MINUTES = 60
 
 router = APIRouter()
 
@@ -90,6 +114,102 @@ async def register(user_data: UserCreate, session: AsyncSession = Depends(get_sy
     await session.commit()
 
     return UserResponse.model_validate(new_user)
+
+
+@router.post("/me/password", response_model=MessageResponse)
+async def change_password(
+    body: ChangePasswordRequest,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Change the current user's password."""
+    if not verify_password(body.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Current password is incorrect")
+
+    current_user.hashed_password = get_password_hash(body.new_password)
+    current_user.updated_at = datetime.now(UTC)
+    session.add(current_user)
+    await session.commit()
+    return {"message": "Password changed successfully"}
+
+
+@router.post("/forgot-password", response_model=MessageResponse)
+async def forgot_password(
+    body: ForgotPasswordRequest,
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Request a password reset token.
+
+    Always returns success to avoid leaking whether an email exists.
+    The token is logged server-side; use the CLI or email integration to deliver it.
+    """
+    result = await session.execute(select(User).where(User.email == body.email))
+    user = result.scalar_one_or_none()
+
+    if user:
+        # Invalidate any existing unused tokens for this user
+        existing = await session.execute(
+            select(PasswordResetToken).where(
+                PasswordResetToken.user_id == user.id,
+                PasswordResetToken.used_at == None,  # noqa: E711
+            )
+        )
+        for old_token in existing.scalars().all():
+            old_token.used_at = datetime.now(UTC)  # Mark as used/invalidated
+            session.add(old_token)
+
+        # Generate new token
+        plain_token = secrets.token_urlsafe(32)
+        reset_token = PasswordResetToken(
+            user_id=user.id,
+            token_hash=hash_token(plain_token),
+            expires_at=datetime.now(UTC) + timedelta(minutes=PASSWORD_RESET_EXPIRE_MINUTES),
+        )
+        session.add(reset_token)
+        await session.commit()
+
+        # Log the token for admin/CLI retrieval (no email system yet)
+        logger.info("Password reset token generated for user %s: %s", user.username, plain_token)
+
+    return {"message": "If an account with that email exists, a password reset link has been sent."}
+
+
+@router.post("/reset-password", response_model=MessageResponse)
+async def reset_password(
+    body: ResetPasswordRequest,
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Reset password using a reset token."""
+    token_hash_value = hash_token(body.token)
+    result = await session.execute(
+        select(PasswordResetToken).where(
+            PasswordResetToken.token_hash == token_hash_value,
+            PasswordResetToken.used_at == None,  # noqa: E711
+        )
+    )
+    reset_token = result.scalar_one_or_none()
+
+    if not reset_token:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired reset token")
+
+    if reset_token.expires_at < datetime.now(UTC):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired reset token")
+
+    # Load the user
+    user_result = await session.execute(select(User).where(User.id == reset_token.user_id))
+    user = user_result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired reset token")
+
+    # Update password and mark token as used
+    user.hashed_password = get_password_hash(body.new_password)
+    user.updated_at = datetime.now(UTC)
+    reset_token.used_at = datetime.now(UTC)
+    session.add(user)
+    session.add(reset_token)
+    await session.commit()
+
+    return {"message": "Password has been reset successfully"}
 
 
 @router.delete("/me", response_model=MessageResponse)

@@ -49,6 +49,13 @@
         >
           {{ authStore.loading ? "Logging in..." : "Login" }}
         </button>
+        <div class="text-right mt-2">
+          <router-link
+            to="/forgot-password"
+            class="no-underline text-sm hover:underline"
+            style="color: var(--notebook-accent)"
+          >Forgot password?</router-link>
+        </div>
       </form>
       <div class="divider flex items-center my-6">
         <span class="flex-1 h-px" style="background: var(--page-border)"></span>

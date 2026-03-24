@@ -3,12 +3,14 @@
 User management utilities for Codex.
 
 Provides functions and a CLI for registering users, obtaining tokens,
-and querying user info via the HTTP API. The server must be running.
+querying user info, and generating password reset tokens via the HTTP API.
+The server must be running.
 
 Usage:
     python -m codex.scripts.user_manager register <username> <email> <password>
     python -m codex.scripts.user_manager token <username> <password>
     python -m codex.scripts.user_manager me --token <token>
+    python -m codex.scripts.user_manager reset-password <email>
 """
 
 import json
@@ -41,6 +43,20 @@ def get_token(base_url: str, username: str, password: str) -> str:
     )
     r.raise_for_status()
     return r.json()["access_token"]
+
+
+def request_password_reset(base_url: str, email: str) -> dict:
+    """Request a password reset. Returns the JSON response dict.
+
+    The actual reset token will be logged server-side. Check server logs
+    to find the token, then share the reset URL with the user.
+    """
+    r = httpx.post(
+        f"{base_url}/api/v1/users/forgot-password",
+        json={"email": email},
+    )
+    r.raise_for_status()
+    return r.json()
 
 
 def get_me(base_url: str, token: str) -> dict:
@@ -82,6 +98,10 @@ def main() -> None:
     p_me = sub.add_parser("me", help="Get current user info")
     p_me.add_argument("--token", required=True, help="Bearer token")
 
+    # reset-password
+    p_reset = sub.add_parser("reset-password", help="Generate a password reset token (check server logs for token)")
+    p_reset.add_argument("email", help="Email of the user to reset")
+
     args = parser.parse_args()
     base_url = get_base_url()
 
@@ -106,6 +126,15 @@ def main() -> None:
             print(json.dumps(result, indent=2))
         except httpx.HTTPStatusError as e:
             _die(f"Request failed ({e.response.status_code}): {e.response.text}")
+
+    elif args.command == "reset-password":
+        try:
+            result = request_password_reset(base_url, args.email)
+            print(result["message"])
+            print("\nCheck the server logs for the reset token.")
+            print("The user can reset their password at: /reset-password?token=<TOKEN>")
+        except httpx.HTTPStatusError as e:
+            _die(f"Reset request failed ({e.response.status_code}): {e.response.text}")
 
     else:
         parser.print_help()

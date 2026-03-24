@@ -296,6 +296,26 @@ class AgentActionLog(SQLModel, table=True):
     created_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
 
 
+class PasswordResetToken(SQLModel, table=True):
+    """Tokens for password reset requests.
+
+    Tokens are hashed with SHA-256 before storage. The plain token is only
+    shown once (or delivered via email/CLI). Tokens expire after 1 hour.
+    """
+
+    __tablename__ = "password_reset_tokens"  # type: ignore[assignment]
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="users.id", index=True)
+    token_hash: str = Field(unique=True, index=True)  # SHA-256 of the plain token
+    expires_at: datetime = Field(sa_type=TZDateTime)
+    used_at: datetime | None = Field(default=None, sa_type=TZDateTime)
+    created_at: datetime = Field(default_factory=utc_now, sa_type=TZDateTime)
+
+    # Relationships
+    user: User = Relationship()
+
+
 class PersonalAccessToken(SQLModel, table=True):
     """Personal access tokens for API authentication.
 

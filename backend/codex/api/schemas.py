@@ -26,6 +26,26 @@ class UserResponse(BaseModel):
     theme_setting: str | None = None
 
 
+class ChangePasswordRequest(BaseModel):
+    """Schema for changing password (authenticated)."""
+
+    current_password: str
+    new_password: str = Field(..., min_length=8, max_length=100)
+
+
+class ForgotPasswordRequest(BaseModel):
+    """Schema for requesting a password reset."""
+
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    """Schema for resetting password with a token."""
+
+    token: str
+    new_password: str = Field(..., min_length=8, max_length=100)
+
+
 class ThemeUpdate(BaseModel):
     """Schema for updating user theme setting."""
 

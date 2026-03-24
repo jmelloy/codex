@@ -117,6 +117,6 @@ Set `CODEX_API_URL` to override default (`http://localhost:8765`).
 - Propose a hypothesis within the first 2-3 file reads. If uncertain, present top 2 hypotheses and ask.
 - Always check both backend and frontend implications for changes.
 - When fixing CSS/theme issues, identify which layer (base, theme-specific, component scoped) is responsible. Check theme CSS files first for theme-specific bugs.
-- Prefer git worktree for work.
+- Prefer git worktree for work. A worktree can be created with `mise run worktree <branchname>`
 - Before committing, run `git status` and `git diff --staged` to verify staged changes.
 - Any PR that deletes more code than it adds is a good PR.

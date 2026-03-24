@@ -209,7 +209,7 @@ class MetadataParser:
         if filepath.endswith(".md"):
             if content is None:
                 try:
-                    with open(filepath, "r") as f:
+                    with open(filepath) as f:
                         content = f.read()
                 except Exception as e:
                     logger.debug(f"Could not read markdown file {filepath}: {e}")

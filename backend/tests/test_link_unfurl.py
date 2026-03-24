@@ -4,7 +4,6 @@ import time
 from pathlib import Path
 
 import pytest
-import yaml
 from fastapi.testclient import TestClient
 
 from codex.main import app
@@ -41,7 +40,6 @@ def auth_headers(client):
 def workspace_and_notebook(client, auth_headers):
     """Create a test workspace and notebook."""
     import tempfile
-    from pathlib import Path
 
     # Create a temporary workspace
     tmpdir = tempfile.mkdtemp()

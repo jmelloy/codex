@@ -4,7 +4,6 @@ Provides CRUD operations for blocks and pages, supporting Notion-like
 infinite block recursion backed by filesystem folders and files.
 """
 
-import json
 import logging
 import mimetypes
 from typing import Any
@@ -21,12 +20,12 @@ from codex.api.schemas import (
     BlockAtCommitResponse,
     BlockChildrenResponse,
     BlockDeleteResponse,
+    BlockHistoryResponse,
     BlockReorderResponse,
     BlockResolveLinkResponse,
     BlockResponse,
     BlockTextContentResponse,
     BlockTreeResponse,
-    BlockHistoryResponse,
     ImportFolderResponse,
     PageResponse,
     RootBlocksResponse,
@@ -203,9 +202,7 @@ async def get_block_content_by_path(
     # Try looking up by filename in DB
     nb_session = get_notebook_session(str(notebook_path))
     try:
-        block = nb_session.exec(
-            select(Block).where(Block.notebook_id == notebook.id, Block.path == path)
-        ).first()
+        block = nb_session.exec(select(Block).where(Block.notebook_id == notebook.id, Block.path == path)).first()
         if not block and "/" not in path:
             block = nb_session.exec(
                 select(Block).where(Block.notebook_id == notebook.id, Block.filename == path)
@@ -374,9 +371,7 @@ async def create_new_block(
         )
 
         # Return created block plus all siblings so frontend doesn't need a refetch
-        result["blocks"] = _get_children_with_content(
-            notebook_path, notebook.id, request.parent_block_id, nb_session
-        )
+        result["blocks"] = _get_children_with_content(notebook_path, notebook.id, request.parent_block_id, nb_session)
         return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -553,9 +548,7 @@ async def delete_block_endpoint(
 
         result: dict[str, Any] = {"message": "Block deleted successfully"}
         if parent_block_id:
-            result["blocks"] = _get_children_with_content(
-                notebook_path, notebook.id, parent_block_id, nb_session
-            )
+            result["blocks"] = _get_children_with_content(notebook_path, notebook.id, parent_block_id, nb_session)
         return result
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -683,8 +676,9 @@ async def get_block_content_endpoint(
         if not file_path_str:
             # Check S3 (fields now directly on Block)
             if block.s3_key and block.s3_bucket:
-                from codex.core.s3_storage import generate_presigned_url, is_s3_configured
                 from fastapi.responses import RedirectResponse
+
+                from codex.core.s3_storage import generate_presigned_url, is_s3_configured
 
                 if is_s3_configured():
                     url = generate_presigned_url(block.s3_key, block.s3_version_id, block.s3_bucket)

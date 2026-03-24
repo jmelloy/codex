@@ -17,6 +17,7 @@ by keeping only the most recently updated row for each (notebook_id, path).
 from collections.abc import Sequence
 
 import sqlalchemy as sa
+
 from alembic import op
 
 # revision identifiers, used by Alembic.

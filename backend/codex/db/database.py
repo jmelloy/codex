@@ -46,8 +46,9 @@ def run_alembic_migrations():
     This function runs migrations programmatically, which is useful for
     application startup and Docker containers.
     """
-    from alembic import command
     from alembic.config import Config
+
+    from alembic import command
 
     # Find alembic.ini relative to this file - now it's in backend/ not backend/codex/
     backend_dir = Path(__file__).parent.parent.parent
@@ -75,8 +76,9 @@ def run_notebook_alembic_migrations(notebook_path: str):
     Args:
         notebook_path: Path to the notebook directory (where .codex/notebook.db resides)
     """
-    from alembic import command
     from alembic.config import Config
+
+    from alembic import command
 
     backend_dir = Path(__file__).parent.parent.parent
     alembic_ini = backend_dir / "alembic.ini"

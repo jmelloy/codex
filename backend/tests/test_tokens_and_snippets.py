@@ -3,9 +3,6 @@
 import time
 
 import pytest
-from fastapi.testclient import TestClient
-
-from codex.main import app
 
 
 @pytest.fixture

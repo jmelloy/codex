@@ -5,18 +5,24 @@ import os
 import shutil
 import tempfile
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
-from fastapi.testclient import TestClient
-from sqlmodel import select
-from sqlmodel.ext.asyncio.session import AsyncSession
 
-from codex.db.database import init_system_db, system_engine, async_session_maker
-from codex.db.models import Plugin
-from codex.main import app
-from codex.core.watcher import get_active_watchers, unregister_watcher
+# Create a temporary directory for test databases BEFORE importing codex modules,
+# since database.py reads DATABASE_URL at import time.
+_test_data_dir = tempfile.mkdtemp(prefix="codex_test_")
+os.environ["DATABASE_URL"] = f"sqlite:///{_test_data_dir}/codex_system.db"
+os.environ["DATA_DIRECTORY"] = _test_data_dir
+
+from fastapi.testclient import TestClient  # noqa: E402
+from sqlmodel import select  # noqa: E402
+
+from codex.core.watcher import get_active_watchers, unregister_watcher  # noqa: E402
+from codex.db.database import async_session_maker, init_system_db, system_engine  # noqa: E402
+from codex.db.models import Plugin  # noqa: E402
+from codex.main import app  # noqa: E402
 
 # Test plugin manifests (matching what the frontend would register)
 TEST_PLUGINS = [
@@ -170,7 +176,7 @@ TEST_PLUGINS = [
                     "id": "api",
                     "name": "API Block",
                     "description": "Fetch and display data from any REST API endpoint",
-                    "icon": "\U0001F310",
+                    "icon": "\U0001f310",
                     "syntax": "```api\nurl: https://api.example.com/data\nmethod: GET\ndisplay: json\n```",
                 },
             ],
@@ -214,7 +220,7 @@ TEST_PLUGINS = [
                     "id": "database",
                     "name": "Database Block",
                     "description": "Query the notebook database and display results",
-                    "icon": "\U0001F5C4",
+                    "icon": "\U0001f5c4",
                     "syntax": "```database\nsource: notebook\nquery: SELECT title, block_type FROM blocks LIMIT 10\n```",
                 },
             ],
@@ -232,7 +238,7 @@ async def register_test_plugins():
             result = await session.execute(stmt)
             existing = result.scalar_one_or_none()
 
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
 
             if existing:
                 # Update existing plugin
@@ -317,6 +323,9 @@ def initialize_database():
         loop.run_until_complete(system_engine.dispose())
     finally:
         loop.close()
+
+    # Remove the temporary test database directory
+    shutil.rmtree(_test_data_dir, ignore_errors=True)
 
 
 @pytest.fixture

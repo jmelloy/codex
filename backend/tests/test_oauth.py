@@ -1,6 +1,6 @@
 """Tests for OAuth flow and Google Calendar integration."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 from fastapi.testclient import TestClient
 

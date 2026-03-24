@@ -11,6 +11,7 @@ updates search_index to reference blocks, then drops file_metadata.
 from collections.abc import Sequence
 
 import sqlalchemy as sa
+
 from alembic import op
 
 # revision identifiers, used by Alembic.
@@ -52,8 +53,7 @@ def upgrade() -> None:
 
     if has_file_metadata:
         # Backfill blocks that have a file_id linking to file_metadata
-        conn.execute(
-            sa.text("""
+        conn.execute(sa.text("""
                 UPDATE blocks SET
                     filename = COALESCE(blocks.filename, (SELECT fm.filename FROM file_metadata fm WHERE fm.id = blocks.file_id)),
                     hash = COALESCE(blocks.hash, (SELECT fm.hash FROM file_metadata fm WHERE fm.id = blocks.file_id)),
@@ -67,12 +67,10 @@ def upgrade() -> None:
                     git_tracked = COALESCE(blocks.git_tracked, (SELECT fm.git_tracked FROM file_metadata fm WHERE fm.id = blocks.file_id)),
                     last_commit_hash = COALESCE(blocks.last_commit_hash, (SELECT fm.last_commit_hash FROM file_metadata fm WHERE fm.id = blocks.file_id))
                 WHERE blocks.file_id IS NOT NULL
-            """)
-        )
+            """))
 
         # Also backfill by path for blocks without file_id
-        conn.execute(
-            sa.text("""
+        conn.execute(sa.text("""
                 UPDATE blocks SET
                     filename = COALESCE(blocks.filename, (SELECT fm.filename FROM file_metadata fm WHERE fm.notebook_id = blocks.notebook_id AND fm.path = blocks.path)),
                     hash = COALESCE(blocks.hash, (SELECT fm.hash FROM file_metadata fm WHERE fm.notebook_id = blocks.notebook_id AND fm.path = blocks.path)),
@@ -86,19 +84,16 @@ def upgrade() -> None:
                     git_tracked = COALESCE(blocks.git_tracked, (SELECT fm.git_tracked FROM file_metadata fm WHERE fm.notebook_id = blocks.notebook_id AND fm.path = blocks.path)),
                     last_commit_hash = COALESCE(blocks.last_commit_hash, (SELECT fm.last_commit_hash FROM file_metadata fm WHERE fm.notebook_id = blocks.notebook_id AND fm.path = blocks.path))
                 WHERE blocks.file_id IS NULL AND blocks.filename IS NULL
-            """)
-        )
+            """))
 
     # Compute filename from path for any blocks that still don't have one
-    conn.execute(
-        sa.text("""
+    conn.execute(sa.text("""
             UPDATE blocks SET filename = CASE
                 WHEN INSTR(path, '/') > 0 THEN SUBSTR(path, LENGTH(path) - LENGTH(REPLACE(path, '/', '')) + 1)
                 ELSE path
             END
             WHERE filename IS NULL AND path IS NOT NULL AND path != ''
-        """)
-    )
+        """))
 
     # Rebuild search_index to use block_id instead of file_id
     has_search_index = conn.execute(
@@ -108,44 +103,36 @@ def upgrade() -> None:
     if has_search_index:
         # Save existing data with block_id mapping
         if has_file_metadata:
-            conn.execute(
-                sa.text("""
+            conn.execute(sa.text("""
                     CREATE TABLE search_index_new (
                         id INTEGER PRIMARY KEY,
                         block_id INTEGER REFERENCES blocks(id),
                         content TEXT NOT NULL,
                         updated_at TIMESTAMP NOT NULL
                     )
-                """)
-            )
-            conn.execute(
-                sa.text("""
+                """))
+            conn.execute(sa.text("""
                     INSERT INTO search_index_new (id, block_id, content, updated_at)
                     SELECT si.id, b.id, si.content, si.updated_at
                     FROM search_index si
                     LEFT JOIN blocks b ON b.file_id = si.file_id
-                """)
-            )
+                """))
         else:
             # No file_metadata to join against - check if search_index already has block_id
             columns = [row[1] for row in conn.execute(sa.text("PRAGMA table_info(search_index)")).fetchall()]
-            conn.execute(
-                sa.text("""
+            conn.execute(sa.text("""
                     CREATE TABLE search_index_new (
                         id INTEGER PRIMARY KEY,
                         block_id INTEGER REFERENCES blocks(id),
                         content TEXT NOT NULL,
                         updated_at TIMESTAMP NOT NULL
                     )
-                """)
-            )
+                """))
             if "block_id" in columns:
-                conn.execute(
-                    sa.text("""
+                conn.execute(sa.text("""
                         INSERT INTO search_index_new (id, block_id, content, updated_at)
                         SELECT id, block_id, content, updated_at FROM search_index
-                    """)
-                )
+                    """))
 
         op.drop_table("search_index")
         op.rename_table("search_index_new", "search_index")

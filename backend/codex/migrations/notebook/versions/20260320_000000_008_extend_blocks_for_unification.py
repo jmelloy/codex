@@ -9,10 +9,11 @@ for every FileMetadata row that doesn't already have one.
 """
 
 from collections.abc import Sequence
-
-from ulid import ULID
+from datetime import UTC
 
 import sqlalchemy as sa
+from ulid import ULID
+
 from alembic import op
 
 # revision identifiers, used by Alembic.
@@ -34,7 +35,9 @@ def upgrade() -> None:
 
     # Get all file_metadata rows
     files = conn.execute(
-        sa.text("SELECT id, notebook_id, path, filename, content_type, size, title, description, properties FROM file_metadata")
+        sa.text(
+            "SELECT id, notebook_id, path, filename, content_type, size, title, description, properties FROM file_metadata"
+        )
     ).fetchall()
 
     # Get existing block file_ids and paths
@@ -49,9 +52,9 @@ def upgrade() -> None:
     except Exception:
         pass
 
-    from datetime import datetime, timezone
+    from datetime import datetime
 
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     for f in files:
         file_id, notebook_id, path, filename, content_type, size, title, description, properties = f
@@ -90,9 +93,7 @@ def upgrade() -> None:
         if len(parts) > 1:
             parent_path = "/".join(parts[:-1])
             parent_row = conn.execute(
-                sa.text(
-                    "SELECT block_id FROM blocks WHERE notebook_id = :nid AND path = :p AND block_type = 'page'"
-                ),
+                sa.text("SELECT block_id FROM blocks WHERE notebook_id = :nid AND path = :p AND block_type = 'page'"),
                 {"nid": notebook_id, "p": parent_path},
             ).first()
             if parent_row:
@@ -132,9 +133,7 @@ def upgrade() -> None:
 def downgrade() -> None:
     # Remove blocks that were auto-created (have file_id set and aren't pages)
     conn = op.get_bind()
-    conn.execute(
-        sa.text("DELETE FROM blocks WHERE file_id IS NOT NULL AND block_type != 'page'")
-    )
+    conn.execute(sa.text("DELETE FROM blocks WHERE file_id IS NOT NULL AND block_type != 'page'"))
 
     op.drop_column("blocks", "properties")
     op.drop_column("blocks", "description")

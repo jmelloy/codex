@@ -58,6 +58,7 @@ def test_get_content_by_path(test_client, auth_headers, workspace_and_notebook):
 
     # Get content by path
     from urllib.parse import quote
+
     encoded = quote(block_path, safe="")
     path_resp = test_client.get(
         f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/blocks/path/{encoded}/content",

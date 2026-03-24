@@ -5,8 +5,6 @@ FSEvents watchers on every test — the macOS _watchdog_fsevents extension
 segfaults when too many concurrent observer streams accumulate.
 """
 
-import pytest
-
 
 def test_list_integrations(test_client, auth_headers):
     """Test listing all integrations."""

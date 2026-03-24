@@ -1,8 +1,5 @@
 """Unit tests for the generate_unique_path helper."""
 
-import os
-from pathlib import Path
-
 from codex.core.blocks import generate_unique_path
 
 

@@ -9,7 +9,7 @@ import pytest
 from PIL import Image
 from sqlmodel import select
 
-from codex.core.watcher import NotebookFileHandler, NotebookWatcher, get_watcher_for_notebook
+from codex.core.watcher import NotebookWatcher
 from codex.db.database import get_notebook_session, init_notebook_db
 from codex.db.models import Block
 
@@ -64,9 +64,7 @@ def test_watcher_extracts_image_metadata(temp_notebook):
     rel_path = os.path.relpath(img_path, temp_dir)
     session = get_notebook_session(temp_dir)
     try:
-        result = session.execute(
-            select(Block).where(Block.notebook_id == 1, Block.path == rel_path)
-        )
+        result = session.execute(select(Block).where(Block.notebook_id == 1, Block.path == rel_path))
         block = result.scalar_one_or_none()
 
         assert block is not None
@@ -102,9 +100,7 @@ def test_watcher_extracts_jpeg_metadata(temp_notebook):
     rel_path = os.path.relpath(img_path, temp_dir)
     session = get_notebook_session(temp_dir)
     try:
-        result = session.execute(
-            select(Block).where(Block.notebook_id == 1, Block.path == rel_path)
-        )
+        result = session.execute(select(Block).where(Block.notebook_id == 1, Block.path == rel_path))
         block = result.scalar_one_or_none()
 
         assert block is not None
@@ -136,9 +132,7 @@ def test_watcher_extracts_rgba_image_metadata(temp_notebook):
     rel_path = os.path.relpath(img_path, temp_dir)
     session = get_notebook_session(temp_dir)
     try:
-        result = session.execute(
-            select(Block).where(Block.notebook_id == 1, Block.path == rel_path)
-        )
+        result = session.execute(select(Block).where(Block.notebook_id == 1, Block.path == rel_path))
         block = result.scalar_one_or_none()
 
         assert block is not None
@@ -167,9 +161,7 @@ def test_watcher_non_image_no_image_metadata(temp_notebook):
     rel_path = os.path.relpath(text_path, temp_dir)
     session = get_notebook_session(temp_dir)
     try:
-        result = session.execute(
-            select(Block).where(Block.notebook_id == 1, Block.path == rel_path)
-        )
+        result = session.execute(select(Block).where(Block.notebook_id == 1, Block.path == rel_path))
         block = result.scalar_one_or_none()
 
         assert block is not None
@@ -205,9 +197,7 @@ def test_watcher_image_with_sidecar_metadata(temp_notebook):
     rel_path = os.path.relpath(img_path, temp_dir)
     session = get_notebook_session(temp_dir)
     try:
-        result = session.execute(
-            select(Block).where(Block.notebook_id == 1, Block.path == rel_path)
-        )
+        result = session.execute(select(Block).where(Block.notebook_id == 1, Block.path == rel_path))
         block = result.scalar_one_or_none()
 
         assert block is not None

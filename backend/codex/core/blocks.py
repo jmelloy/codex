@@ -13,9 +13,8 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from ulid import ULID
-
 from sqlmodel import Session, select
+from ulid import ULID
 
 from codex.db.models import Block
 from codex.db.models.base import utc_now
@@ -40,6 +39,7 @@ def generate_unique_path(file_path: Path) -> Path:
         if not candidate.exists():
             return candidate
         counter += 1
+
 
 # Block types
 BLOCK_TYPE_PAGE = "page"
@@ -941,9 +941,7 @@ def get_block_tree(
 
     Returns a nested list where page blocks contain their children.
     """
-    all_blocks = nb_session.exec(
-        select(Block).where(Block.notebook_id == notebook_id)
-    ).all()
+    all_blocks = nb_session.exec(select(Block).where(Block.notebook_id == notebook_id)).all()
 
     # Index by block_id
     by_id: dict[str, dict[str, Any]] = {}
@@ -1012,6 +1010,7 @@ def get_block_content(notebook_path: Path, block: Block) -> str | None:
         # Strip frontmatter from markdown files
         if block.path.endswith(".md"):
             from codex.core.metadata import MetadataParser
+
             _, content = MetadataParser.parse_frontmatter(content)
         return content
     except Exception:
@@ -1120,6 +1119,7 @@ def upload_to_block(
         Block metadata dict.
     """
     import hashlib
+
     from codex.core.watcher import get_content_type
 
     # Determine target path
@@ -1175,12 +1175,14 @@ def upload_to_block(
         page_meta = read_page_metadata(page_full)
         if page_meta:
             order = _next_order_index(page_meta)
-            page_meta.setdefault("blocks", []).append({
-                "block_id": block_id,
-                "type": block_type,
-                "file": os.path.basename(file_path),
-                "order": order,
-            })
+            page_meta.setdefault("blocks", []).append(
+                {
+                    "block_id": block_id,
+                    "type": block_type,
+                    "file": os.path.basename(file_path),
+                    "order": order,
+                }
+            )
             write_page_metadata(page_full, page_meta)
 
     block = Block(
@@ -1212,9 +1214,7 @@ def update_block_properties(
     nb_session: Session,
 ) -> dict[str, Any]:
     """Update block properties (denormalized and on-disk)."""
-    block = nb_session.exec(
-        select(Block).where(Block.notebook_id == notebook_id, Block.block_id == block_id)
-    ).first()
+    block = nb_session.exec(select(Block).where(Block.notebook_id == notebook_id, Block.block_id == block_id)).first()
     if not block:
         raise FileNotFoundError(f"Block not found: {block_id}")
 
@@ -1251,6 +1251,7 @@ def update_block_properties(
     file_path = notebook_path / block.path
     if file_path.exists() and file_path.is_file():
         from codex.core.metadata import MetadataParser
+
         if block.content_type == "text/markdown":
             content = file_path.read_text()
             _, body = MetadataParser.parse_frontmatter(content)
@@ -1262,5 +1263,3 @@ def update_block_properties(
     nb_session.add(block)
     nb_session.commit()
     return _block_dict(block)
-
-

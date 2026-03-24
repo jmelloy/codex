@@ -12,6 +12,7 @@ so workspaces and notebooks can pin a specific plugin version. NULL means
 from collections.abc import Sequence
 
 import sqlalchemy as sa
+
 from alembic import op
 
 # revision identifiers

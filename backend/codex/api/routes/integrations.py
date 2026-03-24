@@ -278,9 +278,7 @@ async def _execute_database_query(
     normalized = re.sub(r"/\*.*?\*/", "", normalized, flags=re.DOTALL)  # strip block comments
     normalized = normalized.strip().upper()
     if not normalized.startswith("SELECT") and not normalized.startswith("WITH"):
-        return IntegrationExecuteResponse(
-            success=False, data=None, error="Only SELECT queries are allowed"
-        )
+        return IntegrationExecuteResponse(success=False, data=None, error="Only SELECT queries are allowed")
 
     # Block dangerous keywords that could appear in CTEs or subqueries
     dangerous = re.search(
@@ -331,7 +329,10 @@ async def _execute_database_query(
 
 
 async def _execute_integration(
-    integration_id: str, workspace_id: int, request_data: IntegrationExecuteRequest, session: AsyncSession,
+    integration_id: str,
+    workspace_id: int,
+    request_data: IntegrationExecuteRequest,
+    session: AsyncSession,
     notebook_path: str | None = None,
 ) -> IntegrationExecuteResponse:
     """Core logic: execute an integration endpoint with artifact caching."""
@@ -343,9 +344,7 @@ async def _execute_integration(
         )
         config_result = await session.execute(config_stmt)
         configuration = config_result.scalar_one_or_none()
-        return await _execute_database_query(
-            request_data, notebook_path, configuration.config if configuration else {}
-        )
+        return await _execute_database_query(request_data, notebook_path, configuration.config if configuration else {})
 
     integration = await PluginRegistry.get_plugin(session, integration_id)
 
@@ -716,6 +715,4 @@ async def execute_integration_endpoint_nested(
     workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
     notebook = await get_notebook_by_slug_or_id(notebook_identifier, workspace, session)
 
-    return await _execute_integration(
-        integration_id, workspace.id, request_data, session, notebook_path=notebook.path
-    )
+    return await _execute_integration(integration_id, workspace.id, request_data, session, notebook_path=notebook.path)

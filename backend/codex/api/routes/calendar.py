@@ -1,7 +1,7 @@
 """Google Calendar API routes."""
 
 import logging
-from datetime import UTC, datetime
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel

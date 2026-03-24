@@ -1,7 +1,5 @@
 """Tests for block creation with page hierarchy."""
 
-from pathlib import Path
-
 
 def test_create_page_and_block(test_client, auth_headers, workspace_and_notebook):
     """Test creating a page and adding a block to it."""

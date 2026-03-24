@@ -259,9 +259,7 @@ async def post_snippet(
 
     # Get or create the block record
     try:
-        result = nb_session.execute(
-            select(Block).where(Block.notebook_id == notebook.id, Block.path == rel_path)
-        )
+        result = nb_session.execute(select(Block).where(Block.notebook_id == notebook.id, Block.path == rel_path))
         block = result.scalar_one_or_none()
 
         if not block:

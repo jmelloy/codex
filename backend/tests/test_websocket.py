@@ -1,12 +1,10 @@
 """Tests for WebSocket file change notifications."""
 
-import pytest
 from fastapi.testclient import TestClient
 
 from codex.core.websocket import (
     ConnectionManager,
     FileChangeEvent,
-    connection_manager,
     notify_file_change,
 )
 from codex.main import app

@@ -9,7 +9,7 @@ Handles the Google OAuth2 authorization code flow:
 
 import logging
 import os
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
 from cryptography.fernet import Fernet
 from google.auth.transport.requests import Request as GoogleAuthRequest
@@ -43,8 +43,8 @@ def _get_fernet() -> Fernet:
     key = OAUTH_ENCRYPTION_KEY
     if not key:
         # Fall back to SECRET_KEY-based derivation for development
-        import hashlib
         import base64
+        import hashlib
 
         from codex.api.auth import SECRET_KEY
 
@@ -126,8 +126,8 @@ def exchange_google_code(code: str) -> dict:
     credentials = flow.credentials
 
     # Get user info from the ID token
-    from google.oauth2 import id_token
     from google.auth.transport import requests as google_requests
+    from google.oauth2 import id_token
 
     user_info = {}
     if credentials.id_token:

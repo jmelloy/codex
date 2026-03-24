@@ -12,6 +12,7 @@ folders containing a .codex-page.json metadata file.
 from collections.abc import Sequence
 
 import sqlalchemy as sa
+
 from alembic import op
 
 # revision identifiers, used by Alembic.

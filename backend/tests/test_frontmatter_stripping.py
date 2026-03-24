@@ -1,6 +1,5 @@
 """Test for /content and /text endpoints with frontmatter handling."""
 
-import pytest
 from codex.core.metadata import MetadataParser
 
 

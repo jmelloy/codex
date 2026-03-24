@@ -454,9 +454,7 @@ def update_file_metadata(
         filename = os.path.basename(filepath)
 
         # Check if block exists in database
-        result = session.execute(
-            select(Block).where(Block.notebook_id == notebook_id, Block.path == rel_path)
-        )
+        result = session.execute(select(Block).where(Block.notebook_id == notebook_id, Block.path == rel_path))
         block = result.scalar_one_or_none()
 
         if event_type == "deleted":
@@ -465,9 +463,7 @@ def update_file_metadata(
                 try:
                     from codex.db.models.notebook import SearchIndex
 
-                    for si in session.execute(
-                        select(SearchIndex).where(SearchIndex.block_id == block.id)
-                    ).scalars():
+                    for si in session.execute(select(SearchIndex).where(SearchIndex.block_id == block.id)).scalars():
                         session.delete(si)
                 except Exception:
                     pass
@@ -489,7 +485,7 @@ def update_file_metadata(
                 # Upload binary files to S3 when configured
                 s3_meta = None
                 if is_binary:
-                    from codex.core.s3_storage import is_s3_configured, upload_binary, build_s3_key, write_pointer_file
+                    from codex.core.s3_storage import build_s3_key, is_s3_configured, upload_binary, write_pointer_file
 
                     if is_s3_configured():
                         try:
@@ -634,9 +630,7 @@ def update_file_metadata(
                     if "UNIQUE constraint failed" in str(commit_error):
                         # Re-query and update instead
                         result = session.execute(
-                            select(Block).where(
-                                Block.notebook_id == notebook_id, Block.path == rel_path
-                            )
+                            select(Block).where(Block.notebook_id == notebook_id, Block.path == rel_path)
                         )
                         block = result.scalar_one_or_none()
                         if block:

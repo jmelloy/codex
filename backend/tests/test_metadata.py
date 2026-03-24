@@ -1,10 +1,5 @@
 """Tests for metadata parsing functionality."""
 
-import tempfile
-from pathlib import Path
-
-import pytest
-
 from codex.core.metadata import MetadataParser
 
 
@@ -453,7 +448,6 @@ class TestImageMetadata:
 
     def test_non_image_file_skips_image_extraction(self, tmp_path):
         """Test that non-image files are not processed by image extraction (performance)."""
-        from PIL import Image
 
         # Create a text file with an image-like name but wrong content
         text_path = tmp_path / "not_an_image.txt"

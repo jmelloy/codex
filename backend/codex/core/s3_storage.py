@@ -16,7 +16,6 @@ Environment variables:
 import json
 import logging
 import os
-from pathlib import Path
 
 import boto3
 from botocore.exceptions import ClientError
@@ -268,5 +267,5 @@ def read_pointer_file(pointer_path: str) -> dict | None:
     try:
         with open(pointer_path) as f:
             return parse_pointer(f.read())
-    except (OSError, IOError):
+    except OSError:
         return None

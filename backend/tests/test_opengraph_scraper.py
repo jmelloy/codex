@@ -1,7 +1,7 @@
 """Tests for Open Graph scraper."""
 
 import os
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest

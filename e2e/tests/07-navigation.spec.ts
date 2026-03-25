@@ -29,14 +29,22 @@ test.describe("Navigation & URL Routing", () => {
     );
     const notebook = await nbResponse.json();
 
-    await page.request.post(`${baseURL}/api/v1/snippets/`, {
-      headers: { Authorization: `Bearer ${token}` },
+    const headers = { Authorization: `Bearer ${token}` };
+    const blocksBase = `${baseURL}/api/v1/workspaces/${ws.id}/notebooks/${notebook.slug}/blocks`;
+
+    // Create a page with content
+    const pageResp = await page.request.post(`${blocksBase}/pages`, {
+      headers,
+      data: { title: "nav-test" },
+    });
+    const pageData = await pageResp.json();
+    await page.request.post(`${blocksBase}/`, {
+      headers,
       data: {
-        workspace: ws.slug,
-        notebook: notebook.slug,
-        filename: "nav-test.md",
+        parent_block_id: pageData.block_id,
+        block_type: "text",
         content: "# Navigation Test",
-        title: "nav-test",
+        content_format: "markdown",
       },
     });
 

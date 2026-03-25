@@ -487,6 +487,27 @@ export const blockService = {
   },
 
   /**
+   * Upload a zip file containing a folder structure.
+   */
+  async uploadFolderZip(
+    notebookId: number | string,
+    workspaceId: number | string,
+    zipFile: File,
+    parentPath?: string
+  ): Promise<{ path: string; block_id: string; pages_created: number; blocks_created: number }> {
+    const formData = new FormData()
+    formData.append("file", zipFile)
+    if (parentPath) {
+      formData.append("parent_path", parentPath)
+    }
+    const response = await apiClient.post(
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/upload-folder-zip`,
+      formData
+    )
+    return response.data
+  },
+
+  /**
    * Get git history for a block.
    */
   async getHistory(

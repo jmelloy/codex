@@ -1453,15 +1453,53 @@ async function collectDroppedFiles(
 
 // Handle file upload from drag-drop
 async function handleBlockUpload(dataTransfer: DataTransfer, notebookId: number, pagePath: string) {
-  const droppedFiles = await collectDroppedFiles(dataTransfer)
-  for (const { file, relativePath } of droppedFiles) {
+  // Check if any dropped items are directories
+  const items = dataTransfer.items
+  let hasDirectories = false
+  if (items) {
+    for (const item of Array.from(items)) {
+      if (item.kind !== "file") continue
+      const entry = item.webkitGetAsEntry?.()
+      if (entry?.isDirectory) {
+        hasDirectories = true
+        break
+      }
+    }
+  }
+
+  if (hasDirectories) {
+    // Folder drop: collect all files, zip them, and upload as a single zip
+    const droppedFiles = await collectDroppedFiles(dataTransfer)
+    if (droppedFiles.length === 0) return
+
     try {
-      const targetPath = pagePath ? `${pagePath}/${relativePath}` : relativePath
-      await workspaceStore.uploadBlock(notebookId, file, targetPath)
-      showToast({ message: `Uploaded ${relativePath}` })
+      const JSZip = (await import("jszip")).default
+      const zip = new JSZip()
+      for (const { file, relativePath } of droppedFiles) {
+        zip.file(relativePath, file)
+      }
+      const blob = await zip.generateAsync({ type: "blob" })
+      const zipFile = new File([blob], "folder-upload.zip", { type: "application/zip" })
+
+      if (!workspaceStore.currentWorkspace) return
+      await blockService.uploadFolderZip(notebookId, workspaceStore.currentWorkspace.id, zipFile, pagePath)
+      await workspaceStore.fetchBlockTree(notebookId)
+      showToast({ message: `Uploaded folder (${droppedFiles.length} files)` })
     } catch (e) {
-      console.error(`Failed to upload ${relativePath}:`, e)
-      showToast({ message: `Failed to upload ${relativePath}`, type: "error" })
+      console.error("Failed to upload folder:", e)
+      showToast({ message: "Failed to upload folder", type: "error" })
+    }
+  } else {
+    // Individual file drops
+    const droppedFiles = await collectDroppedFiles(dataTransfer)
+    for (const { file, relativePath } of droppedFiles) {
+      try {
+        await workspaceStore.uploadBlock(notebookId, file, relativePath)
+        showToast({ message: `Uploaded ${relativePath}` })
+      } catch (e) {
+        console.error(`Failed to upload ${relativePath}:`, e)
+        showToast({ message: `Failed to upload ${relativePath}`, type: "error" })
+      }
     }
   }
 }

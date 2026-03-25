@@ -1,25 +1,68 @@
 import { test, expect, ensureNotebookExpanded } from "../fixtures/auth";
 
-/** Helper to create a file via the snippets API. */
-async function createFileViaAPI(
+/** Helper: get the first workspace and auth token from the authed page. */
+async function getWorkspaceContext(page: any) {
+  const baseURL = new URL(page.url()).origin;
+  const token = await page.evaluate(() =>
+    localStorage.getItem("access_token")
+  );
+  const wsResponse = await page.request.get(`${baseURL}/api/v1/workspaces/`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const workspaces = await wsResponse.json();
+  return { baseURL, token: token!, ws: workspaces[0] };
+}
+
+/** Helper: create a notebook via API. */
+async function createNotebookViaAPI(
   page: any,
   baseURL: string,
   token: string,
-  workspaceSlug: string,
+  wsId: number,
+  name: string
+) {
+  const resp = await page.request.post(
+    `${baseURL}/api/v1/workspaces/${wsId}/notebooks/`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+      data: { name },
+    }
+  );
+  return resp.json();
+}
+
+/** Helper: create a page inside a notebook, then add a text block with content. */
+async function createPageWithContent(
+  page: any,
+  baseURL: string,
+  token: string,
+  wsId: number,
   notebookSlug: string,
-  path: string,
+  title: string,
   content: string
 ) {
-  return page.request.post(`${baseURL}/api/v1/snippets/`, {
-    headers: { Authorization: `Bearer ${token}` },
+  const headers = { Authorization: `Bearer ${token}` };
+  const blocksBase = `${baseURL}/api/v1/workspaces/${wsId}/notebooks/${notebookSlug}/blocks`;
+
+  // Create the page
+  const pageResp = await page.request.post(`${blocksBase}/pages`, {
+    headers,
+    data: { title },
+  });
+  const pageData = await pageResp.json();
+
+  // Create a text block inside the page with markdown content
+  await page.request.post(`${blocksBase}/`, {
+    headers,
     data: {
-      workspace: workspaceSlug,
-      notebook: notebookSlug,
-      filename: path,
+      parent_block_id: pageData.block_id,
+      block_type: "text",
       content,
-      title: path.replace(".md", ""),
+      content_format: "markdown",
     },
   });
+
+  return pageData;
 }
 
 test.describe("File Operations", () => {
@@ -59,36 +102,13 @@ test.describe("File Operations", () => {
   test("view a markdown file content", async ({ authedPage: page }) => {
     const notebookName = `View NB ${Date.now()}`;
 
-    // Create notebook and file via API for speed
-    const baseURL = new URL(page.url()).origin;
-    const token = await page.evaluate(() =>
-      localStorage.getItem("access_token")
-    );
+    const { baseURL, token, ws } = await getWorkspaceContext(page);
+    const notebook = await createNotebookViaAPI(page, baseURL, token, ws.id, notebookName);
 
-    // Get workspaces
-    const wsResponse = await page.request.get(
-      `${baseURL}/api/v1/workspaces/`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    );
-    const workspaces = await wsResponse.json();
-    const ws = workspaces[0];
-
-    // Create notebook
-    const nbResponse = await page.request.post(
-      `${baseURL}/api/v1/workspaces/${ws.id}/notebooks/`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-        data: { name: notebookName },
-      }
-    );
-    const notebook = await nbResponse.json();
-
-    // Create file via snippets API
-    await createFileViaAPI(
-      page, baseURL, token!, ws.slug, notebook.slug,
-      "readme.md",
+    // Create a page with content (pages show in sidebar, leaf blocks don't)
+    await createPageWithContent(
+      page, baseURL, token, ws.id, notebook.slug,
+      "readme",
       "# Hello World\n\nThis is a test file for E2E testing."
     );
 
@@ -100,7 +120,7 @@ test.describe("File Operations", () => {
     await ensureNotebookExpanded(page, notebookName);
     await expect(page.getByText("readme")).toBeVisible({ timeout: 10_000 });
 
-    // Click the file
+    // Click the page
     await page.getByText("readme").click();
 
     // Should display the rendered markdown content
@@ -114,33 +134,13 @@ test.describe("File Operations", () => {
 
   test("view and verify markdown file content", async ({ authedPage: page }) => {
     const notebookName = `Edit NB ${Date.now()}`;
-    const baseURL = new URL(page.url()).origin;
-    const token = await page.evaluate(() =>
-      localStorage.getItem("access_token")
-    );
 
-    // Setup: create notebook and file via API
-    const wsResponse = await page.request.get(
-      `${baseURL}/api/v1/workspaces/`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    );
-    const workspaces = await wsResponse.json();
-    const ws = workspaces[0];
+    const { baseURL, token, ws } = await getWorkspaceContext(page);
+    const notebook = await createNotebookViaAPI(page, baseURL, token, ws.id, notebookName);
 
-    const nbResponse = await page.request.post(
-      `${baseURL}/api/v1/workspaces/${ws.id}/notebooks/`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-        data: { name: notebookName },
-      }
-    );
-    const notebook = await nbResponse.json();
-
-    await createFileViaAPI(
-      page, baseURL, token!, ws.slug, notebook.slug,
-      "editable.md",
+    await createPageWithContent(
+      page, baseURL, token, ws.id, notebook.slug,
+      "editable",
       "# Original Content\n\nSome body text here."
     );
 

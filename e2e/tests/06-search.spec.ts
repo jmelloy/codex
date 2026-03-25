@@ -8,7 +8,7 @@ test.describe("Search", () => {
       localStorage.getItem("access_token")
     );
 
-    // Setup: create notebook with a few files via API
+    // Setup: create notebook with a few pages via API
     const wsResponse = await page.request.get(
       `${baseURL}/api/v1/workspaces/`,
       {
@@ -27,16 +27,23 @@ test.describe("Search", () => {
     );
     const notebook = await nbResponse.json();
 
-    const fileNames = ["alpha-report.md", "beta-analysis.md", "gamma-notes.md"];
-    for (const name of fileNames) {
-      await page.request.post(`${baseURL}/api/v1/snippets/`, {
-        headers: { Authorization: `Bearer ${token}` },
+    const headers = { Authorization: `Bearer ${token}` };
+    const blocksBase = `${baseURL}/api/v1/workspaces/${ws.id}/notebooks/${notebook.slug}/blocks`;
+
+    const pageNames = ["alpha-report", "beta-analysis", "gamma-notes"];
+    for (const name of pageNames) {
+      const pageResp = await page.request.post(`${blocksBase}/pages`, {
+        headers,
+        data: { title: name },
+      });
+      const pageData = await pageResp.json();
+      await page.request.post(`${blocksBase}/`, {
+        headers,
         data: {
-          workspace: ws.slug,
-          notebook: notebook.slug,
-          filename: name,
+          parent_block_id: pageData.block_id,
+          block_type: "text",
           content: `# ${name}\n\nContent for ${name}`,
-          title: name.replace(".md", ""),
+          content_format: "markdown",
         },
       });
     }

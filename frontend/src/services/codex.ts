@@ -38,6 +38,7 @@ export interface Block {
     | "divider"
     | "embed"
     | "file"
+    | "database"
   content_format: "markdown" | "json" | "binary"
   order_index: number
   title?: string

@@ -131,6 +131,17 @@
               </a>
             </template>
 
+            <!-- Database block -->
+            <template v-else-if="block.block_type === 'database'">
+              <DatabaseBlock
+                :config="parseDatabaseConfig(block)"
+                :workspace-id="workspaceId ? Number(workspaceId) : undefined"
+                :notebook-id="notebookId ? Number(notebookId) : undefined"
+                :parent-block-id="blocks[0]?.parent_block_id || undefined"
+                @navigate-page="(b: any) => $emit('navigatePage', b)"
+              />
+            </template>
+
             <!-- Editable blocks -->
             <template v-else>
               <!-- Editing mode -->
@@ -175,6 +186,7 @@ import { ref, nextTick, watch, onMounted } from "vue"
 import { marked } from "marked"
 import type { Block } from "../services/codex"
 import { getAvailableBlockTypes } from "../services/pluginLoader"
+import DatabaseBlock from "./blocks/DatabaseBlock.vue"
 
 interface Props {
   blocks: Block[]
@@ -229,7 +241,7 @@ const blockTypes = [
 
 // Default YAML templates for dynamic block types
 const dynamicBlockTemplates: Record<string, string> = {
-  database: "source: notebook\nquery: SELECT title, block_type FROM blocks LIMIT 10\ndisplay: table",
+  database: "source: children\ndisplay: table",
   api: "url: https://api.example.com/data\nmethod: GET\ndisplay: json",
 }
 
@@ -273,6 +285,38 @@ onMounted(() => {
     nextTick(() => startEditing(props.blocks[0]!, 0))
   }
 })
+
+/** Parse YAML-like config from a database block's code fence content */
+function parseDatabaseConfig(block: Block): Record<string, any> {
+  const content = block.content || ""
+  // Strip code fence markers: ```database\n...\n```
+  const match = content.match(/^```\w*\n([\s\S]*?)\n```$/)
+  const body = match ? match[1] : content
+  const config: Record<string, any> = {}
+  let currentParent: string | null = null
+  body.split("\n").forEach((line) => {
+    const indented = line.match(/^[ \t]+([\w-]+):\s*(.+)$/)
+    if (indented && indented[1] && indented[2] && currentParent) {
+      if (typeof config[currentParent] !== "object" || config[currentParent] === null) {
+        config[currentParent] = {}
+      }
+      config[currentParent][indented[1]] = indented[2].trim()
+      return
+    }
+    const kv = line.match(/^([\w-]+):\s*(.+)$/)
+    if (kv && kv[1] && kv[2]) {
+      config[kv[1]] = kv[2].trim()
+      currentParent = null
+      return
+    }
+    const parent = line.match(/^([\w-]+):\s*$/)
+    if (parent && parent[1]) {
+      currentParent = parent[1]
+      config[currentParent] = {}
+    }
+  })
+  return config
+}
 
 function getBlockFileUrl(block: Block): string {
   if (!props.workspaceId || !props.notebookId || !block.block_id) return ""

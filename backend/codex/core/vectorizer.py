@@ -1,20 +1,19 @@
 """Page-level vectorization and embedding service.
 
-Uses litellm to generate embeddings for page content (title, properties,
-description, child text) and stores them in sqlite-vec virtual tables
-for fast cosine-similarity search.
+Uses httpx to call OpenAI-compatible embedding APIs and stores vectors
+in sqlite-vec virtual tables for fast cosine-similarity search.
 """
 
 from __future__ import annotations
 
 import json
 import logging
+import math
 import os
 import struct
 import threading
 from pathlib import Path
 
-import numpy as np
 from sqlmodel import Session, select
 
 from codex.db.models.notebook import Block
@@ -29,25 +28,25 @@ EMBEDDING_DIMENSIONS = int(os.getenv("CODEX_EMBEDDING_DIMENSIONS", "1024"))
 _vec_init_lock = threading.Lock()
 
 
-def _serialize_f32(vec: list[float] | np.ndarray) -> bytes:
+def _serialize_f32(vec: list[float]) -> bytes:
     """Serialize a vector to little-endian float32 bytes for sqlite-vec."""
-    if isinstance(vec, np.ndarray):
-        return vec.astype(np.float32).tobytes()
     return struct.pack(f"<{len(vec)}f", *vec)
 
 
-def _deserialize_f32(blob: bytes) -> np.ndarray:
-    """Deserialize sqlite-vec float32 bytes to numpy array."""
-    return np.frombuffer(blob, dtype=np.float32)
+def _deserialize_f32(blob: bytes) -> list[float]:
+    """Deserialize sqlite-vec float32 bytes to a list of floats."""
+    count = len(blob) // 4
+    return list(struct.unpack(f"<{count}f", blob))
 
 
-def _cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
+def _cosine_similarity(a: list[float], b: list[float]) -> float:
     """Compute cosine similarity between two vectors."""
-    dot = np.dot(a, b)
-    norm = np.linalg.norm(a) * np.linalg.norm(b)
-    if norm == 0:
+    dot = sum(x * y for x, y in zip(a, b))
+    norm_a = math.sqrt(sum(x * x for x in a))
+    norm_b = math.sqrt(sum(x * x for x in b))
+    if norm_a == 0 or norm_b == 0:
         return 0.0
-    return float(dot / norm)
+    return dot / (norm_a * norm_b)
 
 
 # ---------------------------------------------------------------------------

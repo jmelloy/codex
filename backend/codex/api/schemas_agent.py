@@ -15,7 +15,7 @@ class AgentCreate(BaseModel):
 
     name: str = Field(..., min_length=1, max_length=100)
     description: str | None = None
-    provider: str = Field(..., description="LiteLLM provider, e.g. 'openai', 'anthropic', 'ollama'")
+    provider: str = Field(..., description="Provider name, e.g. 'openai', 'anthropic', 'ollama'")
     model: str = Field(..., description="Model identifier, e.g. 'gpt-4o', 'claude-sonnet-4-20250514', 'ollama/llama3'")
 
     scope: dict[str, Any] = Field(

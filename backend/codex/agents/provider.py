@@ -1,18 +1,50 @@
-"""LiteLLM-based provider adapter for AI agent completions.
+"""OpenAI-compatible provider adapter for AI agent completions.
 
-Uses LiteLLM to provide a unified interface to 100+ LLM providers
-(OpenAI, Anthropic, Ollama, Azure, Bedrock, etc.) with a single API.
+Uses httpx to call any OpenAI-compatible chat completions API directly
+(OpenAI, Anthropic via proxy, Ollama, Azure, vLLM, etc.) without
+heavy wrapper libraries.
 """
 
 from __future__ import annotations
 
 import json
 import logging
+import os
 from typing import Any
 
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
+
+# Well-known provider base URLs (model prefix → base URL).
+_PROVIDER_URLS: dict[str, str] = {
+    "openai": "https://api.openai.com/v1",
+    "anthropic": "https://api.anthropic.com/v1",
+    "ollama": "http://localhost:11434/v1",
+}
+
+
+def _default_base_url(model: str) -> str:
+    """Infer a base URL from the model string or environment."""
+    env_url = os.getenv("CODEX_LLM_BASE_URL")
+    if env_url:
+        return env_url.rstrip("/")
+    # Check for provider prefix like "ollama/llama3"
+    if "/" in model:
+        prefix = model.split("/", 1)[0].lower()
+        if prefix in _PROVIDER_URLS:
+            return _PROVIDER_URLS[prefix]
+    # Default to OpenAI
+    return _PROVIDER_URLS["openai"]
+
+
+def _strip_provider_prefix(model: str) -> str:
+    """Strip provider prefix from model name (e.g. 'ollama/llama3' → 'llama3')."""
+    if "/" in model:
+        prefix = model.split("/", 1)[0].lower()
+        if prefix in _PROVIDER_URLS:
+            return model.split("/", 1)[1]
+    return model
 
 
 class Message(BaseModel):
@@ -41,19 +73,21 @@ class AgentResponse(BaseModel):
     usage: dict[str, int] = {}
 
 
-class LiteLLMProvider:
-    """Provider adapter using LiteLLM for model-agnostic completions.
+class CompletionProvider:
+    """Provider adapter using httpx for OpenAI-compatible chat completions.
 
-    LiteLLM handles the provider-specific formatting, auth, and API calls.
-    This class wraps it with Codex-specific message/tool handling.
+    Calls the standard ``/chat/completions`` endpoint directly, which is
+    supported by OpenAI, Ollama, vLLM, LM Studio, Azure OpenAI, and many
+    other providers.
 
     Args:
-        model: The model identifier in LiteLLM format.
-               Examples: "gpt-4o", "claude-sonnet-4-20250514",
-               "ollama/llama3", "azure/gpt-4", etc.
-        api_key: API key for the provider (optional if set via env vars).
-        api_base: Custom API base URL (e.g., for Ollama or self-hosted).
-        extra_params: Additional params passed to litellm.acompletion().
+        model: The model identifier.  May include a provider prefix
+               (e.g. ``"ollama/llama3"``) which is used to infer the
+               base URL and then stripped before sending the request.
+        api_key: API key for the provider (falls back to
+                 ``CODEX_LLM_API_KEY`` or ``OPENAI_API_KEY`` env vars).
+        api_base: Custom API base URL (overrides auto-detection).
+        extra_params: Additional params merged into the request body.
     """
 
     def __init__(
@@ -63,9 +97,9 @@ class LiteLLMProvider:
         api_base: str | None = None,
         **extra_params: Any,
     ):
-        self.model = model
-        self.api_key = api_key
-        self.api_base = api_base
+        self.model = _strip_provider_prefix(model)
+        self.api_base = (api_base or _default_base_url(model)).rstrip("/")
+        self.api_key = api_key or os.getenv("CODEX_LLM_API_KEY") or os.getenv("OPENAI_API_KEY") or ""
         self.extra_params = extra_params
 
     async def complete(
@@ -84,39 +118,43 @@ class LiteLLMProvider:
         Returns:
             AgentResponse with content and/or tool calls.
         """
-        import litellm
+        import httpx
 
-        # Convert messages to the dict format litellm expects
-        litellm_messages = self._convert_messages(messages)
-
-        kwargs: dict[str, Any] = {
+        body: dict[str, Any] = {
             "model": self.model,
-            "messages": litellm_messages,
+            "messages": self._convert_messages(messages),
             "max_tokens": max_tokens,
             **self.extra_params,
         }
 
-        if self.api_key:
-            kwargs["api_key"] = self.api_key
-        if self.api_base:
-            kwargs["api_base"] = self.api_base
         if tools:
-            kwargs["tools"] = tools
+            body["tools"] = tools
+
+        headers: dict[str, str] = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
 
         try:
-            response = await litellm.acompletion(**kwargs)
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                resp = await client.post(
+                    f"{self.api_base}/chat/completions",
+                    headers=headers,
+                    json=body,
+                )
+                resp.raise_for_status()
+                data = resp.json()
         except Exception as e:
-            logger.error(f"LiteLLM completion error: {e}")
+            logger.error(f"Completion error: {e}")
             return AgentResponse(
                 content=f"Error calling model: {e}",
                 finish_reason="error",
                 usage={},
             )
 
-        return self._parse_response(response)
+        return self._parse_response(data)
 
     def _convert_messages(self, messages: list[Message]) -> list[dict[str, Any]]:
-        """Convert Message objects to litellm-compatible dicts."""
+        """Convert Message objects to OpenAI-compatible dicts."""
         result = []
         for msg in messages:
             entry: dict[str, Any] = {"role": msg.role}
@@ -134,37 +172,39 @@ class LiteLLMProvider:
             result.append(entry)
         return result
 
-    def _parse_response(self, response: Any) -> AgentResponse:
-        """Parse a LiteLLM response into an AgentResponse."""
-        choice = response.choices[0]
-        message = choice.message
+    def _parse_response(self, data: dict[str, Any]) -> AgentResponse:
+        """Parse an OpenAI-compatible JSON response into an AgentResponse."""
+        choice = data["choices"][0]
+        message = choice["message"]
 
-        content = message.content
+        content = message.get("content")
         tool_calls: list[ToolCall] = []
-        finish_reason = choice.finish_reason or "stop"
+        finish_reason = choice.get("finish_reason") or "stop"
 
-        if hasattr(message, "tool_calls") and message.tool_calls:
+        raw_tool_calls = message.get("tool_calls")
+        if raw_tool_calls:
             finish_reason = "tool_calls"
-            for tc in message.tool_calls:
+            for tc in raw_tool_calls:
                 try:
-                    args = tc.function.arguments
+                    args = tc["function"]["arguments"]
                     if isinstance(args, str):
                         args = json.loads(args)
                     tool_calls.append(
                         ToolCall(
-                            id=tc.id,
-                            name=tc.function.name,
+                            id=tc["id"],
+                            name=tc["function"]["name"],
                             arguments=args,
                         )
                     )
-                except (json.JSONDecodeError, AttributeError) as e:
+                except (json.JSONDecodeError, KeyError) as e:
                     logger.warning(f"Failed to parse tool call: {e}")
 
-        usage = {}
-        if hasattr(response, "usage") and response.usage:
+        usage: dict[str, int] = {}
+        raw_usage = data.get("usage")
+        if raw_usage:
             usage = {
-                "input_tokens": getattr(response.usage, "prompt_tokens", 0) or 0,
-                "output_tokens": getattr(response.usage, "completion_tokens", 0) or 0,
+                "input_tokens": raw_usage.get("prompt_tokens", 0) or 0,
+                "output_tokens": raw_usage.get("completion_tokens", 0) or 0,
             }
 
         return AgentResponse(
@@ -173,3 +213,7 @@ class LiteLLMProvider:
             finish_reason=finish_reason,
             usage=usage,
         )
+
+
+# Backwards-compatible alias
+LiteLLMProvider = CompletionProvider

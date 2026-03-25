@@ -160,16 +160,16 @@ class TestToolRouter:
         assert "create_file" in tool_names
         assert "delete_file" in tool_names
 
-    def test_litellm_format(self):
+    def test_openai_tool_format(self):
         from codex.agents.scope import ScopeGuard
         from codex.agents.tools import ToolRouter
 
         agent = self._make_agent()
         guard = ScopeGuard(agent)
         router = ToolRouter(guard, self._make_session(), "/tmp/test")
-        litellm_tools = router.get_tool_definitions_for_litellm()
-        assert len(litellm_tools) > 0
-        for tool in litellm_tools:
+        openai_tools = router.get_openai_tool_definitions()
+        assert len(openai_tools) > 0
+        for tool in openai_tools:
             assert tool["type"] == "function"
             assert "function" in tool
             assert "name" in tool["function"]
@@ -294,17 +294,17 @@ class TestToolRouter:
 
 
 # ---------------------------------------------------------------------------
-# Unit tests for LiteLLMProvider
+# Unit tests for CompletionProvider
 # ---------------------------------------------------------------------------
 
 
-class TestLiteLLMProvider:
-    """Tests for the LiteLLM provider adapter."""
+class TestCompletionProvider:
+    """Tests for the completion provider adapter."""
 
     def test_message_conversion(self):
-        from codex.agents.provider import LiteLLMProvider, Message
+        from codex.agents.provider import CompletionProvider, Message
 
-        provider = LiteLLMProvider(model="gpt-4o", api_key="test")
+        provider = CompletionProvider(model="gpt-4o", api_key="test")
         messages = [
             Message(role="system", content="You are helpful."),
             Message(role="user", content="Hello"),

@@ -10,7 +10,7 @@ from sqlmodel import select
 
 from codex.agents.crypto import decrypt_value, encrypt_value
 from codex.agents.engine import AgentEngine
-from codex.agents.provider import LiteLLMProvider
+from codex.agents.provider import CompletionProvider
 from codex.agents.scope import ScopeGuard
 from codex.agents.tools import ToolRouter
 from codex.api.auth import get_current_active_user
@@ -360,7 +360,7 @@ async def send_message(
     api_base_cred = base_result.scalar_one_or_none()
     api_base = decrypt_value(api_base_cred.encrypted_value) if api_base_cred else None
 
-    # Build the LiteLLM model string
+    # Build the model string (prefix with provider for URL auto-detection)
     model = agent.model
     if agent.provider == "ollama" and not model.startswith("ollama/"):
         model = f"ollama/{model}"
@@ -372,7 +372,7 @@ async def send_message(
     # Set up execution components
     scope_guard = ScopeGuard(agent)
     tool_router = ToolRouter(scope_guard, agent_session, notebook_path)
-    provider = LiteLLMProvider(model=model, api_key=api_key, api_base=api_base)
+    provider = CompletionProvider(model=model, api_key=api_key, api_base=api_base)
     engine = AgentEngine(agent=agent, provider=provider, tool_router=tool_router, session=agent_session)
 
     # Update session status

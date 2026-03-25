@@ -2,25 +2,84 @@
   <div class="custom-block database-block">
     <div class="block-header">
       <span class="block-icon">&#x1F5C4;</span>
-      <span class="block-title">Database</span>
-      <span class="source-badge">{{ config.source || 'notebook' }}</span>
-      <button v-if="!loading" class="refresh-btn" @click="runQuery" title="Refresh">&#x21bb;</button>
+      <span class="block-title">{{ isChildrenMode ? 'Pages' : 'Database' }}</span>
+      <span v-if="!isChildrenMode" class="source-badge">{{ config.source || 'notebook' }}</span>
+      <button v-if="!loading" class="refresh-btn" @click="execute" title="Refresh">&#x21bb;</button>
     </div>
     <div class="block-content">
       <!-- Loading state -->
       <div v-if="loading" class="loading">
         <div class="loading-spinner"></div>
-        <span>Running query...</span>
+        <span>{{ isChildrenMode ? 'Loading pages...' : 'Running query...' }}</span>
       </div>
 
       <!-- Error state -->
       <div v-else-if="error" class="error">
-        <div class="query-display"><code>{{ config.query }}</code></div>
+        <div v-if="config.query" class="query-display"><code>{{ config.query }}</code></div>
         <div class="error-message">{{ error }}</div>
-        <button class="retry-btn" @click="runQuery">Retry</button>
+        <button class="retry-btn" @click="execute">Retry</button>
       </div>
 
-      <!-- Results -->
+      <!-- Children mode: page list -->
+      <div v-else-if="isChildrenMode && childPages.length > 0" class="children-list">
+        <div class="result-meta">
+          <span class="row-count">{{ childPages.length }} page{{ childPages.length !== 1 ? 's' : '' }}</span>
+        </div>
+        <div v-if="displayMode === 'table'" class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th class="sortable-th" @click="toggleSort('title')">
+                  Title
+                  <span v-if="sortColumn === 'title'" class="sort-indicator">
+                    {{ sortDirection === 'asc' ? '&#x25B2;' : '&#x25BC;' }}
+                  </span>
+                </th>
+                <th class="sortable-th" @click="toggleSort('updated_at')">
+                  Updated
+                  <span v-if="sortColumn === 'updated_at'" class="sort-indicator">
+                    {{ sortDirection === 'asc' ? '&#x25B2;' : '&#x25BC;' }}
+                  </span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="page in sortedChildPages"
+                :key="page.block_id"
+                class="page-row"
+                @click="$emit('navigatePage', page)"
+              >
+                <td>
+                  <span class="page-icon">&#x1F4C4;</span>
+                  <span class="page-name">{{ page.title || page.path }}</span>
+                </td>
+                <td class="date-cell">{{ formatDate(page.updated_at) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div v-else class="children-cards">
+          <div
+            v-for="page in sortedChildPages"
+            :key="page.block_id"
+            class="page-card"
+            @click="$emit('navigatePage', page)"
+          >
+            <span class="page-icon">&#x1F4C4;</span>
+            <span class="page-name">{{ page.title || page.path }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Children mode: empty -->
+      <div v-else-if="isChildrenMode && childPages.length === 0 && !loading" class="empty-children">
+        <div class="block-note">
+          <em>No pages yet. Create a subpage to get started.</em>
+        </div>
+      </div>
+
+      <!-- Query results -->
       <div v-else-if="result" class="query-result">
         <div class="result-meta">
           <span class="row-count">{{ result.total }} row{{ result.total !== 1 ? 's' : '' }}</span>
@@ -71,6 +130,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue"
 import { executeIntegrationEndpoint } from "../../services/integration"
+import { blockService, type Block } from "../../services/codex"
 
 interface DatabaseConfig {
   query?: string
@@ -91,15 +151,26 @@ interface Props {
   config: DatabaseConfig
   workspaceId?: number
   notebookId?: number
+  parentBlockId?: string
 }
 
 const props = defineProps<Props>()
 
+const emit = defineEmits<{
+  navigatePage: [block: Block]
+}>()
+
 const loading = ref(false)
 const error = ref<string | null>(null)
 const result = ref<QueryResult | null>(null)
+const childPages = ref<Block[]>([])
 const sortColumn = ref<string | null>(null)
 const sortDirection = ref<"asc" | "desc">("asc")
+
+const isChildrenMode = computed(() => {
+  const source = props.config.source
+  return source === "children" || source === "pages" || (!props.config.query && !source)
+})
 
 const displayMode = computed(() => props.config.display || "table")
 
@@ -123,6 +194,20 @@ const sortedRows = computed(() => {
   })
 })
 
+const sortedChildPages = computed(() => {
+  if (!sortColumn.value) return childPages.value
+  const col = sortColumn.value
+  const dir = sortDirection.value === "asc" ? 1 : -1
+  return [...childPages.value].sort((a, b) => {
+    const va = (a as any)[col]
+    const vb = (b as any)[col]
+    if (va === vb) return 0
+    if (va === null || va === undefined) return 1
+    if (vb === null || vb === undefined) return -1
+    return String(va).localeCompare(String(vb)) * dir
+  })
+})
+
 function toggleSort(col: string) {
   if (sortColumn.value === col) {
     sortDirection.value = sortDirection.value === "asc" ? "desc" : "asc"
@@ -136,6 +221,41 @@ function formatCell(value: any): string {
   if (value === null || value === undefined) return ""
   if (typeof value === "object") return JSON.stringify(value)
   return String(value)
+}
+
+function formatDate(dateStr: string): string {
+  if (!dateStr) return ""
+  try {
+    const d = new Date(dateStr)
+    return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
+  } catch {
+    return dateStr
+  }
+}
+
+async function fetchChildren() {
+  if (!props.workspaceId || !props.notebookId || !props.parentBlockId) {
+    childPages.value = []
+    return
+  }
+
+  loading.value = true
+  error.value = null
+
+  try {
+    const response = await blockService.getChildren(
+      props.parentBlockId,
+      props.notebookId,
+      props.workspaceId,
+    )
+    childPages.value = (response.children || []).filter(
+      (b: Block) => b.block_type === "page"
+    )
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : "Failed to load child pages"
+  } finally {
+    loading.value = false
+  }
 }
 
 async function runQuery() {
@@ -169,8 +289,16 @@ async function runQuery() {
   }
 }
 
+async function execute() {
+  if (isChildrenMode.value) {
+    await fetchChildren()
+  } else {
+    await runQuery()
+  }
+}
+
 onMounted(() => {
-  runQuery()
+  execute()
 })
 </script>
 
@@ -184,8 +312,8 @@ onMounted(() => {
 }
 
 .database-block {
-  border-color: #059669;
-  background: var(--color-bg-secondary, #f0fdf4);
+  border-color: var(--color-border-medium, #e0e0e0);
+  background: var(--color-bg-primary, #fff);
 }
 
 .block-header {
@@ -312,10 +440,56 @@ th, td {
   margin-left: 4px;
 }
 
-.empty-table {
+.empty-table, .empty-children {
   padding: 16px;
   text-align: center;
   color: var(--color-text-secondary, #6b7280);
+}
+
+/* Children mode styles */
+.page-row {
+  cursor: pointer;
+}
+
+.page-row:hover {
+  background: var(--color-bg-hover, #f5f5f5);
+}
+
+.page-row td {
+  padding: 8px 10px;
+}
+
+.page-icon {
+  margin-right: 6px;
+}
+
+.page-name {
+  font-weight: 500;
+}
+
+.date-cell {
+  color: var(--color-text-secondary, #6b7280);
+  font-size: var(--text-xs, 0.75rem);
+}
+
+.children-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.page-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.1s;
+}
+
+.page-card:hover {
+  background: var(--color-bg-hover, #f5f5f5);
 }
 
 .json-output {

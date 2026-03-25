@@ -22,8 +22,8 @@ from codex.db.models.notebook import Block
 logger = logging.getLogger(__name__)
 
 # Default embedding model — can be overridden via env var
-EMBEDDING_MODEL = os.getenv("CODEX_EMBEDDING_MODEL", "text-embedding-3-small")
-EMBEDDING_DIMENSIONS = int(os.getenv("CODEX_EMBEDDING_DIMENSIONS", "1536"))
+EMBEDDING_MODEL = os.getenv("CODEX_EMBEDDING_MODEL", "voyage-multimodal-3")
+EMBEDDING_DIMENSIONS = int(os.getenv("CODEX_EMBEDDING_DIMENSIONS", "1024"))
 
 # Lock for serialising sqlite-vec DDL across threads
 _vec_init_lock = threading.Lock()
@@ -236,9 +236,9 @@ def delete_page_fts(engine, block_id: str) -> None:
 
 
 def generate_embedding(text: str) -> list[float] | None:
-    """Generate an embedding vector via OpenAI-compatible embedding API.
+    """Generate an embedding vector via Voyage AI (or OpenAI-compatible) API.
 
-    Requires OPENAI_API_KEY (or CODEX_EMBEDDING_API_KEY) to be set.
+    Requires VOYAGE_API_KEY (or CODEX_EMBEDDING_API_KEY / OPENAI_API_KEY) to be set.
     Supports any OpenAI-compatible endpoint via CODEX_EMBEDDING_BASE_URL.
     """
     if not text.strip():
@@ -246,12 +246,12 @@ def generate_embedding(text: str) -> list[float] | None:
 
     import httpx
 
-    api_key = os.getenv("CODEX_EMBEDDING_API_KEY") or os.getenv("OPENAI_API_KEY")
+    api_key = os.getenv("CODEX_EMBEDDING_API_KEY") or os.getenv("VOYAGE_API_KEY") or os.getenv("OPENAI_API_KEY")
     if not api_key:
-        logger.debug("No embedding API key configured (set OPENAI_API_KEY or CODEX_EMBEDDING_API_KEY)")
+        logger.debug("No embedding API key configured (set VOYAGE_API_KEY, OPENAI_API_KEY, or CODEX_EMBEDDING_API_KEY)")
         return None
 
-    base_url = os.getenv("CODEX_EMBEDDING_BASE_URL", "https://api.openai.com/v1")
+    base_url = os.getenv("CODEX_EMBEDDING_BASE_URL", "https://api.voyageai.com/v1")
 
     try:
         response = httpx.post(
@@ -423,7 +423,9 @@ def vectorize_all_pages(engine, notebook_id: int, notebook_path: str, session: S
     ensure_search_tables(engine)
 
     pages = (
-        session.execute(select(Block).where(Block.notebook_id == notebook_id, Block.block_type == "page")).scalars().all()
+        session.execute(select(Block).where(Block.notebook_id == notebook_id, Block.block_type == "page"))
+        .scalars()
+        .all()
     )
 
     count = 0

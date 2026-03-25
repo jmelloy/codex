@@ -54,6 +54,12 @@ spec:
                   name: codex-secrets
                   key: GOOGLE_CLIENT_SECRET
                   optional: true
+            - name: VOYAGE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: codex-secrets
+                  key: VOYAGE_API_KEY
+                  optional: true
           volumeMounts:
             - name: data
               mountPath: /app/data

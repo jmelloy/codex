@@ -777,6 +777,73 @@ async def upload_block(
         nb_session.close()
 
 
+@nested_router.post("/upload-folder-zip", response_model=ImportFolderResponse)
+async def upload_folder_zip(
+    workspace_identifier: str,
+    notebook_identifier: str,
+    file: UploadFile = File(...),
+    parent_path: str = Form(""),
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Upload a zip file containing a folder structure, extract it, and create pages/blocks."""
+    import tempfile
+    import zipfile
+
+    notebook_path, notebook, workspace = await get_notebook_path_nested(
+        workspace_identifier, notebook_identifier, current_user, session
+    )
+    if not file.filename or not file.filename.endswith(".zip"):
+        raise HTTPException(status_code=400, detail="Must upload a .zip file")
+
+    content = await file.read()
+
+    # Extract the zip into the notebook at the target location
+    target_dir = notebook_path / parent_path if parent_path else notebook_path
+
+    try:
+        import io
+
+        with zipfile.ZipFile(io.BytesIO(content)) as zf:
+            # Security: reject paths with .. or absolute paths
+            for member in zf.namelist():
+                if member.startswith("/") or ".." in member:
+                    raise HTTPException(status_code=400, detail=f"Invalid path in zip: {member}")
+
+            # Find the top-level folder name from the zip
+            top_dirs = {name.split("/")[0] for name in zf.namelist() if "/" in name}
+            top_files = {name for name in zf.namelist() if "/" not in name and name}
+
+            zf.extractall(target_dir)
+    except zipfile.BadZipFile:
+        raise HTTPException(status_code=400, detail="Invalid zip file")
+
+    # Determine the folder path to import
+    # If zip has a single top-level folder, import that folder
+    # Otherwise, treat parent_path as the import root
+    if len(top_dirs) == 1 and len(top_files) == 0:
+        folder_name = top_dirs.pop()
+        import_path = f"{parent_path}/{folder_name}" if parent_path else folder_name
+    else:
+        import_path = parent_path
+
+    nb_session = get_notebook_session(str(notebook_path))
+    try:
+        result = import_folder_as_pages(
+            notebook_path=notebook_path,
+            notebook_id=notebook.id,
+            folder_path=import_path,
+            nb_session=nb_session,
+        )
+        return result
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        nb_session.close()
+
+
 @nested_router.post("/import-folder", response_model=ImportFolderResponse)
 async def import_folder(
     workspace_identifier: str,

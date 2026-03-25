@@ -316,11 +316,16 @@ vectorize_router = APIRouter()
 async def vectorize_notebook(
     workspace_identifier: str,
     notebook_identifier: str,
+    reset: bool = False,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_system_session),
 ):
-    """Trigger vectorization of all pages in a notebook."""
-    from codex.core.vectorizer import vectorize_all_pages
+    """Trigger vectorization of all pages in a notebook.
+
+    Pass ?reset=true to drop and recreate the embeddings table first
+    (needed after changing embedding model or dimensions).
+    """
+    from codex.core.vectorizer import reset_embedding_table, vectorize_all_pages
 
     workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
     notebook = await get_notebook_by_slug_or_id(notebook_identifier, workspace, session)
@@ -329,10 +334,14 @@ async def vectorize_notebook(
     nb_path = str(workspace_path / notebook.path)
 
     engine = get_notebook_engine(nb_path)
+
+    if reset:
+        reset_embedding_table(engine)
+
     nb_session = get_notebook_session(nb_path)
     try:
         count = vectorize_all_pages(engine, notebook.id, nb_path, nb_session)
     finally:
         nb_session.close()
 
-    return {"status": "ok", "pages_vectorized": count, "notebook": notebook.slug}
+    return {"status": "ok", "pages_vectorized": count, "notebook": notebook.slug, "reset": reset}

@@ -55,6 +55,40 @@ def _cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
 # ---------------------------------------------------------------------------
 
 
+def reset_embedding_table(engine) -> None:
+    """Drop and recreate the page_embeddings vec0 table.
+
+    Use after changing the embedding model or dimensions.
+    """
+    import sqlite3
+
+    import sqlite_vec
+
+    with _vec_init_lock:
+        raw_url = str(engine.url)
+        db_path = raw_url.replace("sqlite:///", "")
+
+        conn = sqlite3.connect(db_path)
+        try:
+            conn.enable_load_extension(True)
+            sqlite_vec.load(conn)
+            conn.enable_load_extension(False)
+
+            conn.execute("DROP TABLE IF EXISTS page_embeddings")
+            conn.execute(
+                f"""
+                CREATE VIRTUAL TABLE page_embeddings USING vec0(
+                    block_id TEXT PRIMARY KEY,
+                    embedding float[{EMBEDDING_DIMENSIONS}]
+                )
+                """
+            )
+            conn.commit()
+            logger.info(f"Reset page_embeddings table ({EMBEDDING_DIMENSIONS} dimensions)")
+        finally:
+            conn.close()
+
+
 def ensure_search_tables(engine) -> None:
     """Create FTS5 and vec0 virtual tables if they don't already exist.
 

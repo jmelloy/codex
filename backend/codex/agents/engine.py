@@ -6,7 +6,7 @@ import logging
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
-from .provider import AgentResponse, LiteLLMProvider, Message
+from .provider import AgentResponse, CompletionProvider, Message
 from .tools import ToolRouter
 
 if TYPE_CHECKING:
@@ -25,7 +25,7 @@ class AgentEngine:
     def __init__(
         self,
         agent: Agent,
-        provider: LiteLLMProvider,
+        provider: CompletionProvider,
         tool_router: ToolRouter,
         session: AgentSession,
         max_iterations: int = 20,
@@ -60,7 +60,7 @@ class AgentEngine:
             Message(role="user", content=user_message),
         ]
 
-        tools = self.tool_router.get_tool_definitions_for_litellm()
+        tools = self.tool_router.get_openai_tool_definitions()
         iterations = 0
 
         while iterations < self.max_iterations:

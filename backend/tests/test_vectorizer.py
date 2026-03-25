@@ -40,22 +40,20 @@ def notebook_dir():
 
 def test_serialize_deserialize_f32():
     """Test vector serialization roundtrip."""
-    import numpy as np
-
     original = [0.1, 0.2, 0.3, 0.4, 0.5]
     serialized = _serialize_f32(original)
     deserialized = _deserialize_f32(serialized)
-    np.testing.assert_array_almost_equal(deserialized, original, decimal=6)
+    assert len(deserialized) == len(original)
+    for a, b in zip(deserialized, original):
+        assert abs(a - b) < 1e-6
 
 
-def test_serialize_numpy_array():
-    """Test serialization of numpy array."""
-    import numpy as np
-
-    arr = np.array([1.0, 2.0, 3.0], dtype=np.float32)
-    serialized = _serialize_f32(arr)
+def test_serialize_list_roundtrip():
+    """Test serialization of a float list."""
+    values = [1.0, 2.0, 3.0]
+    serialized = _serialize_f32(values)
     deserialized = _deserialize_f32(serialized)
-    np.testing.assert_array_equal(deserialized, arr)
+    assert deserialized == values
 
 
 def test_ensure_search_tables(notebook_dir):

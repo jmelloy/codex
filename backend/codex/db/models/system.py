@@ -237,7 +237,7 @@ class Agent(SQLModel, table=True):
     workspace_id: int = Field(foreign_key="workspaces.id", index=True)
     name: str = Field(max_length=100)
     description: str | None = None
-    provider: str  # "openai", "anthropic", "ollama", or any litellm provider
+    provider: str  # "openai", "anthropic", "ollama", or any OpenAI-compatible provider
     model: str  # e.g. "gpt-4o", "claude-sonnet-4-20250514", "ollama/llama3"
 
     # Scope configuration (JSON)

@@ -156,8 +156,8 @@ class ToolRouter:
 
         return tools
 
-    def get_tool_definitions_for_litellm(self) -> list[dict[str, Any]]:
-        """Return tool definitions in OpenAI function-calling format for LiteLLM."""
+    def get_openai_tool_definitions(self) -> list[dict[str, Any]]:
+        """Return tool definitions in OpenAI function-calling format."""
         return [
             {
                 "type": "function",

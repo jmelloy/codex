@@ -69,6 +69,20 @@
             <span class="type-icon">{{ bt.icon }}</span>
             <span class="type-label">{{ bt.label }}</span>
           </button>
+          <template v-if="dynamicBlockTypes.length > 0">
+            <div class="type-menu-divider"></div>
+            <div class="type-menu-section-label">Dynamic</div>
+            <button
+              v-for="bt in dynamicBlockTypes"
+              :key="bt.type"
+              class="type-menu-item"
+              :class="{ active: block.block_type === bt.type }"
+              @click.stop="changeBlockType(block, bt.type, bt.defaultContent)"
+            >
+              <span class="type-icon">{{ bt.icon }}</span>
+              <span class="type-label">{{ bt.label }}</span>
+            </button>
+          </template>
           <div class="type-menu-divider"></div>
           <button class="type-menu-item type-menu-delete" @click.stop="$emit('deleteBlock', block.block_id)">
             <span class="type-icon">&#x2715;</span>
@@ -160,6 +174,7 @@
 import { ref, nextTick, watch, onMounted } from "vue"
 import { marked } from "marked"
 import type { Block } from "../services/codex"
+import { getAvailableBlockTypes } from "../services/pluginLoader"
 
 interface Props {
   blocks: Block[]
@@ -211,6 +226,29 @@ const blockTypes = [
   { type: "quote", label: "Quote", icon: ">", defaultContent: "> " },
   { type: "divider", label: "Divider", icon: "--", defaultContent: "---" },
 ]
+
+// Default YAML templates for dynamic block types
+const dynamicBlockTemplates: Record<string, string> = {
+  database: "source: notebook\nquery: SELECT title, block_type FROM blocks LIMIT 10\ndisplay: table",
+  api: "url: https://api.example.com/data\nmethod: GET\ndisplay: json",
+}
+
+// Dynamic block types loaded from plugins
+const dynamicBlockTypes = ref<Array<{ type: string; label: string; icon: string; defaultContent: string }>>([])
+
+onMounted(async () => {
+  try {
+    const available = await getAvailableBlockTypes()
+    dynamicBlockTypes.value = available.map((bt) => ({
+      type: bt.blockType,
+      label: bt.pluginName,
+      icon: bt.icon || "{}",
+      defaultContent: "```" + bt.blockType + "\n" + (dynamicBlockTemplates[bt.blockType] || "") + "\n```",
+    }))
+  } catch {
+    // Plugin manifest unavailable — dynamic types won't appear
+  }
+})
 
 // Watch blocks for pending focus
 watch(
@@ -613,6 +651,15 @@ function onDragEnd() {
   height: 1px;
   background: var(--border-color, #e0e0e0);
   margin: 4px 0;
+}
+
+.type-menu-section-label {
+  padding: 4px 10px 2px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary, #999);
 }
 
 .type-icon {

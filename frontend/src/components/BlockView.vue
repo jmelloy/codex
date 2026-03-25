@@ -156,6 +156,7 @@
                 @blur="finishEditing(block)"
                 @keydown="handleKeydown($event, block, index)"
                 @input="autoResize($event)"
+                @paste="handleBlockPaste($event, block, index)"
               ></textarea>
 
               <!-- View mode -->
@@ -163,7 +164,7 @@
                 v-else
                 class="block-rendered"
                 :class="{ 'is-empty': !block.content }"
-                @click.stop="startEditing(block, index)"
+                @click.stop="handleRenderedBlockClick($event, block, index)"
               >
                 <div v-if="block.content" v-html="renderBlock(block)"></div>
                 <span v-else class="block-placeholder-text">{{ getPlaceholder(block.block_type) }}</span>
@@ -178,14 +179,25 @@
     <div class="block-trailing-area" @click="addBlockAtEnd">
       <span class="trailing-hint">&nbsp;</span>
     </div>
+
+    <!-- Hidden file input for image uploads -->
+    <input
+      ref="fileInputRef"
+      type="file"
+      accept="image/*"
+      style="display: none"
+      @change="handleFileSelected"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, nextTick, watch, onMounted } from "vue"
-import { marked } from "marked"
+import { Marked } from "marked"
 import type { Block } from "../services/codex"
+import { blockService } from "../services/codex"
 import { getAvailableBlockTypes } from "../services/pluginLoader"
+import { isLocalFileReference, resolveFileUrl } from "../utils/markdownHelpers"
 import DatabaseBlock from "./blocks/DatabaseBlock.vue"
 
 interface Props {
@@ -209,7 +221,12 @@ const emit = defineEmits<{
   reorder: [blockIds: string[]]
   updateBlock: [block: { block_id: string; content: string; block_type?: string }]
   createSubpage: []
+  uploadFile: [file: File, parentBlockId: string | undefined, position?: number]
 }>()
+
+// File input ref for image uploads
+const fileInputRef = ref<HTMLInputElement | null>(null)
+const pendingImagePosition = ref<number | undefined>(undefined)
 
 // Editing state
 const editingBlockId = ref<string | null>(null)
@@ -233,6 +250,7 @@ const pendingFocusIndex = ref<number | null>(null)
 const blockTypes = [
   { type: "text", label: "Text", icon: "T", defaultContent: "" },
   { type: "heading", label: "Heading", icon: "H", defaultContent: "## " },
+  { type: "image-upload", label: "Image", icon: "Img", defaultContent: "" },
   { type: "code", label: "Code", icon: "<>", defaultContent: "```\n\n```" },
   { type: "list", label: "List", icon: "=", defaultContent: "- " },
   { type: "quote", label: "Quote", icon: ">", defaultContent: "> " },
@@ -328,9 +346,39 @@ function getBlockFileName(block: Block): string {
   return block.path.split("/").pop() || block.path
 }
 
+// Create a local Marked instance with custom renderer for resolving links/images
+function createMarkedInstance(): Marked {
+  const instance = new Marked()
+  instance.use({
+    renderer: {
+      image({ href, title, text }: { href: string; title?: string | null; text: string }): string {
+        const resolvedHref = resolveFileUrl(href, props.workspaceId, props.notebookId)
+        const titleAttr = title ? ` title="${title}"` : ""
+        const alt = text || ""
+        return `<img src="${resolvedHref}" alt="${alt}"${titleAttr}>`
+      },
+      link({ href, title, text }: { href: string; title?: string | null; text: string }): string {
+        const titleAttr = title ? ` title="${title}"` : ""
+        const displayText = text || ""
+        if (href && !isLocalFileReference(href)) {
+          // External link: open in new tab
+          return `<a href="${href}"${titleAttr} target="_blank" rel="noopener">${displayText}</a>`
+        }
+        // Internal/local link: resolve URL, add data attribute for navigation
+        const resolvedHref = resolveFileUrl(href, props.workspaceId, props.notebookId)
+        return `<a href="${resolvedHref}"${titleAttr} data-internal-link="${href}">${displayText}</a>`
+      },
+    },
+  })
+  instance.setOptions({ breaks: true, gfm: true })
+  return instance
+}
+
+const markedInstance = createMarkedInstance()
+
 function renderBlock(block: Block): string {
   try {
-    return marked.parse(block.content || "", { async: false }) as string
+    return markedInstance.parse(block.content || "", { async: false }) as string
   } catch {
     return block.content || ""
   }
@@ -465,6 +513,14 @@ function toggleTypeMenu(index: number) {
 
 function changeBlockType(block: Block, newType: string, defaultContent: string) {
   typeMenuIndex.value = null
+
+  // Image upload triggers file picker instead of changing type
+  if (newType === "image-upload") {
+    const idx = props.blocks.indexOf(block)
+    triggerImageUpload(idx >= 0 ? idx + 1 : undefined)
+    return
+  }
+
   if (block.block_type === newType) return
 
   // For divider, just update with divider content
@@ -480,6 +536,74 @@ function insertBlockAt(index: number) {
 function addBlockAtEnd() {
   pendingFocusIndex.value = props.blocks.length
   emit("addBlock", "text", "")
+}
+
+// Link click handling in rendered blocks
+async function handleRenderedBlockClick(event: MouseEvent, block: Block, index: number) {
+  const target = event.target as HTMLElement
+  const anchor = target.closest("a")
+  if (anchor) {
+    event.preventDefault()
+    const internalLink = anchor.getAttribute("data-internal-link")
+    if (internalLink && props.workspaceId && props.notebookId) {
+      // Internal link: resolve and navigate
+      try {
+        const resolved = await blockService.resolveLink(
+          internalLink,
+          props.notebookId,
+          props.workspaceId,
+        )
+        if (resolved) {
+          emit("navigatePage", resolved as unknown as Block)
+        }
+      } catch {
+        // If resolution fails, open the resolved href as fallback
+        const href = anchor.getAttribute("href")
+        if (href) window.open(href, "_blank")
+      }
+    } else {
+      // External link: open in new tab
+      const href = anchor.getAttribute("href")
+      if (href) window.open(href, "_blank")
+    }
+    return
+  }
+  // No link clicked: enter edit mode
+  startEditing(block, index)
+}
+
+// Image upload
+function triggerImageUpload(position?: number) {
+  pendingImagePosition.value = position
+  fileInputRef.value?.click()
+}
+
+function handleFileSelected(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (file) {
+    const parentBlockId = props.blocks[0]?.parent_block_id || undefined
+    emit("uploadFile", file, parentBlockId, pendingImagePosition.value)
+  }
+  // Reset input so the same file can be selected again
+  input.value = ""
+  pendingImagePosition.value = undefined
+}
+
+function handleBlockPaste(event: ClipboardEvent, _block: Block, index: number) {
+  const items = event.clipboardData?.items
+  if (!items) return
+  for (const item of items) {
+    if (item.type.startsWith("image/")) {
+      event.preventDefault()
+      const file = item.getAsFile()
+      if (file) {
+        const parentBlockId = props.blocks[0]?.parent_block_id || undefined
+        emit("uploadFile", file, parentBlockId, index + 1)
+      }
+      return
+    }
+  }
 }
 
 // Drag and drop

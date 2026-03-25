@@ -30,6 +30,10 @@ import {
   isBlockTypeAvailable,
   preloadPluginComponents,
 } from "../services/pluginLoader"
+import {
+  isLocalFileReference as isLocalFileRef,
+  resolveFileUrl as resolveFileRef,
+} from "../utils/markdownHelpers"
 
 const themeStore = useThemeStore()
 
@@ -75,33 +79,10 @@ export interface MarkdownExtension {
   renderer?: any
 }
 
-// Helper function to check if a URL is a local file reference
-const isLocalFileReference = (href: string): boolean => {
-  // Check if it's a markdown or text file
-  if (href.endsWith(".md") || href.endsWith(".txt")) {
-    return true
-  }
-  // Check if it's not an external URL or absolute path
-  return !href.startsWith("http://") && !href.startsWith("https://") && !href.startsWith("/")
-}
-
-// Helper function to resolve file references
-const resolveFileUrl = (href: string): string => {
-  // If workspace and notebook IDs are available, resolve the file
-  if (props.workspaceId && props.notebookId) {
-    // Check if it's already a full URL or API path
-    if (href.startsWith("http://") || href.startsWith("https://") || href.startsWith("/api/")) {
-      return href
-    }
-
-    // For relative or filename-only references, use the path/ endpoint with nested routes
-    const encodedPath = encodeURIComponent(href)
-    return `/api/v1/workspaces/${props.workspaceId}/notebooks/${props.notebookId}/blocks/path/${encodedPath}/content`
-  }
-
-  // Fallback to original href if no context
-  return href
-}
+// Wrappers around shared helpers that bind workspace/notebook context
+const isLocalFileReference = (href: string): boolean => isLocalFileRef(href)
+const resolveFileUrl = (href: string): string =>
+  resolveFileRef(href, props.workspaceId, props.notebookId)
 
 // Type for marked renderer token
 interface RendererToken {

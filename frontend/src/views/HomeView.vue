@@ -654,6 +654,7 @@
             @reorder="handleReorderBlocks"
             @update-block="handleUpdateBlock"
             @create-subpage="handleCreateSubpage"
+            @upload-file="handleUploadFile"
           />
         </div>
       </div>
@@ -1227,6 +1228,22 @@ async function handleUpdateBlock(block: { block_id: string; content: string; blo
     }
   } catch {
     showToast({ message: "Failed to save block", type: "error" })
+  }
+}
+
+async function handleUploadFile(file: File, parentBlockId?: string, _position?: number) {
+  const notebookId = workspaceStore.currentBlock?.notebook_id
+  if (!notebookId || !workspaceStore.currentWorkspace) return
+  try {
+    await blockService.upload(notebookId, workspaceStore.currentWorkspace.id, file, parentBlockId)
+    // Refresh page blocks to show the new image
+    const pageBlockId = workspaceStore.currentPageBlockId
+    if (pageBlockId) {
+      await workspaceStore.fetchPageBlocks(pageBlockId, notebookId)
+    }
+    showToast({ message: "Image uploaded" })
+  } catch {
+    showToast({ message: "Failed to upload image", type: "error" })
   }
 }
 

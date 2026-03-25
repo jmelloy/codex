@@ -164,7 +164,7 @@ jobs:
       - name: Decrypt SOPS secrets
         env:
           SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
-        run: sops decrypt -i k8s/base/secrets.yml
+        run: sops decrypt -i k8s/base/overlays/${{ github.event.inputs.environment || 'production' }}/secrets.yml
 
       - name: Set up kubectl
         uses: azure/setup-kubectl@v4

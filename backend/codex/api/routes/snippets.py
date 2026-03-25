@@ -143,11 +143,13 @@ async def post_snippet(
 
     # When no folder is specified, auto-create a parent page so the snippet
     # appears in the sidebar (which only renders page-type blocks).
+    # Default folder uses YYYY/MM/YYYY-MM-DD date hierarchy.
     auto_create_page = not request.folder
     if request.folder:
         page_folder = request.folder
     else:
-        page_folder = os.path.splitext(filename)[0]
+        now = datetime.now(UTC)
+        page_folder = now.strftime("%Y/%m/%Y-%m-%d")
 
     # Create the parent page BEFORE writing the file, since create_page
     # also creates the directory and checks for uniqueness.
@@ -155,27 +157,40 @@ async def post_snippet(
     parent_block_id = None
     try:
         if auto_create_page:
-            parent_page = nb_session.execute(
-                select(Block).where(
-                    Block.notebook_id == notebook.id,
-                    Block.path == page_folder,
-                    Block.block_type == "page",
-                )
-            ).scalar_one_or_none()
+            # Walk the page_folder path segments, creating each level
+            # e.g. "2026/03/2026-03-25" creates pages: 2026, 2026/03, 2026/03/2026-03-25
+            segments = page_folder.strip("/").split("/")
+            current_parent_path = None
+            for segment in segments:
+                if current_parent_path:
+                    candidate_path = f"{current_parent_path}/{segment}"
+                else:
+                    candidate_path = segment
 
-            if not parent_page:
-                page_result = create_page(
-                    notebook_path=notebook_path,
-                    notebook_id=notebook.id,
-                    parent_path=None,
-                    title=request.title or page_folder,
-                    nb_session=nb_session,
-                )
-                nb_session.commit()
-                parent_block_id = page_result["block_id"]
-                page_folder = page_result["path"]
-            else:
-                parent_block_id = parent_page.block_id
+                existing = nb_session.execute(
+                    select(Block).where(
+                        Block.notebook_id == notebook.id,
+                        Block.path == candidate_path,
+                        Block.block_type == "page",
+                    )
+                ).scalar_one_or_none()
+
+                if not existing:
+                    page_result = create_page(
+                        notebook_path=notebook_path,
+                        notebook_id=notebook.id,
+                        parent_path=current_parent_path,
+                        title=segment,
+                        nb_session=nb_session,
+                    )
+                    nb_session.commit()
+                    parent_block_id = page_result["block_id"]
+                    current_parent_path = page_result["path"]
+                else:
+                    parent_block_id = existing.block_id
+                    current_parent_path = existing.path
+
+            page_folder = current_parent_path or page_folder
         else:
             # For explicit folders, look up existing page if any
             parts = page_folder.rstrip("/").split("/")

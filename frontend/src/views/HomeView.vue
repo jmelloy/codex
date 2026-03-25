@@ -1607,7 +1607,25 @@ async function handleCreatePage() {
     const isSpecialFile = hasExtension && !path.endsWith(".md")
 
     const title = isSpecialFile ? path : path.replace(/\.md$/, "")
-    await workspaceStore.createPage(createPageNotebook.value.id, title)
+
+    // Support slash-separated paths to create nested pages
+    // e.g. "2026/03/2026-03-25" creates 2026 -> 03 -> 2026-03-25
+    const segments = title.split("/").filter((s: string) => s.trim())
+    if (segments.length > 1) {
+      let parentPath: string | undefined = undefined
+      for (const segment of segments) {
+        const result = await workspaceStore.createPage(
+          createPageNotebook.value!.id,
+          segment.trim(),
+          parentPath,
+        )
+        if (result?.path) {
+          parentPath = result.path
+        }
+      }
+    } else {
+      await workspaceStore.createPage(createPageNotebook.value.id, title)
+    }
     showToast({ message: "Page created!" })
 
     showCreatePage.value = false

@@ -117,7 +117,6 @@ class FileOperationQueue:
         self.process_callback = process_callback
         self._queue: queue.Queue[FileOperation] = queue.Queue()
         self._stop_event = threading.Event()
-        self._stopped = False  # Set True on stop() to reject new operations
         self._processor_thread: threading.Thread | None = None
 
     def enqueue(
@@ -150,7 +149,7 @@ class FileOperationQueue:
             file_hash=file_hash,
         )
 
-        if self._stopped:
+        if self._stop_event.is_set():
             logger.debug(f"Queue stopped, dropping {operation} for {filepath}")
             op.error = RuntimeError("Watcher stopped")
             return op
@@ -187,7 +186,6 @@ class FileOperationQueue:
             timeout: Maximum time to wait for processing to complete
         """
         logger.info(f"Stopping queue processor for notebook {self.notebook_id}")
-        self._stopped = True  # Reject new enqueue calls immediately
         self._stop_event.set()
 
         if self._processor_thread and self._processor_thread.is_alive():

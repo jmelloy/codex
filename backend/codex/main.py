@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 from contextvars import ContextVar
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -217,6 +217,9 @@ if _static_dir.exists() and (_static_dir / "assets").exists():
 
     @app.get("/{full_path:path}", include_in_schema=False)
     async def serve_spa(full_path: str):
+        # Don't serve SPA for API paths — let them 404 naturally
+        if full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="Not Found")
         file = _static_dir / full_path
         if file.exists() and file.is_file():
             return FileResponse(file)

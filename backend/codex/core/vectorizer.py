@@ -236,15 +236,33 @@ def delete_page_fts(engine, block_id: str) -> None:
 
 
 def generate_embedding(text: str) -> list[float] | None:
-    """Generate an embedding vector using litellm."""
+    """Generate an embedding vector via OpenAI-compatible embedding API.
+
+    Requires OPENAI_API_KEY (or CODEX_EMBEDDING_API_KEY) to be set.
+    Supports any OpenAI-compatible endpoint via CODEX_EMBEDDING_BASE_URL.
+    """
     if not text.strip():
         return None
 
-    try:
-        import litellm
+    import httpx
 
-        response = litellm.embedding(model=EMBEDDING_MODEL, input=[text[:8000]])
-        return response.data[0]["embedding"]
+    api_key = os.getenv("CODEX_EMBEDDING_API_KEY") or os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        logger.debug("No embedding API key configured (set OPENAI_API_KEY or CODEX_EMBEDDING_API_KEY)")
+        return None
+
+    base_url = os.getenv("CODEX_EMBEDDING_BASE_URL", "https://api.openai.com/v1")
+
+    try:
+        response = httpx.post(
+            f"{base_url.rstrip('/')}/embeddings",
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={"model": EMBEDDING_MODEL, "input": text[:8000]},
+            timeout=30.0,
+        )
+        response.raise_for_status()
+        data = response.json()
+        return data["data"][0]["embedding"]
     except Exception as e:
         logger.warning(f"Embedding generation failed: {e}")
         return None

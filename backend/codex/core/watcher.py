@@ -149,6 +149,11 @@ class FileOperationQueue:
             file_hash=file_hash,
         )
 
+        if self._stop_event.is_set():
+            logger.debug(f"Queue stopped, dropping {operation} for {filepath}")
+            op.error = RuntimeError("Watcher stopped")
+            return op
+
         if wait:
             # Process immediately for synchronous operations (don't wait for batch)
             self._process_single(op)
@@ -660,15 +665,23 @@ def update_file_metadata(
             callback(filepath, event_type)
 
     except Exception as e:
-        # Check if this is a database table missing error (e.g., during test cleanup)
+        # Check if this is a database/cleanup error (deleted notebook, missing table, etc.)
         error_msg = str(e)
-        if "no such table" in error_msg or "OperationalError" in str(type(e)):
-            logger.debug(f"Database table not found for {filepath}, likely during cleanup: {e}")
+        if (
+            "no such table" in error_msg
+            or "unable to open database" in error_msg
+            or "database is locked" in error_msg
+            or "OperationalError" in str(type(e))
+        ):
+            logger.debug(f"Database unavailable for {filepath}, likely during cleanup: {e}")
         else:
             logger.error(f"Error updating metadata for {filepath}: {e}", exc_info=True)
     finally:
         if session:
-            session.close()
+            try:
+                session.close()
+            except Exception:
+                pass
 
 
 def _sync_blocks_for_file(
@@ -888,6 +901,7 @@ class NotebookFileHandler(FileSystemEventHandler):
         self.notebook_id = notebook_id
         self.callback = callback
         self.queue = queue
+        self._stopped = False  # Set True when watcher is stopping
         # Cache for storing file hashes before delete (for move detection)
         self._hash_cache: dict[str, str] = {}
         super().__init__()
@@ -922,6 +936,8 @@ class NotebookFileHandler(FileSystemEventHandler):
 
     def on_created(self, event):
         """Called when a file or directory is created."""
+        if self._stopped:
+            return
         src_path = str(event.src_path)
         if self._should_ignore(src_path):
             return
@@ -961,6 +977,8 @@ class NotebookFileHandler(FileSystemEventHandler):
 
     def on_modified(self, event):
         """Called when a file or directory is modified."""
+        if self._stopped:
+            return
         if not event.is_directory:
             src_path = str(event.src_path)
             if self._should_ignore(src_path):
@@ -973,6 +991,8 @@ class NotebookFileHandler(FileSystemEventHandler):
 
     def on_deleted(self, event):
         """Called when a file or directory is deleted."""
+        if self._stopped:
+            return
         src_path = str(event.src_path)
         if self._should_ignore(src_path):
             return
@@ -991,6 +1011,8 @@ class NotebookFileHandler(FileSystemEventHandler):
 
     def _delete_directory_files(self, dir_path: str):
         """Delete all files in a deleted directory from the database."""
+        if self._stopped:
+            return
         logger.debug(f"Handling deleted directory: {dir_path}")
         try:
             session = get_notebook_session(self.notebook_path)
@@ -1019,12 +1041,21 @@ class NotebookFileHandler(FileSystemEventHandler):
 
                 logger.debug(f"Queued deletion of {len(files_to_delete)} files from deleted directory {dir_path}")
             finally:
-                session.close()
+                try:
+                    session.close()
+                except Exception:
+                    pass
         except Exception as e:
-            logger.error(f"Error handling deleted directory {dir_path}: {e}", exc_info=True)
+            error_msg = str(e)
+            if "unable to open database" in error_msg or "OperationalError" in str(type(e)):
+                logger.debug(f"Database unavailable for deleted directory {dir_path}, likely during cleanup")
+            else:
+                logger.error(f"Error handling deleted directory {dir_path}: {e}", exc_info=True)
 
     def on_moved(self, event):
         """Called when a file or directory is moved."""
+        if self._stopped:
+            return
         src_path = str(event.src_path)
         dest_path = str(event.dest_path)
 
@@ -1146,11 +1177,16 @@ class NotebookWatcher:
         Args:
             queue_timeout: Maximum time to wait for queue to drain
         """
-        # Stop the filesystem observer first (no new events)
+        # Signal handler to drop all incoming events immediately.
+        # This must happen before observer.stop() because the observer
+        # can fire deletion events during shutil.rmtree of the notebook.
+        self.handler._stopped = True
+
+        # Stop the filesystem observer (no new events after join)
         self.observer.stop()
         self.observer.join()
 
-        # Stop the queue processor (drains remaining items)
+        # Stop the queue processor (drains remaining items, rejects new ones)
         self.queue.stop(timeout=queue_timeout)
 
         # Wait for indexing thread to complete if it's still running
@@ -1178,12 +1214,18 @@ class NotebookWatcher:
     def _run_indexing(self):
         """Run the indexing scan in a background thread."""
         try:
+            if self.handler._stopped:
+                return
             self.scan_existing_files()
             self._indexing_status = "completed"
             logger.info(f"Background indexing completed for notebook {self.notebook_id}")
         except Exception as e:
             self._indexing_status = "error"
-            logger.error(f"Background indexing failed for notebook {self.notebook_id}: {e}", exc_info=True)
+            error_msg = str(e)
+            if "unable to open database" in error_msg or "OperationalError" in str(type(e)):
+                logger.debug(f"Indexing aborted for notebook {self.notebook_id}, database unavailable")
+            else:
+                logger.error(f"Background indexing failed for notebook {self.notebook_id}: {e}", exc_info=True)
 
     def get_indexing_status(self) -> dict:
         """Get the current indexing status."""

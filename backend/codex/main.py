@@ -191,6 +191,11 @@ app.include_router(
     prefix="/api/v1/workspaces/{workspace_identifier}/notebooks/{notebook_identifier}/integrations",
     tags=["integrations"],
 )
+app.include_router(
+    search.vectorize_router,
+    prefix="/api/v1",
+    tags=["search"],
+)
 app.include_router(tasks.router, prefix="/api/v1/tasks", tags=["tasks"])
 app.include_router(integrations.router, prefix="/api/v1/plugins/integrations", tags=["integrations"])
 app.include_router(plugins.router, prefix="/api/v1/plugins", tags=["plugins"])

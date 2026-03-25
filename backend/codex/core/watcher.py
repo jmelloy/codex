@@ -650,6 +650,12 @@ def update_file_metadata(
         except Exception as block_err:
             logger.debug(f"Block sync skipped for {filepath}: {block_err}")
 
+        # Update search index for the affected page
+        try:
+            _update_page_search_index(notebook_path, notebook_id, filepath, event_type, session)
+        except Exception as idx_err:
+            logger.debug(f"Search index update skipped for {filepath}: {idx_err}")
+
         if callback:
             callback(filepath, event_type)
 
@@ -755,6 +761,74 @@ def _sync_blocks_for_file(
                 }
             )
             write_page_metadata(Path(parent_dir), page_meta)
+
+
+def _update_page_search_index(
+    notebook_path: str,
+    notebook_id: int,
+    filepath: str,
+    event_type: str,
+    session=None,
+) -> None:
+    """Update the FTS/vector search index when a page or its children change.
+
+    Identifies which page block is affected and re-indexes it.
+    Only indexes FTS here (fast); vector embeddings are generated on-demand
+    or via the /vectorize endpoint.
+    """
+    from codex.core.blocks import PAGE_METADATA_FILE, is_page_folder
+    from codex.db.database import get_notebook_engine
+
+    filename = os.path.basename(filepath)
+    parent_dir = os.path.dirname(filepath)
+
+    # Determine which page to re-index
+    page_dir = None
+    if filename == PAGE_METADATA_FILE:
+        page_dir = parent_dir
+    elif is_page_folder(Path(parent_dir)):
+        page_dir = parent_dir
+
+    if not page_dir:
+        return
+
+    page_rel_path = os.path.relpath(page_dir, notebook_path)
+    if page_rel_path == ".":
+        page_rel_path = ""
+
+    _session = session or get_notebook_session(notebook_path)
+    try:
+        page_block = _session.execute(
+            select(Block).where(
+                Block.notebook_id == notebook_id,
+                Block.path == page_rel_path,
+                Block.block_type == "page",
+            )
+        ).scalar_one_or_none()
+
+        if not page_block:
+            return
+
+        engine = get_notebook_engine(notebook_path)
+
+        if event_type == "deleted" and filename == PAGE_METADATA_FILE:
+            # Page itself was deleted
+            from codex.core.vectorizer import remove_page_index
+
+            remove_page_index(engine, page_block.block_id)
+        else:
+            # Page or child changed — re-index FTS only (fast)
+            from codex.core.vectorizer import build_page_text, ensure_search_tables, index_page_fts
+
+            try:
+                ensure_search_tables(engine)
+                page_text = build_page_text(page_block, notebook_path, _session)
+                index_page_fts(engine, page_block, page_text)
+            except Exception as e:
+                logger.debug(f"FTS index update failed for page {page_block.block_id}: {e}")
+    finally:
+        if not session:
+            _session.close()
 
 
 def is_binary_file(filepath: str) -> bool:

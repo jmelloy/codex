@@ -188,6 +188,50 @@ class GitManager:
                 logger.error(f"Error getting file history: {e}")
                 return []
 
+    def get_directory_history(self, dirpath: str, max_count: int = 50) -> list[dict]:
+        """Get commit history for all files within a directory (page)."""
+        if not self.repo:
+            return []
+
+        resolved_path = str(Path(dirpath).resolve())
+        rel_path = os.path.relpath(resolved_path, self.notebook_path)
+
+        with git_lock_manager.lock(self.notebook_path):
+            try:
+                commits = list(self.repo.iter_commits(paths=rel_path, max_count=max_count))
+                history = []
+                for commit in commits:
+                    # Determine which files in this directory were changed
+                    files_changed = []
+                    try:
+                        if commit.parents:
+                            diff = commit.parents[0].diff(commit)
+                        else:
+                            diff = commit.diff(None)
+                        for d in diff:
+                            changed_path = d.b_path or d.a_path
+                            if changed_path and changed_path.startswith(rel_path + "/"):
+                                # Get just the filename relative to the page directory
+                                relative = os.path.relpath(changed_path, rel_path)
+                                if not relative.startswith(".codex"):
+                                    files_changed.append(relative)
+                    except Exception:
+                        pass
+
+                    history.append(
+                        {
+                            "hash": commit.hexsha,
+                            "author": str(commit.author),
+                            "date": commit.committed_datetime.isoformat(),
+                            "message": commit.message.strip(),
+                            "files_changed": files_changed,
+                        }
+                    )
+                return history
+            except Exception as e:
+                logger.error(f"Error getting directory history: {e}")
+                return []
+
     def get_file_at_commit(self, filepath: str, commit_hash: str) -> str | None:
         """Get file content at a specific commit."""
         if not self.repo:
@@ -204,6 +248,47 @@ class GitManager:
             except Exception as e:
                 logger.error(f"Error getting file at commit: {e}")
                 return None
+
+    def get_directory_at_commit(self, dirpath: str, commit_hash: str) -> list[dict]:
+        """Get summary of file changes in a directory at a specific commit."""
+        if not self.repo:
+            return []
+
+        resolved_path = str(Path(dirpath).resolve())
+        rel_path = os.path.relpath(resolved_path, self.notebook_path)
+
+        with git_lock_manager.lock(self.notebook_path):
+            try:
+                commit = self.repo.commit(commit_hash)
+                files = []
+                if commit.parents:
+                    diff = commit.parents[0].diff(commit, create_patch=True)
+                else:
+                    diff = commit.diff(None, create_patch=True)
+
+                for d in diff:
+                    changed_path = d.b_path or d.a_path
+                    if changed_path and changed_path.startswith(rel_path + "/"):
+                        relative = os.path.relpath(changed_path, rel_path)
+                        if relative.startswith(".codex"):
+                            continue
+                        change_type = d.change_type  # A, D, M, R
+                        content = None
+                        try:
+                            content = d.diff.decode("utf-8", errors="replace")
+                        except Exception:
+                            pass
+                        files.append(
+                            {
+                                "path": relative,
+                                "change_type": change_type,
+                                "diff": content,
+                            }
+                        )
+                return files
+            except Exception as e:
+                logger.error(f"Error getting directory at commit: {e}")
+                return []
 
     def commit_s3_upload(
         self,

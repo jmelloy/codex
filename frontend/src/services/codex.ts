@@ -86,6 +86,7 @@ export interface FileHistoryEntry {
   author: string
   date: string
   message: string
+  files_changed?: string[]
 }
 
 export interface RootBlocksResponse {
@@ -119,6 +120,19 @@ export interface BlockHistory {
   block_id: string
   path: string
   history: FileHistoryEntry[]
+}
+
+export interface FileChangeDetail {
+  path: string
+  change_type: string
+  diff: string | null
+}
+
+export interface PageAtCommit {
+  block_id: string
+  path: string
+  commit_hash: string
+  files: FileChangeDetail[]
 }
 
 export interface BlockAtCommit {
@@ -493,8 +507,8 @@ export const blockService = {
     notebookId: number | string,
     workspaceId: number | string,
     commitHash: string
-  ): Promise<BlockAtCommit> {
-    const response = await apiClient.get<BlockAtCommit>(
+  ): Promise<BlockAtCommit | PageAtCommit> {
+    const response = await apiClient.get<BlockAtCommit | PageAtCommit>(
       `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/${blockId}/history/${commitHash}`
     )
     return response.data

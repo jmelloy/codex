@@ -27,6 +27,7 @@ from codex.api.schemas import (
     BlockTextContentResponse,
     BlockTreeResponse,
     ImportFolderResponse,
+    PageAtCommitResponse,
     PageResponse,
     RootBlocksResponse,
 )
@@ -792,7 +793,12 @@ async def get_block_history(
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_system_session),
 ):
-    """Get git history for a block's backing file."""
+    """Get git history for a block's page directory.
+
+    History is always returned at the page level. If the block is a page,
+    its directory is used directly. If it is a child block, its parent
+    page directory is used instead.
+    """
     notebook_path, notebook, workspace = await get_notebook_path_nested(
         workspace_identifier, notebook_identifier, current_user, session
     )
@@ -802,11 +808,29 @@ async def get_block_history(
         if not block:
             raise HTTPException(status_code=404, detail="Block not found")
 
-        file_path = notebook_path / block.path
         from codex.core.git_manager import GitManager
 
         git_manager = GitManager(str(notebook_path))
-        history = git_manager.get_file_history(str(file_path))
+
+        # Resolve to the page directory
+        if block.block_type == "page":
+            page_path = notebook_path / block.path
+        elif block.parent_block_id:
+            parent = get_block(notebook.id, block.parent_block_id, nb_session)
+            if parent and parent.block_type == "page":
+                page_path = notebook_path / parent.path
+            else:
+                # Fallback to file-level history
+                page_path = notebook_path / block.path
+        else:
+            # Root-level block with no parent page, use file-level history
+            page_path = notebook_path / block.path
+
+        if page_path.is_dir():
+            history = git_manager.get_directory_history(str(page_path))
+        else:
+            history = git_manager.get_file_history(str(page_path))
+
         return {"block_id": block_id, "path": block.path, "history": history}
     except HTTPException:
         raise
@@ -816,7 +840,7 @@ async def get_block_history(
         nb_session.close()
 
 
-@nested_router.get("/{block_id}/history/{commit_hash}", response_model=BlockAtCommitResponse)
+@nested_router.get("/{block_id}/history/{commit_hash}")
 async def get_block_at_commit(
     workspace_identifier: str,
     notebook_identifier: str,
@@ -825,7 +849,11 @@ async def get_block_at_commit(
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_system_session),
 ):
-    """Get block content at a specific commit."""
+    """Get page directory changes or block content at a specific commit.
+
+    For page blocks, returns a PageAtCommitResponse with per-file diffs.
+    For non-page blocks, returns a BlockAtCommitResponse with file content.
+    """
     notebook_path, notebook, workspace = await get_notebook_path_nested(
         workspace_identifier, notebook_identifier, current_user, session
     )
@@ -838,10 +866,37 @@ async def get_block_at_commit(
         from codex.core.git_manager import GitManager
 
         git_manager = GitManager(str(notebook_path))
-        content = git_manager.get_file_at_commit(str(notebook_path / block.path), commit_hash)
-        if content is None:
-            raise HTTPException(status_code=404, detail="Content not found at this commit")
-        return {"block_id": block_id, "path": block.path, "commit_hash": commit_hash, "content": content}
+
+        # Resolve to the page directory
+        if block.block_type == "page":
+            page_path = notebook_path / block.path
+        elif block.parent_block_id:
+            parent = get_block(notebook.id, block.parent_block_id, nb_session)
+            if parent and parent.block_type == "page":
+                page_path = notebook_path / parent.path
+            else:
+                page_path = notebook_path / block.path
+        else:
+            page_path = notebook_path / block.path
+
+        if page_path.is_dir():
+            files = git_manager.get_directory_at_commit(str(page_path), commit_hash)
+            return PageAtCommitResponse(
+                block_id=block_id,
+                path=block.path,
+                commit_hash=commit_hash,
+                files=files,
+            )
+        else:
+            content = git_manager.get_file_at_commit(str(page_path), commit_hash)
+            if content is None:
+                raise HTTPException(status_code=404, detail="Content not found at this commit")
+            return BlockAtCommitResponse(
+                block_id=block_id,
+                path=block.path,
+                commit_hash=commit_hash,
+                content=content,
+            )
     except HTTPException:
         raise
     except Exception as e:

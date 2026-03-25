@@ -362,6 +362,7 @@ class FileHistoryEntryResponse(BaseModel):
     author: str
     date: str
     message: str
+    files_changed: list[str] = []
 
 
 class BlockHistoryResponse(BaseModel):
@@ -370,6 +371,23 @@ class BlockHistoryResponse(BaseModel):
     block_id: str
     path: str
     history: list[FileHistoryEntryResponse]
+
+
+class FileChangeDetail(BaseModel):
+    """Detail of a file change within a commit."""
+
+    path: str
+    change_type: str
+    diff: str | None = None
+
+
+class PageAtCommitResponse(BaseModel):
+    """Response for page directory changes at a specific commit."""
+
+    block_id: str
+    path: str
+    commit_hash: str
+    files: list[FileChangeDetail]
 
 
 class BlockAtCommitResponse(BaseModel):

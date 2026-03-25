@@ -116,7 +116,7 @@
         {{ historyError }}
       </div>
       <div v-else-if="history.length === 0" class="history-empty">
-        No history available for this block.
+        No history available for this page.
       </div>
       <div v-else class="history-list">
         <div
@@ -132,6 +132,9 @@
           </div>
           <div class="commit-message">{{ commit.message }}</div>
           <div class="commit-author">{{ commit.author }}</div>
+          <div v-if="commit.files_changed && commit.files_changed.length > 0" class="commit-files-summary">
+            {{ commit.files_changed.length }} file{{ commit.files_changed.length !== 1 ? 's' : '' }} changed
+          </div>
         </div>
       </div>
 
@@ -144,13 +147,26 @@
           </button>
         </div>
         <div v-if="commitContentLoading" class="preview-loading">Loading...</div>
+        <!-- Page-level diff view -->
+        <div v-else-if="commitFiles.length > 0" class="preview-files">
+          <div v-for="file in commitFiles" :key="file.path" class="file-change">
+            <div class="file-change-header">
+              <span class="change-type" :class="'change-' + file.change_type">{{ file.change_type }}</span>
+              <span class="file-path">{{ file.path }}</span>
+            </div>
+            <div v-if="file.diff" class="file-diff">
+              <pre><code>{{ file.diff }}</code></pre>
+            </div>
+          </div>
+        </div>
+        <!-- Single file content view (fallback for non-page blocks) -->
         <div v-else-if="commitContent !== null" class="preview-content">
           <pre><code>{{ commitContent }}</code></pre>
-        </div>
-        <div class="preview-actions">
-          <button @click="restoreCommit" class="btn-restore" title="Restore this version">
-            Restore this version
-          </button>
+          <div class="preview-actions">
+            <button @click="restoreCommit" class="btn-restore" title="Restore this version">
+              Restore this version
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -163,7 +179,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue"
-import type { Block, FileHistoryEntry } from "../services/codex"
+import type { Block, FileHistoryEntry, FileChangeDetail, PageAtCommit } from "../services/codex"
 import { blockService } from "../services/codex"
 import { useProperties } from "../composables/useProperties"
 import { formatDate, formatCommitDate, formatSize } from "../utils/date"
@@ -194,6 +210,7 @@ const historyLoading = ref(false)
 const historyError = ref<string | null>(null)
 const selectedCommit = ref<FileHistoryEntry | null>(null)
 const commitContent = ref<string | null>(null)
+const commitFiles = ref<FileChangeDetail[]>([])
 const commitContentLoading = ref(false)
 
 // Use shared properties composable
@@ -262,11 +279,13 @@ async function selectCommit(commit: FileHistoryEntry) {
   if (selectedCommit.value?.hash === commit.hash) {
     selectedCommit.value = null
     commitContent.value = null
+    commitFiles.value = []
     return
   }
 
   selectedCommit.value = commit
   commitContent.value = null
+  commitFiles.value = []
   commitContentLoading.value = true
 
   try {
@@ -276,9 +295,14 @@ async function selectCommit(commit: FileHistoryEntry) {
       props.workspaceId,
       commit.hash,
     )
-    commitContent.value = result.content
+    if ("files" in result) {
+      commitFiles.value = (result as PageAtCommit).files
+    } else {
+      commitContent.value = result.content
+    }
   } catch (error: any) {
     commitContent.value = null
+    commitFiles.value = []
   } finally {
     commitContentLoading.value = false
   }
@@ -294,6 +318,7 @@ function restoreCommit() {
       activeTab.value = "properties"
       selectedCommit.value = null
       commitContent.value = null
+      commitFiles.value = []
     }
   }
 }
@@ -306,6 +331,7 @@ watch(
     historyError.value = null
     selectedCommit.value = null
     commitContent.value = null
+    commitFiles.value = []
     if (activeTab.value === "history") {
       loadHistory()
     }
@@ -524,5 +550,91 @@ watch(
 
 .btn-restore:hover {
   background: var(--color-primary-hover);
+}
+
+/* Files changed summary in commit list */
+.commit-files-summary {
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
+  margin-top: var(--spacing-xs);
+  font-style: italic;
+}
+
+/* Page-level file changes preview */
+.preview-files {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  max-height: 400px;
+  overflow: auto;
+}
+
+.file-change {
+  background: var(--color-bg-tertiary);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.file-change-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.change-type {
+  font-family: var(--font-mono, monospace);
+  font-size: var(--text-xs);
+  font-weight: var(--font-bold);
+  padding: 1px var(--spacing-xs);
+  border-radius: var(--radius-sm);
+  text-transform: uppercase;
+}
+
+.change-A {
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.change-M {
+  color: #eab308;
+  background: rgba(234, 179, 8, 0.1);
+}
+
+.change-D {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.change-R {
+  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.file-path {
+  font-size: var(--text-sm);
+  color: var(--color-text-primary);
+  font-family: var(--font-mono, monospace);
+  word-break: break-all;
+}
+
+.file-diff {
+  padding: var(--spacing-sm);
+  max-height: 150px;
+  overflow: auto;
+}
+
+.file-diff pre {
+  margin: 0;
+  font-size: var(--text-xs);
+  font-family: var(--font-mono, monospace);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.file-diff code {
+  color: var(--color-text-secondary);
 }
 </style>

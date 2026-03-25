@@ -32,6 +32,8 @@ dependencies = [
     "google-api-python-client>=2.120.0",
     "boto3>=1.34.0",
     "mistune>=3.0.0",
+    "sqlite-vec>=0.1.6",
+    "numpy>=1.26.0",
 ]
 
 [project.optional-dependencies]

@@ -5,6 +5,7 @@ namespace: codex
 
 resources:
   - ../../base
+  - secrets.yml
 
 images:
   - name: ghcr.io/OWNER/codex-backend

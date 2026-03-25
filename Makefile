@@ -39,7 +39,6 @@ k8s-deploy: build-plugins
 	@echo "  To deploy manually, ensure images are pushed to GHCR first:"
 	@echo "    docker buildx build --push -t ghcr.io/<owner>/codex-backend:latest ./backend"
 	@echo "    docker buildx build --push -t ghcr.io/<owner>/codex-frontend:latest ./frontend"
-	@echo "    docker buildx build --push -t ghcr.io/<owner>/codex-plugin-service:latest ."
 	@echo ""
 	kubectl apply -k k8s/overlays/production
 	kubectl -n codex rollout status deployment/backend --timeout=180s

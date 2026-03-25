@@ -6,7 +6,6 @@ namespace: codex
 resources:
   - namespace.yml
   - configmap.yml
-  - secrets.yml
   - pvc.yml
   - backend-deployment.yml
   - ingress.yml

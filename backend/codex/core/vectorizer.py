@@ -22,8 +22,8 @@ from codex.db.models.notebook import Block
 logger = logging.getLogger(__name__)
 
 # Default embedding model — can be overridden via env var
-EMBEDDING_MODEL = os.getenv("CODEX_EMBEDDING_MODEL", "text-embedding-3-small")
-EMBEDDING_DIMENSIONS = int(os.getenv("CODEX_EMBEDDING_DIMENSIONS", "1536"))
+EMBEDDING_MODEL = os.getenv("CODEX_EMBEDDING_MODEL", "voyage-multimodal-3")
+EMBEDDING_DIMENSIONS = int(os.getenv("CODEX_EMBEDDING_DIMENSIONS", "1024"))
 
 # Lock for serialising sqlite-vec DDL across threads
 _vec_init_lock = threading.Lock()
@@ -53,6 +53,40 @@ def _cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
 # ---------------------------------------------------------------------------
 # FTS5 + vec0 table helpers
 # ---------------------------------------------------------------------------
+
+
+def reset_embedding_table(engine) -> None:
+    """Drop and recreate the page_embeddings vec0 table.
+
+    Use after changing the embedding model or dimensions.
+    """
+    import sqlite3
+
+    import sqlite_vec
+
+    with _vec_init_lock:
+        raw_url = str(engine.url)
+        db_path = raw_url.replace("sqlite:///", "")
+
+        conn = sqlite3.connect(db_path)
+        try:
+            conn.enable_load_extension(True)
+            sqlite_vec.load(conn)
+            conn.enable_load_extension(False)
+
+            conn.execute("DROP TABLE IF EXISTS page_embeddings")
+            conn.execute(
+                f"""
+                CREATE VIRTUAL TABLE page_embeddings USING vec0(
+                    block_id TEXT PRIMARY KEY,
+                    embedding float[{EMBEDDING_DIMENSIONS}]
+                )
+                """
+            )
+            conn.commit()
+            logger.info(f"Reset page_embeddings table ({EMBEDDING_DIMENSIONS} dimensions)")
+        finally:
+            conn.close()
 
 
 def ensure_search_tables(engine) -> None:
@@ -236,9 +270,9 @@ def delete_page_fts(engine, block_id: str) -> None:
 
 
 def generate_embedding(text: str) -> list[float] | None:
-    """Generate an embedding vector via OpenAI-compatible embedding API.
+    """Generate an embedding vector via Voyage AI (or OpenAI-compatible) API.
 
-    Requires OPENAI_API_KEY (or CODEX_EMBEDDING_API_KEY) to be set.
+    Requires VOYAGE_API_KEY (or CODEX_EMBEDDING_API_KEY / OPENAI_API_KEY) to be set.
     Supports any OpenAI-compatible endpoint via CODEX_EMBEDDING_BASE_URL.
     """
     if not text.strip():
@@ -246,12 +280,12 @@ def generate_embedding(text: str) -> list[float] | None:
 
     import httpx
 
-    api_key = os.getenv("CODEX_EMBEDDING_API_KEY") or os.getenv("OPENAI_API_KEY")
+    api_key = os.getenv("CODEX_EMBEDDING_API_KEY") or os.getenv("VOYAGE_API_KEY") or os.getenv("OPENAI_API_KEY")
     if not api_key:
-        logger.debug("No embedding API key configured (set OPENAI_API_KEY or CODEX_EMBEDDING_API_KEY)")
+        logger.debug("No embedding API key configured (set VOYAGE_API_KEY, OPENAI_API_KEY, or CODEX_EMBEDDING_API_KEY)")
         return None
 
-    base_url = os.getenv("CODEX_EMBEDDING_BASE_URL", "https://api.openai.com/v1")
+    base_url = os.getenv("CODEX_EMBEDDING_BASE_URL", "https://api.voyageai.com/v1")
 
     try:
         response = httpx.post(
@@ -423,7 +457,9 @@ def vectorize_all_pages(engine, notebook_id: int, notebook_path: str, session: S
     ensure_search_tables(engine)
 
     pages = (
-        session.execute(select(Block).where(Block.notebook_id == notebook_id, Block.block_type == "page")).scalars().all()
+        session.execute(select(Block).where(Block.notebook_id == notebook_id, Block.block_type == "page"))
+        .scalars()
+        .all()
     )
 
     count = 0

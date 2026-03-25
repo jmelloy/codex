@@ -397,6 +397,27 @@ async def create_new_page(
 
     nb_session = get_notebook_session(str(notebook_path))
     try:
+        # Check if a page with this exact path already exists
+        from codex.core.blocks import _sanitize_folder_name
+
+        safe_name = _sanitize_folder_name(request.title) or "untitled"
+        candidate_path = f"{request.parent_path}/{safe_name}" if request.parent_path else safe_name
+        existing = nb_session.execute(
+            select(Block).where(
+                Block.notebook_id == notebook.id,
+                Block.path == candidate_path,
+                Block.block_type == "page",
+            )
+        ).scalar_one_or_none()
+        if existing:
+            return {
+                "block_id": existing.block_id,
+                "path": existing.path,
+                "title": existing.title or request.title,
+                "description": existing.description,
+                "properties": existing.properties or {},
+            }
+
         result = create_page(
             notebook_path=notebook_path,
             notebook_id=notebook.id,

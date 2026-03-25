@@ -26,7 +26,7 @@ def main():
     client = httpx.Client(base_url=base, timeout=120.0)
 
     # Authenticate
-    resp = client.post("/api/v1/users/login", json={"username": args.username, "password": args.password})
+    resp = client.post("/api/v1/users/token", data={"username": args.username, "password": args.password})
     if resp.status_code != 200:
         print(f"Login failed: {resp.status_code} {resp.text}")
         sys.exit(1)

@@ -1033,6 +1033,101 @@ def serve_block_file(notebook_path: Path, block: Block):
     return str(file_path), media_type
 
 
+def _is_image_file(filename: str) -> bool:
+    """Check if a filename has an image extension."""
+    ext = os.path.splitext(filename)[1].lower()
+    return ext in {".jpg", ".jpeg", ".png", ".gif", ".svg", ".webp", ".bmp", ".ico", ".heic", ".avif", ".tiff", ".tif"}
+
+
+def _is_sidecar_file(filename: str, siblings: set[str]) -> bool:
+    """Check if a file is a sidecar metadata file for another file in the same folder.
+
+    Sidecar patterns: file.ext.json, .file.ext.json, file.ext.xml, .file.ext.xml, file.ext.md, .file.ext.md
+    """
+    name = filename
+    # Dot-prefixed sidecar: .photo.jpg.json -> photo.jpg
+    if name.startswith("."):
+        name = name[1:]
+
+    for suffix in (".json", ".xml", ".md"):
+        if name.endswith(suffix):
+            base = name.removesuffix(suffix)
+            if base in siblings:
+                return True
+    return False
+
+
+def _import_image_as_page(
+    notebook_path: Path,
+    notebook_id: int,
+    parent_path: str,
+    image_path: Path,
+    nb_session: Session,
+) -> dict[str, Any]:
+    """Create a page for a single image file with cover_image and sidecar properties.
+
+    Moves the image into a new subfolder, sets cover_image in page properties,
+    and merges any sidecar metadata into page properties.
+    """
+    from codex.core.metadata import MetadataParser
+
+    image_name = image_path.name
+    stem = image_path.stem
+    title = stem.replace("-", " ").replace("_", " ")
+
+    # Extract sidecar metadata before moving the file
+    sidecar_metadata = {}
+    _, sidecar_path = MetadataParser.resolve_sidecar(str(image_path))
+
+    if sidecar_path:
+        sidecar_metadata = MetadataParser.extract_all_metadata(str(image_path))
+        # Remove image dimension metadata from page properties (keep in block)
+        for key in ("width", "height", "format", "mode"):
+            sidecar_metadata.pop(key, None)
+
+    # Use title from sidecar if available
+    if "title" in sidecar_metadata:
+        title = sidecar_metadata.pop("title")
+
+    # Build page properties with cover_image and sidecar data
+    properties = {"cover_image": image_name}
+    properties.update(sidecar_metadata)
+
+    # Create the page (this creates the subfolder and .codex-page.json)
+    page_result = create_page(
+        notebook_path=notebook_path,
+        notebook_id=notebook_id,
+        parent_path=parent_path,
+        title=title,
+        properties=properties,
+        nb_session=nb_session,
+    )
+    page_path = page_result["path"]
+    page_folder = notebook_path / page_path
+
+    # Move the image into the new page folder
+    dest = page_folder / image_name
+    shutil.move(str(image_path), str(dest))
+
+    # Move sidecar file too if it exists
+    if sidecar_path:
+        sidecar_dest = page_folder / Path(sidecar_path).name
+        if Path(sidecar_path).exists():
+            shutil.move(sidecar_path, str(sidecar_dest))
+
+    # Add the image as a block within the page
+    rel_path = str(dest.relative_to(notebook_path))
+    add_file_as_block(
+        notebook_path=notebook_path,
+        notebook_id=notebook_id,
+        page_path=page_path,
+        file_path=rel_path,
+        nb_session=nb_session,
+    )
+
+    return page_result
+
+
 def import_folder_as_pages(
     notebook_path: Path,
     notebook_id: int,
@@ -1041,7 +1136,10 @@ def import_folder_as_pages(
 ) -> dict[str, Any]:
     """Recursively convert a folder tree into pages and blocks.
 
-    Each subfolder becomes a page block, each file becomes a leaf block.
+    Each subfolder becomes a page block. Image files each become their own
+    sub-page with cover_image set in properties. Sidecar metadata files
+    are merged into the image page's properties. Non-image files become
+    leaf blocks.
     """
     full_path = notebook_path / folder_path if folder_path else notebook_path
     if not full_path.exists() or not full_path.is_dir():
@@ -1065,6 +1163,9 @@ def import_folder_as_pages(
     if not page_meta:
         raise ValueError(f"Failed to create page metadata for: {folder_path}")
 
+    # Collect sibling filenames for sidecar detection
+    sibling_names = {item.name for item in full_path.iterdir() if item.is_file() and not item.name.startswith(".")}
+
     # Process children
     created_pages = []
     created_blocks = []
@@ -1077,23 +1178,41 @@ def import_folder_as_pages(
             result = import_folder_as_pages(notebook_path, notebook_id, child_path, nb_session)
             created_pages.append(result)
         elif item.is_file():
-            rel_path = str(item.relative_to(notebook_path))
-            # Check if already a block
-            existing = nb_session.exec(
-                select(Block).where(Block.notebook_id == notebook_id, Block.path == rel_path)
-            ).first()
-            if not existing:
+            # Skip sidecar files — they'll be processed with their image
+            if _is_sidecar_file(item.name, sibling_names):
+                continue
+
+            if _is_image_file(item.name):
+                # Each image becomes its own page with cover_image
                 try:
-                    result = add_file_as_block(
+                    result = _import_image_as_page(
                         notebook_path=notebook_path,
                         notebook_id=notebook_id,
-                        page_path=folder_path,
-                        file_path=rel_path,
+                        parent_path=folder_path,
+                        image_path=item,
                         nb_session=nb_session,
                     )
-                    created_blocks.append(result)
+                    created_pages.append(result)
                 except Exception as e:
-                    logger.warning(f"Could not add {rel_path} as block: {e}")
+                    logger.warning(f"Could not create page for image {item}: {e}")
+            else:
+                rel_path = str(item.relative_to(notebook_path))
+                # Check if already a block
+                existing = nb_session.exec(
+                    select(Block).where(Block.notebook_id == notebook_id, Block.path == rel_path)
+                ).first()
+                if not existing:
+                    try:
+                        result = add_file_as_block(
+                            notebook_path=notebook_path,
+                            notebook_id=notebook_id,
+                            page_path=folder_path,
+                            file_path=rel_path,
+                            nb_session=nb_session,
+                        )
+                        created_blocks.append(result)
+                    except Exception as e:
+                        logger.warning(f"Could not add {rel_path} as block: {e}")
 
     return {
         "path": folder_path,

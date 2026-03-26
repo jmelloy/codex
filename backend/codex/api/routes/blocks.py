@@ -6,6 +6,8 @@ infinite block recursion backed by filesystem folders and files.
 
 import logging
 import mimetypes
+import os
+import shutil
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -823,13 +825,21 @@ async def upload_folder_zip(
                 if member.startswith("/") or ".." in member:
                     raise HTTPException(status_code=400, detail=f"Invalid path in zip: {member}")
 
-            # Find the top-level folder name from the zip
-            top_dirs = {name.split("/")[0] for name in zf.namelist() if "/" in name}
-            top_files = {name for name in zf.namelist() if "/" not in name and name}
+            # Filter out macOS resource fork metadata
+            members = [m for m in zf.namelist() if not m.startswith("__MACOSX/") and not m.startswith("._")]
 
-            zf.extractall(target_dir)
+            # Find the top-level folder name from the zip
+            top_dirs = {name.split("/")[0] for name in members if "/" in name}
+            top_files = {name for name in members if "/" not in name and name}
+
+            zf.extractall(target_dir, members=[m for m in zf.infolist() if m.filename in set(members)])
     except zipfile.BadZipFile:
         raise HTTPException(status_code=400, detail="Invalid zip file")
+
+    # Clean up any __MACOSX folder that may have been extracted
+    macosx_dir = target_dir / "__MACOSX"
+    if macosx_dir.exists():
+        shutil.rmtree(macosx_dir)
 
     # Determine the folder path to import
     # If zip has a single top-level folder, import that folder
@@ -837,8 +847,20 @@ async def upload_folder_zip(
     if len(top_dirs) == 1 and len(top_files) == 0:
         folder_name = top_dirs.pop()
         import_path = f"{parent_path}/{folder_name}" if parent_path else folder_name
-    else:
+    elif parent_path:
         import_path = parent_path
+    else:
+        # Multiple top-level items with no parent_path: wrap in a folder named after the zip
+        folder_name = os.path.splitext(file.filename or "upload")[0]
+        wrapper_dir = target_dir / folder_name
+        if not wrapper_dir.exists():
+            # Move all extracted items into the wrapper folder
+            wrapper_dir.mkdir(parents=True)
+            for item_name in top_dirs | top_files:
+                src = target_dir / item_name
+                if src.exists():
+                    shutil.move(str(src), str(wrapper_dir / item_name))
+        import_path = folder_name
 
     nb_session = get_notebook_session(str(notebook_path))
     try:

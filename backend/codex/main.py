@@ -210,9 +210,8 @@ app.include_router(
     prefix="/api/v1",
     tags=["search"],
 )
-app.include_router(tasks.router, prefix="/api/v1/tasks", tags=["tasks"])
 app.include_router(
-    tasks.nested_router,
+    tasks.router,
     prefix="/api/v1/workspaces/{workspace_identifier}/tasks",
     tags=["tasks"],
 )

@@ -917,7 +917,7 @@ function onFileDrop(event: DragEvent) {
 /* Type menu */
 .type-menu {
   position: absolute;
-  left: -52px;
+  left: 0;
   top: 26px;
   z-index: 50;
   background: var(--bg-primary, #fff);

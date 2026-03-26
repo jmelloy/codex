@@ -26,6 +26,9 @@ class FileChangeEvent:
     old_path: str | None = None  # For move events
     timestamp: str | None = None
     block_id: str | None = None  # Block ID if known
+    title: str | None = None
+    block_type: str | None = None
+    properties: dict | None = None
 
     def to_dict(self) -> dict:
         result = {
@@ -38,6 +41,12 @@ class FileChangeEvent:
         }
         if self.block_id:
             result["block_id"] = self.block_id
+        if self.title is not None:
+            result["title"] = self.title
+        if self.block_type is not None:
+            result["block_type"] = self.block_type
+        if self.properties is not None:
+            result["properties"] = self.properties
         return result
 
 
@@ -133,6 +142,9 @@ def notify_file_change(
     path: str,
     old_path: str | None = None,
     block_id: str | None = None,
+    title: str | None = None,
+    block_type: str | None = None,
+    properties: dict | None = None,
 ):
     """Notify connected clients about a file change.
 
@@ -144,5 +156,8 @@ def notify_file_change(
         path=path,
         old_path=old_path,
         block_id=block_id,
+        title=title,
+        block_type=block_type,
+        properties=properties,
     )
     connection_manager.queue_event(event)

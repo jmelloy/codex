@@ -16,6 +16,7 @@ import {
   getAllBlocks,
   findNode,
   moveNode,
+  updateNodeFromEvent,
 } from "../utils/blockTree"
 import { websocketService, type FileChangeEvent } from "../services/websocket"
 
@@ -419,8 +420,46 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     if (!tree) return
 
     switch (event.event_type) {
+      case "modified": {
+        // Try in-place update if we have metadata (title, properties, etc.)
+        const hasMetadata = event.title !== undefined || event.properties !== undefined
+        if (hasMetadata) {
+          const updated = updateNodeFromEvent(tree, event.path, {
+            title: event.title,
+            properties: event.properties,
+            block_id: event.block_id,
+            block_type: event.block_type,
+          })
+          if (updated) {
+            // Trigger reactivity by replacing the tree array reference
+            blockTrees.value.set(event.notebook_id, [...tree])
+          }
+          // Also update the currently selected block if it matches
+          if (currentBlock.value?.path === event.path && currentBlock.value?.notebook_id === event.notebook_id) {
+            if (event.title !== undefined) {
+              currentBlock.value = { ...currentBlock.value, title: event.title }
+            }
+            if (event.properties !== undefined) {
+              currentBlock.value = { ...currentBlock.value, properties: event.properties }
+            }
+          }
+          if (updated) break
+        }
+        // Fall through to full refresh if no metadata or node not found
+        if (currentWorkspace.value) {
+          try {
+            await fetchBlockTree(event.notebook_id)
+            if (currentBlock.value?.path === event.path && currentBlock.value?.notebook_id === event.notebook_id) {
+              await selectBlock(currentBlock.value)
+            }
+          } catch (e) {
+            console.warn(`Failed to refresh tree for ${event.path}:`, e)
+          }
+        }
+        break
+      }
+
       case "created":
-      case "modified":
       case "scanned":
         if (currentWorkspace.value) {
           try {
@@ -436,6 +475,8 @@ export const useWorkspaceStore = defineStore("workspace", () => {
 
       case "deleted":
         removeNode(tree, event.path)
+        // Trigger reactivity
+        blockTrees.value.set(event.notebook_id, [...tree])
         if (currentBlock.value?.path === event.path && currentBlock.value?.notebook_id === event.notebook_id) {
           currentBlock.value = null
           currentPageBlocks.value = []
@@ -446,12 +487,20 @@ export const useWorkspaceStore = defineStore("workspace", () => {
       case "moved":
         if (event.old_path) {
           moveNode(tree, event.old_path, event.path)
-          if (currentWorkspace.value) {
-            try {
-              await fetchBlockTree(event.notebook_id)
-            } catch (e) {
-              console.warn(`Failed to refresh tree after move for ${event.path}:`, e)
-            }
+          // Update title if provided
+          if (event.title !== undefined || event.properties !== undefined) {
+            updateNodeFromEvent(tree, event.path, {
+              title: event.title,
+              properties: event.properties,
+              block_id: event.block_id,
+              block_type: event.block_type,
+            })
+          }
+          // Trigger reactivity
+          blockTrees.value.set(event.notebook_id, [...tree])
+          // Update currently selected block path if it was moved
+          if (currentBlock.value?.block_id === event.block_id && currentBlock.value?.notebook_id === event.notebook_id) {
+            currentBlock.value = { ...currentBlock.value, path: event.path }
           }
         }
         break

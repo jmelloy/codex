@@ -38,6 +38,46 @@ const builtinBlockTypes: Map<
       loader: () => import("../components/blocks/DatabaseBlock.vue"),
     },
   ],
+  [
+    "weather",
+    {
+      pluginId: "weather-api",
+      pluginName: "Weather API",
+      icon: "\u2600\uFE0F",
+      description: "Display current weather for a location",
+      loader: () => import("../components/blocks/WeatherBlock.vue"),
+    },
+  ],
+  [
+    "github-issues",
+    {
+      pluginId: "github",
+      pluginName: "GitHub",
+      icon: "\u{1F41B}",
+      description: "Display issues from a GitHub repository",
+      loader: () => import("../components/blocks/GitHubIssuesBlock.vue"),
+    },
+  ],
+  [
+    "github-pulls",
+    {
+      pluginId: "github",
+      pluginName: "GitHub",
+      icon: "\u{1F500}",
+      description: "Display pull requests from a GitHub repository",
+      loader: () => import("../components/blocks/GitHubPullsBlock.vue"),
+    },
+  ],
+  [
+    "github-repo",
+    {
+      pluginId: "github",
+      pluginName: "GitHub",
+      icon: "\u{1F4E6}",
+      description: "Display GitHub repository information",
+      loader: () => import("../components/blocks/GitHubRepoBlock.vue"),
+    },
+  ],
 ])
 
 // Component info within a plugin (from plugins.json)

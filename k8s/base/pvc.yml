@@ -7,9 +7,8 @@ metadata:
     app.kubernetes.io/part-of: codex
 spec:
   accessModes:
-    - ReadWriteOnce
-  # On Linode LKE, the default StorageClass is "linode-block-storage-retain".
-  # Omitting storageClassName uses the cluster default.
+    - ReadWriteMany
+  storageClassName: cephfs
   resources:
     requests:
       storage: 8Gi

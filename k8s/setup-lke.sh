@@ -5,6 +5,7 @@
 # Prerequisites:
 #   - kubectl configured with your LKE kubeconfig
 #   - helm v3 installed
+#   - At least 3 nodes with unformatted block devices for Rook-Ceph
 #
 # Usage:
 #   ./k8s/setup-lke.sh [--domain codex.melloy.life] [--email admin@melloy.life]
@@ -94,7 +95,54 @@ spec:
 EOF
 echo ""
 
-# ── 4. Create Codex namespace and secret ─────────────────────────────────────
+# ── 4. Install Rook-Ceph for shared storage (CephFS) ────────────────────────
+echo "==> Installing Rook-Ceph operator..."
+helm repo add rook-release https://charts.rook.io/release 2>/dev/null || true
+helm repo update
+
+helm upgrade --install rook-ceph rook-release/rook-ceph \
+  --namespace rook-ceph \
+  --create-namespace \
+  --wait
+
+echo ""
+echo "==> Waiting for Rook-Ceph operator to be ready..."
+kubectl -n rook-ceph rollout status deployment/rook-ceph-operator --timeout=300s
+
+echo ""
+echo "==> Creating CephCluster, CephFilesystem, and StorageClass..."
+kubectl apply -k k8s/base/rook-ceph/
+
+echo ""
+echo "==> Waiting for CephCluster to become healthy (this may take several minutes)..."
+for i in $(seq 1 60); do
+  PHASE=$(kubectl -n rook-ceph get cephcluster rook-ceph \
+    -o jsonpath='{.status.phase}' 2>/dev/null || echo "Pending")
+  HEALTH=$(kubectl -n rook-ceph get cephcluster rook-ceph \
+    -o jsonpath='{.status.ceph.health}' 2>/dev/null || echo "unknown")
+  echo "    CephCluster phase: ${PHASE}, health: ${HEALTH} (${i}/60)"
+  if [[ "${PHASE}" == "Ready" ]]; then
+    echo "    CephCluster is ready."
+    break
+  fi
+  sleep 15
+done
+
+echo ""
+echo "==> Waiting for CephFS MDS to be active..."
+for i in $(seq 1 30); do
+  ACTIVE=$(kubectl -n rook-ceph get cephfilesystem codex-cephfs \
+    -o jsonpath='{.status.phase}' 2>/dev/null || echo "Pending")
+  echo "    CephFilesystem phase: ${ACTIVE} (${i}/30)"
+  if [[ "${ACTIVE}" == "Ready" ]]; then
+    echo "    CephFilesystem is ready."
+    break
+  fi
+  sleep 10
+done
+echo ""
+
+# ── 5. Create Codex namespace and secret ─────────────────────────────────────
 echo "==> Creating codex namespace..."
 kubectl create namespace codex 2>/dev/null || echo "    Namespace 'codex' already exists."
 
@@ -109,10 +157,15 @@ else
 fi
 echo ""
 
-# ── 5. Summary ───────────────────────────────────────────────────────────────
+# ── 6. Summary ───────────────────────────────────────────────────────────────
 echo "=========================================="
 echo " LKE cluster setup complete!"
 echo "=========================================="
+echo ""
+echo "Infrastructure installed:"
+echo "  - NGINX Ingress Controller (LoadBalancer)"
+echo "  - cert-manager (Let's Encrypt TLS)"
+echo "  - Rook-Ceph (CephFS shared storage)"
 echo ""
 echo "Next steps:"
 echo "  1. Point DNS for '${DOMAIN}' to: ${EXTERNAL_IP:-<pending>}"

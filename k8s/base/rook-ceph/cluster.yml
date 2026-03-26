@@ -15,11 +15,11 @@ spec:
     allowUnsupported: false
   dataDirHostPath: /var/lib/rook
   mon:
-    count: 3
-    allowMultiplePerNode: false
+    count: 1
+    allowMultiplePerNode: true
   mgr:
-    count: 2
-    allowMultiplePerNode: false
+    count: 1
+    allowMultiplePerNode: true
     modules:
       - name: pg_autoscaler
         enabled: true
@@ -34,22 +34,22 @@ spec:
   resources:
     mon:
       requests:
-        cpu: 100m
-        memory: 256Mi
+        cpu: 50m
+        memory: 128Mi
       limits:
-        cpu: "1"
-        memory: 1Gi
+        cpu: 250m
+        memory: 256Mi
     mgr:
       requests:
-        cpu: 100m
-        memory: 256Mi
+        cpu: 50m
+        memory: 128Mi
       limits:
-        cpu: "1"
-        memory: 1Gi
+        cpu: 250m
+        memory: 256Mi
     osd:
       requests:
-        cpu: 100m
-        memory: 512Mi
+        cpu: 50m
+        memory: 256Mi
       limits:
-        cpu: "2"
-        memory: 2Gi
+        cpu: 500m
+        memory: 512Mi

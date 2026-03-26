@@ -7,19 +7,19 @@ metadata:
 spec:
   metadataPool:
     replicated:
-      size: 3
+      size: 1
   dataPools:
     - name: data0
       replicated:
-        size: 3
+        size: 1
   preserveFilesystemOnDelete: true
   metadataServer:
     activeCount: 1
     activeStandby: true
     resources:
       requests:
-        cpu: 100m
-        memory: 256Mi
+        cpu: 50m
+        memory: 128Mi
       limits:
-        cpu: "1"
-        memory: 1Gi
+        cpu: 250m
+        memory: 256Mi

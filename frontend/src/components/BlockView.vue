@@ -847,7 +847,7 @@ function onFileDrop(event: DragEvent) {
   font-size: 2.25rem;
   font-weight: 700;
   margin: 0 0 0.25rem;
-  color: var(--text-primary, #1a1a1a);
+  color: var(--color-text-primary, #1a1a1a);
   line-height: 1.2;
 }
 
@@ -856,10 +856,10 @@ function onFileDrop(event: DragEvent) {
   align-items: center;
   gap: 4px;
   padding: 4px 10px;
-  border: 1px solid var(--border-color, #e0e0e0);
+  border: 1px solid var(--color-border-light, #e0e0e0);
   border-radius: 5px;
   background: transparent;
-  color: var(--text-secondary, #666);
+  color: var(--color-text-secondary, #666);
   font-size: 0.8125rem;
   cursor: pointer;
   white-space: nowrap;
@@ -867,12 +867,12 @@ function onFileDrop(event: DragEvent) {
 }
 
 .new-page-btn:hover {
-  background: var(--hover-bg, #f5f5f5);
-  color: var(--text-primary, #333);
+  background: var(--color-bg-hover, #f5f5f5);
+  color: var(--color-text-primary, #333);
 }
 
 .page-description {
-  color: var(--text-secondary, #666);
+  color: var(--color-text-secondary, #666);
   margin: 0;
   font-size: 1rem;
 }
@@ -893,11 +893,11 @@ function onFileDrop(event: DragEvent) {
 }
 
 .block-wrapper.drag-over-top {
-  border-top: 2px solid var(--accent-color, #2563eb);
+  border-top: 2px solid var(--notebook-accent, #2563eb);
 }
 
 .block-wrapper.drag-over-bottom {
-  border-bottom: 2px solid var(--accent-color, #2563eb);
+  border-bottom: 2px solid var(--notebook-accent, #2563eb);
 }
 
 .block-wrapper.is-dragging {
@@ -928,15 +928,15 @@ function onFileDrop(event: DragEvent) {
   height: 22px;
   border: none;
   background: transparent;
-  color: var(--text-tertiary, #999);
+  color: var(--color-text-tertiary, #999);
   cursor: pointer;
   border-radius: 3px;
   padding: 0;
 }
 
 .gutter-btn:hover {
-  background: var(--hover-bg, #f0f0f0);
-  color: var(--text-secondary, #666);
+  background: var(--color-bg-hover, #f0f0f0);
+  color: var(--color-text-secondary, #666);
 }
 
 .gutter-drag {
@@ -953,8 +953,8 @@ function onFileDrop(event: DragEvent) {
   left: 0;
   top: 26px;
   z-index: 50;
-  background: var(--bg-primary, #fff);
-  border: 1px solid var(--border-color, #e0e0e0);
+  background: var(--color-bg-primary, #fff);
+  border: 1px solid var(--color-border-light, #e0e0e0);
   border-radius: 8px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
   padding: 4px;
@@ -969,7 +969,7 @@ function onFileDrop(event: DragEvent) {
   padding: 6px 10px;
   border: none;
   background: transparent;
-  color: var(--text-primary, #333);
+  color: var(--color-text-primary, #333);
   cursor: pointer;
   border-radius: 4px;
   font-size: 0.8125rem;
@@ -977,16 +977,16 @@ function onFileDrop(event: DragEvent) {
 }
 
 .type-menu-item:hover {
-  background: var(--hover-bg, #f5f5f5);
+  background: var(--color-bg-hover, #f5f5f5);
 }
 
 .type-menu-item.active {
-  background: var(--accent-color, #2563eb);
+  background: var(--notebook-accent, #2563eb);
   color: white;
 }
 
 .type-menu-delete {
-  color: var(--danger-color, #e74c3c);
+  color: var(--color-error, #e74c3c);
 }
 
 .type-menu-delete:hover {
@@ -995,7 +995,7 @@ function onFileDrop(event: DragEvent) {
 
 .type-menu-divider {
   height: 1px;
-  background: var(--border-color, #e0e0e0);
+  background: var(--color-border-light, #e0e0e0);
   margin: 4px 0;
 }
 
@@ -1005,7 +1005,7 @@ function onFileDrop(event: DragEvent) {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--text-tertiary, #999);
+  color: var(--color-text-tertiary, #999);
 }
 
 .type-icon {
@@ -1035,7 +1035,7 @@ function onFileDrop(event: DragEvent) {
   border: none;
   border-radius: 3px;
   background: transparent;
-  color: var(--text-primary, #333);
+  color: var(--color-text-primary, #333);
   font-family: inherit;
   font-size: 1rem;
   line-height: 1.6;
@@ -1046,12 +1046,12 @@ function onFileDrop(event: DragEvent) {
 }
 
 .block-textarea:focus {
-  background: var(--bg-secondary, #fafafa);
-  box-shadow: inset 0 0 0 1px var(--border-color, #e0e0e0);
+  background: var(--color-bg-secondary, #fafafa);
+  box-shadow: inset 0 0 0 1px var(--color-border-light, #e0e0e0);
 }
 
 .block-textarea.is-empty::placeholder {
-  color: var(--text-tertiary, #bbb);
+  color: var(--color-text-tertiary, #bbb);
 }
 
 /* Type-specific textarea styles */
@@ -1064,7 +1064,7 @@ function onFileDrop(event: DragEvent) {
 .textarea-code {
   font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
   font-size: 0.875rem;
-  background: var(--bg-secondary, #f5f5f5);
+  background: var(--color-bg-secondary, #f5f5f5);
   padding: 8px 12px;
   border-radius: 6px;
   line-height: 1.5;
@@ -1080,11 +1080,11 @@ function onFileDrop(event: DragEvent) {
 }
 
 .block-rendered:hover {
-  background: var(--hover-bg, rgba(0, 0, 0, 0.03));
+  background: var(--color-bg-hover, rgba(0, 0, 0, 0.03));
 }
 
 .block-rendered.is-empty {
-  color: var(--text-tertiary, #bbb);
+  color: var(--color-text-tertiary, #bbb);
 }
 
 .block-placeholder-text {
@@ -1115,7 +1115,7 @@ function onFileDrop(event: DragEvent) {
 .block-content :deep(pre) {
   margin: 0;
   border-radius: 6px;
-  background: var(--bg-secondary, #f5f5f5);
+  background: var(--color-bg-secondary, #f5f5f5);
   padding: 12px 16px;
   font-size: 0.875rem;
   overflow-x: auto;
@@ -1128,8 +1128,8 @@ function onFileDrop(event: DragEvent) {
 .block-content :deep(blockquote) {
   margin: 0;
   padding-left: 1rem;
-  border-left: 3px solid var(--accent-color, #2563eb);
-  color: var(--text-secondary, #555);
+  border-left: 3px solid var(--notebook-accent, #2563eb);
+  color: var(--color-text-secondary, #555);
 }
 
 .block-content :deep(ul),
@@ -1161,7 +1161,7 @@ function onFileDrop(event: DragEvent) {
 
 .block-image-caption {
   font-size: 0.75rem;
-  color: var(--text-tertiary, #999);
+  color: var(--color-text-tertiary, #999);
   margin-top: 4px;
 }
 
@@ -1171,15 +1171,15 @@ function onFileDrop(event: DragEvent) {
   align-items: center;
   gap: 8px;
   padding: 10px 14px;
-  border: 1px solid var(--border-color, #e0e0e0);
+  border: 1px solid var(--color-border-light, #e0e0e0);
   border-radius: 6px;
-  color: var(--text-primary, #333);
+  color: var(--color-text-primary, #333);
   text-decoration: none;
   transition: background-color 0.1s;
 }
 
 .block-file-link:hover {
-  background: var(--hover-bg, #f5f5f5);
+  background: var(--color-bg-hover, #f5f5f5);
 }
 
 .file-icon {
@@ -1194,7 +1194,7 @@ function onFileDrop(event: DragEvent) {
 /* Divider */
 .block-divider {
   border: none;
-  border-top: 1px solid var(--border-color, #e0e0e0);
+  border-top: 1px solid var(--color-border-light, #e0e0e0);
   margin: 8px 0;
 }
 
@@ -1206,12 +1206,12 @@ function onFileDrop(event: DragEvent) {
   padding: 8px 12px;
   border-radius: 6px;
   cursor: pointer;
-  color: var(--text-primary, #333);
+  color: var(--color-text-primary, #333);
   transition: background-color 0.1s;
 }
 
 .block-page-link:hover {
-  background: var(--hover-bg, #f5f5f5);
+  background: var(--color-bg-hover, #f5f5f5);
 }
 
 .page-icon {
@@ -1230,12 +1230,12 @@ function onFileDrop(event: DragEvent) {
 }
 
 .trailing-hint {
-  color: var(--text-tertiary, #ccc);
+  color: var(--color-text-tertiary, #ccc);
   font-size: 1rem;
   user-select: none;
 }
 
 .block-trailing-area:hover .trailing-hint {
-  color: var(--text-secondary, #999);
+  color: var(--color-text-secondary, #999);
 }
 </style>

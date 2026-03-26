@@ -50,6 +50,18 @@ async def lifespan(app: FastAPI):
     # Start WebSocket broadcast loop
     await connection_manager.start_broadcast_loop()
 
+    # Initialize ARQ Redis connection pool for enqueueing background jobs
+    try:
+        from arq.connections import create_pool
+
+        from codex.worker.settings import get_redis_settings
+
+        app.state.arq_pool = await create_pool(get_redis_settings())
+        logger.info("ARQ Redis pool initialized")
+    except Exception as e:
+        logger.warning(f"Could not connect to Redis for task queue: {e}")
+        app.state.arq_pool = None
+
     # Plugins directory for serving theme/block assets
     default_plugins_dir = Path(__file__).parent.parent.parent / "backend" / "plugins"
     plugins_dir = Path(os.getenv("CODEX_PLUGINS_DIR", default_plugins_dir))
@@ -71,6 +83,10 @@ async def lifespan(app: FastAPI):
         logger.error(f"Error starting notebook watcher: {e}", exc_info=True)
 
     yield
+
+    # Close ARQ Redis pool
+    if getattr(app.state, "arq_pool", None) is not None:
+        await app.state.arq_pool.close()
 
     # Stop all watchers on shutdown
     stop_all_watchers()

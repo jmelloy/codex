@@ -11,3 +11,4 @@ data:
   LOG_LEVEL: "INFO"
   LOG_FORMAT: "plain"
   CODEX_PLUGINS_DIR: "/app/plugins"
+  REDIS_URL: "redis://redis:6379/0"

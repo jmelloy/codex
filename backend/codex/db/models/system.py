@@ -99,6 +99,8 @@ class Task(SQLModel, table=True):
     description: str | None = None
     status: str = Field(default="pending")  # pending, in_progress, completed, failed
     assigned_to: str | None = None  # Agent identifier
+    job_id: str | None = None  # ARQ job identifier for background execution
+    job_type: str = Field(default="agent")  # Job type for generic dispatch
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
     )

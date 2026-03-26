@@ -7,7 +7,9 @@ resources:
   - namespace.yml
   - configmap.yml
   - pvc.yml
+  - redis-deployment.yml
   - backend-deployment.yml
+  - worker-deployment.yml
   - ingress.yml
 
 labels:

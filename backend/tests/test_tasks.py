@@ -10,7 +10,7 @@ def test_create_task(test_client, auth_headers, create_workspace):
     # Create a task
     response = test_client.post(
         "/api/v1/tasks/",
-        params={"workspace_id": workspace_id, "title": "Test Task", "description": "This is a test task"},
+        json={"workspace_id": workspace_id, "title": "Test Task", "description": "This is a test task"},
         headers=headers,
     )
     assert response.status_code == 200
@@ -35,7 +35,7 @@ def test_list_tasks(test_client, auth_headers, create_workspace):
     # Create some tasks
     for i in range(3):
         test_client.post(
-            "/api/v1/tasks/", params={"workspace_id": workspace_id, "title": f"Task {i+1}"}, headers=headers
+            "/api/v1/tasks/", json={"workspace_id": workspace_id, "title": f"Task {i+1}"}, headers=headers
         )
 
     # List tasks
@@ -54,7 +54,7 @@ def test_get_task(test_client, auth_headers, create_workspace):
     # Create a task
     create_response = test_client.post(
         "/api/v1/tasks/",
-        params={"workspace_id": workspace_id, "title": "Specific Task", "description": "Task to retrieve"},
+        json={"workspace_id": workspace_id, "title": "Specific Task", "description": "Task to retrieve"},
         headers=headers,
     )
     task_id = create_response.json()["id"]
@@ -85,18 +85,18 @@ def test_update_task_status(test_client, auth_headers, create_workspace):
 
     # Create a task
     create_response = test_client.post(
-        "/api/v1/tasks/", params={"workspace_id": workspace_id, "title": "Task to Update"}, headers=headers
+        "/api/v1/tasks/", json={"workspace_id": workspace_id, "title": "Task to Update"}, headers=headers
     )
     task_id = create_response.json()["id"]
     assert create_response.json()["status"] == "pending"
 
     # Update status to in_progress
-    response = test_client.put(f"/api/v1/tasks/{task_id}", params={"status": "in_progress"}, headers=headers)
+    response = test_client.put(f"/api/v1/tasks/{task_id}", json={"status": "in_progress"}, headers=headers)
     assert response.status_code == 200
     assert response.json()["status"] == "in_progress"
 
     # Update status to completed
-    response = test_client.put(f"/api/v1/tasks/{task_id}", params={"status": "completed"}, headers=headers)
+    response = test_client.put(f"/api/v1/tasks/{task_id}", json={"status": "completed"}, headers=headers)
     assert response.status_code == 200
     task = response.json()
     assert task["status"] == "completed"
@@ -111,12 +111,12 @@ def test_update_task_assignment(test_client, auth_headers, create_workspace):
 
     # Create a task
     create_response = test_client.post(
-        "/api/v1/tasks/", params={"workspace_id": workspace_id, "title": "Task to Assign"}, headers=headers
+        "/api/v1/tasks/", json={"workspace_id": workspace_id, "title": "Task to Assign"}, headers=headers
     )
     task_id = create_response.json()["id"]
 
     # Assign to an agent
-    response = test_client.put(f"/api/v1/tasks/{task_id}", params={"assigned_to": "agent-123"}, headers=headers)
+    response = test_client.put(f"/api/v1/tasks/{task_id}", json={"assigned_to": "agent-123"}, headers=headers)
     assert response.status_code == 200
     assert response.json()["assigned_to"] == "agent-123"
 
@@ -125,7 +125,7 @@ def test_update_nonexistent_task(test_client, auth_headers):
     """Test updating a task that doesn't exist."""
     headers = auth_headers[0]
 
-    response = test_client.put("/api/v1/tasks/99999", params={"status": "completed"}, headers=headers)
+    response = test_client.put("/api/v1/tasks/99999", json={"status": "completed"}, headers=headers)
     assert response.status_code == 404
     assert response.json()["detail"] == "Task not found"
 
@@ -136,11 +136,11 @@ def test_task_requires_authentication(test_client):
     response = test_client.get("/api/v1/tasks/", params={"workspace_id": 1})
     assert response.status_code == 401
 
-    response = test_client.post("/api/v1/tasks/", params={"workspace_id": 1, "title": "Test"})
+    response = test_client.post("/api/v1/tasks/", json={"workspace_id": 1, "title": "Test"})
     assert response.status_code == 401
 
     response = test_client.get("/api/v1/tasks/1")
     assert response.status_code == 401
 
-    response = test_client.put("/api/v1/tasks/1", params={"status": "completed"})
+    response = test_client.put("/api/v1/tasks/1", json={"status": "completed"})
     assert response.status_code == 401

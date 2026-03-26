@@ -1236,14 +1236,14 @@ async function handleUploadFile(file: File, parentBlockId?: string, _position?: 
   if (!notebookId || !workspaceStore.currentWorkspace) return
   try {
     await blockService.upload(notebookId, workspaceStore.currentWorkspace.id, file, parentBlockId)
-    // Refresh page blocks to show the new image
+    // Refresh page blocks to show the new file
     const pageBlockId = workspaceStore.currentPageBlockId
     if (pageBlockId) {
       await workspaceStore.fetchPageBlocks(pageBlockId, notebookId)
     }
-    showToast({ message: "Image uploaded" })
+    showToast({ message: "File uploaded" })
   } catch {
-    showToast({ message: "Failed to upload image", type: "error" })
+    showToast({ message: "Failed to upload file", type: "error" })
   }
 }
 

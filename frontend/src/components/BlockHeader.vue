@@ -1,7 +1,13 @@
 <template>
+  <div class="block-header-wrapper">
+    <!-- Cover image -->
+    <div v-if="block.properties?.cover_image" class="block-cover-image">
+      <img :src="block.properties.cover_image" alt="Cover" class="block-cover-img" />
+    </div>
   <div class="block-header">
     <div class="block-icon">
-      <component :is="blockIcon" />
+      <span v-if="block.properties?.icon" class="block-icon-emoji">{{ block.properties.icon }}</span>
+      <component v-else :is="blockIcon" />
     </div>
     <div class="block-info">
       <h1
@@ -85,6 +91,7 @@
         <button @click="$emit('toggleProperties')" class="properties-btn">Properties</button>
       </slot>
     </div>
+  </div>
   </div>
 </template>
 
@@ -295,6 +302,30 @@ const blockIcon = computed(() => {
 </script>
 
 <style scoped>
+.block-header-wrapper {
+  display: flex;
+  flex-direction: column;
+}
+
+.block-cover-image {
+  width: 100%;
+  height: 200px;
+  overflow: hidden;
+  position: relative;
+}
+
+.block-cover-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.block-icon-emoji {
+  font-size: 42px;
+  line-height: 1;
+}
+
 .block-header {
   display: flex;
   align-items: flex-start;

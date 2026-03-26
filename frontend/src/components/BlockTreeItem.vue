@@ -21,7 +21,7 @@
         isPageExpanded ? "▼" : "▶"
       }}</span>
       <span v-else class="mr-2 w-3"></span>
-      <span class="mr-2 text-sm">{{ node.isPage ? '📄' : '📁' }}</span>
+      <span class="mr-2 text-sm">{{ node.pageMeta?.properties?.icon || (node.isPage ? '📄' : '📁') }}</span>
       <span class="overflow-hidden text-ellipsis whitespace-nowrap">{{ node.pageMeta?.title || node.name }}</span>
     </div>
 

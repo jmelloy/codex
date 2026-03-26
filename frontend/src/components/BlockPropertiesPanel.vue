@@ -21,6 +21,41 @@
     </div>
 
     <div v-if="block && activeTab === 'properties'" class="panel-content">
+      <!-- Icon & Cover Image -->
+      <div class="property-group icon-cover-group">
+        <div class="icon-cover-row">
+          <!-- Icon picker -->
+          <div class="icon-picker-wrapper">
+            <label>Icon</label>
+            <button class="icon-preview-btn" @click="showEmojiPicker = !showEmojiPicker">
+              <span v-if="currentIcon" class="icon-preview-emoji">{{ currentIcon }}</span>
+              <span v-else class="icon-preview-placeholder">Add icon</span>
+            </button>
+            <div v-if="showEmojiPicker" class="emoji-picker-dropdown">
+              <EmojiPicker @select="handleIconSelect" />
+            </div>
+          </div>
+
+          <!-- Cover image -->
+          <div class="cover-picker-wrapper">
+            <label>Cover image</label>
+            <div v-if="currentCoverImage" class="cover-preview">
+              <img :src="currentCoverImage" alt="Cover" class="cover-preview-img" />
+              <button class="cover-remove-btn" @click="removeCoverImage" title="Remove cover">×</button>
+            </div>
+            <div class="cover-input-row">
+              <input
+                v-model="coverImageUrl"
+                class="property-input cover-url-input"
+                placeholder="Paste image URL..."
+                @keyup.enter="setCoverImage"
+              />
+              <button class="cover-set-btn" @click="setCoverImage" :disabled="!coverImageUrl.trim()">Set</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Title (editable) -->
       <div class="property-group">
         <label>Title</label>
@@ -28,7 +63,7 @@
           v-model="editableTitle"
           @blur="updateTitle"
           @keyup.enter="updateTitle"
-          class="property-input"
+          class="property-input title-input"
           placeholder="Untitled"
         />
       </div>
@@ -39,7 +74,7 @@
         <textarea
           v-model="editableDescription"
           @blur="updateDescription"
-          class="property-textarea"
+          class="property-textarea description-input"
           placeholder="Add a description..."
           rows="3"
         ></textarea>
@@ -185,6 +220,7 @@ import { useProperties } from "../composables/useProperties"
 import { formatDate, formatCommitDate, formatSize } from "../utils/date"
 import TagsEditor from "./TagsEditor.vue"
 import CustomPropertiesEditor from "./CustomPropertiesEditor.vue"
+import EmojiPicker from "./EmojiPicker.vue"
 
 interface Props {
   block: (Block & { content?: string }) | null
@@ -203,6 +239,31 @@ const emit = defineEmits<{
 
 // Tab state
 const activeTab = ref<"properties" | "history">("properties")
+
+// Icon & Cover state
+const showEmojiPicker = ref(false)
+const coverImageUrl = ref("")
+
+const currentIcon = computed(() => props.block?.properties?.icon || "")
+const currentCoverImage = computed(() => props.block?.properties?.cover_image || "")
+
+function handleIconSelect(emoji: string) {
+  showEmojiPicker.value = false
+  emit("updateProperties", { ...props.block?.properties, icon: emoji || undefined })
+}
+
+function setCoverImage() {
+  const url = coverImageUrl.value.trim()
+  if (!url) return
+  emit("updateProperties", { ...props.block?.properties, cover_image: url })
+  coverImageUrl.value = ""
+}
+
+function removeCoverImage() {
+  const newProps = { ...props.block?.properties }
+  delete newProps.cover_image
+  emit("updateProperties", newProps)
+}
 
 // History state
 const history = ref<FileHistoryEntry[]>([])
@@ -344,6 +405,140 @@ watch(
 /* Override panel-header padding for the tabbed layout */
 .panel-header {
   padding: var(--spacing-sm) var(--spacing-lg);
+}
+
+/* Icon & Cover */
+.icon-cover-group {
+  border-bottom: 1px solid var(--color-border-light);
+  padding-bottom: var(--spacing-md);
+}
+
+.icon-cover-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.icon-picker-wrapper {
+  position: relative;
+}
+
+.icon-picker-wrapper label,
+.cover-picker-wrapper label {
+  display: block;
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+  color: var(--color-text-tertiary);
+  margin-bottom: var(--spacing-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.icon-preview-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  width: 100%;
+}
+
+.icon-preview-btn:hover {
+  background: var(--color-bg-tertiary);
+  border-color: var(--color-border);
+}
+
+.icon-preview-emoji {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.icon-preview-placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.emoji-picker-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 200;
+  margin-top: 4px;
+}
+
+.cover-preview {
+  position: relative;
+  margin-bottom: var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.cover-preview-img {
+  width: 100%;
+  height: 80px;
+  object-fit: cover;
+  display: block;
+  border-radius: var(--radius-sm);
+}
+
+.cover-remove-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.cover-preview:hover .cover-remove-btn {
+  opacity: 1;
+}
+
+.cover-input-row {
+  display: flex;
+  gap: var(--spacing-xs);
+}
+
+.cover-url-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.cover-set-btn {
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-primary);
+  color: var(--color-text-inverse, #fff);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: background 0.2s;
+  white-space: nowrap;
+}
+
+.cover-set-btn:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+
+.cover-set-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* Tabs */

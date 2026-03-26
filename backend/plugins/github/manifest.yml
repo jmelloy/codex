@@ -1,0 +1,280 @@
+# Integration Metadata
+id: github
+name: GitHub Integration
+version: 1.0.0
+author: Codex Team
+description: Display GitHub issues, pull requests, and repository information
+license: MIT
+
+# Integration Type
+type: integration
+
+# Codex Compatibility
+codex_version: ">=1.0.0"
+api_version: 1
+
+# Integration Configuration
+integration:
+  # API type
+  api_type: rest
+
+  # Base URL
+  base_url: "https://api.github.com"
+
+  # Authentication method
+  auth_method: token
+
+  # Test endpoint
+  test_endpoint: get_user
+
+  # Rate limiting
+  rate_limit:
+    requests_per_minute: 30
+    requests_per_day: 5000
+
+# Configuration Properties
+# These are stored per-workspace in the database
+properties:
+  - name: access_token
+    type: string
+    description: GitHub Personal Access Token
+    required: true
+    secure: true
+    ui:
+      type: password
+      label: Personal Access Token
+      help: Generate a token at github.com/settings/tokens with repo scope
+
+  - name: default_owner
+    type: string
+    description: Default repository owner/organization
+    required: false
+    ui:
+      type: text
+      label: Default Owner
+      placeholder: "octocat"
+
+  - name: default_repo
+    type: string
+    description: Default repository name
+    required: false
+    ui:
+      type: text
+      label: Default Repository
+      placeholder: "hello-world"
+
+# API Endpoints
+endpoints:
+  - id: get_user
+    name: Get Authenticated User
+    method: GET
+    path: "/user"
+    description: Get the authenticated user's profile
+    parameters: []
+    response_schema:
+      type: object
+      properties:
+        login: { type: string }
+        name: { type: string }
+        avatar_url: { type: string }
+
+  - id: list_repos
+    name: List Repositories
+    method: GET
+    path: "/users/{owner}/repos"
+    description: List repositories for a user or organization
+    parameters:
+      - name: owner
+        type: string
+        description: Repository owner (user or org)
+        required: true
+      - name: sort
+        type: string
+        description: Sort field
+        required: false
+        default: updated
+      - name: per_page
+        type: integer
+        description: Results per page (max 100)
+        required: false
+        default: 10
+    response_schema:
+      type: array
+      items:
+        type: object
+        properties:
+          name: { type: string }
+          full_name: { type: string }
+          description: { type: string }
+          html_url: { type: string }
+          stargazers_count: { type: integer }
+          language: { type: string }
+
+  - id: get_repo
+    name: Get Repository
+    method: GET
+    path: "/repos/{owner}/{repo}"
+    description: Get repository details
+    parameters:
+      - name: owner
+        type: string
+        description: Repository owner
+        required: true
+      - name: repo
+        type: string
+        description: Repository name
+        required: true
+    response_schema:
+      type: object
+      properties:
+        full_name: { type: string }
+        description: { type: string }
+        html_url: { type: string }
+        stargazers_count: { type: integer }
+        forks_count: { type: integer }
+        open_issues_count: { type: integer }
+        language: { type: string }
+
+  - id: list_issues
+    name: List Issues
+    method: GET
+    path: "/repos/{owner}/{repo}/issues"
+    description: List issues for a repository
+    parameters:
+      - name: owner
+        type: string
+        description: Repository owner
+        required: true
+      - name: repo
+        type: string
+        description: Repository name
+        required: true
+      - name: state
+        type: string
+        description: "Issue state: open, closed, or all"
+        required: false
+        default: open
+      - name: per_page
+        type: integer
+        description: Results per page (max 100)
+        required: false
+        default: 10
+    response_schema:
+      type: array
+      items:
+        type: object
+        properties:
+          number: { type: integer }
+          title: { type: string }
+          state: { type: string }
+          html_url: { type: string }
+          user:
+            type: object
+            properties:
+              login: { type: string }
+          labels:
+            type: array
+            items:
+              type: object
+              properties:
+                name: { type: string }
+                color: { type: string }
+
+  - id: list_pulls
+    name: List Pull Requests
+    method: GET
+    path: "/repos/{owner}/{repo}/pulls"
+    description: List pull requests for a repository
+    parameters:
+      - name: owner
+        type: string
+        description: Repository owner
+        required: true
+      - name: repo
+        type: string
+        description: Repository name
+        required: true
+      - name: state
+        type: string
+        description: "PR state: open, closed, or all"
+        required: false
+        default: open
+      - name: per_page
+        type: integer
+        description: Results per page (max 100)
+        required: false
+        default: 10
+    response_schema:
+      type: array
+      items:
+        type: object
+        properties:
+          number: { type: integer }
+          title: { type: string }
+          state: { type: string }
+          html_url: { type: string }
+          user:
+            type: object
+            properties:
+              login: { type: string }
+
+# Block Types
+blocks:
+  - id: github-issues
+    name: GitHub Issues
+    description: Display issues from a GitHub repository
+    icon: "\U0001F41B"
+    syntax: "```github-issues\nowner: octocat\nrepo: hello-world\nstate: open\n```"
+    config_schema:
+      owner:
+        type: string
+        description: Repository owner
+        required: false
+      repo:
+        type: string
+        description: Repository name
+        required: false
+      state:
+        type: string
+        enum: [open, closed, all]
+        required: false
+
+  - id: github-pulls
+    name: GitHub Pull Requests
+    description: Display pull requests from a GitHub repository
+    icon: "\U0001F500"
+    syntax: "```github-pulls\nowner: octocat\nrepo: hello-world\nstate: open\n```"
+    config_schema:
+      owner:
+        type: string
+        description: Repository owner
+        required: false
+      repo:
+        type: string
+        description: Repository name
+        required: false
+      state:
+        type: string
+        enum: [open, closed, all]
+        required: false
+
+  - id: github-repo
+    name: GitHub Repository
+    description: Display repository information
+    icon: "\U0001F4E6"
+    syntax: "```github-repo\nowner: octocat\nrepo: hello-world\n```"
+    config_schema:
+      owner:
+        type: string
+        description: Repository owner
+        required: false
+      repo:
+        type: string
+        description: Repository name
+        required: false
+
+# Permissions
+permissions:
+  - network_request
+  - store_config
+  - render_blocks

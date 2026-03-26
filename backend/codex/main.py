@@ -8,8 +8,9 @@ from contextvars import ContextVar
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlmodel import select
 from ulid import ULID
@@ -135,6 +136,19 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    logger.warning(
+        "Validation error on %s %s: %s (body type: %s, content-type: %s)",
+        request.method,
+        request.url.path,
+        exc.errors(),
+        type(exc.body).__name__ if exc.body is not None else "None",
+        request.headers.get("content-type", "missing"),
+    )
+    return JSONResponse(status_code=422, content={"detail": exc.errors()})
 
 
 @app.middleware("http")

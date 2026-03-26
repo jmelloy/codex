@@ -1,5 +1,13 @@
 <template>
-  <div class="block-editor" @click="handleEditorClick">
+  <div
+    class="block-editor"
+    :class="{ 'drop-active': dropActive }"
+    @click="handleEditorClick"
+    @dragover.prevent="onFileDragOver"
+    @dragenter.prevent="onFileDragEnter"
+    @dragleave="onFileDragLeave"
+    @drop.prevent="onFileDrop"
+  >
     <div class="page-header" v-if="pageTitle">
       <div class="page-header-row">
         <h1 class="page-title">{{ pageTitle }}</h1>
@@ -643,6 +651,44 @@ function onDragEnd() {
   dragIndex.value = null
   dragOverIndex.value = null
 }
+
+// File drop upload
+const dropActive = ref(false)
+let dragEnterCount = 0
+
+function hasFiles(event: DragEvent): boolean {
+  return event.dataTransfer?.types?.includes("Files") ?? false
+}
+
+function onFileDragOver(event: DragEvent) {
+  if (!hasFiles(event)) return
+  if (event.dataTransfer) event.dataTransfer.dropEffect = "copy"
+}
+
+function onFileDragEnter(event: DragEvent) {
+  if (!hasFiles(event)) return
+  dragEnterCount++
+  dropActive.value = true
+}
+
+function onFileDragLeave() {
+  dragEnterCount--
+  if (dragEnterCount <= 0) {
+    dropActive.value = false
+    dragEnterCount = 0
+  }
+}
+
+function onFileDrop(event: DragEvent) {
+  dropActive.value = false
+  dragEnterCount = 0
+  const files = event.dataTransfer?.files
+  if (!files || files.length === 0) return
+  const parentBlockId = props.blocks[0]?.parent_block_id || undefined
+  for (const file of Array.from(files)) {
+    emit("uploadFile", file, parentBlockId)
+  }
+}
 </script>
 
 <style scoped>
@@ -652,6 +698,13 @@ function onDragEnd() {
   margin: 0 auto;
   padding: 1.5rem 2rem;
   min-height: 100%;
+  transition: outline 0.15s ease;
+}
+
+.block-editor.drop-active {
+  outline: 2px dashed var(--pen-blue, #3b82f6);
+  outline-offset: -4px;
+  background: color-mix(in srgb, var(--pen-blue, #3b82f6) 5%, transparent);
 }
 
 .page-header {

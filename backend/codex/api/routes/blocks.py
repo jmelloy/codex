@@ -745,11 +745,20 @@ async def upload_block(
     workspace_identifier: str,
     notebook_identifier: str,
     file: UploadFile = File(...),
-    parent_block_id: str = Form(None),
+    parent_block_id: str | None = Form(None),
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_system_session),
 ):
     """Upload a file as a block within a page."""
+    logger.debug(
+        "upload_block called: workspace=%s notebook=%s filename=%s content_type=%s parent_block_id=%s user=%s",
+        workspace_identifier,
+        notebook_identifier,
+        file.filename,
+        file.content_type,
+        parent_block_id,
+        current_user.username,
+    )
     notebook_path, notebook, workspace = await get_notebook_path_nested(
         workspace_identifier, notebook_identifier, current_user, session
     )
@@ -757,6 +766,7 @@ async def upload_block(
         raise HTTPException(status_code=400, detail="No filename provided")
 
     content = await file.read()
+    logger.debug("upload_block: file size=%d bytes, notebook_path=%s", len(content), notebook_path)
 
     nb_session = get_notebook_session(str(notebook_path))
     try:
@@ -768,10 +778,13 @@ async def upload_block(
             content=content,
             nb_session=nb_session,
         )
+        logger.debug("upload_block: success, block_id=%s", result.get("block_id"))
         return result
     except FileNotFoundError as e:
+        logger.warning("upload_block: parent page not found: %s", e)
         raise HTTPException(status_code=404, detail=str(e))
     except ValueError as e:
+        logger.warning("upload_block: validation error: %s", e)
         raise HTTPException(status_code=400, detail=str(e))
     finally:
         nb_session.close()

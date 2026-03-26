@@ -39,6 +39,7 @@ export interface Block {
     | "embed"
     | "file"
     | "database"
+    | "api"
   content_format: "markdown" | "json" | "binary"
   order_index: number
   title?: string

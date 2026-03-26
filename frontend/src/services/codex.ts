@@ -619,8 +619,10 @@ export const searchService = {
    * Search by tags across all notebooks in a workspace.
    */
   async searchByTags(workspaceId: number | string, tags: string[]): Promise<TagSearchResponse> {
+    const params = new URLSearchParams()
+    tags.forEach(tag => params.append('tags', tag))
     const response = await apiClient.get<TagSearchResponse>(
-      `/api/v1/workspaces/${workspaceId}/search/tags?tags=${encodeURIComponent(tags.join(","))}`
+      `/api/v1/workspaces/${workspaceId}/search/tags?${params.toString()}`
     )
     return response.data
   },
@@ -633,8 +635,10 @@ export const searchService = {
     notebookId: number | string,
     tags: string[]
   ): Promise<NotebookTagSearchResponse> {
+    const params = new URLSearchParams()
+    tags.forEach(tag => params.append('tags', tag))
     const response = await apiClient.get<NotebookTagSearchResponse>(
-      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/search/tags?tags=${encodeURIComponent(tags.join(","))}`
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/search/tags?${params.toString()}`
     )
     return response.data
   },

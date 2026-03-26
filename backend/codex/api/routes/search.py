@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -214,13 +214,13 @@ async def search_workspace(
 @nested_router.get("/tags", response_model=WorkspaceTagSearchResponse)
 async def search_workspace_by_tags(
     workspace_identifier: str,
-    tags: str,
+    tags: list[str] = Query(...),
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_system_session),
 ):
     """Search files by tags in a workspace (all notebooks)."""
     workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
-    tag_list = [tag.strip() for tag in tags.split(",")]
+    tag_list = [tag.strip() for tag in tags]
 
     result = await session.execute(select(Notebook).where(Notebook.workspace_id == workspace.id))
     notebooks = result.scalars().all()
@@ -281,7 +281,7 @@ async def search_notebook(
 async def search_notebook_by_tags(
     workspace_identifier: str,
     notebook_identifier: str,
-    tags: str,
+    tags: list[str] = Query(...),
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_system_session),
 ):
@@ -289,7 +289,7 @@ async def search_notebook_by_tags(
     workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
     notebook = await get_notebook_by_slug_or_id(notebook_identifier, workspace, session)
 
-    tag_list = [tag.strip() for tag in tags.split(",")]
+    tag_list = [tag.strip() for tag in tags]
     workspace_path = Path(workspace.path).resolve()
     nb_path = str(workspace_path / notebook.path)
 

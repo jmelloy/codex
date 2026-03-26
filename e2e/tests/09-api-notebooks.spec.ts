@@ -50,7 +50,7 @@ test.describe("API: Notebooks", () => {
         await Promise.all(
           workspaces.map((workspace: any) =>
             request.delete(
-              `${BASE}/api/v1/workspaces/${workspace.id}`,
+              `${BASE}/api/v1/workspaces/${workspace.slug}`,
               { headers }
             )
           )
@@ -115,13 +115,13 @@ test.describe("API: Notebooks", () => {
     ).json();
 
     const del = await request.delete(
-      `${BASE}/api/v1/workspaces/${ws.slug}/notebooks/${nb.id}`,
+      `${BASE}/api/v1/workspaces/${ws.slug}/notebooks/${nb.slug}`,
       { headers }
     );
     expect(del.status()).toBe(200);
 
     const get = await request.get(
-      `${BASE}/api/v1/workspaces/${ws.slug}/notebooks/${nb.id}`,
+      `${BASE}/api/v1/workspaces/${ws.slug}/notebooks/${nb.slug}`,
       { headers }
     );
     expect(get.status()).toBe(404);

@@ -188,8 +188,8 @@ import CustomPropertiesEditor from "./CustomPropertiesEditor.vue"
 
 interface Props {
   block: (Block & { content?: string }) | null
-  workspaceId: number
-  notebookId: number
+  workspaceId: string
+  notebookId: string
 }
 
 const props = defineProps<Props>()

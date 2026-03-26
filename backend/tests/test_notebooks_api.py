@@ -8,14 +8,14 @@ def test_list_notebooks(test_client, auth_headers, create_workspace):
 
     # Create a notebook using nested route
     test_client.post(
-        f"/api/v1/workspaces/{workspace['id']}/notebooks/",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/",
         json={"name": "My Notebook"},
         headers=headers,
     )
 
     # List notebooks using nested route
     response = test_client.get(
-        f"/api/v1/workspaces/{workspace['id']}/notebooks/",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/",
         headers=headers,
     )
     assert response.status_code == 200
@@ -32,7 +32,7 @@ def test_list_notebooks_empty_workspace(test_client, auth_headers, create_worksp
 
     # List notebooks (should be empty initially)
     response = test_client.get(
-        f"/api/v1/workspaces/{workspace['id']}/notebooks/",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/",
         headers=headers,
     )
     assert response.status_code == 200
@@ -47,7 +47,7 @@ def test_create_notebook(test_client, auth_headers, create_workspace):
     workspace = create_workspace()
 
     response = test_client.post(
-        f"/api/v1/workspaces/{workspace['id']}/notebooks/",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/",
         json={
             "name": "New Notebook",
             "description": "A test notebook",
@@ -69,7 +69,7 @@ def test_create_notebook_without_description(test_client, auth_headers, create_w
     workspace = create_workspace()
 
     response = test_client.post(
-        f"/api/v1/workspaces/{workspace['id']}/notebooks/",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/",
         json={"name": "No Description Notebook"},
         headers=headers,
     )
@@ -85,7 +85,7 @@ def test_create_notebook_generates_slug_path(test_client, auth_headers, create_w
     workspace = create_workspace()
 
     response = test_client.post(
-        f"/api/v1/workspaces/{workspace['id']}/notebooks/",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/",
         json={"name": "My Special Notebook!"},
         headers=headers,
     )
@@ -102,7 +102,7 @@ def test_create_notebook_handles_name_collision(test_client, auth_headers, creat
 
     # Create first notebook
     response1 = test_client.post(
-        f"/api/v1/workspaces/{workspace['id']}/notebooks/",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/",
         json={"name": "Collision Test"},
         headers=headers,
     )
@@ -111,7 +111,7 @@ def test_create_notebook_handles_name_collision(test_client, auth_headers, creat
 
     # Create second notebook with same name
     response2 = test_client.post(
-        f"/api/v1/workspaces/{workspace['id']}/notebooks/",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/",
         json={"name": "Collision Test"},
         headers=headers,
     )
@@ -130,15 +130,16 @@ def test_get_notebook_by_id(test_client, auth_headers, create_workspace):
 
     # Create notebook
     create_response = test_client.post(
-        f"/api/v1/workspaces/{workspace['id']}/notebooks/",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/",
         json={"name": "Get By ID Test"},
         headers=headers,
     )
     notebook_id = create_response.json()["id"]
+    notebook_slug = create_response.json()["slug"]
 
     # Get notebook
     response = test_client.get(
-        f"/api/v1/workspaces/{workspace['id']}/notebooks/{notebook_id}",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook_slug}",
         headers=headers,
     )
     assert response.status_code == 200
@@ -153,7 +154,7 @@ def test_get_nonexistent_notebook(test_client, auth_headers, create_workspace):
     workspace = create_workspace()
 
     response = test_client.get(
-        f"/api/v1/workspaces/{workspace['id']}/notebooks/99999",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/99999",
         headers=headers,
     )
     assert response.status_code == 404
@@ -167,11 +168,11 @@ def test_get_notebook_from_other_workspace(test_client, auth_headers, create_wor
 
     # Create notebook in workspace1
     create_response = test_client.post(
-        f"/api/v1/workspaces/{workspace1['id']}/notebooks/",
+        f"/api/v1/workspaces/{workspace1['slug']}/notebooks/",
         json={"name": "Private Notebook"},
         headers=headers,
     )
-    notebook_id = create_response.json()["id"]
+    notebook_slug = create_response.json()["slug"]
 
     # Create workspace2
     ws2_response = test_client.post(
@@ -184,7 +185,7 @@ def test_get_notebook_from_other_workspace(test_client, auth_headers, create_wor
 
     # Try to access notebook using workspace2
     response = test_client.get(
-        f"/api/v1/workspaces/{workspace2['id']}/notebooks/{notebook_id}",
+        f"/api/v1/workspaces/{workspace2['slug']}/notebooks/{notebook_slug}",
         headers=headers,
     )
     assert response.status_code == 404
@@ -221,7 +222,7 @@ def test_list_notebooks_other_users_workspace(test_client, auth_headers, create_
 
     # Try to list notebooks
     response = test_client.get(
-        f"/api/v1/workspaces/{workspace['id']}/notebooks/",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/",
         headers=headers2,
     )
     assert response.status_code == 404
@@ -234,15 +235,15 @@ def test_get_notebook_indexing_status(test_client, auth_headers, create_workspac
 
     # Create notebook
     create_response = test_client.post(
-        f"/api/v1/workspaces/{workspace['id']}/notebooks/",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/",
         json={"name": "Indexing Test"},
         headers=headers,
     )
-    notebook_id = create_response.json()["id"]
+    notebook_slug = create_response.json()["slug"]
 
     # Get indexing status
     response = test_client.get(
-        f"/api/v1/workspaces/{workspace['id']}/notebooks/{notebook_id}/indexing-status",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook_slug}/indexing-status",
         headers=headers,
     )
     assert response.status_code == 200
@@ -258,15 +259,15 @@ def test_list_notebook_plugins(test_client, auth_headers, create_workspace):
 
     # Create notebook
     create_response = test_client.post(
-        f"/api/v1/workspaces/{workspace['id']}/notebooks/",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/",
         json={"name": "Plugin Test"},
         headers=headers,
     )
-    notebook_id = create_response.json()["id"]
+    notebook_slug = create_response.json()["slug"]
 
     # List plugins using nested route
     response = test_client.get(
-        f"/api/v1/workspaces/{workspace['id']}/notebooks/{notebook_id}/plugins",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook_slug}/plugins",
         headers=headers,
     )
     assert response.status_code == 200
@@ -281,15 +282,15 @@ def test_get_notebook_plugin_config(test_client, auth_headers, create_workspace)
 
     # Create notebook
     create_response = test_client.post(
-        f"/api/v1/workspaces/{workspace['id']}/notebooks/",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/",
         json={"name": "Plugin Config Test"},
         headers=headers,
     )
-    notebook_id = create_response.json()["id"]
+    notebook_slug = create_response.json()["slug"]
 
     # Get plugin config (should return default) using nested route
     response = test_client.get(
-        f"/api/v1/workspaces/{workspace['id']}/notebooks/{notebook_id}/plugins/some-plugin",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook_slug}/plugins/some-plugin",
         headers=headers,
     )
     assert response.status_code == 200
@@ -305,15 +306,15 @@ def test_update_notebook_plugin_config(test_client, auth_headers, create_workspa
 
     # Create notebook
     create_response = test_client.post(
-        f"/api/v1/workspaces/{workspace['id']}/notebooks/",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/",
         json={"name": "Update Plugin Test"},
         headers=headers,
     )
-    notebook_id = create_response.json()["id"]
+    notebook_slug = create_response.json()["slug"]
 
     # Update plugin config using nested route
     response = test_client.put(
-        f"/api/v1/workspaces/{workspace['id']}/notebooks/{notebook_id}/plugins/test-plugin",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook_slug}/plugins/test-plugin",
         json={"enabled": False, "config": {"setting1": "value1"}},
         headers=headers,
     )
@@ -325,7 +326,7 @@ def test_update_notebook_plugin_config(test_client, auth_headers, create_workspa
 
     # Verify persistence using nested route
     get_response = test_client.get(
-        f"/api/v1/workspaces/{workspace['id']}/notebooks/{notebook_id}/plugins/test-plugin",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook_slug}/plugins/test-plugin",
         headers=headers,
     )
     get_data = get_response.json()
@@ -340,22 +341,22 @@ def test_update_plugin_config_partial(test_client, auth_headers, create_workspac
 
     # Create notebook
     create_response = test_client.post(
-        f"/api/v1/workspaces/{workspace['id']}/notebooks/",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/",
         json={"name": "Partial Update Test"},
         headers=headers,
     )
-    notebook_id = create_response.json()["id"]
+    notebook_slug = create_response.json()["slug"]
 
     # Create initial config using nested route
     test_client.put(
-        f"/api/v1/workspaces/{workspace['id']}/notebooks/{notebook_id}/plugins/partial-plugin",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook_slug}/plugins/partial-plugin",
         json={"enabled": True, "config": {"key1": "val1"}},
         headers=headers,
     )
 
     # Update only enabled status using nested route
     response = test_client.put(
-        f"/api/v1/workspaces/{workspace['id']}/notebooks/{notebook_id}/plugins/partial-plugin",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook_slug}/plugins/partial-plugin",
         json={"enabled": False},
         headers=headers,
     )
@@ -373,22 +374,22 @@ def test_delete_notebook_plugin_config(test_client, auth_headers, create_workspa
 
     # Create notebook
     create_response = test_client.post(
-        f"/api/v1/workspaces/{workspace['id']}/notebooks/",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/",
         json={"name": "Delete Plugin Test"},
         headers=headers,
     )
-    notebook_id = create_response.json()["id"]
+    notebook_slug = create_response.json()["slug"]
 
     # Create plugin config using nested route
     test_client.put(
-        f"/api/v1/workspaces/{workspace['id']}/notebooks/{notebook_id}/plugins/delete-me",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook_slug}/plugins/delete-me",
         json={"enabled": False},
         headers=headers,
     )
 
     # Delete plugin config using nested route
     response = test_client.delete(
-        f"/api/v1/workspaces/{workspace['id']}/notebooks/{notebook_id}/plugins/delete-me",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook_slug}/plugins/delete-me",
         headers=headers,
     )
     assert response.status_code == 200
@@ -397,7 +398,7 @@ def test_delete_notebook_plugin_config(test_client, auth_headers, create_workspa
 
     # Verify it returns to default using nested route
     get_response = test_client.get(
-        f"/api/v1/workspaces/{workspace['id']}/notebooks/{notebook_id}/plugins/delete-me",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook_slug}/plugins/delete-me",
         headers=headers,
     )
     assert get_response.json()["enabled"] is True  # Back to default
@@ -425,7 +426,7 @@ def test_notebook_timestamps(test_client, auth_headers, create_workspace):
     workspace = create_workspace()
 
     response = test_client.post(
-        f"/api/v1/workspaces/{workspace['id']}/notebooks/",
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/",
         json={"name": "Timestamp Test"},
         headers=headers,
     )

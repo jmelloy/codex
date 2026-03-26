@@ -11,7 +11,7 @@ from sqlmodel import select
 
 from codex.api.auth import get_current_active_user
 from codex.api.routes.utils import slugify
-from codex.api.routes.workspaces import get_workspace_by_slug_or_id
+from codex.api.routes.workspaces import get_workspace_by_slug
 from codex.api.schemas import (
     MessageResponse,
     NotebookIndexingStatusResponse,
@@ -37,23 +37,12 @@ class NotebookPluginConfigUpdate(BaseModel):
     config: dict | None = None
 
 
-async def get_notebook_by_slug_or_id(notebook_identifier: str, workspace: Workspace, session: AsyncSession) -> Notebook:
-    """Get notebook by slug or ID within a workspace."""
-    notebook = None
-
-    # If identifier looks numeric, try ID lookup first
-    if notebook_identifier.isdigit():
-        result = await session.execute(
-            select(Notebook).where(Notebook.id == int(notebook_identifier), Notebook.workspace_id == workspace.id)
-        )
-        notebook = result.scalar_one_or_none()
-
-    # Fall back to slug lookup (also handles non-numeric identifiers)
-    if notebook is None:
-        result = await session.execute(
-            select(Notebook).where(Notebook.slug == notebook_identifier, Notebook.workspace_id == workspace.id)
-        )
-        notebook = result.scalar_one_or_none()
+async def get_notebook_by_slug(notebook_slug: str, workspace: Workspace, session: AsyncSession) -> Notebook:
+    """Get notebook by slug within a workspace."""
+    result = await session.execute(
+        select(Notebook).where(Notebook.slug == notebook_slug, Notebook.workspace_id == workspace.id)
+    )
+    notebook = result.scalar_one_or_none()
 
     if not notebook:
         raise HTTPException(status_code=404, detail="Notebook not found")
@@ -230,7 +219,7 @@ async def list_notebooks_nested(
     session: AsyncSession = Depends(get_system_session),
 ):
     """List all notebooks in a workspace."""
-    workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
+    workspace = await get_workspace_by_slug(workspace_identifier, current_user, session)
 
     result = await session.execute(select(Notebook).where(Notebook.workspace_id == workspace.id))
     notebooks = result.scalars().all()
@@ -257,7 +246,7 @@ async def create_notebook_nested(
     session: AsyncSession = Depends(get_system_session),
 ):
     """Create a new notebook."""
-    workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
+    workspace = await get_workspace_by_slug(workspace_identifier, current_user, session)
 
     base_slug = slugify(body.name, default="notebook")
     final_slug = base_slug
@@ -312,8 +301,8 @@ async def get_notebook_nested(
     session: AsyncSession = Depends(get_system_session),
 ):
     """Get a specific notebook by slug or ID."""
-    workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
-    notebook = await get_notebook_by_slug_or_id(notebook_identifier, workspace, session)
+    workspace = await get_workspace_by_slug(workspace_identifier, current_user, session)
+    notebook = await get_notebook_by_slug(notebook_identifier, workspace, session)
 
     return {
         "id": notebook.id,
@@ -334,8 +323,8 @@ async def get_notebook_indexing_status_nested(
     session: AsyncSession = Depends(get_system_session),
 ):
     """Get the indexing status for a notebook."""
-    workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
-    notebook = await get_notebook_by_slug_or_id(notebook_identifier, workspace, session)
+    workspace = await get_workspace_by_slug(workspace_identifier, current_user, session)
+    notebook = await get_notebook_by_slug(notebook_identifier, workspace, session)
 
     from codex.core.watcher import get_active_watchers
 
@@ -354,8 +343,8 @@ async def list_notebook_plugins_nested(
     session: AsyncSession = Depends(get_system_session),
 ):
     """List plugin configurations for a notebook."""
-    workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
-    notebook = await get_notebook_by_slug_or_id(notebook_identifier, workspace, session)
+    workspace = await get_workspace_by_slug(workspace_identifier, current_user, session)
+    notebook = await get_notebook_by_slug(notebook_identifier, workspace, session)
     return await _list_plugin_configs(notebook.id, session)
 
 
@@ -368,8 +357,8 @@ async def get_notebook_plugin_config_nested(
     session: AsyncSession = Depends(get_system_session),
 ):
     """Get plugin configuration for a notebook."""
-    workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
-    notebook = await get_notebook_by_slug_or_id(notebook_identifier, workspace, session)
+    workspace = await get_workspace_by_slug(workspace_identifier, current_user, session)
+    notebook = await get_notebook_by_slug(notebook_identifier, workspace, session)
     return await _get_plugin_config(notebook.id, plugin_id, session)
 
 
@@ -383,8 +372,8 @@ async def update_notebook_plugin_config_nested(
     session: AsyncSession = Depends(get_system_session),
 ):
     """Update plugin configuration for a notebook."""
-    workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
-    notebook = await get_notebook_by_slug_or_id(notebook_identifier, workspace, session)
+    workspace = await get_workspace_by_slug(workspace_identifier, current_user, session)
+    notebook = await get_notebook_by_slug(notebook_identifier, workspace, session)
     return await _update_plugin_config(notebook.id, plugin_id, request_data, session)
 
 
@@ -396,8 +385,8 @@ async def delete_notebook_nested(
     session: AsyncSession = Depends(get_system_session),
 ):
     """Delete a notebook and all its contents from disk."""
-    workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
-    notebook = await get_notebook_by_slug_or_id(notebook_identifier, workspace, session)
+    workspace = await get_workspace_by_slug(workspace_identifier, current_user, session)
+    notebook = await get_notebook_by_slug(notebook_identifier, workspace, session)
 
     # Save path before ORM objects are expired by commit
     notebook_dir = Path(workspace.path) / notebook.path
@@ -433,6 +422,6 @@ async def delete_notebook_plugin_config_nested(
     session: AsyncSession = Depends(get_system_session),
 ):
     """Delete plugin configuration for a notebook (revert to workspace defaults)."""
-    workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
-    notebook = await get_notebook_by_slug_or_id(notebook_identifier, workspace, session)
+    workspace = await get_workspace_by_slug(workspace_identifier, current_user, session)
+    notebook = await get_notebook_by_slug(notebook_identifier, workspace, session)
     return await _delete_plugin_config(notebook.id, plugin_id, session)

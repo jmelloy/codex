@@ -77,8 +77,8 @@ interface ApiConfig {
 
 interface Props {
   config: ApiConfig
-  workspaceId?: number
-  notebookId?: number
+  workspaceId?: string
+  notebookId?: string
 }
 
 const props = defineProps<Props>()

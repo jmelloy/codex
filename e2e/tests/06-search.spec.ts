@@ -19,7 +19,7 @@ test.describe("Search", () => {
     const ws = workspaces[0];
 
     const nbResponse = await page.request.post(
-      `${baseURL}/api/v1/workspaces/${ws.id}/notebooks/`,
+      `${baseURL}/api/v1/workspaces/${ws.slug}/notebooks/`,
       {
         headers: { Authorization: `Bearer ${token}` },
         data: { name: notebookName },
@@ -28,7 +28,7 @@ test.describe("Search", () => {
     const notebook = await nbResponse.json();
 
     const headers = { Authorization: `Bearer ${token}` };
-    const blocksBase = `${baseURL}/api/v1/workspaces/${ws.id}/notebooks/${notebook.slug}/blocks`;
+    const blocksBase = `${baseURL}/api/v1/workspaces/${ws.slug}/notebooks/${notebook.slug}/blocks`;
 
     const pageNames = ["alpha-report", "beta-analysis", "gamma-notes"];
     for (const name of pageNames) {

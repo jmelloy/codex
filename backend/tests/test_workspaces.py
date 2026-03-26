@@ -60,13 +60,6 @@ def test_get_workspace_by_id(test_client, auth_headers, temp_workspace_dir):
     workspace_id = create_response.json()["id"]
     workspace_slug = create_response.json()["slug"]
 
-    # Get workspace by ID
-    response = test_client.get(f"/api/v1/workspaces/{workspace_id}", headers=headers)
-    assert response.status_code == 200
-    workspace = response.json()
-    assert workspace["id"] == workspace_id
-    assert workspace["name"] == "Get By ID Workspace"
-
     # Get workspace by slug
     response = test_client.get(f"/api/v1/workspaces/{workspace_slug}", headers=headers)
     assert response.status_code == 200
@@ -103,8 +96,10 @@ def test_get_other_users_workspace(test_client, auth_headers, temp_workspace_dir
     login_response = test_client.post("/api/v1/users/token", data={"username": username2, "password": "testpass123"})
     headers2 = {"Authorization": f"Bearer {login_response.json()['access_token']}"}
 
+    workspace_slug = create_response.json()["slug"]
+
     # Second user should not be able to access first user's workspace
-    response = test_client.get(f"/api/v1/workspaces/{workspace_id}", headers=headers2)
+    response = test_client.get(f"/api/v1/workspaces/{workspace_slug}", headers=headers2)
     assert response.status_code == 404
 
 
@@ -122,13 +117,13 @@ def test_update_workspace_theme(test_client, auth_headers, temp_workspace_dir):
     # Default theme should be "cream"
     assert create_response.json()["theme_setting"] == "cream"
 
-    # Update theme to dark by ID
-    response = test_client.patch(f"/api/v1/workspaces/{workspace_id}/theme", json={"theme": "dark"}, headers=headers)
+    # Update theme to dark by slug
+    response = test_client.patch(f"/api/v1/workspaces/{workspace_slug}/theme", json={"theme": "dark"}, headers=headers)
     assert response.status_code == 200
     assert response.json()["theme_setting"] == "dark"
 
     # Verify the change persists
-    get_response = test_client.get(f"/api/v1/workspaces/{workspace_id}", headers=headers)
+    get_response = test_client.get(f"/api/v1/workspaces/{workspace_slug}", headers=headers)
     assert get_response.json()["theme_setting"] == "dark"
 
     # Update theme using slug
@@ -165,8 +160,10 @@ def test_update_theme_other_users_workspace(test_client, auth_headers, temp_work
     login_response = test_client.post("/api/v1/users/token", data={"username": username2, "password": "testpass123"})
     headers2 = {"Authorization": f"Bearer {login_response.json()['access_token']}"}
 
+    workspace_slug = create_response.json()["slug"]
+
     # Second user should not be able to update theme
-    response = test_client.patch(f"/api/v1/workspaces/{workspace_id}/theme", json={"theme": "dark"}, headers=headers2)
+    response = test_client.patch(f"/api/v1/workspaces/{workspace_slug}/theme", json={"theme": "dark"}, headers=headers2)
     assert response.status_code == 404
 
 

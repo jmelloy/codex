@@ -131,13 +131,13 @@ describe("Integration Service", () => {
       const response = { temperature: 72, unit: "F" }
       mockPost.mockResolvedValue({ data: response })
 
-      const result = await executeIntegrationEndpoint("weather-api", 1, 2, "get-current", {
+      const result = await executeIntegrationEndpoint("weather-api", "ws-1", "nb-2", "get-current", {
         city: "NYC",
       })
 
       expect(result).toEqual(response)
       expect(mockPost).toHaveBeenCalledWith(
-        "/api/v1/workspaces/1/notebooks/2/integrations/weather-api/execute",
+        "/api/v1/workspaces/ws-1/notebooks/nb-2/integrations/weather-api/execute",
         { endpoint_id: "get-current", parameters: { city: "NYC" } }
       )
     })
@@ -145,10 +145,10 @@ describe("Integration Service", () => {
     it("executes an endpoint without parameters", async () => {
       mockPost.mockResolvedValue({ data: {} })
 
-      await executeIntegrationEndpoint("weather-api", 1, 2, "health-check")
+      await executeIntegrationEndpoint("weather-api", "ws-1", "nb-2", "health-check")
 
       expect(mockPost).toHaveBeenCalledWith(
-        "/api/v1/workspaces/1/notebooks/2/integrations/weather-api/execute",
+        "/api/v1/workspaces/ws-1/notebooks/nb-2/integrations/weather-api/execute",
         { endpoint_id: "health-check", parameters: {} }
       )
     })

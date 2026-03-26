@@ -39,7 +39,7 @@ test.describe("API: Workspaces", () => {
           for (const ws of workspaces) {
             if (ws && typeof ws.id !== "undefined") {
               await request.delete(
-                `${BASE}/api/v1/workspaces/${ws.id}`,
+                `${BASE}/api/v1/workspaces/${ws.slug}`,
                 { headers }
               );
             }
@@ -62,7 +62,7 @@ test.describe("API: Workspaces", () => {
     expect(ws.slug).toBeTruthy();
 
     // Cleanup
-    await request.delete(`${BASE}/api/v1/workspaces/${ws.id}`, { headers });
+    await request.delete(`${BASE}/api/v1/workspaces/${ws.slug}`, { headers });
   });
 
   test("list workspaces", async ({ request }) => {
@@ -72,11 +72,11 @@ test.describe("API: Workspaces", () => {
     expect(Array.isArray(body)).toBeTruthy();
   });
 
-  test("get workspace by slug and id", async ({ request }) => {
+  test("get workspace by slug", async ({ request }) => {
     const ws = await (
       await request.post(`${BASE}/api/v1/workspaces/`, {
         headers,
-        data: { name: "Slug ID WS" },
+        data: { name: "Slug WS" },
       })
     ).json();
 
@@ -87,14 +87,7 @@ test.describe("API: Workspaces", () => {
     expect(bySlug.status()).toBe(200);
     expect((await bySlug.json()).id).toBe(ws.id);
 
-    const byId = await request.get(
-      `${BASE}/api/v1/workspaces/${ws.id}`,
-      { headers }
-    );
-    expect(byId.status()).toBe(200);
-    expect((await byId.json()).slug).toBe(ws.slug);
-
-    await request.delete(`${BASE}/api/v1/workspaces/${ws.id}`, { headers });
+    await request.delete(`${BASE}/api/v1/workspaces/${ws.slug}`, { headers });
   });
 
   test("delete workspace", async ({ request }) => {
@@ -106,13 +99,13 @@ test.describe("API: Workspaces", () => {
     ).json();
 
     const del = await request.delete(
-      `${BASE}/api/v1/workspaces/${ws.id}`,
+      `${BASE}/api/v1/workspaces/${ws.slug}`,
       { headers }
     );
     expect(del.status()).toBe(200);
 
     const get = await request.get(
-      `${BASE}/api/v1/workspaces/${ws.id}`,
+      `${BASE}/api/v1/workspaces/${ws.slug}`,
       { headers }
     );
     expect(get.status()).toBe(404);
@@ -133,6 +126,6 @@ test.describe("API: Workspaces", () => {
     expect(resp.status()).toBe(200);
     expect((await resp.json()).theme_setting).toBe("dark");
 
-    await request.delete(`${BASE}/api/v1/workspaces/${ws.id}`, { headers });
+    await request.delete(`${BASE}/api/v1/workspaces/${ws.slug}`, { headers });
   });
 });

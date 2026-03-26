@@ -36,8 +36,8 @@ describe("HomeView", () => {
 
     // Mock workspaces
     const mockWorkspaces = [
-      { id: 1, name: "Workspace 1", owner_id: 1, created_at: new Date().toISOString() },
-      { id: 2, name: "Workspace 2", owner_id: 1, created_at: new Date().toISOString() },
+      { id: 1, slug: "workspace-1", name: "Workspace 1", owner_id: 1, created_at: new Date().toISOString() },
+      { id: 2, slug: "workspace-2", name: "Workspace 2", owner_id: 1, created_at: new Date().toISOString() },
     ]
 
     vi.mocked(workspaceService.list).mockResolvedValue(mockWorkspaces)
@@ -95,8 +95,8 @@ describe("HomeView", () => {
 
     // Mock workspaces
     const mockWorkspaces = [
-      { id: 1, name: "Workspace 1", owner_id: 1, created_at: new Date().toISOString() },
-      { id: 2, name: "Workspace 2", owner_id: 1, created_at: new Date().toISOString() },
+      { id: 1, slug: "workspace-1", name: "Workspace 1", owner_id: 1, created_at: new Date().toISOString() },
+      { id: 2, slug: "workspace-2", name: "Workspace 2", owner_id: 1, created_at: new Date().toISOString() },
     ]
 
     vi.mocked(workspaceService.list).mockResolvedValue(mockWorkspaces)
@@ -127,7 +127,7 @@ describe("HomeView", () => {
 
     // Mock workspaces
     const mockWorkspaces = [
-      { id: 1, name: "Workspace 1", owner_id: 1, created_at: new Date().toISOString() },
+      { id: 1, slug: "workspace-1", name: "Workspace 1", owner_id: 1, created_at: new Date().toISOString() },
     ]
 
     // Mock notebooks

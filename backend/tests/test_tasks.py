@@ -148,7 +148,7 @@ def test_workspace_by_id(test_client, auth_headers, create_workspace):
     workspace = create_workspace()
 
     response = test_client.post(
-        f"/api/v1/workspaces/{workspace['id']}/tasks/",
+        f"/api/v1/workspaces/{workspace['slug']}/tasks/",
         json={"title": "By ID"},
         headers=headers,
     )

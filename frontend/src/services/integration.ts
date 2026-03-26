@@ -68,8 +68,8 @@ export interface IntegrationTestResult {
  * Note: Requires notebook context for new nested API structure
  */
 export async function listIntegrations(
-  workspaceId: number | string,
-  notebookId: number | string
+  workspaceId: string,
+  notebookId: string
 ): Promise<Integration[]> {
   const response = await apiClient.get(
     `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/integrations`
@@ -91,8 +91,8 @@ export async function getIntegration(integrationId: string): Promise<Integration
  */
 export async function getIntegrationConfig(
   integrationId: string,
-  workspaceId: number | string,
-  notebookId: number | string
+  workspaceId: string,
+  notebookId: string
 ): Promise<IntegrationConfig> {
   const response = await apiClient.get(
     `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/integrations/${integrationId}/config`
@@ -106,8 +106,8 @@ export async function getIntegrationConfig(
  */
 export async function updateIntegrationConfig(
   integrationId: string,
-  workspaceId: number | string,
-  notebookId: number | string,
+  workspaceId: string,
+  notebookId: string,
   config: Record<string, any>
 ): Promise<IntegrationConfig> {
   const response = await apiClient.put(
@@ -145,8 +145,8 @@ export async function getIntegrationBlocks(integrationId: string) {
  */
 export async function executeIntegrationEndpoint(
   integrationId: string,
-  workspaceId: number | string,
-  notebookId: number | string,
+  workspaceId: string,
+  notebookId: string,
   endpointId: string,
   parameters?: Record<string, any>
 ) {
@@ -166,8 +166,8 @@ export async function executeIntegrationEndpoint(
  */
 export async function setIntegrationEnabled(
   integrationId: string,
-  workspaceId: number | string,
-  notebookId: number | string,
+  workspaceId: string,
+  notebookId: string,
   enabled: boolean
 ): Promise<Integration> {
   const response = await apiClient.put(

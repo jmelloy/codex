@@ -45,8 +45,8 @@ interface Props {
   showToolbar?: boolean
   showFrontmatter?: boolean
   extensions?: MarkdownExtension[]
-  workspaceId?: number
-  notebookId?: number
+  workspaceId?: string
+  notebookId?: string
   currentFilePath?: string
 }
 

@@ -122,7 +122,7 @@ def test_delete_user_success(test_client):
     # Delete all workspaces first
     ws_response = test_client.get("/api/v1/workspaces/", headers=headers)
     for ws in ws_response.json():
-        test_client.delete(f"/api/v1/workspaces/{ws['id']}", headers=headers)
+        test_client.delete(f"/api/v1/workspaces/{ws['slug']}", headers=headers)
 
     # Now delete user
     response = test_client.delete("/api/v1/users/me", headers=headers)

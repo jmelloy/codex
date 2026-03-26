@@ -44,13 +44,12 @@ def test_workspace_get_by_slug(test_client, auth_headers):
     assert retrieved_workspace["id"] == workspace_id
     assert retrieved_workspace["slug"] == slug
 
-    # Get by ID (should still work)
+    # Numeric ID should no longer resolve (slug-only lookup)
     get_by_id_response = test_client.get(
         f"/api/v1/workspaces/{workspace_id}",
         headers=headers,
     )
-    assert get_by_id_response.status_code == 200
-    assert get_by_id_response.json()["id"] == workspace_id
+    assert get_by_id_response.status_code == 404
 
 
 def test_nested_notebook_creation(test_client, auth_headers):
@@ -115,13 +114,12 @@ def test_nested_notebook_get_by_slug(test_client, auth_headers):
     assert retrieved["slug"] == notebook_slug
     assert retrieved["name"] == "Test Notebook"
 
-    # Get notebook by ID (should still work)
+    # Numeric ID should no longer resolve (slug-only lookup)
     get_by_id_response = test_client.get(
         f"/api/v1/workspaces/{workspace_slug}/notebooks/{notebook_id}",
         headers=headers,
     )
-    assert get_by_id_response.status_code == 200
-    assert get_by_id_response.json()["id"] == notebook_id
+    assert get_by_id_response.status_code == 404
 
 
 def test_list_notebooks_nested(test_client, auth_headers):

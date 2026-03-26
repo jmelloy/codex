@@ -231,8 +231,8 @@ const testResultMsg = ref<IntegrationTestResult | null>(null)
 
 const integrationsList = computed(() => integrationStore.availableIntegrations)
 const integrationsLoading = computed(() => !integrationStore.integrationsLoaded)
-const currentWorkspaceId = computed(() => workspaceStore.currentWorkspace?.id)
-const currentNotebookId = computed(() => workspaceStore.currentNotebook?.id || workspaceStore.notebooks[0]?.id)
+const currentWorkspaceId = computed(() => workspaceStore.currentWorkspace?.slug)
+const currentNotebookId = computed(() => workspaceStore.currentNotebook?.slug || workspaceStore.notebooks[0]?.slug)
 
 function formatPropertyName(name: string): string {
   return name

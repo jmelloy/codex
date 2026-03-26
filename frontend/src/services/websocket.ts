@@ -9,6 +9,10 @@ export interface FileChangeEvent {
   path: string
   old_path?: string
   timestamp: string
+  block_id?: string
+  title?: string
+  block_type?: string
+  properties?: Record<string, any>
 }
 
 export interface ConnectionEvent {

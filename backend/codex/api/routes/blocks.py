@@ -54,6 +54,7 @@ from codex.core.blocks import (
     upload_to_block,
 )
 from codex.core.md_import import import_markdown_to_page
+from codex.core.websocket import notify_file_change
 from codex.db.database import get_notebook_session, get_system_session
 from codex.db.models import Block, User
 
@@ -373,6 +374,14 @@ async def create_new_block(
             nb_session=nb_session,
         )
 
+        notify_file_change(
+            notebook_id=notebook.id,
+            event_type="created",
+            path=result.get("path", page_path),
+            block_id=result.get("block_id"),
+            block_type=request.block_type,
+        )
+
         # Return created block plus all siblings so frontend doesn't need a refetch
         result["blocks"] = _get_children_with_content(notebook_path, notebook.id, request.parent_block_id, nb_session)
         return result
@@ -430,6 +439,16 @@ async def create_new_page(
             nb_session=nb_session,
         )
 
+        notify_file_change(
+            notebook_id=notebook.id,
+            event_type="created",
+            path=result.get("path", ""),
+            block_id=result.get("block_id"),
+            title=request.title,
+            block_type="page",
+            properties=request.properties,
+        )
+
         return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -460,6 +479,15 @@ async def update_block(
             content=request.content,
             block_type=request.block_type,
             nb_session=nb_session,
+        )
+
+        notify_file_change(
+            notebook_id=notebook.id,
+            event_type="modified",
+            path=result.get("path", ""),
+            block_id=block_id,
+            title=result.get("title"),
+            block_type=result.get("block_type"),
         )
 
         # Include updated siblings when type changed (view needs refresh)
@@ -493,6 +521,10 @@ async def move_block_endpoint(
 
     nb_session = get_notebook_session(str(notebook_path))
     try:
+        # Get old path before move
+        old_block = get_block(notebook.id, block_id, nb_session)
+        old_path = old_block.path if old_block else None
+
         result = move_block(
             notebook_path=notebook_path,
             notebook_id=notebook.id,
@@ -501,6 +533,17 @@ async def move_block_endpoint(
             position=request.position,
             nb_session=nb_session,
         )
+
+        notify_file_change(
+            notebook_id=notebook.id,
+            event_type="moved",
+            path=result.get("path", ""),
+            old_path=old_path,
+            block_id=block_id,
+            title=result.get("title"),
+            block_type=result.get("block_type"),
+        )
+
         return result
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -559,15 +602,23 @@ async def delete_block_endpoint(
 
     nb_session = get_notebook_session(str(notebook_path))
     try:
-        # Get parent before deleting so we can return remaining siblings
+        # Get block info before deleting so we can notify and return remaining siblings
         block = get_block(notebook.id, block_id, nb_session)
         parent_block_id = block.parent_block_id if block else None
+        block_path = block.path if block else ""
 
         delete_block(
             notebook_path=notebook_path,
             notebook_id=notebook.id,
             block_id=block_id,
             nb_session=nb_session,
+        )
+
+        notify_file_change(
+            notebook_id=notebook.id,
+            event_type="deleted",
+            path=block_path,
+            block_id=block_id,
         )
 
         result: dict[str, Any] = {"message": "Block deleted successfully"}
@@ -1086,6 +1137,17 @@ async def update_block_properties_endpoint(
             properties=request.properties,
             nb_session=nb_session,
         )
+
+        notify_file_change(
+            notebook_id=notebook.id,
+            event_type="modified",
+            path=result.get("path", ""),
+            block_id=block_id,
+            title=result.get("title"),
+            block_type=result.get("block_type"),
+            properties=result.get("properties"),
+        )
+
         return result
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))

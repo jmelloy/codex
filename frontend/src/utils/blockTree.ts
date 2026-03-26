@@ -204,6 +204,60 @@ export function updateBlockNode(tree: BlockTreeNode[], block: Block): boolean {
 }
 
 /**
+ * Update a tree node in-place from a WebSocket event (title, icon, properties).
+ * Works for both page and leaf nodes. Returns true if a node was found and updated.
+ */
+export function updateNodeFromEvent(
+  tree: BlockTreeNode[],
+  path: string,
+  updates: {
+    title?: string
+    properties?: Record<string, any>
+    block_id?: string
+    block_type?: string
+  },
+): boolean {
+  const node = findNodeByPath(tree, path)
+  if (!node) return false
+
+  if (updates.title !== undefined) {
+    node.title = updates.title
+    node.name = updates.title || node.path.split("/").pop() || node.name
+    if (node.block) {
+      node.block = { ...node.block, title: updates.title }
+    }
+  }
+  if (updates.properties !== undefined) {
+    if (node.pageMeta) {
+      node.pageMeta = { ...node.pageMeta, properties: updates.properties }
+    }
+    if (node.block) {
+      node.block = { ...node.block, properties: updates.properties }
+    }
+  }
+  if (updates.block_id !== undefined) {
+    node.block_id = updates.block_id
+  }
+
+  return true
+}
+
+/**
+ * Find a node by its path property (searches entire tree recursively).
+ * Unlike findNode which navigates by name segments, this matches the path field directly.
+ */
+export function findNodeByPath(tree: BlockTreeNode[], path: string): BlockTreeNode | null {
+  for (const node of tree) {
+    if (node.path === path) return node
+    if (node.children) {
+      const found = findNodeByPath(node.children, path)
+      if (found) return found
+    }
+  }
+  return null
+}
+
+/**
  * Get all leaf block metadata from the tree as a flat array
  */
 export function getAllBlocks(tree: BlockTreeNode[]): Block[] {

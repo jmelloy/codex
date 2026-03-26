@@ -2,7 +2,12 @@
 uv = "latest"
 pnpm = "latest"
 node = "latest"
-python = "3.13"
+
+[settings]
+python.uv_venv_auto = "create|source"
+
+[env]
+_.python.venv = { path = "backend/.venv", create = true}
 
 [tasks.install]
 run = """

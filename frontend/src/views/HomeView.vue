@@ -608,8 +608,8 @@
             v-else
             :content="workspaceStore.currentLeafBlock.content"
             :frontmatter="workspaceStore.currentLeafBlock.properties"
-            :workspace-id="workspaceStore.currentWorkspace?.id"
-            :notebook-id="workspaceStore.currentNotebook?.id"
+            :workspace-id="workspaceStore.currentWorkspace?.slug"
+            :notebook-id="workspaceStore.currentNotebook?.slug"
             :current-file-path="workspaceStore.currentLeafBlock.path"
             :show-frontmatter="false"
             :show-toolbar="false"
@@ -659,8 +659,8 @@
             :page-description="workspaceStore.currentPageBlock.description"
             :page-icon="workspaceStore.currentPageBlock.properties?.icon"
             :page-cover-image="workspaceStore.currentPageBlock.properties?.cover_image"
-            :workspace-id="workspaceStore.currentWorkspace?.id"
-            :notebook-id="workspaceStore.currentPageBlock.notebook_id"
+            :workspace-id="workspaceStore.currentWorkspace?.slug"
+            :notebook-id="nbSlug(workspaceStore.currentPageBlock.notebook_id)"
             class="flex-1 overflow-y-auto"
             @navigate-page="handleNavigatePageBlock"
             @delete-block="handleDeleteBlock"
@@ -699,8 +699,8 @@
     <BlockPropertiesPanel
       v-if="showPropertiesPanel && workspaceStore.currentLeafBlock && workspaceStore.currentWorkspace"
       :block="workspaceStore.currentLeafBlock"
-      :workspace-id="workspaceStore.currentWorkspace.id"
-      :notebook-id="workspaceStore.currentLeafBlock.notebook_id"
+      :workspace-id="workspaceStore.currentWorkspace.slug"
+      :notebook-id="nbSlug(workspaceStore.currentLeafBlock.notebook_id)"
       class="w-full lg:w-[300px] lg:min-w-[300px] fixed lg:relative inset-0 lg:inset-auto z-50 lg:z-auto pt-14 lg:pt-0"
       @close="showPropertiesPanel = false"
       @update-properties="handleUpdateProperties"
@@ -712,8 +712,8 @@
     <BlockPropertiesPanel
       v-if="showPropertiesPanel && workspaceStore.currentPageBlock && !workspaceStore.currentLeafBlock"
       :block="workspaceStore.currentBlock"
-      :workspace-id="workspaceStore.currentWorkspace?.id ?? 0"
-      :notebook-id="workspaceStore.currentBlock?.notebook_id ?? 0"
+      :workspace-id="workspaceStore.currentWorkspace?.slug ?? ''"
+      :notebook-id="nbSlug(workspaceStore.currentBlock?.notebook_id)"
       class="w-full lg:w-[300px] lg:min-w-[300px] fixed lg:relative inset-0 lg:inset-auto z-50 lg:z-auto pt-14 lg:pt-0"
       @close="showPropertiesPanel = false"
       @update-properties="handleUpdateProperties"
@@ -896,20 +896,20 @@ const notebookBlockTrees = computed(() => {
   return trees
 })
 
-// Helper to get slug or fallback to id for URL building
-function getSlugOrId(entity: { slug?: string; id: number } | null | undefined): string {
-  if (!entity) return ""
-  return entity.slug || String(entity.id)
+// Helper to find workspace by slug
+function findWorkspaceBySlug(slug: string): Workspace | undefined {
+  return workspaceStore.workspaces.find((w) => w.slug === slug)
 }
 
-// Helper to find workspace by slug or id
-function findWorkspaceBySlugOrId(identifier: string): Workspace | undefined {
-  return workspaceStore.workspaces.find((w) => w.slug === identifier || String(w.id) === identifier)
+// Helper to find notebook by slug
+function findNotebookBySlug(slug: string): Notebook | undefined {
+  return workspaceStore.notebooks.find((n) => n.slug === slug)
 }
 
-// Helper to find notebook by slug or id
-function findNotebookBySlugOrId(identifier: string): Notebook | undefined {
-  return workspaceStore.notebooks.find((n) => n.slug === identifier || String(n.id) === identifier)
+// Get notebook slug from numeric ID
+function nbSlug(notebookId: number | undefined): string {
+  if (!notebookId) return ""
+  return workspaceStore.notebooks.find((n) => n.id === notebookId)?.slug ?? ""
 }
 
 // Build URL path: /w/{workspace}/{notebook}/{path}
@@ -926,18 +926,17 @@ function buildBlockUrl(pathOrBlock: string | Block, notebookId?: number): string
   }
   const nb = workspaceStore.notebooks.find((n) => n.id === nbId)
   if (!ws || !nb) return "/"
-  return `/w/${getSlugOrId(ws)}/${getSlugOrId(nb)}/${path}`
+  return `/w/${ws.slug}/${nb.slug}/${path}`
 }
 
 // Get content URL for current block (for binary content like images, PDFs, audio, video)
 const currentContentUrl = computed(() => {
   if (!workspaceStore.currentLeafBlock || !workspaceStore.currentWorkspace) return ""
-  const workspaceId = workspaceStore.currentWorkspace.id || workspaceStore.currentWorkspace.slug
   const notebook = workspaceStore.notebooks.find(
-    (n: any) => n.id === workspaceStore.currentLeafBlock?.notebook_id,
+    (n) => n.id === workspaceStore.currentLeafBlock?.notebook_id,
   )
-  const notebookId = notebook?.id || notebook?.slug
-  return `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/${workspaceStore.currentLeafBlock.block_id}/content`
+  if (!notebook) return ""
+  return `/api/v1/workspaces/${workspaceStore.currentWorkspace.slug}/notebooks/${notebook.slug}/blocks/${workspaceStore.currentLeafBlock.block_id}/content`
 })
 
 // Get display type for current block
@@ -966,14 +965,14 @@ watch(
 
     if (workspaceSlug && notebookSlug && itemPath) {
       // Find workspace and set it if different
-      const workspace = findWorkspaceBySlugOrId(workspaceSlug)
+      const workspace = findWorkspaceBySlug(workspaceSlug)
       if (workspace && workspaceStore.currentWorkspace?.id !== workspace.id) {
         workspaceStore.setCurrentWorkspace(workspace)
         await workspaceStore.fetchNotebooks(workspace.id)
       }
 
       // Find notebook
-      const notebook = findNotebookBySlugOrId(notebookSlug)
+      const notebook = findNotebookBySlug(notebookSlug)
       if (notebook) {
         // Expand notebook if not already expanded
         if (!workspaceStore.expandedNotebooks.has(notebook.id)) {
@@ -983,7 +982,7 @@ watch(
         // Resolve path via API
         if (workspaceStore.currentBlock?.path !== itemPath) {
           try {
-            const block = await blockService.resolveLink(itemPath, notebook.id, workspace!.id)
+            const block = await blockService.resolveLink(itemPath, notebook.slug, workspace!.slug)
             await workspaceStore.selectBlock(block)
           } catch {
             await workspaceStore.selectBlockByPath(itemPath, notebook.id)
@@ -1010,7 +1009,7 @@ onMounted(async () => {
 
   // If we have URL params, find and set the workspace
   if (workspaceSlug) {
-    const workspace = findWorkspaceBySlugOrId(workspaceSlug)
+    const workspace = findWorkspaceBySlug(workspaceSlug)
     if (workspace) {
       workspaceStore.setCurrentWorkspace(workspace)
     }
@@ -1031,14 +1030,14 @@ onMounted(async () => {
     }
 
     // Find and expand the notebook in the sidebar
-    const notebook = findNotebookBySlugOrId(notebookSlug)
+    const notebook = findNotebookBySlug(notebookSlug)
     if (notebook && !workspaceStore.expandedNotebooks.has(notebook.id)) {
       workspaceStore.toggleNotebookExpansion(notebook)
     }
 
     if (notebook) {
       try {
-        const block = await blockService.resolveLink(itemPath, notebook.id, workspaceStore.currentWorkspace!.id)
+        const block = await blockService.resolveLink(itemPath, notebook.slug, workspaceStore.currentWorkspace!.slug)
         await workspaceStore.selectBlock(block)
       } catch {
         await workspaceStore.selectBlockByPath(itemPath, notebook.id)
@@ -1232,8 +1231,8 @@ async function handleUpdateBlock(block: { block_id: string; content: string; blo
   try {
     const result = await blockService.updateBlock(
       block.block_id,
-      notebookId,
-      workspaceStore.currentWorkspace!.id,
+      nbSlug(notebookId),
+      workspaceStore.currentWorkspace!.slug,
       block.content,
       block.block_type,
     )
@@ -1249,7 +1248,9 @@ async function handleUploadFile(file: File, parentBlockId?: string, _position?: 
   const notebookId = workspaceStore.currentBlock?.notebook_id
   if (!notebookId || !workspaceStore.currentWorkspace) return
   try {
-    await blockService.upload(notebookId, workspaceStore.currentWorkspace.id, file, parentBlockId)
+    const nb = workspaceStore.notebooks.find((n) => n.id === notebookId)
+    if (!nb) return
+    await blockService.upload(nb.slug, workspaceStore.currentWorkspace.slug, file, parentBlockId)
     // Refresh page blocks to show the new file
     const pageBlockId = workspaceStore.currentPageBlockId
     if (pageBlockId) {
@@ -1514,7 +1515,9 @@ async function handleBlockUpload(dataTransfer: DataTransfer, notebookId: number,
       const zipFile = new File([blob], "folder-upload.zip", { type: "application/zip" })
 
       if (!workspaceStore.currentWorkspace) return
-      await blockService.uploadFolderZip(notebookId, workspaceStore.currentWorkspace.id, zipFile, pagePath)
+      const nb = workspaceStore.notebooks.find((n) => n.id === notebookId)
+      if (!nb) return
+      await blockService.uploadFolderZip(nb.slug, workspaceStore.currentWorkspace.slug, zipFile, pagePath)
       await workspaceStore.fetchBlockTree(notebookId)
       showToast({ message: `Uploaded folder (${droppedFiles.length} files)` })
     } catch (e) {
@@ -1573,8 +1576,8 @@ async function handleUpdateProperties(properties: Record<string, any>) {
     if (workspaceStore.currentBlock.block_type === "page") {
       await blockService.updateProperties(
         workspaceStore.currentBlock.block_id,
-        workspaceStore.currentBlock.notebook_id,
-        workspaceStore.currentWorkspace.id,
+        nbSlug(workspaceStore.currentBlock.notebook_id),
+        workspaceStore.currentWorkspace.slug,
         properties,
       )
     } else {
@@ -1742,7 +1745,7 @@ async function handleSearch() {
     // Also try API search (may return additional results from content search)
     try {
       const apiResults = await searchService.search(
-        workspaceStore.currentWorkspace.id,
+        workspaceStore.currentWorkspace.slug,
         searchQuery.value,
       )
       // Merge API results if they contain file data

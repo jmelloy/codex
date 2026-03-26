@@ -111,11 +111,20 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     }
   }
 
-  async function fetchNotebooks(workspaceId: number) {
+  function notebookSlug(notebookId: number): string {
+    const nb = notebooks.value.find((n) => n.id === notebookId)
+    return nb?.slug ?? String(notebookId)
+  }
+
+  function workspaceSlug(): string {
+    return currentWorkspace.value?.slug ?? ""
+  }
+
+  async function fetchNotebooks(_workspaceId: number) {
     loading.value = true
     error.value = null
     try {
-      notebooks.value = await notebookService.list(workspaceId)
+      notebooks.value = await notebookService.list(workspaceSlug())
     } catch (e: any) {
       error.value = e.response?.data?.detail || "Failed to fetch notebooks"
     } finally {
@@ -138,11 +147,11 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     }
   }
 
-  async function createNotebook(workspaceId: number, name: string) {
+  async function createNotebook(_workspaceId: number, name: string) {
     loading.value = true
     error.value = null
     try {
-      const notebook = await notebookService.create(workspaceId, name)
+      const notebook = await notebookService.create(workspaceSlug(), name)
       notebooks.value.push(notebook)
       return notebook
     } catch (e: any) {
@@ -156,7 +165,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   function setCurrentWorkspace(workspace: Workspace | null) {
     currentWorkspace.value = workspace
     if (workspace) {
-      fetchNotebooks(workspace.id)
+      fetchNotebooks(workspace.id) // fetchNotebooks uses workspaceSlug() internally
     }
     // Disconnect all WebSocket connections when switching workspaces
     websocketService.disconnectAll()
@@ -179,7 +188,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     blockLoading.value = true
     error.value = null
     try {
-      const result = await blockService.getTree(notebookId, currentWorkspace.value.id)
+      const result = await blockService.getTree(notebookSlug(notebookId), workspaceSlug())
       const tree = blockTreeToBlockTree(result.tree)
       blockTrees.value.set(notebookId, tree)
     } catch (e: any) {
@@ -207,8 +216,8 @@ export const useWorkspaceStore = defineStore("workspace", () => {
 
         const result = await blockService.getChildren(
           block.block_id,
-          block.notebook_id,
-          currentWorkspace.value.id,
+          notebookSlug(block.notebook_id),
+          workspaceSlug(),
         )
         currentPageBlocks.value = result.children
       } else {
@@ -218,8 +227,8 @@ export const useWorkspaceStore = defineStore("workspace", () => {
 
         const blockDetail = await blockService.getBlock(
           block.block_id,
-          block.notebook_id,
-          currentWorkspace.value.id,
+          notebookSlug(block.notebook_id),
+          workspaceSlug(),
         )
 
         const isText = block.content_type?.startsWith("text/") ||
@@ -230,8 +239,8 @@ export const useWorkspaceStore = defineStore("workspace", () => {
           try {
             const textResult = await blockService.getText(
               block.block_id,
-              block.notebook_id,
-              currentWorkspace.value.id,
+              notebookSlug(block.notebook_id),
+              workspaceSlug(),
             )
             content = textResult.content
           } catch {
@@ -283,7 +292,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     } else {
       // Try resolving via API
       try {
-        const resolved = await blockService.resolveLink(blockPath, notebookId, currentWorkspace.value.id)
+        const resolved = await blockService.resolveLink(blockPath, notebookSlug(notebookId), workspaceSlug())
         await selectBlock(resolved)
       } catch {
         error.value = "Failed to find block"
@@ -307,15 +316,15 @@ export const useWorkspaceStore = defineStore("workspace", () => {
       }
       const updated = await blockService.updateBlock(
         currentBlock.value.block_id,
-        currentBlock.value.notebook_id,
-        currentWorkspace.value.id,
+        notebookSlug(currentBlock.value.notebook_id),
+        workspaceSlug(),
         content,
       )
       if (properties) {
         await blockService.updateProperties(
           currentBlock.value.block_id,
-          currentBlock.value.notebook_id,
-          currentWorkspace.value.id,
+          notebookSlug(currentBlock.value.notebook_id),
+          workspaceSlug(),
           properties,
         )
       }
@@ -338,7 +347,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   ) {
     if (!currentWorkspace.value) return
     try {
-      const result = await blockService.createPage(notebookId, currentWorkspace.value.id, {
+      const result = await blockService.createPage(notebookSlug(notebookId), workspaceSlug(), {
         title,
         parent_path: parentPath,
         description,
@@ -364,7 +373,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     blockLoading.value = true
     error.value = null
     try {
-      const result = await blockService.deleteBlock(blockId, notebookId, currentWorkspace.value.id)
+      const result = await blockService.deleteBlock(blockId, notebookSlug(notebookId), workspaceSlug())
 
       // If the deleted block is the current block, clear selection
       if (currentBlock.value?.block_id === blockId) {
@@ -459,7 +468,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     blockLoading.value = true
     error.value = null
     try {
-      const newBlock = await blockService.upload(notebookId, currentWorkspace.value.id, file)
+      const newBlock = await blockService.upload(notebookSlug(notebookId), workspaceSlug(), file)
       await fetchBlockTree(notebookId)
       return newBlock
     } catch (e: any) {
@@ -478,8 +487,8 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     try {
       const movedBlock = await blockService.moveBlock(
         blockId,
-        notebookId,
-        currentWorkspace.value.id,
+        notebookSlug(notebookId),
+        workspaceSlug(),
         {},
       )
       await fetchBlockTree(notebookId)
@@ -505,8 +514,8 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     try {
       const result = await blockService.getChildren(
         blockId,
-        notebookId,
-        currentWorkspace.value.id,
+        notebookSlug(notebookId),
+        workspaceSlug(),
       )
       currentPageBlocks.value = result.children
     } catch (e: any) {
@@ -528,7 +537,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   ) {
     if (!currentWorkspace.value) return
     try {
-      const result = await blockService.createBlock(notebookId, currentWorkspace.value.id, {
+      const result = await blockService.createBlock(notebookSlug(notebookId), workspaceSlug(), {
         parent_block_id: parentBlockId,
         block_type: blockType,
         content,
@@ -554,7 +563,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   ) {
     if (!currentWorkspace.value) return
     try {
-      const result = await blockService.reorderBlocks(pageBlockId, notebookId, currentWorkspace.value.id, blockIds)
+      const result = await blockService.reorderBlocks(pageBlockId, notebookSlug(notebookId), workspaceSlug(), blockIds)
       if (result.blocks) {
         currentPageBlocks.value = result.blocks
       }
@@ -569,7 +578,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   async function importMarkdown(notebookId: number, file: File) {
     if (!currentWorkspace.value) return
     try {
-      const result = await blockService.importMarkdown(notebookId, currentWorkspace.value.id, file)
+      const result = await blockService.importMarkdown(notebookSlug(notebookId), workspaceSlug(), file)
       await fetchBlockTree(notebookId)
       return result
     } catch (e: any) {
@@ -589,8 +598,8 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     try {
       const updated = await blockService.updateProperties(
         currentBlock.value.block_id,
-        currentBlock.value.notebook_id,
-        currentWorkspace.value.id,
+        notebookSlug(currentBlock.value.notebook_id),
+        workspaceSlug(),
         properties,
       )
 

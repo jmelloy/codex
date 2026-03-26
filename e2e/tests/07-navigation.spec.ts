@@ -21,7 +21,7 @@ test.describe("Navigation & URL Routing", () => {
     const ws = workspaces[0];
 
     const nbResponse = await page.request.post(
-      `${baseURL}/api/v1/workspaces/${ws.id}/notebooks/`,
+      `${baseURL}/api/v1/workspaces/${ws.slug}/notebooks/`,
       {
         headers: { Authorization: `Bearer ${token}` },
         data: { name: notebookName },
@@ -30,7 +30,7 @@ test.describe("Navigation & URL Routing", () => {
     const notebook = await nbResponse.json();
 
     const headers = { Authorization: `Bearer ${token}` };
-    const blocksBase = `${baseURL}/api/v1/workspaces/${ws.id}/notebooks/${notebook.slug}/blocks`;
+    const blocksBase = `${baseURL}/api/v1/workspaces/${ws.slug}/notebooks/${notebook.slug}/blocks`;
 
     // Create a page with content
     const pageResp = await page.request.post(`${blocksBase}/pages`, {

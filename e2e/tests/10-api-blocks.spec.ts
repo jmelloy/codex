@@ -39,7 +39,7 @@ test.describe("API: Blocks & Pages", () => {
         { headers, data: { name: "Blocks NB" } }
       )
     ).json();
-    blocksUrl = `${BASE}/api/v1/workspaces/${ws.slug}/notebooks/${nb.id}/blocks`;
+    blocksUrl = `${BASE}/api/v1/workspaces/${ws.slug}/notebooks/${nb.slug}/blocks`;
   });
 
   test.afterAll(async ({ request }) => {
@@ -59,9 +59,9 @@ test.describe("API: Blocks & Pages", () => {
 
         if (Array.isArray(workspaces)) {
           for (const workspace of workspaces) {
-            if (workspace && workspace.id) {
+            if (workspace && workspace.slug) {
               await request.delete(
-                `${BASE}/api/v1/workspaces/${workspace.id}`,
+                `${BASE}/api/v1/workspaces/${workspace.slug}`,
                 { headers }
               );
             }

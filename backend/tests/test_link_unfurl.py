@@ -53,11 +53,11 @@ def workspace_and_notebook(client, auth_headers):
         json={"name": f"Test Workspace {int(time.time() * 1000)}", "path": str(workspace_path)},
     )
     assert response.status_code == 200
-    workspace_id = response.json()["id"]
+    workspace_slug = response.json()["slug"]
 
     # Create notebook
     notebook_response = client.post(
-        f"/api/v1/workspaces/{workspace_id}/notebooks/",
+        f"/api/v1/workspaces/{workspace_slug}/notebooks/",
         json={
             "name": f"Test Notebook {int(time.time() * 1000)}",
             "description": "Test notebook for link unfurl",
@@ -65,9 +65,9 @@ def workspace_and_notebook(client, auth_headers):
         headers=auth_headers,
     )
     assert notebook_response.status_code == 200
-    notebook_id = notebook_response.json()["id"]
+    notebook_slug = notebook_response.json()["slug"]
 
-    return workspace_id, notebook_id
+    return workspace_slug, notebook_slug
 
 
 def test_opengraph_scraper_with_html():

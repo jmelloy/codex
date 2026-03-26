@@ -146,13 +146,22 @@
             </template>
 
             <!-- Database block -->
-            <template v-else-if="block.block_type === 'database'">
+            <template v-else-if="block.block_type === 'database' || detectDynamicType(block) === 'database'">
               <DatabaseBlock
-                :config="parseDatabaseConfig(block)"
-                :workspace-id="workspaceId ? Number(workspaceId) : undefined"
-                :notebook-id="notebookId ? Number(notebookId) : undefined"
+                :config="parseDynamicConfig(block)"
+                :workspace-id="workspaceId"
+                :notebook-id="notebookId"
                 :parent-block-id="blocks[0]?.parent_block_id || undefined"
                 @navigate-page="(b: any) => $emit('navigatePage', b)"
+              />
+            </template>
+
+            <!-- API block -->
+            <template v-else-if="block.block_type === 'api' || detectDynamicType(block) === 'api'">
+              <ApiBlock
+                :config="parseDynamicConfig(block)"
+                :workspace-id="workspaceId"
+                :notebook-id="notebookId"
               />
             </template>
 
@@ -212,6 +221,7 @@ import { blockService } from "../services/codex"
 import { getAvailableBlockTypes } from "../services/pluginLoader"
 import { isLocalFileReference, resolveFileUrl } from "../utils/markdownHelpers"
 import DatabaseBlock from "./blocks/DatabaseBlock.vue"
+import ApiBlock from "./blocks/ApiBlock.vue"
 
 interface Props {
   blocks: Block[]
@@ -219,8 +229,8 @@ interface Props {
   pageDescription?: string
   pageIcon?: string
   pageCoverImage?: string
-  workspaceId?: number | string
-  notebookId?: number | string
+  workspaceId?: string
+  notebookId?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -275,10 +285,10 @@ const blockTypes = [
   { type: "divider", label: "Divider", icon: "--", defaultContent: "---" },
 ]
 
-// Default YAML templates for dynamic block types
+// Default JSON templates for dynamic block types
 const dynamicBlockTemplates: Record<string, string> = {
-  database: "source: children\ndisplay: table",
-  api: "url: https://api.example.com/data\nmethod: GET\ndisplay: json",
+  database: '{"source": "children", "display": "table"}',
+  api: '{"url": "https://api.example.com/data", "method": "GET", "display": "json"}',
 }
 
 // Dynamic block types loaded from plugins
@@ -291,7 +301,7 @@ onMounted(async () => {
       type: bt.blockType,
       label: bt.pluginName,
       icon: bt.icon || "{}",
-      defaultContent: "```" + bt.blockType + "\n" + (dynamicBlockTemplates[bt.blockType] || "") + "\n```",
+      defaultContent: dynamicBlockTemplates[bt.blockType] || "",
     }))
   } catch {
     // Plugin manifest unavailable — dynamic types won't appear
@@ -322,12 +332,20 @@ onMounted(() => {
   }
 })
 
-/** Parse YAML-like config from a database block's code fence content */
-function parseDatabaseConfig(block: Block): Record<string, any> {
-  const content = block.content || ""
-  // Strip code fence markers: ```database\n...\n```
-  const match = content.match(/^```\w*\n([\s\S]*?)\n```$/)
-  const body = match ? match[1] : content
+/** Parse YAML-like config from block content (handles JSON, code fences, and plain YAML) */
+function parseYamlLikeConfig(content: string): Record<string, any> {
+  // Try JSON first
+  const trimmed = content.trim()
+  if (trimmed.startsWith("{")) {
+    try {
+      return JSON.parse(trimmed)
+    } catch {
+      // fall through to YAML parsing
+    }
+  }
+  // Strip code fence markers: ```database\n...\n``` or ```api\n...\n```
+  const match = trimmed.match(/^```\w*\n([\s\S]*?)\n```$/)
+  const body = match ? match[1] : trimmed
   const config: Record<string, any> = {}
   let currentParent: string | null = null
   body.split("\n").forEach((line) => {
@@ -352,6 +370,43 @@ function parseDatabaseConfig(block: Block): Record<string, any> {
     }
   })
   return config
+}
+
+/** Parse config for any dynamic block (database, api, or detected from content) */
+function parseDynamicConfig(block: Block): Record<string, any> {
+  return parseYamlLikeConfig(block.content || "")
+}
+
+/** Detect if a text/code block contains dynamic view content */
+function detectDynamicType(block: Block): "database" | "api" | null {
+  if (block.block_type === "database" || block.block_type === "api") return null // already handled
+  const content = block.content || ""
+  const trimmed = content.trim()
+
+  // Check for code-fenced dynamic blocks: ```database or ```api
+  const fenceMatch = trimmed.match(/^```(database|api)\n/)
+  if (fenceMatch) return fenceMatch[1] as "database" | "api"
+
+  // Check for JSON content with type hints
+  if (trimmed.startsWith("{")) {
+    try {
+      const obj = JSON.parse(trimmed)
+      if (obj.url || obj.method) return "api"
+      if (obj.source || obj.query) return "database"
+    } catch {
+      // not JSON
+    }
+  }
+
+  // Check for plain YAML-like config patterns
+  const lines = trimmed.split("\n").filter((l) => l.trim())
+  const isYamlLike = lines.length >= 2 && lines.every((l) => /^[\w-]+:\s*.+$/.test(l.trim()) || /^[\w-]+:\s*$/.test(l.trim()) || /^[ \t]+[\w-]+:\s*.+$/.test(l))
+  if (!isYamlLike) return null
+
+  if (/^url:/m.test(trimmed) || /^method:/m.test(trimmed)) return "api"
+  if (/^source:/m.test(trimmed) || /^query:/m.test(trimmed)) return "database"
+
+  return null
 }
 
 function getBlockFileUrl(block: Block): string {

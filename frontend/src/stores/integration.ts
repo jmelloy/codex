@@ -9,7 +9,7 @@ export const useIntegrationStore = defineStore("integration", () => {
 
   const availableIntegrations = computed(() => integrations.value)
 
-  async function loadIntegrations(workspaceId: number | string, notebookId: number | string) {
+  async function loadIntegrations(workspaceId: string, notebookId: string) {
     // Only load once unless there was an error
     if (integrationsLoaded.value && !integrationsLoadError.value) return
 
@@ -26,8 +26,8 @@ export const useIntegrationStore = defineStore("integration", () => {
 
   async function toggleIntegrationEnabled(
     integrationId: string,
-    workspaceId: number | string,
-    notebookId: number | string,
+    workspaceId: string,
+    notebookId: string,
     enabled: boolean
   ) {
     try {

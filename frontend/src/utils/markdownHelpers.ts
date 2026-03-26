@@ -14,8 +14,8 @@ export function isLocalFileReference(href: string): boolean {
 /** Resolve a file reference to an API URL for serving content. */
 export function resolveFileUrl(
   href: string,
-  workspaceId: number | string | undefined,
-  notebookId: number | string | undefined
+  workspaceId: string | undefined,
+  notebookId: string | undefined
 ): string {
   if (workspaceId && notebookId) {
     if (href.startsWith("http://") || href.startsWith("https://") || href.startsWith("/api/")) {

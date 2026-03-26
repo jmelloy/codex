@@ -8,7 +8,13 @@
     @dragleave="onFileDragLeave"
     @drop.prevent="onFileDrop"
   >
+    <!-- Cover image -->
+    <div v-if="pageCoverImage" class="page-cover">
+      <img :src="pageCoverImage" alt="Cover" class="page-cover-img" />
+    </div>
+
     <div class="page-header" v-if="pageTitle">
+      <div v-if="pageIcon" class="page-icon">{{ pageIcon }}</div>
       <div class="page-header-row">
         <h1 class="page-title">{{ pageTitle }}</h1>
         <button class="new-page-btn" @click.stop="$emit('createSubpage')" title="New subpage">
@@ -211,6 +217,8 @@ interface Props {
   blocks: Block[]
   pageTitle?: string
   pageDescription?: string
+  pageIcon?: string
+  pageCoverImage?: string
   workspaceId?: number | string
   notebookId?: number | string
 }
@@ -219,6 +227,8 @@ const props = withDefaults(defineProps<Props>(), {
   blocks: () => [],
   pageTitle: undefined,
   pageDescription: undefined,
+  pageIcon: undefined,
+  pageCoverImage: undefined,
 })
 
 const emit = defineEmits<{
@@ -707,6 +717,31 @@ function onFileDrop(event: DragEvent) {
   outline: 2px dashed var(--pen-blue, #3b82f6);
   outline-offset: -4px;
   background: color-mix(in srgb, var(--pen-blue, #3b82f6) 5%, transparent);
+}
+
+.page-cover {
+  width: 100%;
+  height: 240px;
+  overflow: hidden;
+  border-radius: var(--radius-md, 8px);
+  margin-bottom: 1rem;
+  position: relative;
+}
+
+.page-cover-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.page-icon {
+  font-size: 56px;
+  line-height: 1;
+  margin-bottom: 0.5rem;
+  margin-top: -32px;
+  position: relative;
+  z-index: 1;
 }
 
 .page-header {

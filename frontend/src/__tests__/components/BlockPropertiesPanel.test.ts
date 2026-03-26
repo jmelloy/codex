@@ -59,8 +59,8 @@ describe("BlockPropertiesPanel", () => {
     expect(wrapper.find(".empty-state").exists()).toBe(false)
 
     // Title, description, path, name, type, size
-    expect(wrapper.find(".property-input").element.value).toBe("Test File")
-    expect(wrapper.find(".property-textarea").element.value).toBe("Test description")
+    expect(wrapper.find(".title-input").element.value).toBe("Test File")
+    expect(wrapper.find(".description-input").element.value).toBe("Test description")
     expect(wrapper.html()).toContain("/test/path")
     expect(wrapper.text()).toContain("test-file.md")
     expect(wrapper.text()).toContain("markdown")
@@ -104,7 +104,7 @@ describe("BlockPropertiesPanel", () => {
 
   it("emits updateProperties when title changed via blur or enter", async () => {
     const wrapper = mountPanel()
-    const titleInput = wrapper.find(".property-input")
+    const titleInput = wrapper.find(".title-input")
 
     await titleInput.setValue("New Title")
     await titleInput.trigger("blur")
@@ -113,7 +113,7 @@ describe("BlockPropertiesPanel", () => {
 
     // Reset and test enter key
     const wrapper2 = mountPanel()
-    const titleInput2 = wrapper2.find(".property-input")
+    const titleInput2 = wrapper2.find(".title-input")
     await titleInput2.setValue("Enter Title")
     await titleInput2.trigger("keyup.enter")
     expect((wrapper2.emitted("updateProperties")![0][0] as any).title).toBe("Enter Title")
@@ -121,7 +121,7 @@ describe("BlockPropertiesPanel", () => {
 
   it("emits updateProperties when description changed", async () => {
     const wrapper = mountPanel()
-    const textarea = wrapper.find(".property-textarea")
+    const textarea = wrapper.find(".description-input")
 
     await textarea.setValue("New description")
     await textarea.trigger("blur")
@@ -131,7 +131,7 @@ describe("BlockPropertiesPanel", () => {
 
   it("does not emit updateProperties if value unchanged", async () => {
     const wrapper = mountPanel()
-    const titleInput = wrapper.find(".property-input")
+    const titleInput = wrapper.find(".title-input")
     await titleInput.setValue("Test File")
     await titleInput.trigger("blur")
     expect(wrapper.emitted("updateProperties")).toBeFalsy()
@@ -159,16 +159,16 @@ describe("BlockPropertiesPanel", () => {
     }
     await wrapper.setProps({ block: newBlock })
 
-    expect(wrapper.find(".property-input").element.value).toBe("Updated Title")
-    expect(wrapper.find(".property-textarea").element.value).toBe("Updated description")
+    expect(wrapper.find(".title-input").element.value).toBe("Updated Title")
+    expect(wrapper.find(".description-input").element.value).toBe("Updated description")
   })
 
   it("handles block with no title or description gracefully", () => {
     const noTitle = mountPanel({ ...mockBlock, title: null, properties: { description: "Test", tags: [] } })
-    expect(noTitle.find(".property-input").element.value).toBe("")
+    expect(noTitle.find(".title-input").element.value).toBe("")
 
     const noDesc = mountPanel({ ...mockBlock, description: null, properties: { title: "Test", tags: [] } })
-    expect(noDesc.find(".property-textarea").element.value).toBe("")
+    expect(noDesc.find(".description-input").element.value).toBe("")
   })
 
   it("displays Properties and History tabs, Properties shown by default", () => {
@@ -178,7 +178,7 @@ describe("BlockPropertiesPanel", () => {
     expect(tabs.length).toBe(2)
     expect(tabs[0].text()).toBe("Properties")
     expect(tabs[1].text()).toBe("History")
-    expect(wrapper.find(".property-input").exists()).toBe(true)
+    expect(wrapper.find(".title-input").exists()).toBe(true)
     expect(wrapper.find(".history-content").exists()).toBe(false)
   })
 })

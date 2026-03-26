@@ -331,7 +331,7 @@
                           isPageExpanded(notebook.id, node.path) ? "▼" : "▶"
                         }}</span>
                         <span v-else class="mr-2 w-3"></span>
-                        <span class="mr-2 text-sm">{{ node.isPage ? '📄' : '📁' }}</span>
+                        <span class="mr-2 text-sm">{{ node.pageMeta?.properties?.icon || (node.isPage ? '📄' : '📁') }}</span>
                         <span class="overflow-hidden text-ellipsis whitespace-nowrap">{{
                           node.pageMeta?.title || node.name
                         }}</span>
@@ -625,10 +625,22 @@
         class="flex-1 flex overflow-hidden p-4"
       >
         <div class="flex-1 flex flex-col overflow-hidden">
+          <!-- Cover image -->
+          <div
+            v-if="workspaceStore.currentPageBlock?.properties?.cover_image"
+            class="page-cover-image"
+          >
+            <img
+              :src="workspaceStore.currentPageBlock.properties.cover_image"
+              alt="Cover"
+              class="page-cover-img"
+            />
+          </div>
+
           <!-- Page header bar -->
           <div class="page-header-bar flex items-center justify-between px-4 py-2" style="border-bottom: 1px solid var(--page-border)">
             <div class="flex items-center gap-2 min-w-0">
-              <span class="text-sm">📄</span>
+              <span class="text-sm">{{ workspaceStore.currentPageBlock?.properties?.icon || '📄' }}</span>
               <span class="font-medium truncate" style="color: var(--notebook-text)">
                 {{ workspaceStore.currentPageBlock.title || workspaceStore.currentPageBlock.name }}
               </span>
@@ -645,6 +657,8 @@
             :blocks="workspaceStore.currentPageBlocks"
             :page-title="workspaceStore.currentPageBlock.title"
             :page-description="workspaceStore.currentPageBlock.description"
+            :page-icon="workspaceStore.currentPageBlock.properties?.icon"
+            :page-cover-image="workspaceStore.currentPageBlock.properties?.cover_image"
             :workspace-id="workspaceStore.currentWorkspace?.id"
             :notebook-id="workspaceStore.currentPageBlock.notebook_id"
             class="flex-1 overflow-y-auto"
@@ -1274,6 +1288,7 @@ function isPageExpanded(notebookId: number, pagePath: string): boolean {
 
 function getBlockIcon(file: Block | undefined): string {
   if (!file) return "📄"
+  if (file.properties?.icon) return file.properties.icon
 
   const displayType = getDisplayType(file.content_type || "")
 
@@ -1936,6 +1951,21 @@ function handleOpenAgentChat(agent: Agent) {
 
 .search-result-item:hover {
   background: color-mix(in srgb, var(--notebook-text) var(--hover-opacity), transparent);
+}
+
+/* Page cover image */
+.page-cover-image {
+  width: 100%;
+  height: 200px;
+  overflow: hidden;
+  position: relative;
+}
+
+.page-cover-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 </style>
 

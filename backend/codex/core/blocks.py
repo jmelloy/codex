@@ -52,6 +52,8 @@ BLOCK_TYPE_QUOTE = "quote"
 BLOCK_TYPE_DIVIDER = "divider"
 BLOCK_TYPE_EMBED = "embed"
 BLOCK_TYPE_FILE = "file"
+BLOCK_TYPE_DATABASE = "database"
+BLOCK_TYPE_API = "api"
 
 VALID_BLOCK_TYPES = {
     BLOCK_TYPE_PAGE,
@@ -64,6 +66,8 @@ VALID_BLOCK_TYPES = {
     BLOCK_TYPE_DIVIDER,
     BLOCK_TYPE_EMBED,
     BLOCK_TYPE_FILE,
+    BLOCK_TYPE_DATABASE,
+    BLOCK_TYPE_API,
 }
 
 # Content format mappings
@@ -77,6 +81,8 @@ BLOCK_TYPE_TO_EXTENSION = {
     BLOCK_TYPE_DIVIDER: ".md",
     BLOCK_TYPE_EMBED: ".json",
     BLOCK_TYPE_FILE: "",  # Keeps original extension
+    BLOCK_TYPE_DATABASE: ".json",
+    BLOCK_TYPE_API: ".json",
 }
 
 

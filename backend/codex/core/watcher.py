@@ -556,7 +556,12 @@ def update_file_metadata(
                     else:
                         block_type = "file"
 
-                    content_format = "binary" if (content_type and not content_type.startswith("text/")) else "markdown"
+                    if content_type and content_type == "application/json":
+                        content_format = "json"
+                    elif content_type and not content_type.startswith("text/"):
+                        content_format = "binary"
+                    else:
+                        content_format = "markdown"
 
                     # Determine parent
                     parent_block_id = None

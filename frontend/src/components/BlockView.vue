@@ -188,11 +188,10 @@
       <span class="trailing-hint">&nbsp;</span>
     </div>
 
-    <!-- Hidden file input for image uploads -->
+    <!-- Hidden file input for file uploads -->
     <input
       ref="fileInputRef"
       type="file"
-      accept="image/*"
       style="display: none"
       @change="handleFileSelected"
     />
@@ -232,9 +231,9 @@ const emit = defineEmits<{
   uploadFile: [file: File, parentBlockId: string | undefined, position?: number]
 }>()
 
-// File input ref for image uploads
+// File input ref for file uploads
 const fileInputRef = ref<HTMLInputElement | null>(null)
-const pendingImagePosition = ref<number | undefined>(undefined)
+const pendingFilePosition = ref<number | undefined>(undefined)
 
 // Editing state
 const editingBlockId = ref<string | null>(null)
@@ -259,6 +258,7 @@ const blockTypes = [
   { type: "text", label: "Text", icon: "T", defaultContent: "" },
   { type: "heading", label: "Heading", icon: "H", defaultContent: "## " },
   { type: "image-upload", label: "Image", icon: "Img", defaultContent: "" },
+  { type: "file-upload", label: "File", icon: "📎", defaultContent: "" },
   { type: "code", label: "Code", icon: "<>", defaultContent: "```\n\n```" },
   { type: "list", label: "List", icon: "=", defaultContent: "- " },
   { type: "quote", label: "Quote", icon: ">", defaultContent: "> " },
@@ -522,10 +522,10 @@ function toggleTypeMenu(index: number) {
 function changeBlockType(block: Block, newType: string, defaultContent: string) {
   typeMenuIndex.value = null
 
-  // Image upload triggers file picker instead of changing type
-  if (newType === "image-upload") {
+  // Image/file upload triggers file picker instead of changing type
+  if (newType === "image-upload" || newType === "file-upload") {
     const idx = props.blocks.indexOf(block)
-    triggerImageUpload(idx >= 0 ? idx + 1 : undefined)
+    triggerFileUpload(idx >= 0 ? idx + 1 : undefined)
     return
   }
 
@@ -580,9 +580,9 @@ async function handleRenderedBlockClick(event: MouseEvent, block: Block, index: 
   startEditing(block, index)
 }
 
-// Image upload
-function triggerImageUpload(position?: number) {
-  pendingImagePosition.value = position
+// File upload (images and other binary files)
+function triggerFileUpload(position?: number) {
+  pendingFilePosition.value = position
   fileInputRef.value?.click()
 }
 
@@ -591,18 +591,18 @@ function handleFileSelected(event: Event) {
   const file = input.files?.[0]
   if (file) {
     const parentBlockId = props.blocks[0]?.parent_block_id || undefined
-    emit("uploadFile", file, parentBlockId, pendingImagePosition.value)
+    emit("uploadFile", file, parentBlockId, pendingFilePosition.value)
   }
   // Reset input so the same file can be selected again
   input.value = ""
-  pendingImagePosition.value = undefined
+  pendingFilePosition.value = undefined
 }
 
 function handleBlockPaste(event: ClipboardEvent, _block: Block, index: number) {
   const items = event.clipboardData?.items
   if (!items) return
   for (const item of items) {
-    if (item.type.startsWith("image/")) {
+    if (item.kind === "file") {
       event.preventDefault()
       const file = item.getAsFile()
       if (file) {

@@ -39,16 +39,22 @@ class NotebookPluginConfigUpdate(BaseModel):
 
 async def get_notebook_by_slug_or_id(notebook_identifier: str, workspace: Workspace, session: AsyncSession) -> Notebook:
     """Get notebook by slug or ID within a workspace."""
+    notebook = None
+
+    # If identifier looks numeric, try ID lookup first
     if notebook_identifier.isdigit():
         result = await session.execute(
             select(Notebook).where(Notebook.id == int(notebook_identifier), Notebook.workspace_id == workspace.id)
         )
-    else:
+        notebook = result.scalar_one_or_none()
+
+    # Fall back to slug lookup (also handles non-numeric identifiers)
+    if notebook is None:
         result = await session.execute(
             select(Notebook).where(Notebook.slug == notebook_identifier, Notebook.workspace_id == workspace.id)
         )
+        notebook = result.scalar_one_or_none()
 
-    notebook = result.scalar_one_or_none()
     if not notebook:
         raise HTTPException(status_code=404, detail="Notebook not found")
     return notebook

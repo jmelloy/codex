@@ -108,18 +108,22 @@ async def get_workspace_by_slug_or_id(
     Raises:
         HTTPException if workspace not found
     """
-    # Try to parse as integer ID first
+    workspace = None
+
+    # If identifier looks numeric, try ID lookup first
     if workspace_identifier.isdigit():
         result = await session.execute(
             select(Workspace).where(Workspace.id == int(workspace_identifier), Workspace.owner_id == current_user.id)
         )
-    else:
-        # Treat as slug
+        workspace = result.scalar_one_or_none()
+
+    # Fall back to slug lookup (also handles non-numeric identifiers)
+    if workspace is None:
         result = await session.execute(
             select(Workspace).where(Workspace.slug == workspace_identifier, Workspace.owner_id == current_user.id)
         )
+        workspace = result.scalar_one_or_none()
 
-    workspace = result.scalar_one_or_none()
     if not workspace:
         raise HTTPException(status_code=404, detail="Workspace not found")
     return workspace

@@ -81,29 +81,43 @@ async def _resolve_workspace_and_notebook(
     session: AsyncSession,
 ) -> tuple[Path, Notebook, Workspace]:
     """Resolve workspace and notebook from slug or ID."""
-    # Try slug first, then ID for workspace
-    workspace_query = select(Workspace).where(Workspace.owner_id == current_user.id)
+    # Try ID first, then fall back to slug for workspace
+    workspace = None
     try:
         ws_id = int(workspace_identifier)
-        workspace_query = workspace_query.where(Workspace.id == ws_id)
+        result = await session.execute(
+            select(Workspace).where(Workspace.id == ws_id, Workspace.owner_id == current_user.id)
+        )
+        workspace = result.scalar_one_or_none()
     except ValueError:
-        workspace_query = workspace_query.where(Workspace.slug == workspace_identifier)
+        pass
 
-    result = await session.execute(workspace_query)
-    workspace = result.scalar_one_or_none()
+    if workspace is None:
+        result = await session.execute(
+            select(Workspace).where(Workspace.slug == workspace_identifier, Workspace.owner_id == current_user.id)
+        )
+        workspace = result.scalar_one_or_none()
+
     if not workspace:
         raise HTTPException(status_code=404, detail=f"Workspace not found: {workspace_identifier}")
 
-    # Try slug first, then ID for notebook
-    notebook_query = select(Notebook).where(Notebook.workspace_id == workspace.id)
+    # Try ID first, then fall back to slug for notebook
+    notebook = None
     try:
         nb_id = int(notebook_identifier)
-        notebook_query = notebook_query.where(Notebook.id == nb_id)
+        result = await session.execute(
+            select(Notebook).where(Notebook.id == nb_id, Notebook.workspace_id == workspace.id)
+        )
+        notebook = result.scalar_one_or_none()
     except ValueError:
-        notebook_query = notebook_query.where(Notebook.slug == notebook_identifier)
+        pass
 
-    result = await session.execute(notebook_query)
-    notebook = result.scalar_one_or_none()
+    if notebook is None:
+        result = await session.execute(
+            select(Notebook).where(Notebook.slug == notebook_identifier, Notebook.workspace_id == workspace.id)
+        )
+        notebook = result.scalar_one_or_none()
+
     if not notebook:
         raise HTTPException(status_code=404, detail=f"Notebook not found: {notebook_identifier}")
 

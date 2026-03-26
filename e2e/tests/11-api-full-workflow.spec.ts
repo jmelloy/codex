@@ -144,12 +144,15 @@ test.describe("API: Full User Journey", () => {
     );
     expect(props.status()).toBe(200);
 
-    // 15. Create task
+    // 15. Create task (via nested workspace route)
     const task = await (
-      await request.post(`${BASE}/api/v1/tasks/`, {
-        headers,
-        params: { workspace_id: ws.id, title: "Review results" },
-      })
+      await request.post(
+        `${BASE}/api/v1/workspaces/${ws.slug}/tasks/`,
+        {
+          headers,
+          data: { title: "Review results" },
+        }
+      )
     ).json();
     expect(task.title).toBe("Review results");
 

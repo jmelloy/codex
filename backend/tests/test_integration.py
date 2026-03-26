@@ -335,12 +335,47 @@ class TestTaskQueue:
             headers=headers,
         ).json()
 
+        # List via flat route
         resp = client.get(
             "/api/v1/tasks/",
             params={"workspace_id": ws["id"]},
             headers=headers,
         )
         assert resp.status_code == 200
+
+        # List via nested route
+        resp = client.get(
+            f"/api/v1/workspaces/{ws['slug']}/tasks/",
+            headers=headers,
+        )
+        assert resp.status_code == 200
+
+    def test_create_task_json_body(self):
+        client = _fresh_client()
+        headers, _ = _register_and_login(client)
+        ws = client.post(
+            "/api/v1/workspaces/",
+            json={"name": f"task-ws-{int(time.time() * 1000)}"},
+            headers=headers,
+        ).json()
+
+        # Create via JSON body (flat route)
+        resp = client.post(
+            "/api/v1/tasks/",
+            json={"workspace_id": ws["id"], "title": "Test Task"},
+            headers=headers,
+        )
+        assert resp.status_code == 200
+        assert resp.json()["title"] == "Test Task"
+
+        # Create via nested route
+        resp = client.post(
+            f"/api/v1/workspaces/{ws['slug']}/tasks/",
+            json={"title": "Nested Task"},
+            headers=headers,
+        )
+        assert resp.status_code == 200
+        assert resp.json()["title"] == "Nested Task"
 
     def test_tasks_require_auth(self):
         client = _fresh_client()

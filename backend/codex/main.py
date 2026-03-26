@@ -211,6 +211,11 @@ app.include_router(
     tags=["search"],
 )
 app.include_router(tasks.router, prefix="/api/v1/tasks", tags=["tasks"])
+app.include_router(
+    tasks.nested_router,
+    prefix="/api/v1/workspaces/{workspace_identifier}/tasks",
+    tags=["tasks"],
+)
 app.include_router(integrations.router, prefix="/api/v1/plugins/integrations", tags=["integrations"])
 app.include_router(plugins.router, prefix="/api/v1/plugins", tags=["plugins"])
 app.include_router(ws.router, prefix="/api/v1/ws", tags=["websocket"])

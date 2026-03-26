@@ -9,6 +9,7 @@ resources:
   - rook-ceph
   - pvc.yml
   - backend-deployment.yml
+  - backup-cronjob.yml
   - ingress.yml
 
 labels:

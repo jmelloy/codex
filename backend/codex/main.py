@@ -153,7 +153,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 @app.middleware("http")
 async def add_request_id(request: Request, call_next):
-    request_id = request.headers.get("X-Request-ID", str(ULID()))
+    request_id = request.headers.get("X-Request-ID", str(ULID())[0:10])
     request_id_var.set(request_id)
     response = await call_next(request)
     response.headers["X-Request-ID"] = request_id

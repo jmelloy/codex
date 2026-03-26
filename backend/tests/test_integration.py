@@ -336,15 +336,31 @@ class TestTaskQueue:
         ).json()
 
         resp = client.get(
-            "/api/v1/tasks/",
-            params={"workspace_id": ws["id"]},
+            f"/api/v1/workspaces/{ws['slug']}/tasks/",
             headers=headers,
         )
         assert resp.status_code == 200
 
+    def test_create_task_json_body(self):
+        client = _fresh_client()
+        headers, _ = _register_and_login(client)
+        ws = client.post(
+            "/api/v1/workspaces/",
+            json={"name": f"task-ws-{int(time.time() * 1000)}"},
+            headers=headers,
+        ).json()
+
+        resp = client.post(
+            f"/api/v1/workspaces/{ws['slug']}/tasks/",
+            json={"title": "Test Task"},
+            headers=headers,
+        )
+        assert resp.status_code == 200
+        assert resp.json()["title"] == "Test Task"
+
     def test_tasks_require_auth(self):
         client = _fresh_client()
-        resp = client.get("/api/v1/tasks/", params={"workspace_id": 1})
+        resp = client.get("/api/v1/workspaces/any-ws/tasks/")
         assert resp.status_code == 401
 
 
@@ -489,8 +505,7 @@ class TestEndToEndFlow:
 
         # 12. Task queue
         task_resp = client.get(
-            "/api/v1/tasks/",
-            params={"workspace_id": ws["id"]},
+            f"/api/v1/workspaces/{ws['slug']}/tasks/",
             headers=headers,
         )
         assert task_resp.status_code == 200

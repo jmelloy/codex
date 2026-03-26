@@ -417,8 +417,7 @@ export const blockService = {
     formData.append("file", file)
     const response = await apiClient.post<PageMetadata>(
       `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/import-markdown`,
-      formData,
-      { headers: { "Content-Type": "multipart/form-data" } }
+      formData
     )
     return response.data
   },

@@ -415,21 +415,23 @@ function startEditing(block: Block, _index: number) {
 function finishEditing(block: Block) {
   if (editingBlockId.value !== block.block_id) return
   const newContent = editContent.value
-  editingBlockId.value = null
   if (newContent !== (block.content || "")) {
-    // Update local content immediately so the view renders the new text
+    // Update local content before clearing edit state so the rendered view shows new text immediately
     ;(block as any).content = newContent
+    editingBlockId.value = null
     emit("updateBlock", { block_id: block.block_id, content: newContent })
+  } else {
+    editingBlockId.value = null
   }
 }
 
 function saveAndNavigate(block: Block, _fromIndex: number, toIndex: number) {
   const newContent = editContent.value
-  editingBlockId.value = null
   if (newContent !== (block.content || "")) {
     ;(block as any).content = newContent
     emit("updateBlock", { block_id: block.block_id, content: newContent })
   }
+  editingBlockId.value = null
   const target = props.blocks[toIndex]
   if (target && target.block_type !== "divider" && target.block_type !== "page") {
     nextTick(() => startEditing(target, toIndex))

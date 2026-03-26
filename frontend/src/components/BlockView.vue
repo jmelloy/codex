@@ -237,11 +237,20 @@
       style="display: none"
       @change="handleFileSelected"
     />
+
+    <!-- Link editor popup -->
+    <BlockLinkEditor
+      v-if="showLinkEditor"
+      :pages="linkEditorPages"
+      :anchor-rect="linkEditorAnchorRect"
+      @select="handleLinkSelect"
+      @close="closeLinkEditor"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, watch, onMounted } from "vue"
+import { ref, computed, nextTick, watch, onMounted } from "vue"
 import { Marked } from "marked"
 import type { Block } from "../services/codex"
 import { blockService } from "../services/codex"
@@ -249,6 +258,9 @@ import { getAvailableBlockTypes } from "../services/pluginLoader"
 import { isLocalFileReference, resolveFileUrl } from "../utils/markdownHelpers"
 import DatabaseBlock from "./blocks/DatabaseBlock.vue"
 import ApiBlock from "./blocks/ApiBlock.vue"
+import BlockLinkEditor from "./BlockLinkEditor.vue"
+import { useWorkspaceStore } from "../stores/workspace"
+import type { BlockTreeNode } from "../utils/blockTree"
 
 interface Props {
   blocks: Block[]
@@ -300,6 +312,12 @@ const dragPosition = ref<"top" | "bottom">("bottom")
 
 // Focus tracking - when a new block is created, focus it
 const pendingFocusIndex = ref<number | null>(null)
+
+// Link editor state
+const workspaceStore = useWorkspaceStore()
+const showLinkEditor = ref(false)
+const linkEditorAnchorRect = ref<{ top: number; left: number; bottom: number } | undefined>(undefined)
+const linkEditorTriggerOffset = ref<number | null>(null) // cursor offset where [[ was typed
 
 const blockTypes = [
   { type: "text", label: "Text", icon: "T", defaultContent: "" },
@@ -596,8 +614,27 @@ function handleKeydown(event: KeyboardEvent, block: Block, index: number) {
     event.preventDefault()
     saveAndNavigate(block, index, index + 1)
   } else if (event.key === "Escape") {
-    editingBlockId.value = null
-    editContent.value = ""
+    if (showLinkEditor.value) {
+      closeLinkEditor()
+    } else {
+      editingBlockId.value = null
+      editContent.value = ""
+    }
+  } else if (event.key === "k" && (event.ctrlKey || event.metaKey)) {
+    // Ctrl/Cmd+K to open link editor
+    event.preventDefault()
+    linkEditorTriggerOffset.value = null
+    openLinkEditor(ta)
+  } else if (event.key === "[") {
+    // Detect [[ to open link editor
+    const cursorPos = ta.selectionStart
+    if (cursorPos > 0 && editContent.value[cursorPos - 1] === "[") {
+      // We just typed the second [, trigger link editor
+      nextTick(() => {
+        linkEditorTriggerOffset.value = cursorPos - 1
+        openLinkEditor(ta)
+      })
+    }
   }
 }
 
@@ -777,6 +814,69 @@ function onFileDragLeave() {
     dropActive.value = false
     dragEnterCount = 0
   }
+}
+
+// Link editor
+const linkEditorPages = computed(() => {
+  const nb = workspaceStore.currentNotebook
+  if (!nb) return []
+  return workspaceStore.getBlockTree(nb.id)
+})
+
+function openLinkEditor(textarea: HTMLTextAreaElement) {
+  // Calculate anchor position from cursor in textarea
+  const rect = textarea.getBoundingClientRect()
+  // Position below the textarea cursor area
+  linkEditorAnchorRect.value = {
+    top: rect.top,
+    left: rect.left,
+    bottom: rect.bottom,
+  }
+  showLinkEditor.value = true
+}
+
+function closeLinkEditor() {
+  showLinkEditor.value = false
+  linkEditorTriggerOffset.value = null
+  // Refocus the textarea
+  nextTick(() => {
+    const textareas = textareaRefs.value
+    if (textareas && textareas.length > 0) {
+      textareas[0]!.focus()
+    }
+  })
+}
+
+function handleLinkSelect(page: BlockTreeNode) {
+  const title = page.title || page.name || page.path
+  const linkPath = page.path || ""
+  const linkMarkdown = `[${title}](${linkPath})`
+
+  // Replace the [[ trigger text with the markdown link
+  if (linkEditorTriggerOffset.value !== null) {
+    const before = editContent.value.substring(0, linkEditorTriggerOffset.value)
+    const after = editContent.value.substring(linkEditorTriggerOffset.value + 2) // skip [[
+    editContent.value = before + linkMarkdown + after
+  } else {
+    // No trigger offset (opened via shortcut), just insert at end
+    editContent.value += linkMarkdown
+  }
+
+  showLinkEditor.value = false
+  linkEditorTriggerOffset.value = null
+
+  // Refocus textarea and place cursor after the inserted link
+  nextTick(() => {
+    const textareas = textareaRefs.value
+    if (textareas && textareas.length > 0) {
+      const ta = textareas[0]!
+      ta.focus()
+      const cursorPos = (linkEditorTriggerOffset.value !== null
+        ? linkEditorTriggerOffset.value
+        : editContent.value.length - linkMarkdown.length) + linkMarkdown.length
+      ta.selectionStart = ta.selectionEnd = Math.min(cursorPos, editContent.value.length)
+    }
+  })
 }
 
 function onFileDrop(event: DragEvent) {

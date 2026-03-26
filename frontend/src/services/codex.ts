@@ -2,7 +2,7 @@ import apiClient from "./api"
 
 export interface Workspace {
   id: number
-  slug?: string
+  slug: string
   name: string
   path: string
   owner_id: number
@@ -13,7 +13,7 @@ export interface Workspace {
 
 export interface Notebook {
   id: number
-  slug?: string
+  slug: string
   name: string
   path: string
   description?: string
@@ -199,7 +199,7 @@ export const workspaceService = {
     return response.data
   },
 
-  async get(identifier: number | string): Promise<Workspace> {
+  async get(identifier: string): Promise<Workspace> {
     const response = await apiClient.get<Workspace>(`/api/v1/workspaces/${identifier}`)
     return response.data
   },
@@ -211,32 +211,32 @@ export const workspaceService = {
     return response.data
   },
 
-  async updateTheme(identifier: number | string, theme: string): Promise<Workspace> {
+  async updateTheme(identifier: string, theme: string): Promise<Workspace> {
     const response = await apiClient.patch<Workspace>(`/api/v1/workspaces/${identifier}/theme`, { theme })
     return response.data
   },
 
-  async delete(identifier: number | string): Promise<void> {
+  async delete(identifier: string): Promise<void> {
     await apiClient.delete(`/api/v1/workspaces/${identifier}`)
   },
 }
 
 export const notebookService = {
-  async list(workspaceIdentifier: number | string): Promise<Notebook[]> {
+  async list(workspaceIdentifier: string): Promise<Notebook[]> {
     const response = await apiClient.get<Notebook[]>(
       `/api/v1/workspaces/${workspaceIdentifier}/notebooks/`
     )
     return response.data
   },
 
-  async get(workspaceIdentifier: number | string, notebookIdentifier: number | string): Promise<Notebook> {
+  async get(workspaceIdentifier: string, notebookIdentifier: string): Promise<Notebook> {
     const response = await apiClient.get<Notebook>(
       `/api/v1/workspaces/${workspaceIdentifier}/notebooks/${notebookIdentifier}`
     )
     return response.data
   },
 
-  async create(workspaceIdentifier: number | string, name: string, description?: string): Promise<Notebook> {
+  async create(workspaceIdentifier: string, name: string, description?: string): Promise<Notebook> {
     const response = await apiClient.post<Notebook>(
       `/api/v1/workspaces/${workspaceIdentifier}/notebooks/`,
       {
@@ -247,7 +247,7 @@ export const notebookService = {
     return response.data
   },
 
-  async delete(workspaceIdentifier: number | string, notebookIdentifier: number | string): Promise<void> {
+  async delete(workspaceIdentifier: string, notebookIdentifier: string): Promise<void> {
     await apiClient.delete(`/api/v1/workspaces/${workspaceIdentifier}/notebooks/${notebookIdentifier}`)
   },
 }
@@ -259,8 +259,8 @@ export const blockService = {
    * List root-level blocks/pages in a notebook.
    */
   async listRootBlocks(
-    notebookId: number | string,
-    workspaceId: number | string
+    notebookId: string,
+    workspaceId: string
   ): Promise<RootBlocksResponse> {
     const response = await apiClient.get<RootBlocksResponse>(
       `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/`
@@ -273,8 +273,8 @@ export const blockService = {
    */
   async getBlock(
     blockId: string,
-    notebookId: number | string,
-    workspaceId: number | string
+    notebookId: string,
+    workspaceId: string
   ): Promise<BlockWithChildren> {
     const response = await apiClient.get<BlockWithChildren>(
       `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/${blockId}`
@@ -287,8 +287,8 @@ export const blockService = {
    */
   async getChildren(
     blockId: string,
-    notebookId: number | string,
-    workspaceId: number | string
+    notebookId: string,
+    workspaceId: string
   ): Promise<BlockChildrenResponse> {
     const response = await apiClient.get<BlockChildrenResponse>(
       `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/${blockId}/children`
@@ -300,8 +300,8 @@ export const blockService = {
    * Create a new block within a page.
    */
   async createBlock(
-    notebookId: number | string,
-    workspaceId: number | string,
+    notebookId: string,
+    workspaceId: string,
     data: {
       parent_block_id: string
       block_type?: string
@@ -321,8 +321,8 @@ export const blockService = {
    * Create a new page (folder with block structure).
    */
   async createPage(
-    notebookId: number | string,
-    workspaceId: number | string,
+    notebookId: string,
+    workspaceId: string,
     data: {
       parent_path?: string
       title: string
@@ -342,8 +342,8 @@ export const blockService = {
    */
   async updateBlock(
     blockId: string,
-    notebookId: number | string,
-    workspaceId: number | string,
+    notebookId: string,
+    workspaceId: string,
     content: string,
     blockType?: string
   ): Promise<Block & { blocks?: Block[] }> {
@@ -361,8 +361,8 @@ export const blockService = {
    */
   async moveBlock(
     blockId: string,
-    notebookId: number | string,
-    workspaceId: number | string,
+    notebookId: string,
+    workspaceId: string,
     data: {
       new_parent_block_id?: string
       position?: number
@@ -380,8 +380,8 @@ export const blockService = {
    */
   async reorderBlocks(
     blockId: string,
-    notebookId: number | string,
-    workspaceId: number | string,
+    notebookId: string,
+    workspaceId: string,
     blockIds: string[]
   ): Promise<ReorderBlocksResponse> {
     const response = await apiClient.patch<ReorderBlocksResponse>(
@@ -396,8 +396,8 @@ export const blockService = {
    */
   async deleteBlock(
     blockId: string,
-    notebookId: number | string,
-    workspaceId: number | string
+    notebookId: string,
+    workspaceId: string
   ): Promise<{ message: string; blocks?: Block[] }> {
     const response = await apiClient.delete<{ message: string; blocks?: Block[] }>(
       `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/${blockId}`
@@ -409,8 +409,8 @@ export const blockService = {
    * Import a markdown file as a page of blocks.
    */
   async importMarkdown(
-    notebookId: number | string,
-    workspaceId: number | string,
+    notebookId: string,
+    workspaceId: string,
     file: File
   ): Promise<PageMetadata> {
     const formData = new FormData()
@@ -426,8 +426,8 @@ export const blockService = {
    * Get hierarchical block tree for sidebar navigation.
    */
   async getTree(
-    notebookId: number | string,
-    workspaceId: number | string
+    notebookId: string,
+    workspaceId: string
   ): Promise<BlockTreeResponse> {
     const response = await apiClient.get<BlockTreeResponse>(
       `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/tree`
@@ -440,8 +440,8 @@ export const blockService = {
    */
   async getText(
     blockId: string,
-    notebookId: number | string,
-    workspaceId: number | string
+    notebookId: string,
+    workspaceId: string
   ): Promise<BlockTextContent> {
     const response = await apiClient.get<BlockTextContent>(
       `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/${blockId}/text`
@@ -452,14 +452,14 @@ export const blockService = {
   /**
    * Get the content URL for a block (for binary files like images).
    */
-  getContentUrl(blockId: string, notebookId: number | string, workspaceId: number | string): string {
+  getContentUrl(blockId: string, notebookId: string, workspaceId: string): string {
     return `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/${blockId}/content`
   },
 
   /**
    * Get the content URL for a block by path.
    */
-  getContentUrlByPath(path: string, notebookId: number | string, workspaceId: number | string): string {
+  getContentUrlByPath(path: string, notebookId: string, workspaceId: string): string {
     const encodedPath = encodeURIComponent(path)
     return `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/path/${encodedPath}/content`
   },
@@ -468,8 +468,8 @@ export const blockService = {
    * Upload a file as a block within a page.
    */
   async upload(
-    notebookId: number | string,
-    workspaceId: number | string,
+    notebookId: string,
+    workspaceId: string,
     file: File,
     parentBlockId?: string
   ): Promise<Block> {
@@ -489,8 +489,8 @@ export const blockService = {
    * Upload a zip file containing a folder structure.
    */
   async uploadFolderZip(
-    notebookId: number | string,
-    workspaceId: number | string,
+    notebookId: string,
+    workspaceId: string,
     zipFile: File,
     parentPath?: string
   ): Promise<{ path: string; block_id: string; pages_created: number; blocks_created: number }> {
@@ -511,8 +511,8 @@ export const blockService = {
    */
   async getHistory(
     blockId: string,
-    notebookId: number | string,
-    workspaceId: number | string
+    notebookId: string,
+    workspaceId: string
   ): Promise<BlockHistory> {
     const response = await apiClient.get<BlockHistory>(
       `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/${blockId}/history`
@@ -525,8 +525,8 @@ export const blockService = {
    */
   async getAtCommit(
     blockId: string,
-    notebookId: number | string,
-    workspaceId: number | string,
+    notebookId: string,
+    workspaceId: string,
     commitHash: string
   ): Promise<BlockAtCommit | PageAtCommit> {
     const response = await apiClient.get<BlockAtCommit | PageAtCommit>(
@@ -540,8 +540,8 @@ export const blockService = {
    */
   async resolveLink(
     link: string,
-    notebookId: number | string,
-    workspaceId: number | string,
+    notebookId: string,
+    workspaceId: string,
     currentFilePath?: string
   ): Promise<Block & { resolved_path: string }> {
     const response = await apiClient.post<Block & { resolved_path: string }>(
@@ -556,8 +556,8 @@ export const blockService = {
    */
   async updateProperties(
     blockId: string,
-    notebookId: number | string,
-    workspaceId: number | string,
+    notebookId: string,
+    workspaceId: string,
     properties: Record<string, any>
   ): Promise<Block> {
     const response = await apiClient.patch<Block>(
@@ -571,8 +571,8 @@ export const blockService = {
    * Import a folder tree as nested pages.
    */
   async importFolder(
-    notebookId: number | string,
-    workspaceId: number | string,
+    notebookId: string,
+    workspaceId: string,
     folderPath: string
   ): Promise<ImportFolderResponse> {
     const response = await apiClient.post<ImportFolderResponse>(
@@ -593,7 +593,7 @@ export const searchService = {
   /**
    * Search files and content across all notebooks in a workspace.
    */
-  async search(workspaceId: number | string, query: string): Promise<SearchResponse> {
+  async search(workspaceId: string, query: string): Promise<SearchResponse> {
     const response = await apiClient.get<SearchResponse>(
       `/api/v1/workspaces/${workspaceId}/search/?q=${encodeURIComponent(query)}`
     )
@@ -604,8 +604,8 @@ export const searchService = {
    * Search files and content in a specific notebook.
    */
   async searchInNotebook(
-    workspaceId: number | string,
-    notebookId: number | string,
+    workspaceId: string,
+    notebookId: string,
     query: string
   ): Promise<NotebookSearchResponse> {
     const response = await apiClient.get<NotebookSearchResponse>(
@@ -617,7 +617,7 @@ export const searchService = {
   /**
    * Search by tags across all notebooks in a workspace.
    */
-  async searchByTags(workspaceId: number | string, tags: string[]): Promise<TagSearchResponse> {
+  async searchByTags(workspaceId: string, tags: string[]): Promise<TagSearchResponse> {
     const response = await apiClient.get<TagSearchResponse>(
       `/api/v1/workspaces/${workspaceId}/search/tags?tags=${encodeURIComponent(tags.join(","))}`
     )
@@ -628,8 +628,8 @@ export const searchService = {
    * Search by tags in a specific notebook.
    */
   async searchByTagsInNotebook(
-    workspaceId: number | string,
-    notebookId: number | string,
+    workspaceId: string,
+    notebookId: string,
     tags: string[]
   ): Promise<NotebookTagSearchResponse> {
     const response = await apiClient.get<NotebookTagSearchResponse>(

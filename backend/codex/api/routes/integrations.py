@@ -639,11 +639,11 @@ async def list_integrations_nested(
     current_user: User = Depends(get_current_user),
 ):
     """List all available integration plugins for a notebook."""
-    from codex.api.routes.notebooks import get_notebook_by_slug_or_id
-    from codex.api.routes.workspaces import get_workspace_by_slug_or_id
+    from codex.api.routes.notebooks import get_notebook_by_slug
+    from codex.api.routes.workspaces import get_workspace_by_slug
 
-    workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
-    await get_notebook_by_slug_or_id(notebook_identifier, workspace, session)
+    workspace = await get_workspace_by_slug(workspace_identifier, current_user, session)
+    await get_notebook_by_slug(notebook_identifier, workspace, session)
 
     return await _list_integrations_for_workspace(workspace.id, session)
 
@@ -658,11 +658,11 @@ async def enable_disable_integration_nested(
     current_user: User = Depends(get_current_user),
 ):
     """Enable or disable an integration plugin for a workspace (via notebook route)."""
-    from codex.api.routes.notebooks import get_notebook_by_slug_or_id
-    from codex.api.routes.workspaces import get_workspace_by_slug_or_id
+    from codex.api.routes.notebooks import get_notebook_by_slug
+    from codex.api.routes.workspaces import get_workspace_by_slug
 
-    workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
-    await get_notebook_by_slug_or_id(notebook_identifier, workspace, session)
+    workspace = await get_workspace_by_slug(workspace_identifier, current_user, session)
+    await get_notebook_by_slug(notebook_identifier, workspace, session)
 
     return await _enable_disable_integration(integration_id, workspace.id, request_data, session)
 
@@ -676,11 +676,11 @@ async def get_integration_config_nested(
     current_user: User = Depends(get_current_user),
 ):
     """Get integration configuration for a workspace (via notebook route)."""
-    from codex.api.routes.notebooks import get_notebook_by_slug_or_id
-    from codex.api.routes.workspaces import get_workspace_by_slug_or_id
+    from codex.api.routes.notebooks import get_notebook_by_slug
+    from codex.api.routes.workspaces import get_workspace_by_slug
 
-    workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
-    await get_notebook_by_slug_or_id(notebook_identifier, workspace, session)
+    workspace = await get_workspace_by_slug(workspace_identifier, current_user, session)
+    await get_notebook_by_slug(notebook_identifier, workspace, session)
 
     return await _get_integration_config(integration_id, workspace.id, session)
 
@@ -695,11 +695,11 @@ async def update_integration_config_nested(
     current_user: User = Depends(get_current_user),
 ):
     """Update integration configuration for a workspace (via notebook route)."""
-    from codex.api.routes.notebooks import get_notebook_by_slug_or_id
-    from codex.api.routes.workspaces import get_workspace_by_slug_or_id
+    from codex.api.routes.notebooks import get_notebook_by_slug
+    from codex.api.routes.workspaces import get_workspace_by_slug
 
-    workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
-    await get_notebook_by_slug_or_id(notebook_identifier, workspace, session)
+    workspace = await get_workspace_by_slug(workspace_identifier, current_user, session)
+    await get_notebook_by_slug(notebook_identifier, workspace, session)
 
     return await _update_integration_config(integration_id, workspace.id, request_data, session)
 
@@ -714,10 +714,10 @@ async def execute_integration_endpoint_nested(
     current_user: User = Depends(get_current_user),
 ):
     """Execute an integration endpoint with artifact caching (via notebook route)."""
-    from codex.api.routes.notebooks import get_notebook_by_slug_or_id
-    from codex.api.routes.workspaces import get_workspace_by_slug_or_id
+    from codex.api.routes.notebooks import get_notebook_by_slug
+    from codex.api.routes.workspaces import get_workspace_by_slug
 
-    workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
-    notebook = await get_notebook_by_slug_or_id(notebook_identifier, workspace, session)
+    workspace = await get_workspace_by_slug(workspace_identifier, current_user, session)
+    notebook = await get_notebook_by_slug(notebook_identifier, workspace, session)
 
     return await _execute_integration(integration_id, workspace.id, request_data, session, notebook_path=notebook.path)

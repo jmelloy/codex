@@ -149,8 +149,8 @@ interface QueryResult {
 
 interface Props {
   config: DatabaseConfig
-  workspaceId?: number
-  notebookId?: number
+  workspaceId?: string
+  notebookId?: string
   parentBlockId?: string
 }
 

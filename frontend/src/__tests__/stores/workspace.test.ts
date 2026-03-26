@@ -115,9 +115,10 @@ describe("Workspace Store", () => {
       vi.mocked(notebookService.list).mockResolvedValue(mockNotebooks as any)
 
       const store = useWorkspaceStore()
+      store.currentWorkspace = { id: 1, slug: "ws-1" } as any
       await store.fetchNotebooks(1)
 
-      expect(notebookService.list).toHaveBeenCalledWith(1)
+      expect(notebookService.list).toHaveBeenCalledWith("ws-1")
       expect(store.notebooks).toEqual(mockNotebooks)
     })
 
@@ -127,6 +128,7 @@ describe("Workspace Store", () => {
       })
 
       const store = useWorkspaceStore()
+      store.currentWorkspace = { id: 1, slug: "ws-1" } as any
       await store.fetchNotebooks(1)
 
       expect(store.error).toBe("Not found")
@@ -164,9 +166,10 @@ describe("Workspace Store", () => {
       vi.mocked(notebookService.create).mockResolvedValue(newNotebook as any)
 
       const store = useWorkspaceStore()
+      store.currentWorkspace = { id: 1, slug: "ws-1" } as any
       const result = await store.createNotebook(1, "New Notebook")
 
-      expect(notebookService.create).toHaveBeenCalledWith(1, "New Notebook")
+      expect(notebookService.create).toHaveBeenCalledWith("ws-1", "New Notebook")
       expect(store.notebooks).toContainEqual(newNotebook)
       expect(result).toEqual(newNotebook)
     })
@@ -174,20 +177,20 @@ describe("Workspace Store", () => {
 
   describe("setCurrentWorkspace", () => {
     it("sets current workspace and fetches notebooks", async () => {
-      const workspace = { id: 1, name: "Workspace 1", path: "/path1", owner_id: 1 }
+      const workspace = { id: 1, slug: "workspace-1", name: "Workspace 1", path: "/path1", owner_id: 1 }
       vi.mocked(notebookService.list).mockResolvedValue([])
 
       const store = useWorkspaceStore()
       store.setCurrentWorkspace(workspace as any)
 
       expect(store.currentWorkspace).toEqual(workspace)
-      expect(notebookService.list).toHaveBeenCalledWith(1)
+      expect(notebookService.list).toHaveBeenCalledWith("workspace-1")
     })
 
     it("clears state when setting workspace to null", () => {
       const store = useWorkspaceStore()
 
-      store.currentWorkspace = { id: 1 } as any
+      store.currentWorkspace = { id: 1, slug: "ws-1" } as any
       store.currentBlock = { id: 1, block_type: "file" } as any
 
       store.setCurrentWorkspace(null)
@@ -203,11 +206,12 @@ describe("Workspace Store", () => {
       vi.mocked(blockService.getTree).mockResolvedValue(mockTree as any)
 
       const store = useWorkspaceStore()
-      store.currentWorkspace = { id: 1 } as any
+      store.currentWorkspace = { id: 1, slug: "ws-1" } as any
+      store.notebooks = [{ id: 1, slug: "nb-1", name: "Notebook" }] as any
 
       await store.fetchBlockTree(1)
 
-      expect(blockService.getTree).toHaveBeenCalledWith(1, 1)
+      expect(blockService.getTree).toHaveBeenCalledWith("nb-1", "ws-1")
       expect(store.blockTrees.has(1)).toBe(true)
     })
 
@@ -240,11 +244,12 @@ describe("Workspace Store", () => {
       vi.mocked(blockService.getBlock).mockResolvedValue(mockBlock as any)
 
       const store = useWorkspaceStore()
-      store.currentWorkspace = { id: 1 } as any
+      store.currentWorkspace = { id: 1, slug: "ws-1" } as any
+      store.notebooks = [{ id: 1, slug: "nb-1", name: "Notebook" }] as any
 
       await store.selectBlock(mockBlock as any)
 
-      expect(blockService.getBlock).toHaveBeenCalledWith("blk_1", 1, 1)
+      expect(blockService.getBlock).toHaveBeenCalledWith("blk_1", "nb-1", "ws-1")
       expect(store.currentBlock?.block_id).toBe("blk_1")
       expect(store.currentLeafBlock?.content).toBe("# Test")
       expect(store.currentPageBlock).toBeNull()
@@ -273,11 +278,12 @@ describe("Workspace Store", () => {
       vi.mocked(blockService.getChildren).mockResolvedValue(mockChildren as any)
 
       const store = useWorkspaceStore()
-      store.currentWorkspace = { id: 1 } as any
+      store.currentWorkspace = { id: 1, slug: "ws-1" } as any
+      store.notebooks = [{ id: 1, slug: "nb-1", name: "Notebook" }] as any
 
       await store.selectBlock(mockPage as any)
 
-      expect(blockService.getChildren).toHaveBeenCalledWith("page_1", 1, 1)
+      expect(blockService.getChildren).toHaveBeenCalledWith("page_1", "nb-1", "ws-1")
       expect(store.currentBlock?.block_type).toBe("page")
       expect(store.currentLeafBlock).toBeNull()
       expect(store.currentPageBlock).not.toBeNull()
@@ -293,18 +299,19 @@ describe("Workspace Store", () => {
       vi.mocked(blockService.updateProperties).mockResolvedValue(mockUpdated as any)
 
       const store = useWorkspaceStore()
-      store.currentWorkspace = { id: 1 } as any
+      store.currentWorkspace = { id: 1, slug: "ws-1" } as any
+      store.notebooks = [{ id: 1, slug: "nb-1", name: "Notebook" }] as any
       store.currentBlock = { id: 1, block_id: "blk_1", notebook_id: 1, block_type: "file", content: "old" } as any
 
       await store.saveBlock("new content", { key: "value" })
 
-      expect(blockService.updateBlock).toHaveBeenCalledWith("blk_1", 1, 1, "new content")
-      expect(blockService.updateProperties).toHaveBeenCalledWith("blk_1", 1, 1, { key: "value" })
+      expect(blockService.updateBlock).toHaveBeenCalledWith("blk_1", "nb-1", "ws-1", "new content")
+      expect(blockService.updateProperties).toHaveBeenCalledWith("blk_1", "nb-1", "ws-1", { key: "value" })
     })
 
     it("throws error when block has no notebook_id", async () => {
       const store = useWorkspaceStore()
-      store.currentWorkspace = { id: 1 } as any
+      store.currentWorkspace = { id: 1, slug: "ws-1" } as any
       store.currentBlock = { id: 1, block_id: "blk_1", notebook_id: undefined } as any
 
       await expect(store.saveBlock("content")).rejects.toThrow("Block has no notebook_id")
@@ -321,11 +328,12 @@ describe("Workspace Store", () => {
       vi.mocked(blockService.resolveLink).mockRejectedValue(new Error("not found"))
 
       const store = useWorkspaceStore()
-      store.currentWorkspace = { id: 1 } as any
+      store.currentWorkspace = { id: 1, slug: "ws-1" } as any
+      store.notebooks = [{ id: 1, slug: "nb-1", name: "Notebook" }] as any
 
       const result = await store.createPage(1, "New Page")
 
-      expect(blockService.createPage).toHaveBeenCalledWith(1, 1, { title: "New Page" })
+      expect(blockService.createPage).toHaveBeenCalledWith("nb-1", "ws-1", { title: "New Page" })
     })
   })
 
@@ -334,13 +342,14 @@ describe("Workspace Store", () => {
       vi.mocked(blockService.deleteBlock).mockResolvedValue({ message: "deleted" } as any)
 
       const store = useWorkspaceStore()
-      store.currentWorkspace = { id: 1 } as any
+      store.currentWorkspace = { id: 1, slug: "ws-1" } as any
+      store.notebooks = [{ id: 1, slug: "nb-1", name: "Notebook" }] as any
       store.currentBlock = { id: 1, block_id: "blk_1", notebook_id: 1, path: "test.md", block_type: "file" } as any
       store.blockTrees.set(1, [{ name: "test.md", path: "test.md", type: "leaf" as const }])
 
       await store.deleteBlock(1, "blk_1")
 
-      expect(blockService.deleteBlock).toHaveBeenCalledWith("blk_1", 1, 1)
+      expect(blockService.deleteBlock).toHaveBeenCalledWith("blk_1", "nb-1", "ws-1")
       expect(store.currentBlock).toBeNull()
     })
   })
@@ -353,12 +362,13 @@ describe("Workspace Store", () => {
       vi.mocked(blockService.getTree).mockResolvedValue(mockTree as any)
 
       const store = useWorkspaceStore()
-      store.currentWorkspace = { id: 1 } as any
+      store.currentWorkspace = { id: 1, slug: "ws-1" } as any
+      store.notebooks = [{ id: 1, slug: "nb-1", name: "Notebook" }] as any
 
       const file = new File(["content"], "upload.png", { type: "image/png" })
       const result = await store.uploadBlock(1, file, "images/upload.png")
 
-      expect(blockService.upload).toHaveBeenCalledWith(1, 1, file)
+      expect(blockService.upload).toHaveBeenCalledWith("nb-1", "ws-1", file)
     })
   })
 
@@ -370,12 +380,13 @@ describe("Workspace Store", () => {
       vi.mocked(blockService.getTree).mockResolvedValue(mockTree as any)
 
       const store = useWorkspaceStore()
-      store.currentWorkspace = { id: 1 } as any
+      store.currentWorkspace = { id: 1, slug: "ws-1" } as any
+      store.notebooks = [{ id: 1, slug: "nb-1", name: "Notebook" }] as any
       store.blockTrees.set(1, [])
 
       const result = await store.moveBlock("blk_1", 1, "new/path.md")
 
-      expect(blockService.moveBlock).toHaveBeenCalledWith("blk_1", 1, 1, {})
+      expect(blockService.moveBlock).toHaveBeenCalledWith("blk_1", "nb-1", "ws-1", {})
     })
   })
 
@@ -385,15 +396,15 @@ describe("Workspace Store", () => {
       vi.mocked(blockService.getTree).mockResolvedValue(mockTree as any)
 
       const store = useWorkspaceStore()
-      store.currentWorkspace = { id: 1 } as any
-      const notebook = { id: 1, name: "Notebook" } as any
+      store.currentWorkspace = { id: 1, slug: "ws-1" } as any
+      const notebook = { id: 1, slug: "nb-1", name: "Notebook" } as any
       store.notebooks = [notebook]
 
       store.toggleNotebookExpansion(notebook)
 
       expect(store.expandedNotebooks.has(1)).toBe(true)
       expect(store.currentNotebook).toEqual(notebook)
-      expect(blockService.getTree).toHaveBeenCalledWith(1, 1)
+      expect(blockService.getTree).toHaveBeenCalledWith("nb-1", "ws-1")
     })
 
     it("collapses expanded notebook", () => {
@@ -462,13 +473,14 @@ describe("Workspace Store", () => {
       vi.mocked(blockService.deleteBlock).mockResolvedValue({ message: "deleted" } as any)
 
       const store = useWorkspaceStore()
-      store.currentWorkspace = { id: 1 } as any
+      store.currentWorkspace = { id: 1, slug: "ws-1" } as any
+      store.notebooks = [{ id: 1, slug: "nb-1", name: "Notebook" }] as any
       store.currentBlock = { id: 1, block_id: "page_1", notebook_id: 1, path: "page", block_type: "page" } as any
       store.blockTrees.set(1, [{ name: "page", path: "page", type: "page" }])
 
       await store.deleteBlock(1, "page_1")
 
-      expect(blockService.deleteBlock).toHaveBeenCalledWith("page_1", 1, 1)
+      expect(blockService.deleteBlock).toHaveBeenCalledWith("page_1", "nb-1", "ws-1")
       expect(store.currentBlock).toBeNull()
     })
   })

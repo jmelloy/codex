@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from codex.api.auth import get_current_active_user
-from codex.api.routes.workspaces import get_workspace_by_slug_or_id
+from codex.api.routes.workspaces import get_workspace_by_slug
 from codex.db.database import get_system_session
 from codex.db.models import Task, User, Workspace
 
@@ -47,7 +47,7 @@ async def list_tasks(
     session: AsyncSession = Depends(get_system_session),
 ) -> list[Task]:
     """List all tasks for a workspace."""
-    workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
+    workspace = await get_workspace_by_slug(workspace_identifier, current_user, session)
     result = await session.execute(select(Task).where(Task.workspace_id == workspace.id))
     return result.scalars().all()
 
@@ -76,7 +76,7 @@ async def create_task(
     session: AsyncSession = Depends(get_system_session),
 ) -> Task:
     """Create a new task."""
-    workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
+    workspace = await get_workspace_by_slug(workspace_identifier, current_user, session)
     task = Task(workspace_id=workspace.id, title=body.title, description=body.description)
     session.add(task)
     await session.commit()

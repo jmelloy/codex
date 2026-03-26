@@ -18,11 +18,11 @@ async function createNotebookViaAPI(
   page: any,
   baseURL: string,
   token: string,
-  wsId: number,
+  wsSlug: string,
   name: string
 ) {
   const resp = await page.request.post(
-    `${baseURL}/api/v1/workspaces/${wsId}/notebooks/`,
+    `${baseURL}/api/v1/workspaces/${wsSlug}/notebooks/`,
     {
       headers: { Authorization: `Bearer ${token}` },
       data: { name },
@@ -36,13 +36,13 @@ async function createPageWithContent(
   page: any,
   baseURL: string,
   token: string,
-  wsId: number,
+  wsSlug: string,
   notebookSlug: string,
   title: string,
   content: string
 ) {
   const headers = { Authorization: `Bearer ${token}` };
-  const blocksBase = `${baseURL}/api/v1/workspaces/${wsId}/notebooks/${notebookSlug}/blocks`;
+  const blocksBase = `${baseURL}/api/v1/workspaces/${wsSlug}/notebooks/${notebookSlug}/blocks`;
 
   // Create the page
   const pageResp = await page.request.post(`${blocksBase}/pages`, {
@@ -103,11 +103,11 @@ test.describe("File Operations", () => {
     const notebookName = `View NB ${Date.now()}`;
 
     const { baseURL, token, ws } = await getWorkspaceContext(page);
-    const notebook = await createNotebookViaAPI(page, baseURL, token, ws.id, notebookName);
+    const notebook = await createNotebookViaAPI(page, baseURL, token, ws.slug, notebookName);
 
     // Create a page with content (pages show in sidebar, leaf blocks don't)
     await createPageWithContent(
-      page, baseURL, token, ws.id, notebook.slug,
+      page, baseURL, token, ws.slug, notebook.slug,
       "readme",
       "# Hello World\n\nThis is a test file for E2E testing."
     );
@@ -136,10 +136,10 @@ test.describe("File Operations", () => {
     const notebookName = `Edit NB ${Date.now()}`;
 
     const { baseURL, token, ws } = await getWorkspaceContext(page);
-    const notebook = await createNotebookViaAPI(page, baseURL, token, ws.id, notebookName);
+    const notebook = await createNotebookViaAPI(page, baseURL, token, ws.slug, notebookName);
 
     await createPageWithContent(
-      page, baseURL, token, ws.id, notebook.slug,
+      page, baseURL, token, ws.slug, notebook.slug,
       "editable",
       "# Original Content\n\nSome body text here."
     );

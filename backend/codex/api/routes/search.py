@@ -10,8 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from codex.api.auth import get_current_active_user
-from codex.api.routes.notebooks import get_notebook_by_slug_or_id
-from codex.api.routes.workspaces import get_workspace_by_slug_or_id
+from codex.api.routes.notebooks import get_notebook_by_slug
+from codex.api.routes.workspaces import get_workspace_by_slug
 from codex.api.schemas import (
     NotebookSearchResponse,
     NotebookTagSearchResponse,
@@ -180,7 +180,7 @@ async def search_workspace(
     session: AsyncSession = Depends(get_system_session),
 ):
     """Search pages and content in a workspace (all notebooks)."""
-    workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
+    workspace = await get_workspace_by_slug(workspace_identifier, current_user, session)
 
     # Get all notebooks in workspace
     result = await session.execute(select(Notebook).where(Notebook.workspace_id == workspace.id))
@@ -219,7 +219,7 @@ async def search_workspace_by_tags(
     session: AsyncSession = Depends(get_system_session),
 ):
     """Search files by tags in a workspace (all notebooks)."""
-    workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
+    workspace = await get_workspace_by_slug(workspace_identifier, current_user, session)
     tag_list = [tag.strip() for tag in tags.split(",")]
 
     result = await session.execute(select(Notebook).where(Notebook.workspace_id == workspace.id))
@@ -259,8 +259,8 @@ async def search_notebook(
     session: AsyncSession = Depends(get_system_session),
 ):
     """Search files and content in a specific notebook."""
-    workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
-    notebook = await get_notebook_by_slug_or_id(notebook_identifier, workspace, session)
+    workspace = await get_workspace_by_slug(workspace_identifier, current_user, session)
+    notebook = await get_notebook_by_slug(notebook_identifier, workspace, session)
 
     workspace_path = Path(workspace.path).resolve()
     nb_path = str(workspace_path / notebook.path)
@@ -286,8 +286,8 @@ async def search_notebook_by_tags(
     session: AsyncSession = Depends(get_system_session),
 ):
     """Search files by tags in a specific notebook."""
-    workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
-    notebook = await get_notebook_by_slug_or_id(notebook_identifier, workspace, session)
+    workspace = await get_workspace_by_slug(workspace_identifier, current_user, session)
+    notebook = await get_notebook_by_slug(notebook_identifier, workspace, session)
 
     tag_list = [tag.strip() for tag in tags.split(",")]
     workspace_path = Path(workspace.path).resolve()
@@ -327,8 +327,8 @@ async def vectorize_notebook(
     """
     from codex.core.vectorizer import reset_embedding_table, vectorize_all_pages
 
-    workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
-    notebook = await get_notebook_by_slug_or_id(notebook_identifier, workspace, session)
+    workspace = await get_workspace_by_slug(workspace_identifier, current_user, session)
+    notebook = await get_notebook_by_slug(notebook_identifier, workspace, session)
 
     workspace_path = Path(workspace.path).resolve()
     nb_path = str(workspace_path / notebook.path)

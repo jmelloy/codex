@@ -48,7 +48,7 @@ test.describe("API: Full User Journey", () => {
       )
     ).json();
     expect(nb.name).toBe("Lab Journal");
-    const blocks = `${BASE}/api/v1/workspaces/${ws.slug}/notebooks/${nb.id}/blocks`;
+    const blocks = `${BASE}/api/v1/workspaces/${ws.slug}/notebooks/${nb.slug}/blocks`;
 
     // 6. Create page
     const page = await (
@@ -169,7 +169,7 @@ test.describe("API: Full User Journey", () => {
     expect(allWsResp.status()).toBe(200);
     const allWorkspaces = await allWsResp.json();
     for (const w of allWorkspaces) {
-      const delResp = await request.delete(`${BASE}/api/v1/workspaces/${w.id}`, {
+      const delResp = await request.delete(`${BASE}/api/v1/workspaces/${w.slug}`, {
         headers,
       });
       expect(delResp.status()).toBe(200);
@@ -178,7 +178,7 @@ test.describe("API: Full User Journey", () => {
     // Verify the explicitly created workspace is gone
     expect(
       (
-        await request.get(`${BASE}/api/v1/workspaces/${ws.id}`, { headers })
+        await request.get(`${BASE}/api/v1/workspaces/${ws.slug}`, { headers })
       ).status()
     ).toBe(404);
 

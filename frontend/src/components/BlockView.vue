@@ -143,8 +143,8 @@
             <template v-else-if="block.block_type === 'database'">
               <DatabaseBlock
                 :config="parseDatabaseConfig(block)"
-                :workspace-id="workspaceId ? Number(workspaceId) : undefined"
-                :notebook-id="notebookId ? Number(notebookId) : undefined"
+                :workspace-id="workspaceId"
+                :notebook-id="notebookId"
                 :parent-block-id="blocks[0]?.parent_block_id || undefined"
                 @navigate-page="(b: any) => $emit('navigatePage', b)"
               />
@@ -211,8 +211,8 @@ interface Props {
   blocks: Block[]
   pageTitle?: string
   pageDescription?: string
-  workspaceId?: number | string
-  notebookId?: number | string
+  workspaceId?: string
+  notebookId?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {

@@ -76,8 +76,8 @@ async def get_workspace(
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_system_session),
 ) -> Workspace:
-    """Get a specific workspace by slug or ID."""
-    return await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
+    """Get a specific workspace by slug."""
+    return await get_workspace_by_slug(workspace_identifier, current_user, session)
 
 
 async def path_exists_in_db(session: AsyncSession, path: str) -> bool:
@@ -92,13 +92,13 @@ async def slug_exists_in_db(session: AsyncSession, slug: str, owner_id: int) -> 
     return result.scalar_one_or_none() is not None
 
 
-async def get_workspace_by_slug_or_id(
-    workspace_identifier: str, current_user: User, session: AsyncSession
+async def get_workspace_by_slug(
+    workspace_slug: str, current_user: User, session: AsyncSession
 ) -> Workspace:
-    """Get workspace by slug or ID.
+    """Get workspace by slug.
 
     Args:
-        workspace_identifier: Either a slug or numeric ID
+        workspace_slug: URL-safe slug identifier
         current_user: Current authenticated user
         session: Database session
 
@@ -108,21 +108,10 @@ async def get_workspace_by_slug_or_id(
     Raises:
         HTTPException if workspace not found
     """
-    workspace = None
-
-    # If identifier looks numeric, try ID lookup first
-    if workspace_identifier.isdigit():
-        result = await session.execute(
-            select(Workspace).where(Workspace.id == int(workspace_identifier), Workspace.owner_id == current_user.id)
-        )
-        workspace = result.scalar_one_or_none()
-
-    # Fall back to slug lookup (also handles non-numeric identifiers)
-    if workspace is None:
-        result = await session.execute(
-            select(Workspace).where(Workspace.slug == workspace_identifier, Workspace.owner_id == current_user.id)
-        )
-        workspace = result.scalar_one_or_none()
+    result = await session.execute(
+        select(Workspace).where(Workspace.slug == workspace_slug, Workspace.owner_id == current_user.id)
+    )
+    workspace = result.scalar_one_or_none()
 
     if not workspace:
         raise HTTPException(status_code=404, detail="Workspace not found")
@@ -208,7 +197,7 @@ async def update_workspace_theme(
     session: AsyncSession = Depends(get_system_session),
 ) -> Workspace:
     """Update the theme setting for a workspace by slug or ID."""
-    workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
+    workspace = await get_workspace_by_slug(workspace_identifier, current_user, session)
 
     workspace.theme_setting = body.theme
     session.add(workspace)
@@ -231,7 +220,7 @@ async def list_workspace_plugins(
     Returns:
         List of plugin configurations for the workspace
     """
-    workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
+    workspace = await get_workspace_by_slug(workspace_identifier, current_user, session)
 
     # Query workspace plugin configs
     stmt = select(PluginConfig).where(PluginConfig.workspace_id == workspace.id)
@@ -267,7 +256,7 @@ async def get_workspace_plugin_config(
     Returns:
         Plugin configuration for the workspace
     """
-    workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
+    workspace = await get_workspace_by_slug(workspace_identifier, current_user, session)
 
     # Query workspace plugin config
     stmt = select(PluginConfig).where(
@@ -313,7 +302,7 @@ async def update_workspace_plugin_config(
     Returns:
         Updated plugin configuration
     """
-    workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
+    workspace = await get_workspace_by_slug(workspace_identifier, current_user, session)
 
     # Check if config exists
     stmt = select(PluginConfig).where(
@@ -364,7 +353,7 @@ async def delete_workspace(
     session: AsyncSession = Depends(get_system_session),
 ):
     """Delete a workspace and all its contents."""
-    workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
+    workspace = await get_workspace_by_slug(workspace_identifier, current_user, session)
 
     # Save path before ORM object may be expired by subsequent queries
     workspace_path = workspace.path
@@ -475,7 +464,7 @@ async def delete_workspace_plugin_config(
     Returns:
         Success message
     """
-    workspace = await get_workspace_by_slug_or_id(workspace_identifier, current_user, session)
+    workspace = await get_workspace_by_slug(workspace_identifier, current_user, session)
 
     # Query workspace plugin config
     stmt = select(PluginConfig).where(

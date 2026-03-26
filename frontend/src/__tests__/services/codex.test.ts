@@ -41,8 +41,8 @@ describe("Codex Services", () => {
 
       // get
       mockGet.mockResolvedValue({ data: mockWorkspaces[0] })
-      expect(await workspaceService.get(1)).toEqual(mockWorkspaces[0])
-      expect(mockGet).toHaveBeenCalledWith("/api/v1/workspaces/1")
+      expect(await workspaceService.get("workspace-1")).toEqual(mockWorkspaces[0])
+      expect(mockGet).toHaveBeenCalledWith("/api/v1/workspaces/workspace-1")
 
       // create
       mockPost.mockResolvedValue({ data: mockWorkspaces[0] })
@@ -52,8 +52,8 @@ describe("Codex Services", () => {
       // updateTheme
       const themed = { id: 1, name: "Workspace", theme_setting: "dark" }
       mockPatch.mockResolvedValue({ data: themed })
-      expect(await workspaceService.updateTheme(1, "dark")).toEqual(themed)
-      expect(mockPatch).toHaveBeenCalledWith("/api/v1/workspaces/1/theme", { theme: "dark" })
+      expect(await workspaceService.updateTheme("workspace-1", "dark")).toEqual(themed)
+      expect(mockPatch).toHaveBeenCalledWith("/api/v1/workspaces/workspace-1/theme", { theme: "dark" })
     })
   })
 
@@ -62,16 +62,16 @@ describe("Codex Services", () => {
       const mockNotebooks = [{ id: 1, name: "Notebook 1" }, { id: 2, name: "Notebook 2" }]
 
       mockGet.mockResolvedValue({ data: mockNotebooks })
-      expect(await notebookService.list(1)).toEqual(mockNotebooks)
-      expect(mockGet).toHaveBeenCalledWith("/api/v1/workspaces/1/notebooks/")
+      expect(await notebookService.list("ws-1")).toEqual(mockNotebooks)
+      expect(mockGet).toHaveBeenCalledWith("/api/v1/workspaces/ws-1/notebooks/")
 
       mockGet.mockResolvedValue({ data: mockNotebooks[0] })
-      expect(await notebookService.get(1, 1)).toEqual(mockNotebooks[0])
-      expect(mockGet).toHaveBeenCalledWith("/api/v1/workspaces/1/notebooks/1")
+      expect(await notebookService.get("ws-1", "nb-1")).toEqual(mockNotebooks[0])
+      expect(mockGet).toHaveBeenCalledWith("/api/v1/workspaces/ws-1/notebooks/nb-1")
 
       mockPost.mockResolvedValue({ data: mockNotebooks[0] })
-      expect(await notebookService.create(1, "New Notebook")).toEqual(mockNotebooks[0])
-      expect(mockPost).toHaveBeenCalledWith("/api/v1/workspaces/1/notebooks/", { name: "New Notebook" })
+      expect(await notebookService.create("ws-1", "New Notebook")).toEqual(mockNotebooks[0])
+      expect(mockPost).toHaveBeenCalledWith("/api/v1/workspaces/ws-1/notebooks/", { name: "New Notebook" })
     })
   })
 
@@ -80,13 +80,13 @@ describe("Codex Services", () => {
       const mockResults = { results: [{ id: 1, title: "Test" }] }
       mockGet.mockResolvedValue({ data: mockResults })
 
-      expect(await searchService.search(1, "test query")).toEqual(mockResults)
-      expect(mockGet).toHaveBeenCalledWith("/api/v1/workspaces/1/search/?q=test%20query")
+      expect(await searchService.search("ws-1", "test query")).toEqual(mockResults)
+      expect(mockGet).toHaveBeenCalledWith("/api/v1/workspaces/ws-1/search/?q=test%20query")
 
       const tagResults = { results: [{ id: 1, title: "Tagged File" }] }
       mockGet.mockResolvedValue({ data: tagResults })
-      expect(await searchService.searchByTags(1, ["tag1", "tag2"])).toEqual(tagResults)
-      expect(mockGet).toHaveBeenCalledWith("/api/v1/workspaces/1/search/tags?tags=tag1%2Ctag2")
+      expect(await searchService.searchByTags("ws-1", ["tag1", "tag2"])).toEqual(tagResults)
+      expect(mockGet).toHaveBeenCalledWith("/api/v1/workspaces/ws-1/search/tags?tags=tag1%2Ctag2")
     })
   })
 })

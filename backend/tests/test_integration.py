@@ -165,7 +165,9 @@ class TestWorkspaceCRUD:
         )
         ws_id = create_resp.json()["id"]
 
-        resp = client.get(f"/api/v1/workspaces/{ws_id}", headers=headers)
+        ws_slug = create_resp.json()["slug"]
+
+        resp = client.get(f"/api/v1/workspaces/{ws_slug}", headers=headers)
         assert resp.status_code == 200
         assert resp.json()["name"] == name
 
@@ -199,7 +201,7 @@ class TestNotebookCRUD:
         name = f"integration-test-nb-{ts}"
 
         resp = client.post(
-            f"/api/v1/workspaces/{ws['id']}/notebooks/",
+            f"/api/v1/workspaces/{ws['slug']}/notebooks/",
             json={"name": name},
             headers=headers,
         )
@@ -213,13 +215,13 @@ class TestNotebookCRUD:
 
         # Create a notebook first
         client.post(
-            f"/api/v1/workspaces/{ws['id']}/notebooks/",
+            f"/api/v1/workspaces/{ws['slug']}/notebooks/",
             json={"name": f"nb-list-{int(time.time() * 1000)}"},
             headers=headers,
         )
 
         resp = client.get(
-            f"/api/v1/workspaces/{ws['id']}/notebooks/",
+            f"/api/v1/workspaces/{ws['slug']}/notebooks/",
             headers=headers,
         )
         assert resp.status_code == 200
@@ -243,7 +245,7 @@ class TestFileOperations:
             headers=headers,
         ).json()
         nb = client.post(
-            f"/api/v1/workspaces/{ws['id']}/notebooks/",
+            f"/api/v1/workspaces/{ws['slug']}/notebooks/",
             json={"name": f"file-nb-{int(time.time() * 1000)}"},
             headers=headers,
         ).json()
@@ -255,7 +257,7 @@ class TestFileOperations:
 
         # Create a page and block via block API
         page_resp = client.post(
-            f"/api/v1/workspaces/{ws['id']}/notebooks/{nb['id']}/blocks/pages",
+            f"/api/v1/workspaces/{ws['slug']}/notebooks/{nb['slug']}/blocks/pages",
             json={"title": "Integration Test Page"},
             headers=headers,
         )
@@ -264,7 +266,7 @@ class TestFileOperations:
 
         content = "# Hello from integration tests\n"
         resp = client.post(
-            f"/api/v1/workspaces/{ws['id']}/notebooks/{nb['id']}/blocks/",
+            f"/api/v1/workspaces/{ws['slug']}/notebooks/{nb['slug']}/blocks/",
             json={"parent_block_id": page["block_id"], "content": content},
             headers=headers,
         )
@@ -276,13 +278,13 @@ class TestFileOperations:
 
         # Create a page first
         client.post(
-            f"/api/v1/workspaces/{ws['id']}/notebooks/{nb['id']}/blocks/pages",
+            f"/api/v1/workspaces/{ws['slug']}/notebooks/{nb['slug']}/blocks/pages",
             json={"title": "List Test Page"},
             headers=headers,
         )
 
         resp = client.get(
-            f"/api/v1/workspaces/{ws['id']}/notebooks/{nb['id']}/blocks/",
+            f"/api/v1/workspaces/{ws['slug']}/notebooks/{nb['slug']}/blocks/",
             headers=headers,
         )
         assert resp.status_code == 200
@@ -306,7 +308,7 @@ class TestSearch:
         ).json()
         # Create a notebook so the workspace search route has something to query
         client.post(
-            f"/api/v1/workspaces/{ws['id']}/notebooks/",
+            f"/api/v1/workspaces/{ws['slug']}/notebooks/",
             json={"name": f"search-nb-{int(time.time() * 1000)}"},
             headers=headers,
         )
@@ -449,15 +451,15 @@ class TestEndToEndFlow:
         assert ws_list.status_code == 200
         assert len(ws_list.json()) >= 1
 
-        # 6. Get workspace by id
-        ws_detail = client.get(f"/api/v1/workspaces/{ws['id']}", headers=headers)
+        # 6. Get workspace by slug
+        ws_detail = client.get(f"/api/v1/workspaces/{ws['slug']}", headers=headers)
         assert ws_detail.status_code == 200
         assert ws_detail.json()["name"] == ws_name
 
         # 7. Create notebook
         nb_name = f"e2e-nb-{ts}"
         nb_resp = client.post(
-            f"/api/v1/workspaces/{ws['id']}/notebooks/",
+            f"/api/v1/workspaces/{ws['slug']}/notebooks/",
             json={"name": nb_name},
             headers=headers,
         )
@@ -467,7 +469,7 @@ class TestEndToEndFlow:
 
         # 8. List notebooks
         nb_list = client.get(
-            f"/api/v1/workspaces/{ws['id']}/notebooks/",
+            f"/api/v1/workspaces/{ws['slug']}/notebooks/",
             headers=headers,
         )
         assert nb_list.status_code == 200
@@ -475,7 +477,7 @@ class TestEndToEndFlow:
 
         # 9. Create page and block
         page_resp = client.post(
-            f"/api/v1/workspaces/{ws['id']}/notebooks/{nb['id']}/blocks/pages",
+            f"/api/v1/workspaces/{ws['slug']}/notebooks/{nb['slug']}/blocks/pages",
             json={"title": "E2E Test Page"},
             headers=headers,
         )
@@ -483,7 +485,7 @@ class TestEndToEndFlow:
         page = page_resp.json()
 
         block_resp = client.post(
-            f"/api/v1/workspaces/{ws['id']}/notebooks/{nb['id']}/blocks/",
+            f"/api/v1/workspaces/{ws['slug']}/notebooks/{nb['slug']}/blocks/",
             json={"parent_block_id": page["block_id"], "content": "# End-to-end test content\n"},
             headers=headers,
         )
@@ -491,7 +493,7 @@ class TestEndToEndFlow:
 
         # 10. List blocks
         blocks_list = client.get(
-            f"/api/v1/workspaces/{ws['id']}/notebooks/{nb['id']}/blocks/",
+            f"/api/v1/workspaces/{ws['slug']}/notebooks/{nb['slug']}/blocks/",
             headers=headers,
         )
         assert blocks_list.status_code == 200

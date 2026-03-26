@@ -1517,9 +1517,15 @@ async function handleBlockUpload(dataTransfer: DataTransfer, notebookId: number,
       if (!workspaceStore.currentWorkspace) return
       const nb = workspaceStore.notebooks.find((n) => n.id === notebookId)
       if (!nb) return
-      await blockService.uploadFolderZip(nb.slug, workspaceStore.currentWorkspace.slug, zipFile, pagePath)
+      const importResult = await blockService.uploadFolderZip(nb.slug, workspaceStore.currentWorkspace.slug, zipFile, pagePath)
+      showToast({ message: `Importing folder (${droppedFiles.length} files)...` })
+      const task = await blockService.waitForTask(workspaceStore.currentWorkspace.slug, importResult.task_id)
       await workspaceStore.fetchBlockTree(notebookId)
-      showToast({ message: `Uploaded folder (${droppedFiles.length} files)` })
+      if (task.status === "completed") {
+        showToast({ message: `Uploaded folder (${droppedFiles.length} files)` })
+      } else {
+        showToast({ message: `Folder import ${task.status}`, type: "error" })
+      }
     } catch (e) {
       console.error("Failed to upload folder:", e)
       showToast({ message: "Failed to upload folder", type: "error" })

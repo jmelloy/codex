@@ -5,6 +5,7 @@
       <span class="block-title">API</span>
       <span v-if="config.method" class="method-badge" :class="methodClass">{{ config.method || 'GET' }}</span>
       <button v-if="!loading" class="refresh-btn" @click="fetchData" title="Refresh">&#x21bb;</button>
+      <button class="edit-btn" @click="$emit('edit')" title="Edit config">&#x270E;</button>
     </div>
     <div class="block-content">
       <!-- Loading state -->
@@ -82,6 +83,10 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+
+defineEmits<{
+  edit: []
+}>()
 
 const loading = ref(false)
 const error = ref<string | null>(null)
@@ -249,7 +254,7 @@ onUnmounted(() => {
 .method-put { background: #fef3c7; color: #92400e; }
 .method-delete { background: #fee2e2; color: #991b1b; }
 
-.refresh-btn, .retry-btn {
+.refresh-btn, .retry-btn, .edit-btn {
   margin-left: auto;
   background: none;
   border: 1px solid var(--color-border-medium, #d1d5db);
@@ -260,7 +265,10 @@ onUnmounted(() => {
   color: var(--color-text-secondary, #6b7280);
 }
 
-.refresh-btn:hover, .retry-btn:hover {
+.refresh-btn { margin-left: auto; }
+.edit-btn { margin-left: 0; }
+
+.refresh-btn:hover, .retry-btn:hover, .edit-btn:hover {
   background: var(--color-bg-tertiary, #f3f4f6);
 }
 

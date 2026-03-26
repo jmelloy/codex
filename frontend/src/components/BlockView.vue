@@ -148,21 +148,48 @@
             <!-- Database block -->
             <template v-else-if="block.block_type === 'database' || detectDynamicType(block) === 'database'">
               <DatabaseBlock
+                v-if="editingBlockId !== block.block_id"
                 :config="parseDynamicConfig(block)"
                 :workspace-id="workspaceId"
                 :notebook-id="notebookId"
                 :parent-block-id="blocks[0]?.parent_block_id || undefined"
                 @navigate-page="(b: any) => $emit('navigatePage', b)"
+                @edit="startEditing(block, index)"
+                @update-config="(cfg: Record<string, any>) => updateDynamicConfig(block, cfg)"
               />
+              <textarea
+                v-else
+                ref="textareaRefs"
+                v-model="editContent"
+                class="block-textarea textarea-code"
+                placeholder="Enter block config (JSON or YAML)..."
+                :data-block-index="index"
+                @blur="finishEditing(block)"
+                @keydown="handleKeydown($event, block, index)"
+                @input="autoResize($event)"
+              ></textarea>
             </template>
 
             <!-- API block -->
             <template v-else-if="block.block_type === 'api' || detectDynamicType(block) === 'api'">
               <ApiBlock
+                v-if="editingBlockId !== block.block_id"
                 :config="parseDynamicConfig(block)"
                 :workspace-id="workspaceId"
                 :notebook-id="notebookId"
+                @edit="startEditing(block, index)"
               />
+              <textarea
+                v-else
+                ref="textareaRefs"
+                v-model="editContent"
+                class="block-textarea textarea-code"
+                placeholder="Enter block config (JSON or YAML)..."
+                :data-block-index="index"
+                @blur="finishEditing(block)"
+                @keydown="handleKeydown($event, block, index)"
+                @input="autoResize($event)"
+              ></textarea>
             </template>
 
             <!-- Editable blocks -->
@@ -459,6 +486,12 @@ function renderBlock(block: Block): string {
 
 function getPlaceholder(_blockType: string): string {
   return ""
+}
+
+function updateDynamicConfig(block: Block, config: Record<string, any>) {
+  const content = JSON.stringify(config, null, 2)
+  ;(block as any).content = content
+  emit("updateBlock", { block_id: block.block_id, content, block_type: block.block_type })
 }
 
 function startEditing(block: Block, _index: number) {

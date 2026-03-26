@@ -20,7 +20,6 @@ services:
     volumes:
       - ./data:/app/data
       - ./backend:/app
-      - ./frontend/dist:/app/static
     restart: unless-stopped
     command: >
       sh -c "alembic upgrade head && python -m codex.main"
@@ -32,14 +31,15 @@ services:
       start_period: 10s
 
   frontend:
-    image: node:24-slim
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     working_dir: /app
     ports:
       - 8065:5173
     volumes:
       - ./frontend:/app
       - frontend-node-modules:/app/node_modules
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
     environment:
       - VITE_PROXY_TARGET=http://backend:8000
     stdin_open: true

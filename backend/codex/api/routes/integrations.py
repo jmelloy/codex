@@ -303,7 +303,12 @@ async def _execute_database_query(
     max_rows = min(int(config.get("max_rows", 100)), 1000)
     limit_override = (request_data.parameters or {}).get("limit")
     if limit_override:
-        max_rows = min(int(limit_override), max_rows)
+        try:
+            max_rows = min(int(limit_override), max_rows)
+        except (ValueError, TypeError):
+            return IntegrationExecuteResponse(
+                success=False, data=None, error="Invalid 'limit' parameter: must be an integer"
+            )
 
     try:
         conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)

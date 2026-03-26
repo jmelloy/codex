@@ -98,7 +98,9 @@ class Task(SQLModel, table=True):
     title: str
     description: str | None = None
     status: str = Field(default="pending")  # pending, in_progress, completed, failed
+    task_type: str | None = None  # e.g. "zip_import"
     assigned_to: str | None = None  # Agent identifier
+    task_metadata: str | None = None  # JSON-encoded task-specific context
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
     )

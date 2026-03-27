@@ -111,8 +111,9 @@ spec:
               memory: 192Mi
       volumes:
         - name: data
-          persistentVolumeClaim:
-            claimName: codex-data
+          nfs:
+            server: 10.128.100.50
+            path: /
         - name: plugins
           emptyDir: {}
 ---

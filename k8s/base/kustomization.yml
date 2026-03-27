@@ -6,8 +6,7 @@ namespace: codex
 resources:
   - namespace.yml
   - configmap.yml
-  - rook-ceph
-  - pvc.yml
+  - nfs
   - backend-deployment.yml
   - backup-cronjob.yml
   - ingress.yml

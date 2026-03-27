@@ -1,4 +1,4 @@
-# Nightly backup of the CephFS data volume to S3.
+# Nightly backup of the NFS data volume to S3.
 #
 # Runs `aws s3 sync` from the shared /app/data mount to an S3 bucket.
 # The PVC is ReadWriteMany so this doesn't interfere with running pods.
@@ -94,5 +94,7 @@ spec:
                   memory: 128Mi
           volumes:
             - name: data
-              persistentVolumeClaim:
-                claimName: codex-data
+              nfs:
+                server: 10.128.100.50
+                path: /
+                readOnly: true

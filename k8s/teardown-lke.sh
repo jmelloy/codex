@@ -4,7 +4,7 @@
 #
 # This reverses what setup-lke.sh installs:
 #   1. Codex application (kustomize overlay)
-#   2. Rook-Ceph (CephCluster, CephFilesystem, operator)
+#   2. NFS server and backing PVC
 #   3. cert-manager + ClusterIssuer
 #   4. NGINX Ingress Controller (and its LoadBalancer)
 #
@@ -50,7 +50,7 @@ if [[ "${SKIP_CONFIRM}" != true ]]; then
   echo "  - PersistentVolumeClaims and their data (codex-data)"
   echo "  - The codex namespace and all resources within it"
   if [[ "${KEEP_INFRA}" != true ]]; then
-    echo "  - Rook-Ceph (CephCluster, CephFilesystem, operator)"
+    echo "  - NFS server and backing storage"
     echo "  - cert-manager (namespace + CRDs)"
     echo "  - NGINX Ingress Controller (namespace + LoadBalancer)"
   fi
@@ -82,17 +82,8 @@ if [[ "${KEEP_INFRA}" == true ]]; then
   echo "==> Skipping infrastructure teardown (--keep-infra)."
   echo ""
 else
-  # ── 4. Remove Rook-Ceph ────────────────────────────────────────────────────
-  echo "==> Deleting CephFilesystem and CephCluster..."
-  kubectl -n rook-ceph delete cephfilesystem codex-cephfs --ignore-not-found --wait=true 2>/dev/null || true
-  kubectl -n rook-ceph delete cephcluster rook-ceph --ignore-not-found --wait=true 2>/dev/null || true
-
-  echo "==> Deleting CephFS StorageClass..."
-  kubectl delete storageclass cephfs --ignore-not-found 2>/dev/null || true
-
-  echo "==> Uninstalling Rook-Ceph operator..."
-  helm uninstall rook-ceph --namespace rook-ceph --wait 2>/dev/null || true
-  kubectl delete namespace rook-ceph --ignore-not-found --wait=true 2>/dev/null || true
+  # ── 4. NFS server is deleted as part of the Codex namespace above ────────
+  echo "==> NFS server and backing PVC deleted with codex namespace."
   echo ""
 
   # ── 5. Remove cert-manager ──────────────────────────────────────────────────

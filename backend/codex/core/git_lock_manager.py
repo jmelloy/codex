@@ -1,20 +1,47 @@
 """Lock manager for git operations to prevent conflicts."""
 
-import asyncio
 import logging
 import threading
-from contextlib import asynccontextmanager, contextmanager
+import time
+from contextlib import contextmanager
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+# Maximum age (seconds) for a .git/index.lock file before it's considered stale
+STALE_LOCK_SECONDS = 60
+
+
+def _clean_stale_index_lock(notebook_path: str) -> None:
+    """Remove .git/index.lock if it exists and is older than STALE_LOCK_SECONDS."""
+    lock_file = Path(notebook_path) / ".git" / "index.lock"
+    if not lock_file.exists():
+        return
+    try:
+        age = time.time() - lock_file.stat().st_mtime
+        if age > STALE_LOCK_SECONDS:
+            lock_file.unlink(missing_ok=True)
+            logger.warning(
+                f"Removed stale git index.lock ({age:.0f}s old): {lock_file}"
+            )
+        else:
+            logger.debug(
+                f"Git index.lock exists but is recent ({age:.0f}s old), leaving it: {lock_file}"
+            )
+    except FileNotFoundError:
+        pass  # Race: file was removed between exists() and stat()/unlink()
+    except Exception as e:
+        logger.error(f"Error checking git index.lock: {e}")
 
 
 class GitLockManager:
     """Manager for locking git operations per notebook path to prevent conflicts.
 
-    This class provides both synchronous and asynchronous locking mechanisms
-    to ensure that git operations on the same repository don't conflict with
-    each other when called from multiple threads or async tasks.
+    Uses a single threading.RLock per notebook path that protects all git
+    operations regardless of whether they originate from sync threads (file
+    watcher) or async tasks (API routes).  The async_lock() context manager
+    acquires the *same* underlying RLock via run_in_executor so that sync
+    and async callers are properly serialised.
     """
 
     _instance = None
@@ -34,103 +61,51 @@ class GitLockManager:
         if self._initialized:
             return
 
-        # Threading locks for synchronous operations
-        self._sync_locks: dict[str, threading.RLock] = {}
-        self._sync_locks_lock = threading.Lock()
-
-        # Asyncio locks for asynchronous operations
-        self._async_locks: dict[str, asyncio.Lock] = {}
-        self._async_locks_lock = threading.Lock()
+        # Single set of locks used by both sync and async paths
+        self._locks: dict[str, threading.RLock] = {}
+        self._locks_lock = threading.Lock()
 
         self._initialized = True
         logger.info("GitLockManager initialized")
 
-    def _get_sync_lock(self, notebook_path: str) -> threading.RLock:
-        """Get or create a threading lock for the given notebook path.
-
-        Args:
-            notebook_path: The path to the notebook repository
-
-        Returns:
-            A threading.RLock for the notebook
-        """
-        with self._sync_locks_lock:
-            if notebook_path not in self._sync_locks:
-                self._sync_locks[notebook_path] = threading.RLock()
-                logger.debug(f"Created sync lock for notebook: {notebook_path}")
-            return self._sync_locks[notebook_path]
-
-    def _get_async_lock(self, notebook_path: str) -> asyncio.Lock:
-        """Get or create an asyncio lock for the given notebook path.
-
-        Args:
-            notebook_path: The path to the notebook repository
-
-        Returns:
-            An asyncio.Lock for the notebook
-        """
-        with self._async_locks_lock:
-            if notebook_path not in self._async_locks:
-                self._async_locks[notebook_path] = asyncio.Lock()
-                logger.debug(f"Created async lock for notebook: {notebook_path}")
-            return self._async_locks[notebook_path]
+    def _get_lock(self, notebook_path: str) -> threading.RLock:
+        """Get or create a lock for the given notebook path."""
+        with self._locks_lock:
+            if notebook_path not in self._locks:
+                self._locks[notebook_path] = threading.RLock()
+                logger.debug(f"Created lock for notebook: {notebook_path}")
+            return self._locks[notebook_path]
 
     @contextmanager
-    def lock(self, notebook_path: str):
+    def lock(self, notebook_path: str, timeout: float = 30.0):
         """Context manager for synchronous git operations.
 
         Args:
             notebook_path: The path to the notebook repository
+            timeout: Maximum seconds to wait for the lock (default 30)
 
-        Yields:
-            None
-
-        Example:
-            with git_lock_manager.lock(notebook_path):
-                # Perform git operations here
-                git_manager.commit("message")
+        Raises:
+            TimeoutError: If the lock cannot be acquired within timeout
         """
-        lock = self._get_sync_lock(notebook_path)
-        # logger.debug(f"Acquiring sync lock for: {notebook_path}")
-        lock.acquire()
+        # Clean up stale git index.lock before trying to acquire
+        _clean_stale_index_lock(notebook_path)
+
+        rlock = self._get_lock(notebook_path)
+        acquired = rlock.acquire(timeout=timeout)
+        if not acquired:
+            # Last resort: check if the index.lock is stale and force-clean
+            _clean_stale_index_lock(notebook_path)
+            acquired = rlock.acquire(timeout=5)
+            if not acquired:
+                logger.error(f"Timeout acquiring git lock for: {notebook_path}")
+                raise TimeoutError(f"Could not acquire git lock for {notebook_path} within {timeout}s")
+
         try:
-            # logger.debug(f"Acquired sync lock for: {notebook_path}")
             yield
         finally:
-            lock.release()
-            # logger.debug(f"Released sync lock for: {notebook_path}")
-            lock_file = Path(notebook_path) / ".git" / "git.lock"
-            if lock_file.exists():
-                try:
-                    lock_file.unlink()
-                    logger.warning(f"Removed stale git lock file: {lock_file}")
-                except Exception as e:
-                    logger.error(f"Error removing git lock file: {e}")
-
-    @asynccontextmanager
-    async def async_lock(self, notebook_path: str):
-        """Context manager for asynchronous git operations.
-
-        Args:
-            notebook_path: The path to the notebook repository
-
-        Yields:
-            None
-
-        Example:
-            async with git_lock_manager.async_lock(notebook_path):
-                # Perform git operations here
-                git_manager.commit("message")
-        """
-        lock = self._get_async_lock(notebook_path)
-        logger.debug(f"Acquiring async lock for: {notebook_path}")
-        await lock.acquire()
-        try:
-            logger.debug(f"Acquired async lock for: {notebook_path}")
-            yield
-        finally:
-            lock.release()
-            logger.debug(f"Released async lock for: {notebook_path}")
+            rlock.release()
+            # Clean up any index.lock left behind by a crashed git process
+            _clean_stale_index_lock(notebook_path)
 
     def clear_locks(self, notebook_path: str = None):
         """Clear locks for a specific notebook or all notebooks.
@@ -140,21 +115,13 @@ class GitLockManager:
         Args:
             notebook_path: Optional path to clear locks for. If None, clears all locks.
         """
-        with self._sync_locks_lock:
+        with self._locks_lock:
             if notebook_path:
-                self._sync_locks.pop(notebook_path, None)
-                logger.debug(f"Cleared sync lock for: {notebook_path}")
+                self._locks.pop(notebook_path, None)
+                logger.debug(f"Cleared lock for: {notebook_path}")
             else:
-                self._sync_locks.clear()
-                logger.debug("Cleared all sync locks")
-
-        with self._async_locks_lock:
-            if notebook_path:
-                self._async_locks.pop(notebook_path, None)
-                logger.debug(f"Cleared async lock for: {notebook_path}")
-            else:
-                self._async_locks.clear()
-                logger.debug("Cleared all async locks")
+                self._locks.clear()
+                logger.debug("Cleared all locks")
 
 
 # Global singleton instance

@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  namespace: codex
+  labels:
+    app.kubernetes.io/name: worker
+    app.kubernetes.io/part-of: codex
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: worker
+        app.kubernetes.io/part-of: codex
+    spec:
+      containers:
+        - name: worker
+          image: ghcr.io/OWNER/codex-backend:latest # replaced by Kustomize overlay
+          envFrom:
+            - configMapRef:
+                name: codex-config
+          env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: codex-secrets
+                  key: SECRET_KEY
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: codex-secrets
+                  key: OPENAI_API_KEY
+                  optional: true
+            - name: VOYAGE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: codex-secrets
+                  key: VOYAGE_API_KEY
+                  optional: true
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+          command: ["arq", "codex.worker.settings.WorkerSettings"]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 192Mi
+      volumes:
+        - name: data
+          nfs:
+            server: 10.128.100.50
+            path: /

@@ -7,7 +7,9 @@ resources:
   - namespace.yml
   - configmap.yml
   - nfs
+  - redis-deployment.yml
   - backend-deployment.yml
+  - worker-deployment.yml
   - backup-cronjob.yml
   - ingress.yml
 

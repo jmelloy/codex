@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
@@ -20,6 +20,7 @@ class TaskCreate(BaseModel):
 
     title: str
     description: str | None = None
+    job_type: str = "agent"
 
 
 class TaskUpdate(BaseModel):
@@ -43,12 +44,19 @@ async def _verify_workspace_access(workspace_id: int, current_user: User, sessio
 @router.get("/")
 async def list_tasks(
     workspace_identifier: str,
+    status: str | None = None,
+    assigned_to: str | None = None,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_system_session),
 ) -> list[Task]:
-    """List all tasks for a workspace."""
+    """List all tasks for a workspace, with optional filtering."""
     workspace = await get_workspace_by_slug(workspace_identifier, current_user, session)
-    result = await session.execute(select(Task).where(Task.workspace_id == workspace.id))
+    stmt = select(Task).where(Task.workspace_id == workspace.id)
+    if status is not None:
+        stmt = stmt.where(Task.status == status)
+    if assigned_to is not None:
+        stmt = stmt.where(Task.assigned_to == assigned_to)
+    result = await session.execute(stmt)
     return result.scalars().all()
 
 
@@ -77,7 +85,12 @@ async def create_task(
 ) -> Task:
     """Create a new task."""
     workspace = await get_workspace_by_slug(workspace_identifier, current_user, session)
-    task = Task(workspace_id=workspace.id, title=body.title, description=body.description)
+    task = Task(
+        workspace_id=workspace.id,
+        title=body.title,
+        description=body.description,
+        job_type=body.job_type,
+    )
     session.add(task)
     await session.commit()
     await session.refresh(task)
@@ -112,3 +125,91 @@ async def update_task(
     await session.commit()
     await session.refresh(task)
     return task
+
+
+@router.delete("/{task_id}", status_code=204)
+async def delete_task(
+    workspace_identifier: str,
+    task_id: int,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+) -> None:
+    """Delete a task."""
+    result = await session.execute(select(Task).where(Task.id == task_id))
+    task = result.scalar_one_or_none()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    await _verify_workspace_access(task.workspace_id, current_user, session)
+    await session.delete(task)
+    await session.commit()
+
+
+@router.post("/{task_id}/enqueue")
+async def enqueue_task(
+    workspace_identifier: str,
+    task_id: int,
+    request: Request,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+) -> Task:
+    """Enqueue a task for background execution via the ARQ worker."""
+    result = await session.execute(select(Task).where(Task.id == task_id))
+    task = result.scalar_one_or_none()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    await _verify_workspace_access(task.workspace_id, current_user, session)
+
+    if task.status not in ("pending", "failed"):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Task cannot be enqueued — current status is '{task.status}'",
+        )
+
+    arq_pool = getattr(request.app.state, "arq_pool", None)
+    if arq_pool is None:
+        raise HTTPException(status_code=503, detail="Task queue is not available (Redis not connected)")
+
+    job = await arq_pool.enqueue_job("run_job", task.id)
+    task.job_id = job.job_id
+    task.status = "pending"
+    task.updated_at = datetime.now(UTC)
+    session.add(task)
+    await session.commit()
+    await session.refresh(task)
+    return task
+
+
+@router.get("/{task_id}/status")
+async def get_task_status(
+    workspace_identifier: str,
+    task_id: int,
+    request: Request,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+) -> dict:
+    """Get the background job status for a task."""
+    result = await session.execute(select(Task).where(Task.id == task_id))
+    task = result.scalar_one_or_none()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    await _verify_workspace_access(task.workspace_id, current_user, session)
+
+    response: dict = {
+        "task_id": task.id,
+        "status": task.status,
+        "job_id": task.job_id,
+    }
+
+    # If we have a job_id and a Redis connection, query ARQ for live status
+    arq_pool = getattr(request.app.state, "arq_pool", None)
+    if arq_pool is not None and task.job_id:
+        try:
+            job = arq_pool.job(task.job_id)
+            info = await job.info()
+            if info:
+                response["job_status"] = info.status
+                response["job_result"] = info.result if info.status == "complete" else None
+        except Exception:
+            pass  # Redis unavailable — fall back to DB status only
+
+    return response

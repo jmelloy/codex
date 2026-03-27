@@ -1,4 +1,15 @@
 services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - 6379:6379
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
   backend:
     build:
       context: .
@@ -7,6 +18,7 @@ services:
       - 8765:8000
     environment:
       - DATABASE_URL=sqlite:////app/data/codex_system.db
+      - REDIS_URL=redis://redis:6379/0
       - DEBUG=${DEBUG:-false}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - LOG_FORMAT=${LOG_FORMAT:-colored}
@@ -21,6 +33,9 @@ services:
       - ./data:/app/data
       - ./backend:/app
     restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
     command: >
       sh -c "alembic upgrade head && python -m codex.main"
     healthcheck:
@@ -29,6 +44,26 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
+
+  worker:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      - DATABASE_URL=sqlite:////app/data/codex_system.db
+      - REDIS_URL=redis://redis:6379/0
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - LOG_FORMAT=${LOG_FORMAT:-plain}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - VOYAGE_API_KEY=${VOYAGE_API_KEY}
+    volumes:
+      - ./data:/app/data
+      - ./backend:/app
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: arq codex.worker.settings.WorkerSettings
 
   frontend:
     build:

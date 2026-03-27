@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nfs-server
+  namespace: codex
+  labels:
+    app.kubernetes.io/name: nfs-server
+    app.kubernetes.io/part-of: codex
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: nfs-server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: nfs-server
+        app.kubernetes.io/part-of: codex
+    spec:
+      containers:
+        - name: nfs-server
+          image: itsthenetwork/nfs-server-alpine:12
+          ports:
+            - containerPort: 2049
+              protocol: TCP
+          env:
+            - name: SHARED_DIRECTORY
+              value: /data
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: backing-store
+              mountPath: /data
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+      volumes:
+        - name: backing-store
+          persistentVolumeClaim:
+            claimName: nfs-backing-store
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nfs-server
+  namespace: codex
+  labels:
+    app.kubernetes.io/name: nfs-server
+    app.kubernetes.io/part-of: codex
+spec:
+  selector:
+    app.kubernetes.io/name: nfs-server
+  ports:
+    - port: 2049
+      targetPort: 2049
+      protocol: TCP
+  type: ClusterIP
+  clusterIP: 10.128.100.50 # fixed IP so NFS PV mounts work (kubelet can't resolve cluster DNS)

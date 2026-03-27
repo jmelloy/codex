@@ -39,6 +39,13 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   // WebSocket connection state
   const wsConnected = ref<Set<number>>(new Set())
 
+  // Track block IDs recently edited by the current user to suppress WebSocket full-refresh
+  const recentlyEditedBlockIds = new Set<string>()
+  function markSelfEdit(blockId: string) {
+    recentlyEditedBlockIds.add(blockId)
+    setTimeout(() => recentlyEditedBlockIds.delete(blockId), 5000)
+  }
+
   // Set up WebSocket event handler
   websocketService.onFileChange((event: FileChangeEvent) => {
     handleFileChangeEvent(event)
@@ -445,6 +452,10 @@ export const useWorkspaceStore = defineStore("workspace", () => {
           }
           if (updated) break
         }
+        // Skip full refresh if this was our own edit — the UI is already up to date
+        if (event.block_id && recentlyEditedBlockIds.has(event.block_id)) {
+          break
+        }
         // Fall through to full refresh if no metadata or node not found
         if (currentWorkspace.value) {
           try {
@@ -717,5 +728,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     createBlock,
     reorderBlocks,
     importMarkdown,
+    // Edit tracking
+    markSelfEdit,
   }
 })

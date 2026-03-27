@@ -1225,9 +1225,13 @@ async function handleReorderBlocks(blockIds: string[]) {
   }
 }
 
-async function handleUpdateBlock(block: { block_id: string; content: string; block_type?: string }) {
+async function handleUpdateBlock(block: { block_id: string; content: string; block_type?: string }, retries = 2) {
   const notebookId = workspaceStore.currentBlock?.notebook_id
   if (!notebookId) return
+
+  // Mark this block as recently edited so WebSocket handler skips full refresh
+  workspaceStore.markSelfEdit(block.block_id)
+
   try {
     const result = await blockService.updateBlock(
       block.block_id,
@@ -1236,10 +1240,25 @@ async function handleUpdateBlock(block: { block_id: string; content: string; blo
       block.content,
       block.block_type,
     )
+    // Merge the updated block in-place instead of replacing the whole array
     if (result.blocks) {
-      workspaceStore.currentPageBlocks = result.blocks
+      const updatedMap = new Map(result.blocks.map((b: any) => [b.block_id, b]))
+      for (let i = 0; i < workspaceStore.currentPageBlocks.length; i++) {
+        const updated = updatedMap.get(workspaceStore.currentPageBlocks[i].block_id)
+        if (updated) {
+          Object.assign(workspaceStore.currentPageBlocks[i], updated)
+        }
+      }
+      // If block count changed (e.g. block type change created/removed blocks), do a full replace
+      if (result.blocks.length !== workspaceStore.currentPageBlocks.length) {
+        workspaceStore.currentPageBlocks = result.blocks
+      }
     }
-  } catch {
+  } catch (e: any) {
+    if (retries > 0) {
+      await new Promise((r) => setTimeout(r, 500))
+      return handleUpdateBlock(block, retries - 1)
+    }
     showToast({ message: "Failed to save block", type: "error" })
   }
 }

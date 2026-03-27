@@ -1,0 +1,100 @@
+# Nightly backup of the NFS data volume to S3.
+#
+# Runs `aws s3 sync` from the shared /app/data mount to an S3 bucket.
+# The PVC is ReadWriteMany so this doesn't interfere with running pods.
+#
+# Required secrets in codex-secrets:
+#   S3_BACKUP_BUCKET      - e.g. s3://my-codex-backups
+#   AWS_ACCESS_KEY_ID     - IAM credentials with s3:PutObject, s3:DeleteObject
+#   AWS_SECRET_ACCESS_KEY
+#   AWS_DEFAULT_REGION    - e.g. us-east-1 (optional, defaults to us-east-1)
+#
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: backup-to-s3
+  namespace: codex
+  labels:
+    app.kubernetes.io/name: backup
+    app.kubernetes.io/part-of: codex
+spec:
+  schedule: "0 3 * * *" # 03:00 UTC daily
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 3600
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: backup
+            app.kubernetes.io/part-of: codex
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: backup
+              image: amazon/aws-cli:2.27.22
+              command:
+                - sh
+                - -c
+                - |
+                  set -eu
+                  DATESTAMP=$(date -u +%Y-%m-%d)
+                  DEST="${S3_BACKUP_BUCKET}/nightly/${DATESTAMP}"
+                  echo "==> Backing up /app/data to ${DEST}"
+                  aws s3 sync /app/data "${DEST}" \
+                    --delete \
+                    --exclude "*.db-journal" \
+                    --exclude "*.db-wal" \
+                    --exclude "*.db-shm"
+                  echo "==> Pruning backups older than 30 days"
+                  CUTOFF=$(date -u -d '30 days ago' +%Y-%m-%d)
+                  aws s3 ls "${S3_BACKUP_BUCKET}/nightly/" | while read -r line; do
+                    DIR=$(echo "${line}" | awk '{print $2}' | tr -d '/')
+                    if [ -n "${DIR}" ] && [ "${DIR}" \< "${CUTOFF}" ]; then
+                      echo "    Removing ${S3_BACKUP_BUCKET}/nightly/${DIR}/"
+                      aws s3 rm "${S3_BACKUP_BUCKET}/nightly/${DIR}/" --recursive
+                    fi
+                  done
+                  echo "==> Backup complete"
+              env:
+                - name: S3_BACKUP_BUCKET
+                  valueFrom:
+                    secretKeyRef:
+                      name: codex-secrets
+                      key: S3_BACKUP_BUCKET
+                - name: AWS_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: codex-secrets
+                      key: AWS_ACCESS_KEY_ID
+                - name: AWS_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: codex-secrets
+                      key: AWS_SECRET_ACCESS_KEY
+                - name: AWS_DEFAULT_REGION
+                  valueFrom:
+                    secretKeyRef:
+                      name: codex-secrets
+                      key: AWS_DEFAULT_REGION
+                      optional: true
+              volumeMounts:
+                - name: data
+                  mountPath: /app/data
+                  readOnly: true
+              resources:
+                requests:
+                  cpu: 25m
+                  memory: 32Mi
+                limits:
+                  cpu: 250m
+                  memory: 128Mi
+          volumes:
+            - name: data
+              nfs:
+                server: 10.128.100.50
+                path: /
+                readOnly: true

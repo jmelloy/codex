@@ -8,8 +8,6 @@ metadata:
     app.kubernetes.io/part-of: codex
 spec:
   replicas: 1
-  strategy:
-    type: Recreate
   selector:
     matchLabels:
       app.kubernetes.io/name: worker
@@ -51,12 +49,13 @@ spec:
           command: ["arq", "codex.worker.settings.WorkerSettings"]
           resources:
             requests:
-              cpu: 100m
+              cpu: 50m
               memory: 64Mi
             limits:
-              cpu: "2"
-              memory: 256Mi
+              cpu: 500m
+              memory: 192Mi
       volumes:
         - name: data
-          persistentVolumeClaim:
-            claimName: codex-data
+          nfs:
+            server: 10.128.100.50
+            path: /

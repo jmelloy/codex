@@ -4,8 +4,9 @@
 #
 # This reverses what setup-lke.sh installs:
 #   1. Codex application (kustomize overlay)
-#   2. cert-manager + ClusterIssuer
-#   3. NGINX Ingress Controller (and its LoadBalancer)
+#   2. NFS server and backing PVC
+#   3. cert-manager + ClusterIssuer
+#   4. NGINX Ingress Controller (and its LoadBalancer)
 #
 # Prerequisites:
 #   - kubectl configured with your LKE kubeconfig
@@ -49,6 +50,7 @@ if [[ "${SKIP_CONFIRM}" != true ]]; then
   echo "  - PersistentVolumeClaims and their data (codex-data)"
   echo "  - The codex namespace and all resources within it"
   if [[ "${KEEP_INFRA}" != true ]]; then
+    echo "  - NFS server and backing storage"
     echo "  - cert-manager (namespace + CRDs)"
     echo "  - NGINX Ingress Controller (namespace + LoadBalancer)"
   fi
@@ -80,7 +82,11 @@ if [[ "${KEEP_INFRA}" == true ]]; then
   echo "==> Skipping infrastructure teardown (--keep-infra)."
   echo ""
 else
-  # ── 4. Remove cert-manager ──────────────────────────────────────────────────
+  # ── 4. NFS server is deleted as part of the Codex namespace above ────────
+  echo "==> NFS server and backing PVC deleted with codex namespace."
+  echo ""
+
+  # ── 5. Remove cert-manager ──────────────────────────────────────────────────
   echo "==> Removing ClusterIssuer..."
   kubectl delete clusterissuer letsencrypt-prod --ignore-not-found 2>/dev/null || true
 
@@ -100,7 +106,7 @@ else
     --ignore-not-found 2>/dev/null || true
   echo ""
 
-  # ── 5. Remove NGINX Ingress Controller ──────────────────────────────────────
+  # ── 6. Remove NGINX Ingress Controller ──────────────────────────────────────
   echo "==> Uninstalling NGINX Ingress Controller..."
   helm uninstall ingress-nginx --namespace ingress-nginx --wait 2>/dev/null || true
   kubectl delete namespace ingress-nginx --ignore-not-found --wait=true 2>/dev/null || true

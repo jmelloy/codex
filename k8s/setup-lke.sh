@@ -5,6 +5,7 @@
 # Prerequisites:
 #   - kubectl configured with your LKE kubeconfig
 #   - helm v3 installed
+#   - Linode Block Storage CSI driver (included with LKE)
 #
 # Usage:
 #   ./k8s/setup-lke.sh [--domain codex.melloy.life] [--email admin@melloy.life]
@@ -94,7 +95,14 @@ spec:
 EOF
 echo ""
 
-# ── 4. Create Codex namespace and secret ─────────────────────────────────────
+# ── 4. NFS server for shared storage ──────────────────────────────────────
+# The NFS server is deployed as part of the Kustomize overlay (k8s/base/nfs/).
+# It uses a Linode Block Storage PVC as its backing store, and exposes an
+# NFS service that backend pods mount as ReadWriteMany.
+echo "==> NFS shared storage will be deployed with the application overlay."
+echo ""
+
+# ── 5. Create Codex namespace and secret ─────────────────────────────────────
 echo "==> Creating codex namespace..."
 kubectl create namespace codex 2>/dev/null || echo "    Namespace 'codex' already exists."
 
@@ -109,10 +117,15 @@ else
 fi
 echo ""
 
-# ── 5. Summary ───────────────────────────────────────────────────────────────
+# ── 6. Summary ───────────────────────────────────────────────────────────────
 echo "=========================================="
 echo " LKE cluster setup complete!"
 echo "=========================================="
+echo ""
+echo "Infrastructure installed:"
+echo "  - NGINX Ingress Controller (LoadBalancer)"
+echo "  - cert-manager (Let's Encrypt TLS)"
+echo "  - NFS server (shared storage via Linode Block Storage)"
 echo ""
 echo "Next steps:"
 echo "  1. Point DNS for '${DOMAIN}' to: ${EXTERNAL_IP:-<pending>}"

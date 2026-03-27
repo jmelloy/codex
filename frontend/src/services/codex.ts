@@ -488,13 +488,14 @@ export const blockService = {
 
   /**
    * Upload a zip file containing a folder structure.
+   * Returns a task that tracks the async import.
    */
   async uploadFolderZip(
     notebookId: string,
     workspaceId: string,
     zipFile: File,
     parentPath?: string
-  ): Promise<{ path: string; block_id: string; pages_created: number; blocks_created: number }> {
+  ): Promise<{ task_id: number; status: string; message: string }> {
     const formData = new FormData()
     formData.append("file", zipFile)
     if (parentPath) {
@@ -505,6 +506,28 @@ export const blockService = {
       formData
     )
     return response.data
+  },
+
+  /**
+   * Poll a task until it reaches a terminal status.
+   */
+  async waitForTask(
+    workspaceId: string,
+    taskId: number,
+    pollIntervalMs = 500,
+    maxAttempts = 120
+  ): Promise<{ status: string; task_metadata?: string }> {
+    for (let i = 0; i < maxAttempts; i++) {
+      const response = await apiClient.get(
+        `/api/v1/workspaces/${workspaceId}/tasks/${taskId}`
+      )
+      const task = response.data
+      if (task.status === "completed" || task.status === "failed") {
+        return task
+      }
+      await new Promise((resolve) => setTimeout(resolve, pollIntervalMs))
+    }
+    return { status: "timeout" }
   },
 
   /**

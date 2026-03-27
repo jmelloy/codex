@@ -8,8 +8,6 @@ metadata:
     app.kubernetes.io/part-of: codex
 spec:
   replicas: 1
-  strategy:
-    type: Recreate
   selector:
     matchLabels:
       app.kubernetes.io/name: backend
@@ -19,6 +17,32 @@ spec:
         app.kubernetes.io/name: backend
         app.kubernetes.io/part-of: codex
     spec:
+      initContainers:
+        # Run migrations once before the main container starts.
+        # Multiple pods may race here but Alembic uses DB-level locking,
+        # so concurrent upgrade attempts are safe (one wins, others no-op).
+        - name: migrate
+          image: ghcr.io/OWNER/codex-backend:latest # replaced by Kustomize overlay
+          command: ["alembic", "upgrade", "head"]
+          envFrom:
+            - configMapRef:
+                name: codex-config
+          env:
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: codex-secrets
+                  key: SECRET_KEY
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
       containers:
         - name: backend
           image: ghcr.io/OWNER/codex-backend:latest # replaced by Kustomize overlay
@@ -65,7 +89,7 @@ spec:
               mountPath: /app/data
             - name: plugins
               mountPath: /app/plugins
-          command: ["sh", "-c", "alembic upgrade head && python -m codex.main"]
+          command: ["python", "-m", "codex.main"]
           readinessProbe:
             httpGet:
               path: /health
@@ -80,15 +104,16 @@ spec:
             periodSeconds: 30
           resources:
             requests:
-              cpu: 100m
+              cpu: 50m
               memory: 64Mi
             limits:
-              cpu: "2"
-              memory: 256Mi
+              cpu: 500m
+              memory: 192Mi
       volumes:
         - name: data
-          persistentVolumeClaim:
-            claimName: codex-data
+          nfs:
+            server: 10.128.100.50
+            path: /
         - name: plugins
           emptyDir: {}
 ---

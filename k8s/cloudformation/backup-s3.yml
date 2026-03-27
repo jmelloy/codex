@@ -1,0 +1,128 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  AWS resources for Codex nightly backups.
+  Creates an S3 bucket with lifecycle rules and an IAM user with
+  scoped credentials for the Kubernetes backup CronJob.
+
+Parameters:
+  BucketName:
+    Type: String
+    Description: Name of the S3 bucket for backups
+    Default: codex-backups
+    AllowedPattern: "^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$"
+    ConstraintDescription: Must be a valid S3 bucket name
+
+  RetentionDays:
+    Type: Number
+    Description: Days to retain nightly backups before S3 lifecycle deletes them
+    Default: 90
+    MinValue: 7
+
+  InfrequentAccessDays:
+    Type: Number
+    Description: Days before transitioning backups to S3 Infrequent Access
+    Default: 30
+    MinValue: 1
+
+Resources:
+  # ── S3 Bucket ──────────────────────────────────────────────────────────────
+  BackupBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Ref BucketName
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: TransitionToIA
+            Status: Enabled
+            Prefix: nightly/
+            Transitions:
+              - StorageClass: STANDARD_IA
+                TransitionInDays: !Ref InfrequentAccessDays
+          - Id: ExpireOldBackups
+            Status: Enabled
+            Prefix: nightly/
+            ExpirationInDays: !Ref RetentionDays
+          - Id: CleanupOldVersions
+            Status: Enabled
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 30
+
+  # ── IAM Policy ─────────────────────────────────────────────────────────────
+  BackupPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub "${BucketName}-backup-policy"
+      Description: Allows the Codex backup CronJob to sync to and prune from the backup bucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowSync
+            Effect: Allow
+            Action:
+              - s3:PutObject
+              - s3:GetObject
+              - s3:DeleteObject
+              - s3:ListBucket
+            Resource:
+              - !GetAtt BackupBucket.Arn
+              - !Sub "${BackupBucket.Arn}/*"
+
+  # ── IAM User ───────────────────────────────────────────────────────────────
+  BackupUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: !Sub "${BucketName}-backup"
+      ManagedPolicyArns:
+        - !Ref BackupPolicy
+
+  BackupAccessKey:
+    Type: AWS::IAM::AccessKey
+    Properties:
+      UserName: !Ref BackupUser
+
+Outputs:
+  BucketArn:
+    Description: ARN of the backup S3 bucket
+    Value: !GetAtt BackupBucket.Arn
+
+  BucketUri:
+    Description: S3 URI to use as S3_BACKUP_BUCKET in codex-secrets
+    Value: !Sub "s3://${BackupBucket}"
+
+  AccessKeyId:
+    Description: AWS_ACCESS_KEY_ID for codex-secrets
+    Value: !Ref BackupAccessKey
+
+  SecretAccessKey:
+    Description: AWS_SECRET_ACCESS_KEY for codex-secrets (sensitive)
+    Value: !GetAtt BackupAccessKey.SecretAccessKey
+
+  Region:
+    Description: AWS_DEFAULT_REGION for codex-secrets
+    Value: !Ref "AWS::Region"
+
+  AddToKubernetesSecrets:
+    Description: Commands to add credentials to Kubernetes secrets
+    Value: !Sub |
+      # Add these to your SOPS-encrypted secrets.yml, or patch the secret directly:
+      kubectl -n codex patch secret codex-secrets --type merge -p '{
+        "stringData": {
+          "S3_BACKUP_BUCKET": "s3://${BackupBucket}",
+          "AWS_ACCESS_KEY_ID": "<AccessKeyId from outputs>",
+          "AWS_SECRET_ACCESS_KEY": "<SecretAccessKey from outputs>",
+          "AWS_DEFAULT_REGION": "${AWS::Region}"
+        }
+      }'

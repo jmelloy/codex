@@ -6,10 +6,11 @@ namespace: codex
 resources:
   - namespace.yml
   - configmap.yml
-  - pvc.yml
+  - nfs
   - redis-deployment.yml
   - backend-deployment.yml
   - worker-deployment.yml
+  - backup-cronjob.yml
   - ingress.yml
 
 labels:

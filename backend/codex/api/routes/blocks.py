@@ -32,6 +32,7 @@ from codex.api.schemas import (
     PageAtCommitResponse,
     PageResponse,
     RootBlocksResponse,
+    ZipImportResponse,
 )
 from codex.core.blocks import (
     _block_dict,
@@ -53,10 +54,11 @@ from codex.core.blocks import (
     update_block_properties,
     upload_to_block,
 )
+from codex.core.import_worker import process_zip_import
 from codex.core.md_import import import_markdown_to_page
 from codex.core.websocket import notify_file_change
 from codex.db.database import get_notebook_session, get_system_session
-from codex.db.models import Block, User
+from codex.db.models import Block, Task, User
 
 logger = logging.getLogger(__name__)
 
@@ -843,7 +845,7 @@ async def upload_block(
         nb_session.close()
 
 
-@nested_router.post("/upload-folder-zip", response_model=ImportFolderResponse)
+@nested_router.post("/upload-folder-zip", response_model=ZipImportResponse)
 async def upload_folder_zip(
     workspace_identifier: str,
     notebook_identifier: str,
@@ -852,8 +854,10 @@ async def upload_folder_zip(
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_system_session),
 ):
-    """Upload a zip file containing a folder structure, extract it, and create pages/blocks."""
-    import tempfile
+    """Upload a zip file, extract to staging area, and kick off a background import task."""
+    import asyncio
+    import io
+    import uuid
     import zipfile
 
     notebook_path, notebook, workspace = await get_notebook_path_nested(
@@ -864,12 +868,12 @@ async def upload_folder_zip(
 
     content = await file.read()
 
-    # Extract the zip into the notebook at the target location
-    target_dir = notebook_path / parent_path if parent_path else notebook_path
+    # Stage into .codex/staging/{upload_id}/ which the watcher ignores
+    upload_id = str(uuid.uuid4())
+    staging_dir = notebook_path / ".codex" / "staging" / upload_id
+    staging_dir.mkdir(parents=True, exist_ok=True)
 
     try:
-        import io
-
         with zipfile.ZipFile(io.BytesIO(content)) as zf:
             # Security: reject paths with .. or absolute paths
             for member in zf.namelist():
@@ -883,51 +887,60 @@ async def upload_folder_zip(
             top_dirs = {name.split("/")[0] for name in members if "/" in name}
             top_files = {name for name in members if "/" not in name and name}
 
-            zf.extractall(target_dir, members=[m for m in zf.infolist() if m.filename in set(members)])
+            zf.extractall(staging_dir, members=[m for m in zf.infolist() if m.filename in set(members)])
     except zipfile.BadZipFile:
+        shutil.rmtree(staging_dir, ignore_errors=True)
         raise HTTPException(status_code=400, detail="Invalid zip file")
 
     # Clean up any __MACOSX folder that may have been extracted
-    macosx_dir = target_dir / "__MACOSX"
+    macosx_dir = staging_dir / "__MACOSX"
     if macosx_dir.exists():
         shutil.rmtree(macosx_dir)
 
-    # Determine the folder path to import
-    # If zip has a single top-level folder, import that folder
-    # Otherwise, treat parent_path as the import root
+    # Determine the import path (relative to staging_dir)
     if len(top_dirs) == 1 and len(top_files) == 0:
-        folder_name = top_dirs.pop()
-        import_path = f"{parent_path}/{folder_name}" if parent_path else folder_name
-    elif parent_path:
-        import_path = parent_path
+        import_path = top_dirs.pop()
     else:
-        # Multiple top-level items with no parent_path: wrap in a folder named after the zip
+        # Multiple top-level items: wrap in a folder named after the zip
         folder_name = os.path.splitext(file.filename or "upload")[0]
-        wrapper_dir = target_dir / folder_name
+        wrapper_dir = staging_dir / folder_name
         if not wrapper_dir.exists():
-            # Move all extracted items into the wrapper folder
             wrapper_dir.mkdir(parents=True)
             for item_name in top_dirs | top_files:
-                src = target_dir / item_name
+                src = staging_dir / item_name
                 if src.exists():
                     shutil.move(str(src), str(wrapper_dir / item_name))
         import_path = folder_name
 
-    nb_session = get_notebook_session(str(notebook_path))
-    try:
-        result = import_folder_as_pages(
+    # Create a task to track the import
+    task = Task(
+        workspace_id=workspace.id,
+        title=f"Import zip: {file.filename}",
+        task_type="zip_import",
+        status="pending",
+        assigned_to="system",
+    )
+    session.add(task)
+    await session.commit()
+    await session.refresh(task)
+
+    # Launch background import
+    asyncio.create_task(
+        process_zip_import(
+            task_id=task.id,
+            staging_dir=staging_dir,
             notebook_path=notebook_path,
             notebook_id=notebook.id,
-            folder_path=import_path,
-            nb_session=nb_session,
+            import_path=import_path,
+            parent_path=parent_path,
         )
-        return result
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    finally:
-        nb_session.close()
+    )
+
+    return ZipImportResponse(
+        task_id=task.id,
+        status="pending",
+        message=f"Import task created for {file.filename}",
+    )
 
 
 @nested_router.post("/import-folder", response_model=ImportFolderResponse)

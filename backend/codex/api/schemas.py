@@ -408,6 +408,14 @@ class ImportFolderResponse(BaseModel):
     blocks_created: int
 
 
+class ZipImportResponse(BaseModel):
+    """Response for async zip folder import."""
+
+    task_id: int
+    status: str
+    message: str
+
+
 # --- Search responses ---
 
 

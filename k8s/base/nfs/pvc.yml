@@ -1,15 +1,14 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: codex-data
+  name: nfs-backing-store
   namespace: codex
   labels:
     app.kubernetes.io/part-of: codex
 spec:
   accessModes:
     - ReadWriteOnce
-  # On Linode LKE, the default StorageClass is "linode-block-storage-retain".
-  # Omitting storageClassName uses the cluster default.
+  storageClassName: linode-block-storage-retain
   resources:
     requests:
-      storage: 8Gi
+      storage: 10Gi

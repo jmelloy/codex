@@ -167,7 +167,7 @@ jobs:
         run: sops decrypt -i k8s/overlays/${{ github.event.inputs.environment || 'production' }}/secrets.yml
 
       - name: Set up kubectl
-        uses: azure/setup-kubectl@v4
+        uses: azure/setup-kubectl@v5
 
       - name: Configure kubeconfig
         run: |

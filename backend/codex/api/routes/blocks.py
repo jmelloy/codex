@@ -6,7 +6,6 @@ infinite block recursion backed by filesystem folders and files.
 
 import logging
 import mimetypes
-import os
 import shutil
 from typing import Any
 
@@ -877,97 +876,102 @@ async def upload_block(
         nb_session.close()
 
 
-@nested_router.post("/upload-folder-zip", response_model=ZipImportResponse)
-async def upload_folder_zip(
+@nested_router.post("/upload-folder", response_model=ZipImportResponse)
+async def upload_folder(
     workspace_identifier: str,
     notebook_identifier: str,
-    file: UploadFile = File(...),
+    files: list[UploadFile] = File(...),
+    paths: list[str] = Form(...),
     parent_path: str = Form(""),
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_system_session),
 ):
-    """Upload a zip file, extract to staging area, and kick off a background import task."""
+    """Stream multiple files into a staging area and kick off a background import task."""
     import asyncio
-    import io
     import uuid
-    import zipfile
+    from pathlib import PurePosixPath
 
     logger.info(
-        "upload_folder_zip: start workspace=%s notebook=%s filename=%s parent_path=%s user=%s",
+        "upload_folder: start workspace=%s notebook=%s count=%d parent_path=%s user=%s",
         workspace_identifier,
         notebook_identifier,
-        file.filename,
+        len(files),
         parent_path,
         current_user.username,
     )
     notebook_path, notebook, workspace = await get_notebook_path_nested(
         workspace_identifier, notebook_identifier, current_user, session
     )
-    if not file.filename or not file.filename.endswith(".zip"):
-        logger.warning("upload_folder_zip: rejected - not a .zip file (filename=%s)", file.filename)
-        raise HTTPException(status_code=400, detail="Must upload a .zip file")
+    if len(files) != len(paths):
+        raise HTTPException(status_code=400, detail="files and paths length mismatch")
+    if not files:
+        raise HTTPException(status_code=400, detail="No files uploaded")
 
-    content = await file.read()
-    logger.info("upload_folder_zip: received size=%d bytes", len(content))
-
-    # Stage into .codex/staging/{upload_id}/ which the watcher ignores
     upload_id = str(uuid.uuid4())
     staging_dir = notebook_path / ".codex" / "staging" / upload_id
     staging_dir.mkdir(parents=True, exist_ok=True)
 
+    top_dirs: set[str] = set()
+    top_files: set[str] = set()
+    total_bytes = 0
+
     try:
-        with zipfile.ZipFile(io.BytesIO(content)) as zf:
-            # Security: reject paths with .. or absolute paths
-            for member in zf.namelist():
-                if member.startswith("/") or ".." in member:
-                    logger.warning("upload_folder_zip: invalid path rejected: %s", member)
-                    raise HTTPException(status_code=400, detail=f"Invalid path in zip: {member}")
+        for upload, rel in zip(files, paths, strict=True):
+            # Normalize and validate the client-supplied relative path
+            rel = rel.replace("\\", "/").lstrip("/")
+            parts = PurePosixPath(rel).parts
+            if not parts or any(p in ("", "..") for p in parts):
+                raise HTTPException(status_code=400, detail=f"Invalid path: {rel}")
+            # Skip macOS resource fork metadata
+            if parts[0] == "__MACOSX" or parts[-1].startswith("._"):
+                continue
 
-            # Filter out macOS resource fork metadata
-            members = [m for m in zf.namelist() if not m.startswith("__MACOSX/") and not m.startswith("._")]
+            dest = staging_dir.joinpath(*parts)
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            with dest.open("wb") as out:
+                while chunk := await upload.read(1024 * 1024):
+                    out.write(chunk)
+                    total_bytes += len(chunk)
 
-            # Find the top-level folder name from the zip
-            top_dirs = {name.split("/")[0] for name in members if "/" in name}
-            top_files = {name for name in members if "/" not in name and name}
-
-            logger.info(
-                "upload_folder_zip: extracting upload_id=%s members=%d top_dirs=%d top_files=%d",
-                upload_id,
-                len(members),
-                len(top_dirs),
-                len(top_files),
-            )
-            zf.extractall(staging_dir, members=[m for m in zf.infolist() if m.filename in set(members)])
-    except zipfile.BadZipFile:
+            if len(parts) == 1:
+                top_files.add(parts[0])
+            else:
+                top_dirs.add(parts[0])
+    except HTTPException:
         shutil.rmtree(staging_dir, ignore_errors=True)
-        logger.warning("upload_folder_zip: invalid zip file filename=%s", file.filename)
-        raise HTTPException(status_code=400, detail="Invalid zip file")
+        raise
+    except Exception:
+        shutil.rmtree(staging_dir, ignore_errors=True)
+        logger.exception("upload_folder: failed while staging files")
+        raise
 
-    # Clean up any __MACOSX folder that may have been extracted
-    macosx_dir = staging_dir / "__MACOSX"
-    if macosx_dir.exists():
-        shutil.rmtree(macosx_dir)
+    logger.info(
+        "upload_folder: staged upload_id=%s files=%d bytes=%d top_dirs=%d top_files=%d",
+        upload_id,
+        len(files),
+        total_bytes,
+        len(top_dirs),
+        len(top_files),
+    )
 
     # Determine the import path (relative to staging_dir)
     if len(top_dirs) == 1 and len(top_files) == 0:
         import_path = top_dirs.pop()
     else:
-        # Multiple top-level items: wrap in a folder named after the zip
-        folder_name = os.path.splitext(file.filename or "upload")[0]
+        # Multiple top-level items: wrap in a single folder
+        folder_name = "upload"
         wrapper_dir = staging_dir / folder_name
-        if not wrapper_dir.exists():
-            wrapper_dir.mkdir(parents=True)
-            for item_name in top_dirs | top_files:
-                src = staging_dir / item_name
-                if src.exists():
-                    shutil.move(str(src), str(wrapper_dir / item_name))
+        wrapper_dir.mkdir(parents=True, exist_ok=True)
+        for item_name in top_dirs | top_files:
+            src = staging_dir / item_name
+            if src.exists():
+                shutil.move(str(src), str(wrapper_dir / item_name))
         import_path = folder_name
 
-    # Create a task to track the import
     task = Task(
         workspace_id=workspace.id,
-        title=f"Import zip: {file.filename}",
-        task_type="zip_import",
+        title=f"Import folder: {import_path}",
+        task_type="folder_import",
         status="pending",
         assigned_to="system",
     )
@@ -976,13 +980,12 @@ async def upload_folder_zip(
     await session.refresh(task)
 
     logger.info(
-        "upload_folder_zip: task created task_id=%s import_path=%s staging_dir=%s",
+        "upload_folder: task created task_id=%s import_path=%s staging_dir=%s",
         task.id,
         import_path,
         staging_dir,
     )
 
-    # Launch background import
     asyncio.create_task(
         process_zip_import(
             task_id=task.id,
@@ -997,7 +1000,7 @@ async def upload_folder_zip(
     return ZipImportResponse(
         task_id=task.id,
         status="pending",
-        message=f"Import task created for {file.filename}",
+        message=f"Import task created for {import_path}",
     )
 
 

@@ -534,42 +534,48 @@ export const blockService = {
   },
 
   /**
-   * Upload a zip file containing a folder structure.
+   * Upload a folder as a collection of files, preserving relative paths.
    * Returns a task that tracks the async import.
    */
-  async uploadFolderZip(
+  async uploadFolder(
     notebookId: string,
     workspaceId: string,
-    zipFile: File,
+    files: { file: File; relativePath: string }[],
     parentPath?: string
   ): Promise<{ task_id: number; status: string; message: string }> {
     const start = performance.now()
-    uploadLog.info("uploadFolderZip: start", {
+    const totalSize = files.reduce((acc, f) => acc + f.file.size, 0)
+    uploadLog.info("uploadFolder: start", {
       notebookId,
       workspaceId,
-      filename: zipFile.name,
-      size: zipFile.size,
+      fileCount: files.length,
+      totalSize,
       parentPath,
     })
     const formData = new FormData()
-    formData.append("file", zipFile)
+    for (const { file, relativePath } of files) {
+      // paths is sent as a parallel field so slashes never go through the
+      // multipart filename (some proxies/middleware strip or rewrite them).
+      formData.append("files", file, file.name)
+      formData.append("paths", relativePath)
+    }
     if (parentPath) {
       formData.append("parent_path", parentPath)
     }
     try {
       const response = await apiClient.post(
-        `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/upload-folder-zip`,
+        `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/upload-folder`,
         formData
       )
-      uploadLog.info("uploadFolderZip: task queued", {
-        filename: zipFile.name,
+      uploadLog.info("uploadFolder: task queued", {
+        fileCount: files.length,
         taskId: response.data.task_id,
         durationMs: Math.round(performance.now() - start),
       })
       return response.data
     } catch (e: any) {
-      uploadLog.error("uploadFolderZip: failed", {
-        filename: zipFile.name,
+      uploadLog.error("uploadFolder: failed", {
+        fileCount: files.length,
         status: e?.response?.status,
         detail: e?.response?.data?.detail,
       })

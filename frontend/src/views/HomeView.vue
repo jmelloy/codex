@@ -1019,26 +1019,12 @@ async function uploadFolderFiles(notebookId: number, files: File[]) {
     return
   }
   try {
-    const JSZip = (await import("jszip")).default
-    const zip = new JSZip()
-    for (const file of files) {
-      // webkitRelativePath includes the top-level folder, preserving hierarchy
-      const relativePath = (file as any).webkitRelativePath || file.name
-      zip.file(relativePath, file)
-    }
-    // Generate as arraybuffer to force full materialization; constructing a
-    // File directly from the blob returned by generateAsync can cause
-    // WebKitBlobResource error 4 in Safari when the source File objects go
-    // out of scope before FormData transmission completes.
-    const buffer = await zip.generateAsync({ type: "arraybuffer" })
-    const zipFile = new File([buffer], "folder-upload.zip", { type: "application/zip" })
-    uploadLog.info("uploadFolderFiles: zip built", {
-      notebookId,
-      fileCount: files.length,
-      zipSize: zipFile.size,
-    })
-
-    const importResult = await blockService.uploadFolderZip(nb.slug, ws.slug, zipFile)
+    // webkitRelativePath includes the top-level folder, preserving hierarchy
+    const payload = files.map((file) => ({
+      file,
+      relativePath: (file as any).webkitRelativePath || file.name,
+    }))
+    const importResult = await blockService.uploadFolder(nb.slug, ws.slug, payload)
     showToast({ message: `Importing folder (${files.length} files)...` })
     const task = await blockService.waitForTask(ws.slug, importResult.task_id)
     await workspaceStore.fetchBlockTree(notebookId)
@@ -1702,24 +1688,20 @@ async function handleBlockUpload(dataTransfer: DataTransfer, notebookId: number,
   }
 
   if (hasDirectories) {
-    // Folder drop: collect all files, zip them, and upload as a single zip
+    // Folder drop: collect all files and upload as a multi-part batch
     const droppedFiles = await collectDroppedFiles(dataTransfer)
     if (droppedFiles.length === 0) return
 
     try {
-      const JSZip = (await import("jszip")).default
-      const zip = new JSZip()
-      for (const { file, relativePath } of droppedFiles) {
-        zip.file(relativePath, file)
-      }
-      // See uploadFolderFiles: arraybuffer avoids WebKitBlobResource error 4.
-      const buffer = await zip.generateAsync({ type: "arraybuffer" })
-      const zipFile = new File([buffer], "folder-upload.zip", { type: "application/zip" })
-
       if (!workspaceStore.currentWorkspace) return
       const nb = workspaceStore.notebooks.find((n) => n.id === notebookId)
       if (!nb) return
-      const importResult = await blockService.uploadFolderZip(nb.slug, workspaceStore.currentWorkspace.slug, zipFile, pagePath)
+      const importResult = await blockService.uploadFolder(
+        nb.slug,
+        workspaceStore.currentWorkspace.slug,
+        droppedFiles,
+        pagePath
+      )
       showToast({ message: `Importing folder (${droppedFiles.length} files)...` })
       const task = await blockService.waitForTask(workspaceStore.currentWorkspace.slug, importResult.task_id)
       await workspaceStore.fetchBlockTree(notebookId)

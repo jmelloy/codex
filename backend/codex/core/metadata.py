@@ -10,6 +10,8 @@ from typing import Any
 import frontmatter
 from PIL import Image
 
+from codex.core.invokeai import extract_invokeai_metadata
+
 logger = logging.getLogger(__name__)
 
 
@@ -204,6 +206,11 @@ class MetadataParser:
         image_metadata = MetadataParser.extract_image_metadata(filepath)
         if image_metadata:
             metadata.update(image_metadata)
+
+        # Extract InvokeAI PNG text-chunk metadata (prompt, model, seed, etc.)
+        invokeai_metadata = extract_invokeai_metadata(filepath)
+        if invokeai_metadata:
+            metadata.update(invokeai_metadata)
 
         # Try frontmatter for markdown files - read from disk if content not provided
         if filepath.endswith(".md"):

@@ -1145,6 +1145,8 @@ def import_folder_as_pages(
     if not full_path.exists() or not full_path.is_dir():
         raise FileNotFoundError(f"Folder not found: {folder_path}")
 
+    logger.info("import_folder_as_pages: processing folder=%s", folder_path or "<root>")
+
     # Create page for this folder if not already a page
     if not is_page_folder(full_path):
         title = os.path.basename(folder_path) if folder_path else "Root"
@@ -1214,6 +1216,13 @@ def import_folder_as_pages(
                     except Exception as e:
                         logger.warning(f"Could not add {rel_path} as block: {e}")
 
+    logger.info(
+        "import_folder_as_pages: folder=%s pages_created=%d blocks_created=%d",
+        folder_path or "<root>",
+        len(created_pages),
+        len(created_blocks),
+    )
+
     return {
         "path": folder_path,
         "block_id": page_meta.get("block_id"),
@@ -1247,6 +1256,14 @@ def upload_to_block(
 
     from codex.core.watcher import get_content_type
 
+    logger.info(
+        "upload_to_block: notebook_id=%s filename=%s size=%d page_block_id=%s",
+        notebook_id,
+        filename,
+        len(content),
+        page_block_id,
+    )
+
     # Determine target path
     if page_block_id:
         parent_block = nb_session.exec(
@@ -1264,7 +1281,9 @@ def upload_to_block(
     full_path = notebook_path / file_path
 
     # Ensure unique name
+    renamed_from = None
     if full_path.exists():
+        renamed_from = file_path
         stem = full_path.stem
         suffix = full_path.suffix
         counter = 1
@@ -1272,11 +1291,13 @@ def upload_to_block(
             file_path = f"{target_dir}/{stem}-{counter}{suffix}" if target_dir else f"{stem}-{counter}{suffix}"
             full_path = notebook_path / file_path
             counter += 1
+        logger.info("upload_to_block: name collision, renamed %s -> %s", renamed_from, file_path)
 
     # Write file to disk
     full_path.parent.mkdir(parents=True, exist_ok=True)
     with open(full_path, "wb") as f:
         f.write(content)
+    logger.debug("upload_to_block: wrote file to disk path=%s", full_path)
 
     content_type = get_content_type(str(full_path))
     file_hash = hashlib.sha256(content).hexdigest()
@@ -1327,6 +1348,14 @@ def upload_to_block(
     )
     nb_session.add(block)
     nb_session.commit()
+
+    logger.info(
+        "upload_to_block: created block_id=%s type=%s path=%s content_type=%s",
+        block_id,
+        block_type,
+        file_path,
+        content_type,
+    )
 
     return _block_dict(block)
 

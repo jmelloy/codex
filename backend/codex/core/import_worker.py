@@ -22,6 +22,12 @@ def _do_import(
     parent_path: str,
 ) -> dict:
     """Blocking import: move files from staging to notebook and create blocks."""
+    logger.info(
+        "zip import: starting move staging_dir=%s import_path=%s parent_path=%s",
+        staging_dir,
+        import_path,
+        parent_path,
+    )
     target_dir = notebook_path / parent_path if parent_path else notebook_path
 
     # Move extracted content from staging to the notebook directory
@@ -31,14 +37,20 @@ def _do_import(
     # If the destination doesn't exist, move; otherwise merge
     if not dest.exists():
         shutil.move(str(src), str(dest))
+        logger.info("zip import: moved src=%s -> dest=%s", src, dest)
     else:
         # Move contents into existing directory
+        merged = 0
+        renamed = 0
         for item in src.iterdir():
             item_dest = dest / item.name
             if not item_dest.exists():
                 shutil.move(str(item), str(item_dest))
+                merged += 1
             else:
                 shutil.move(str(item), str(item_dest.parent / f"{item.stem}-imported{item.suffix}"))
+                renamed += 1
+        logger.info("zip import: merged into existing dir=%s merged=%d renamed=%d", dest, merged, renamed)
 
     # Compute the import path relative to notebook_path
     rel_import_path = str(dest.relative_to(notebook_path))
@@ -81,6 +93,7 @@ async def process_zip_import(
 ) -> None:
     """Process a staged zip import in the background."""
     try:
+        logger.info("zip import: task %s in_progress (import_path=%s)", task_id, import_path)
         _update_task(task_id, status="in_progress")
 
         result = await asyncio.to_thread(

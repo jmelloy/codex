@@ -1,4 +1,7 @@
 import apiClient from "./api"
+import { createLogger } from "../utils/logger"
+
+const uploadLog = createLogger("upload")
 
 export interface Workspace {
   id: number
@@ -414,13 +417,32 @@ export const blockService = {
     workspaceId: string,
     file: File
   ): Promise<PageMetadata> {
+    uploadLog.info("importMarkdown: start", {
+      notebookId,
+      workspaceId,
+      filename: file.name,
+      size: file.size,
+    })
     const formData = new FormData()
     formData.append("file", file)
-    const response = await apiClient.post<PageMetadata>(
-      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/import-markdown`,
-      formData
-    )
-    return response.data
+    try {
+      const response = await apiClient.post<PageMetadata>(
+        `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/import-markdown`,
+        formData
+      )
+      uploadLog.info("importMarkdown: success", {
+        filename: file.name,
+        blockId: response.data.block_id,
+      })
+      return response.data
+    } catch (e: any) {
+      uploadLog.error("importMarkdown: failed", {
+        filename: file.name,
+        status: e?.response?.status,
+        detail: e?.response?.data?.detail,
+      })
+      throw e
+    }
   },
 
   /**
@@ -474,16 +496,41 @@ export const blockService = {
     file: File,
     parentBlockId?: string
   ): Promise<Block> {
+    const start = performance.now()
+    uploadLog.info("upload: start", {
+      notebookId,
+      workspaceId,
+      filename: file.name,
+      size: file.size,
+      contentType: file.type,
+      parentBlockId,
+    })
     const formData = new FormData()
     formData.append("file", file)
     if (parentBlockId) {
       formData.append("parent_block_id", parentBlockId)
     }
-    const response = await apiClient.post<Block>(
-      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/upload`,
-      formData
-    )
-    return response.data
+    try {
+      const response = await apiClient.post<Block>(
+        `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/upload`,
+        formData
+      )
+      uploadLog.info("upload: success", {
+        filename: file.name,
+        blockId: response.data.block_id,
+        path: response.data.path,
+        durationMs: Math.round(performance.now() - start),
+      })
+      return response.data
+    } catch (e: any) {
+      uploadLog.error("upload: failed", {
+        filename: file.name,
+        status: e?.response?.status,
+        detail: e?.response?.data?.detail,
+        durationMs: Math.round(performance.now() - start),
+      })
+      throw e
+    }
   },
 
   /**
@@ -496,16 +543,38 @@ export const blockService = {
     zipFile: File,
     parentPath?: string
   ): Promise<{ task_id: number; status: string; message: string }> {
+    const start = performance.now()
+    uploadLog.info("uploadFolderZip: start", {
+      notebookId,
+      workspaceId,
+      filename: zipFile.name,
+      size: zipFile.size,
+      parentPath,
+    })
     const formData = new FormData()
     formData.append("file", zipFile)
     if (parentPath) {
       formData.append("parent_path", parentPath)
     }
-    const response = await apiClient.post(
-      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/upload-folder-zip`,
-      formData
-    )
-    return response.data
+    try {
+      const response = await apiClient.post(
+        `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/upload-folder-zip`,
+        formData
+      )
+      uploadLog.info("uploadFolderZip: task queued", {
+        filename: zipFile.name,
+        taskId: response.data.task_id,
+        durationMs: Math.round(performance.now() - start),
+      })
+      return response.data
+    } catch (e: any) {
+      uploadLog.error("uploadFolderZip: failed", {
+        filename: zipFile.name,
+        status: e?.response?.status,
+        detail: e?.response?.data?.detail,
+      })
+      throw e
+    }
   },
 
   /**
@@ -517,16 +586,23 @@ export const blockService = {
     pollIntervalMs = 500,
     maxAttempts = 120
   ): Promise<{ status: string; task_metadata?: string }> {
+    uploadLog.debug("waitForTask: polling", { taskId, pollIntervalMs, maxAttempts })
     for (let i = 0; i < maxAttempts; i++) {
       const response = await apiClient.get(
         `/api/v1/workspaces/${workspaceId}/tasks/${taskId}`
       )
       const task = response.data
       if (task.status === "completed" || task.status === "failed") {
+        uploadLog.info("waitForTask: terminal status", {
+          taskId,
+          status: task.status,
+          attempts: i + 1,
+        })
         return task
       }
       await new Promise((resolve) => setTimeout(resolve, pollIntervalMs))
     }
+    uploadLog.warn("waitForTask: timeout", { taskId, maxAttempts })
     return { status: "timeout" }
   },
 

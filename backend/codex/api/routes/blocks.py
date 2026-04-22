@@ -696,11 +696,19 @@ async def import_markdown(
     session: AsyncSession = Depends(get_system_session),
 ):
     """Import a markdown file, converting it to a page of blocks."""
+    logger.info(
+        "import_markdown: start workspace=%s notebook=%s filename=%s user=%s",
+        workspace_identifier,
+        notebook_identifier,
+        file.filename,
+        current_user.username,
+    )
     notebook_path, notebook, workspace = await get_notebook_path_nested(
         workspace_identifier, notebook_identifier, current_user, session
     )
 
     if not file.filename or not file.filename.endswith(".md"):
+        logger.warning("import_markdown: rejected - not a .md file (filename=%s)", file.filename)
         raise HTTPException(status_code=400, detail="Only .md files can be imported")
 
     # Save uploaded file temporarily
@@ -717,6 +725,11 @@ async def import_markdown(
                 notebook_id=notebook.id,
                 markdown_path=file.filename,
                 nb_session=nb_session,
+            )
+            logger.info(
+                "import_markdown: success filename=%s size=%d",
+                file.filename,
+                len(content),
             )
             return result
         finally:
@@ -805,8 +818,11 @@ async def upload_block(
     session: AsyncSession = Depends(get_system_session),
 ):
     """Upload a file as a block within a page."""
-    logger.debug(
-        "upload_block called: workspace=%s notebook=%s filename=%s content_type=%s parent_block_id=%s user=%s",
+    import time
+
+    start = time.monotonic()
+    logger.info(
+        "upload_block: start workspace=%s notebook=%s filename=%s content_type=%s parent_block_id=%s user=%s",
         workspace_identifier,
         notebook_identifier,
         file.filename,
@@ -818,10 +834,16 @@ async def upload_block(
         workspace_identifier, notebook_identifier, current_user, session
     )
     if not file.filename:
+        logger.warning("upload_block: rejected - no filename provided")
         raise HTTPException(status_code=400, detail="No filename provided")
 
     content = await file.read()
-    logger.debug("upload_block: file size=%d bytes, notebook_path=%s", len(content), notebook_path)
+    logger.info(
+        "upload_block: received filename=%s size=%d bytes notebook_path=%s",
+        file.filename,
+        len(content),
+        notebook_path,
+    )
 
     nb_session = get_notebook_session(str(notebook_path))
     try:
@@ -833,7 +855,14 @@ async def upload_block(
             content=content,
             nb_session=nb_session,
         )
-        logger.debug("upload_block: success, block_id=%s", result.get("block_id"))
+        duration_ms = (time.monotonic() - start) * 1000
+        logger.info(
+            "upload_block: success block_id=%s path=%s size=%d duration_ms=%.1f",
+            result.get("block_id"),
+            result.get("path"),
+            len(content),
+            duration_ms,
+        )
         return result
     except FileNotFoundError as e:
         logger.warning("upload_block: parent page not found: %s", e)
@@ -841,6 +870,9 @@ async def upload_block(
     except ValueError as e:
         logger.warning("upload_block: validation error: %s", e)
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        logger.exception("upload_block: unexpected error during upload")
+        raise
     finally:
         nb_session.close()
 
@@ -860,13 +892,23 @@ async def upload_folder_zip(
     import uuid
     import zipfile
 
+    logger.info(
+        "upload_folder_zip: start workspace=%s notebook=%s filename=%s parent_path=%s user=%s",
+        workspace_identifier,
+        notebook_identifier,
+        file.filename,
+        parent_path,
+        current_user.username,
+    )
     notebook_path, notebook, workspace = await get_notebook_path_nested(
         workspace_identifier, notebook_identifier, current_user, session
     )
     if not file.filename or not file.filename.endswith(".zip"):
+        logger.warning("upload_folder_zip: rejected - not a .zip file (filename=%s)", file.filename)
         raise HTTPException(status_code=400, detail="Must upload a .zip file")
 
     content = await file.read()
+    logger.info("upload_folder_zip: received size=%d bytes", len(content))
 
     # Stage into .codex/staging/{upload_id}/ which the watcher ignores
     upload_id = str(uuid.uuid4())
@@ -878,6 +920,7 @@ async def upload_folder_zip(
             # Security: reject paths with .. or absolute paths
             for member in zf.namelist():
                 if member.startswith("/") or ".." in member:
+                    logger.warning("upload_folder_zip: invalid path rejected: %s", member)
                     raise HTTPException(status_code=400, detail=f"Invalid path in zip: {member}")
 
             # Filter out macOS resource fork metadata
@@ -887,9 +930,17 @@ async def upload_folder_zip(
             top_dirs = {name.split("/")[0] for name in members if "/" in name}
             top_files = {name for name in members if "/" not in name and name}
 
+            logger.info(
+                "upload_folder_zip: extracting upload_id=%s members=%d top_dirs=%d top_files=%d",
+                upload_id,
+                len(members),
+                len(top_dirs),
+                len(top_files),
+            )
             zf.extractall(staging_dir, members=[m for m in zf.infolist() if m.filename in set(members)])
     except zipfile.BadZipFile:
         shutil.rmtree(staging_dir, ignore_errors=True)
+        logger.warning("upload_folder_zip: invalid zip file filename=%s", file.filename)
         raise HTTPException(status_code=400, detail="Invalid zip file")
 
     # Clean up any __MACOSX folder that may have been extracted
@@ -923,6 +974,13 @@ async def upload_folder_zip(
     session.add(task)
     await session.commit()
     await session.refresh(task)
+
+    logger.info(
+        "upload_folder_zip: task created task_id=%s import_path=%s staging_dir=%s",
+        task.id,
+        import_path,
+        staging_dir,
+    )
 
     # Launch background import
     asyncio.create_task(

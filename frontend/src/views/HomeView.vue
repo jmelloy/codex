@@ -279,14 +279,46 @@
                   workspaceStore.expandedNotebooks.has(notebook.id) ? "▼" : "▶"
                 }}</span>
                 <span class="flex-1 font-medium">{{ notebook.name }}</span>
-                <button
+                <div
                   v-if="workspaceStore.expandedNotebooks.has(notebook.id)"
-                  @click.stop="startCreatePage(notebook)"
-                  class="notebook-button w-5 h-5 text-sm ml-auto opacity-0 hover:opacity-100 transition text-white border-none rounded-full cursor-pointer flex items-center justify-center"
-                  title="New File"
+                  class="relative ml-auto flex items-center gap-1"
                 >
-                  +
-                </button>
+                  <button
+                    @click.stop="toggleUploadMenu(notebook.id)"
+                    class="notebook-button w-5 h-5 text-xs opacity-0 hover:opacity-100 transition text-white border-none rounded-full cursor-pointer flex items-center justify-center"
+                    title="Upload / Import"
+                  >
+                    ⬆
+                  </button>
+                  <button
+                    @click.stop="startCreatePage(notebook)"
+                    class="notebook-button w-5 h-5 text-sm opacity-0 hover:opacity-100 transition text-white border-none rounded-full cursor-pointer flex items-center justify-center"
+                    title="New File"
+                  >
+                    +
+                  </button>
+                  <div
+                    v-if="uploadMenuNotebookId === notebook.id"
+                    class="absolute right-0 top-6 z-20 rounded shadow-md text-sm"
+                    style="background: var(--notebook-bg, #fff); border: 1px solid var(--page-border); min-width: 160px"
+                    @click.stop
+                  >
+                    <button
+                      class="block w-full text-left px-3 py-2 hover:bg-primary/10 cursor-pointer"
+                      style="color: var(--notebook-text)"
+                      @click="triggerUpload(notebook.id, 'files')"
+                    >
+                      Upload file(s)
+                    </button>
+                    <button
+                      class="block w-full text-left px-3 py-2 hover:bg-primary/10 cursor-pointer"
+                      style="color: var(--notebook-text); border-top: 1px solid var(--page-border)"
+                      @click="triggerUpload(notebook.id, 'folder')"
+                    >
+                      Import folder
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <!-- File Tree with drop zone -->
@@ -803,6 +835,23 @@
     </form>
   </Modal>
 
+  <!-- Hidden file inputs used by the per-notebook Upload / Import button -->
+  <input
+    ref="fileUploadInputRef"
+    type="file"
+    multiple
+    style="display: none"
+    @change="onFileUploadInputChange"
+  />
+  <input
+    ref="folderUploadInputRef"
+    type="file"
+    webkitdirectory
+    directory
+    style="display: none"
+    @change="onFolderUploadInputChange"
+  />
+
   <!-- Settings Dialog -->
   <SettingsDialog v-model="showSettingsDialog" @open-agent-chat="handleOpenAgentChat" />
 
@@ -842,7 +891,10 @@ import AgentChat from "../components/agent/AgentChat.vue"
 import { useAgentStore } from "../stores/agent"
 import type { Agent } from "../services/agent"
 import { showToast } from "../utils/toast"
+import { createLogger } from "../utils/logger"
 import type { BlockTreeNode } from "../utils/blockTree"
+
+const uploadLog = createLogger("upload")
 
 const router = useRouter()
 const route = useRoute()
@@ -886,6 +938,125 @@ const expandedPages = ref<Map<number, Set<string>>>(new Map())
 // Drag-drop state
 const dragOverNotebook = ref<number | null>(null)
 const dragOverPage = ref<string | null>(null)
+
+// Upload/Import menu state
+const uploadMenuNotebookId = ref<number | null>(null)
+const uploadTargetNotebookId = ref<number | null>(null)
+const fileUploadInputRef = ref<HTMLInputElement | null>(null)
+const folderUploadInputRef = ref<HTMLInputElement | null>(null)
+
+function toggleUploadMenu(notebookId: number) {
+  uploadMenuNotebookId.value = uploadMenuNotebookId.value === notebookId ? null : notebookId
+}
+
+function triggerUpload(notebookId: number, kind: "files" | "folder") {
+  uploadMenuNotebookId.value = null
+  uploadTargetNotebookId.value = notebookId
+  uploadLog.info("button: open picker", { notebookId, kind })
+  const input = kind === "folder" ? folderUploadInputRef.value : fileUploadInputRef.value
+  if (!input) return
+  input.value = ""
+  input.click()
+}
+
+async function onFileUploadInputChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  const notebookId = uploadTargetNotebookId.value
+  const files = input.files ? Array.from(input.files) : []
+  uploadLog.info("button: files selected", { notebookId, count: files.length })
+  if (!notebookId || files.length === 0) return
+  await uploadIndividualFiles(notebookId, files)
+  input.value = ""
+}
+
+async function onFolderUploadInputChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  const notebookId = uploadTargetNotebookId.value
+  const files = input.files ? Array.from(input.files) : []
+  uploadLog.info("button: folder selected", { notebookId, count: files.length })
+  if (!notebookId || files.length === 0) return
+  await uploadFolderFiles(notebookId, files)
+  input.value = ""
+}
+
+async function uploadIndividualFiles(notebookId: number, files: File[]) {
+  const nb = workspaceStore.notebooks.find((n) => n.id === notebookId)
+  const ws = workspaceStore.currentWorkspace
+  if (!nb || !ws) {
+    uploadLog.warn("uploadIndividualFiles: missing notebook/workspace", { notebookId })
+    return
+  }
+  let success = 0
+  let failed = 0
+  for (const file of files) {
+    try {
+      await blockService.upload(nb.slug, ws.slug, file)
+      success++
+    } catch (e) {
+      failed++
+      uploadLog.error("uploadIndividualFiles: file failed", {
+        filename: file.name,
+        error: (e as Error).message,
+      })
+    }
+  }
+  await workspaceStore.fetchBlockTree(notebookId)
+  uploadLog.info("uploadIndividualFiles: done", { notebookId, success, failed })
+  if (failed === 0) {
+    showToast({ message: `Uploaded ${success} file${success === 1 ? "" : "s"}` })
+  } else if (success === 0) {
+    showToast({ message: `Failed to upload ${failed} file${failed === 1 ? "" : "s"}`, type: "error" })
+  } else {
+    showToast({ message: `Uploaded ${success}, failed ${failed}`, type: "error" })
+  }
+}
+
+async function uploadFolderFiles(notebookId: number, files: File[]) {
+  const nb = workspaceStore.notebooks.find((n) => n.id === notebookId)
+  const ws = workspaceStore.currentWorkspace
+  if (!nb || !ws) {
+    uploadLog.warn("uploadFolderFiles: missing notebook/workspace", { notebookId })
+    return
+  }
+  try {
+    const JSZip = (await import("jszip")).default
+    const zip = new JSZip()
+    for (const file of files) {
+      // webkitRelativePath includes the top-level folder, preserving hierarchy
+      const relativePath = (file as any).webkitRelativePath || file.name
+      zip.file(relativePath, file)
+    }
+    const blob = await zip.generateAsync({ type: "blob" })
+    const zipFile = new File([blob], "folder-upload.zip", { type: "application/zip" })
+    uploadLog.info("uploadFolderFiles: zip built", {
+      notebookId,
+      fileCount: files.length,
+      zipSize: zipFile.size,
+    })
+
+    const importResult = await blockService.uploadFolderZip(nb.slug, ws.slug, zipFile)
+    showToast({ message: `Importing folder (${files.length} files)...` })
+    const task = await blockService.waitForTask(ws.slug, importResult.task_id)
+    await workspaceStore.fetchBlockTree(notebookId)
+    if (task.status === "completed") {
+      uploadLog.info("uploadFolderFiles: completed", {
+        notebookId,
+        taskId: importResult.task_id,
+      })
+      showToast({ message: `Imported folder (${files.length} files)` })
+    } else {
+      uploadLog.warn("uploadFolderFiles: task non-success", {
+        notebookId,
+        taskId: importResult.task_id,
+        status: task.status,
+      })
+      showToast({ message: `Folder import ${task.status}`, type: "error" })
+    }
+  } catch (e) {
+    uploadLog.error("uploadFolderFiles: failed", { notebookId, error: (e as Error).message })
+    showToast({ message: "Failed to import folder", type: "error" })
+  }
+}
 
 // Get block trees from the store (pre-built and maintained)
 const notebookBlockTrees = computed(() => {
@@ -998,6 +1169,13 @@ watch(
 )
 
 onMounted(async () => {
+  // Close the upload menu when clicking anywhere else
+  document.addEventListener("click", () => {
+    if (uploadMenuNotebookId.value !== null) {
+      uploadMenuNotebookId.value = null
+    }
+  })
+
   await workspaceStore.fetchWorkspaces()
 
   // Check for path-based URL parameters: /w/{workspace}/{notebook}/{path}

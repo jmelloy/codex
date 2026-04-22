@@ -1026,8 +1026,12 @@ async function uploadFolderFiles(notebookId: number, files: File[]) {
       const relativePath = (file as any).webkitRelativePath || file.name
       zip.file(relativePath, file)
     }
-    const blob = await zip.generateAsync({ type: "blob" })
-    const zipFile = new File([blob], "folder-upload.zip", { type: "application/zip" })
+    // Generate as arraybuffer to force full materialization; constructing a
+    // File directly from the blob returned by generateAsync can cause
+    // WebKitBlobResource error 4 in Safari when the source File objects go
+    // out of scope before FormData transmission completes.
+    const buffer = await zip.generateAsync({ type: "arraybuffer" })
+    const zipFile = new File([buffer], "folder-upload.zip", { type: "application/zip" })
     uploadLog.info("uploadFolderFiles: zip built", {
       notebookId,
       fileCount: files.length,
@@ -1708,8 +1712,9 @@ async function handleBlockUpload(dataTransfer: DataTransfer, notebookId: number,
       for (const { file, relativePath } of droppedFiles) {
         zip.file(relativePath, file)
       }
-      const blob = await zip.generateAsync({ type: "blob" })
-      const zipFile = new File([blob], "folder-upload.zip", { type: "application/zip" })
+      // See uploadFolderFiles: arraybuffer avoids WebKitBlobResource error 4.
+      const buffer = await zip.generateAsync({ type: "arraybuffer" })
+      const zipFile = new File([buffer], "folder-upload.zip", { type: "application/zip" })
 
       if (!workspaceStore.currentWorkspace) return
       const nb = workspaceStore.notebooks.find((n) => n.id === notebookId)

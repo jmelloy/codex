@@ -117,3 +117,57 @@ def test_upload_requires_auth(test_client):
         files={"file": ("test.txt", io.BytesIO(b"test"), "text/plain")},
     )
     assert response.status_code == 401
+
+
+def test_upload_folder_stages_files_and_creates_task(test_client, auth_headers, workspace_and_notebook):
+    """Uploading a folder stages files under their relative paths and kicks off an import task."""
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
+
+    response = test_client.post(
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/blocks/upload-folder",
+        files=[
+            ("files", ("a.md", io.BytesIO(b"# A"), "text/markdown")),
+            ("files", ("b.md", io.BytesIO(b"# B"), "text/markdown")),
+            ("paths", (None, "myfolder/a.md")),
+            ("paths", (None, "myfolder/nested/b.md")),
+        ],
+        headers=headers,
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["status"] == "pending"
+    assert isinstance(payload["task_id"], int)
+
+
+def test_upload_folder_rejects_traversal(test_client, auth_headers, workspace_and_notebook):
+    """Paths that escape the staging dir must be rejected."""
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
+
+    response = test_client.post(
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/blocks/upload-folder",
+        files=[
+            ("files", ("x.md", io.BytesIO(b"x"), "text/markdown")),
+            ("paths", (None, "../escape.md")),
+        ],
+        headers=headers,
+    )
+    assert response.status_code == 400
+
+
+def test_upload_folder_rejects_length_mismatch(test_client, auth_headers, workspace_and_notebook):
+    """files and paths must have matching lengths."""
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
+
+    response = test_client.post(
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/blocks/upload-folder",
+        files=[
+            ("files", ("a.md", io.BytesIO(b"a"), "text/markdown")),
+            ("files", ("b.md", io.BytesIO(b"b"), "text/markdown")),
+            ("paths", (None, "only/one.md")),
+        ],
+        headers=headers,
+    )
+    assert response.status_code == 400

@@ -66,7 +66,7 @@ def test_extract_invokeai_metadata_returns_promoted_fields():
         result = extract_invokeai_metadata(path)
 
     assert result is not None
-    assert result["invokeai_positive_prompt"] == SAMPLE_METADATA["positive_prompt"]
+    assert result["invokeai_prompt"] == SAMPLE_METADATA["positive_prompt"]
     assert result["invokeai_negative_prompt"] == SAMPLE_METADATA["negative_prompt"]
     assert result["invokeai_model"] == "lustifySDXLNSFW_endgame"
     assert result["invokeai_model_base"] == "sdxl"
@@ -165,7 +165,7 @@ def test_watcher_stores_invokeai_properties(temp_notebook):
         assert block.content_type == "image/png"
 
         properties = json.loads(block.properties)
-        assert properties["invokeai_positive_prompt"] == SAMPLE_METADATA["positive_prompt"]
+        assert properties["invokeai_prompt"] == SAMPLE_METADATA["positive_prompt"]
         assert properties["invokeai_model"] == "lustifySDXLNSFW_endgame"
         assert properties["invokeai_seed"] == 591741300
         assert properties["invokeai_scheduler"] == "dpmpp_2m_sde"

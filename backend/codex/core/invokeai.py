@@ -52,7 +52,6 @@ def _flatten(meta: dict[str, Any]) -> dict[str, Any]:
 
     simple_fields = (
         "generation_mode",
-        "positive_prompt",
         "negative_prompt",
         "positive_style_prompt",
         "negative_style_prompt",
@@ -67,6 +66,11 @@ def _flatten(meta: dict[str, Any]) -> dict[str, Any]:
     for field in simple_fields:
         if field in meta and meta[field] is not None:
             flat[f"invokeai_{field}"] = meta[field]
+
+    # InvokeAI's "positive_prompt" is the primary prompt; expose it as the
+    # canonical "invokeai_prompt" for consistency with other tools.
+    if meta.get("positive_prompt") is not None:
+        flat["invokeai_prompt"] = meta["positive_prompt"]
 
     model = meta.get("model")
     if isinstance(model, dict):

@@ -17,8 +17,8 @@
     "js-yaml": "^4.1.1",
     "marked": "^17.0.5",
     "pinia": "^3.0.4",
-    "vue": "^3.5.31",
-    "vue-router": "^5.0.4"
+    "vue": "^3.5.33",
+    "vue-router": "^5.0.6"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.2",

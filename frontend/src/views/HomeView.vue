@@ -835,6 +835,50 @@
     </form>
   </Modal>
 
+  <!-- Upload Location Picker Modal -->
+  <Modal v-model="showUploadLocationModal" title="Where should this go?" hide-actions>
+    <p class="text-sm mb-4" style="color: var(--notebook-text-muted)">
+      Choose a page to upload
+      <template v-if="pendingUploadFiles.length === 1">
+        <strong>{{ pendingUploadFiles[0]?.name }}</strong>
+      </template>
+      <template v-else>
+        <strong>{{ pendingUploadFiles.length }} files</strong>
+      </template>
+      into, or leave as &ldquo;Auto&rdquo; to create a new root page per file.
+    </p>
+    <div class="mb-6">
+      <label class="block text-sm font-medium mb-1" style="color: var(--notebook-text)">Destination page</label>
+      <select
+        v-model="selectedUploadPageId"
+        class="w-full px-3 py-2 border border-border-medium rounded-md bg-bg-primary text-text-primary"
+      >
+        <option value="">Auto (create root page per file)</option>
+        <option
+          v-for="page in availableUploadPages"
+          :key="page.block_id"
+          :value="page.block_id"
+        >{{ " ".repeat(page.indent * 2) }}{{ page.title }}</option>
+      </select>
+    </div>
+    <div class="flex gap-2 justify-end">
+      <button
+        type="button"
+        @click="showUploadLocationModal = false"
+        class="notebook-button-secondary px-4 py-2 border-none rounded cursor-pointer"
+      >
+        Cancel
+      </button>
+      <button
+        type="button"
+        @click="confirmUploadLocation"
+        class="notebook-button px-4 py-2 text-white border-none rounded cursor-pointer transition"
+      >
+        Upload
+      </button>
+    </div>
+  </Modal>
+
   <!-- Hidden file inputs used by the per-notebook Upload / Import button -->
   <input
     ref="fileUploadInputRef"
@@ -945,6 +989,29 @@ const uploadTargetNotebookId = ref<number | null>(null)
 const fileUploadInputRef = ref<HTMLInputElement | null>(null)
 const folderUploadInputRef = ref<HTMLInputElement | null>(null)
 
+// Upload location picker state
+const showUploadLocationModal = ref(false)
+const pendingUploadFiles = ref<File[]>([])
+const pendingUploadNotebookId = ref<number | null>(null)
+const selectedUploadPageId = ref<string>("")
+
+const availableUploadPages = computed(() => {
+  const notebookId = pendingUploadNotebookId.value
+  if (!notebookId) return []
+  const tree = workspaceStore.getBlockTree(notebookId)
+  const pages: { block_id: string; title: string; indent: number }[] = []
+  function collect(nodes: BlockTreeNode[], depth: number) {
+    for (const node of nodes) {
+      if (node.type === "page" && node.block_id) {
+        pages.push({ block_id: node.block_id, title: node.title || node.name, indent: depth })
+      }
+      if (node.children) collect(node.children, depth + 1)
+    }
+  }
+  collect(tree, 0)
+  return pages
+})
+
 function toggleUploadMenu(notebookId: number) {
   uploadMenuNotebookId.value = uploadMenuNotebookId.value === notebookId ? null : notebookId
 }
@@ -965,8 +1032,22 @@ async function onFileUploadInputChange(event: Event) {
   const files = input.files ? Array.from(input.files) : []
   uploadLog.info("button: files selected", { notebookId, count: files.length })
   if (!notebookId || files.length === 0) return
-  await uploadIndividualFiles(notebookId, files)
+  pendingUploadFiles.value = files
+  pendingUploadNotebookId.value = notebookId
+  selectedUploadPageId.value = ""
+  showUploadLocationModal.value = true
   input.value = ""
+}
+
+async function confirmUploadLocation() {
+  showUploadLocationModal.value = false
+  const notebookId = pendingUploadNotebookId.value
+  const files = pendingUploadFiles.value
+  if (!notebookId || files.length === 0) return
+  await uploadIndividualFiles(notebookId, files, selectedUploadPageId.value || null)
+  pendingUploadFiles.value = []
+  pendingUploadNotebookId.value = null
+  selectedUploadPageId.value = ""
 }
 
 async function onFolderUploadInputChange(event: Event) {
@@ -979,7 +1060,7 @@ async function onFolderUploadInputChange(event: Event) {
   input.value = ""
 }
 
-async function uploadIndividualFiles(notebookId: number, files: File[]) {
+async function uploadIndividualFiles(notebookId: number, files: File[], parentBlockId?: string | null) {
   const nb = workspaceStore.notebooks.find((n) => n.id === notebookId)
   const ws = workspaceStore.currentWorkspace
   if (!nb || !ws) {
@@ -990,7 +1071,14 @@ async function uploadIndividualFiles(notebookId: number, files: File[]) {
   let failed = 0
   for (const file of files) {
     try {
-      await blockService.upload(nb.slug, ws.slug, file)
+      let targetPageId = parentBlockId || null
+      if (!targetPageId) {
+        // Auto-create a root page named after the file (without extension)
+        const pageName = file.name.replace(/\.[^.]+$/, "") || file.name
+        const page = await blockService.createPage(nb.slug, ws.slug, { title: pageName })
+        targetPageId = page.block_id
+      }
+      await blockService.upload(nb.slug, ws.slug, file, targetPageId ?? undefined)
       success++
     } catch (e) {
       failed++

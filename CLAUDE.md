@@ -35,14 +35,6 @@ npm test -- --run                  # run tests
 docker compose up -d               # Backend :8765, Frontend :8065
 ```
 
-### Kubernetes (Linode LKE)
-
-```bash
-kubectl apply -k k8s/overlays/production
-```
-
-CI/CD: `.github/workflows/deploy.yml` builds images to GHCR and deploys via Kustomize.
-
 ## Architecture
 
 ### Two-Database Pattern

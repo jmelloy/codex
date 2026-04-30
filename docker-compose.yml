@@ -13,7 +13,7 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     ports:
-      - 8765:8000
+      - 8031:8000
     environment:
       - DATABASE_URL=sqlite:////app/data/codex_system.db
       - REDIS_URL=redis://redis:6379/0
@@ -62,7 +62,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - 8065:80
+      - 5031:80
     volumes:
       # Plugin assets served by nginx via `alias /plugins/` in nginx.conf
       - ./backend/plugins:/plugins:ro

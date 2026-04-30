@@ -27,6 +27,11 @@ services:
       - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI:-http://localhost:8065/oauth/callback}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - VOYAGE_API_KEY=${VOYAGE_API_KEY}
+      - SECRET_KEY=${SECRET_KEY}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
+      - S3_BACKUP_BUCKET=${S3_BACKUP_BUCKET}
     volumes:
       - ./data:/app/data
       - ./backend:/app
@@ -48,6 +53,11 @@ services:
       - LOG_FORMAT=${LOG_FORMAT:-plain}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - VOYAGE_API_KEY=${VOYAGE_API_KEY}
+      - SECRET_KEY=${SECRET_KEY}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
+      - S3_BACKUP_BUCKET=${S3_BACKUP_BUCKET}
     volumes:
       - ./data:/app/data
       - ./backend:/app

@@ -1,21 +1,20 @@
-# Use official Node.js 24 image
-FROM node:24-alpine
+# ---- build stage ----
+FROM node:24-alpine AS build
 
-# Set working directory
 WORKDIR /app
 
-# Install pnpm globally
 RUN npm install -g pnpm
 
-# Copy package files and install dependencies
 COPY package.json pnpm-lock.yaml ./
-RUN pnpm install
+RUN pnpm install --frozen-lockfile
 
-# Copy the rest of the frontend source code
 COPY . .
+RUN pnpm run build
 
-# Expose dev server port
-EXPOSE 5173
+# ---- serve stage ----
+FROM nginx:alpine
 
-# Start Vite dev server
-CMD ["pnpm", "run", "dev"]
+COPY --from=build /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80

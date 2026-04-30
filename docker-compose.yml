@@ -61,18 +61,11 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    working_dir: /app
     ports:
-      - 8065:5173
+      - 8065:80
     volumes:
-      - ./frontend:/app
-      - frontend-node-modules:/app/node_modules
-    environment:
-      - VITE_PROXY_TARGET=http://backend:8000
-    stdin_open: true
-    tty: true
+      # Plugin assets served by nginx via `alias /plugins/` in nginx.conf
+      - ./backend/plugins:/plugins:ro
     depends_on:
       - backend
-
-volumes:
-  frontend-node-modules:
+    restart: unless-stopped

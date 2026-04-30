@@ -15,6 +15,7 @@ export default defineConfig({
     host: true, // Listen on all addresses
     port: 5173,
     strictPort: true,
+    allowedHosts: ["localhost", "codex.melloy.life"],
     watch: {
       usePolling: true, // Needed for Docker on some systems
     },
@@ -26,6 +27,9 @@ export default defineConfig({
         changeOrigin: true,
       },
     },
+  },
+  preview: {
+    allowedHosts: ["localhost", "codex.melloy.life"],
   },
   build: {
     rollupOptions: {

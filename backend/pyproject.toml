@@ -33,7 +33,7 @@ dependencies = [
     "sqlite-vec>=0.1.9",
     "numpy>=1.26.0",
     "arq>=0.26.0",
-    "redis[hiredis]>=5.0.0",
+    "redis[hiredis]>=7.4.0",
 ]
 
 [project.optional-dependencies]

@@ -30,7 +30,7 @@
     "@vue/test-utils": "^2.4.9",
     "@vue/tsconfig": "^0.9.1",
     "autoprefixer": "^10.4.27",
-    "happy-dom": "^20.8.9",
+    "happy-dom": "^20.9.0",
     "postcss": "^8.5.8",
     "tailwindcss": "^4.2.2",
     "typescript": "~5.9.3",

@@ -602,6 +602,16 @@
                 Download
               </a>
 
+              <!-- Assign to Project button (images only) -->
+              <button
+                v-if="displayType === 'image'"
+                @click="showCreateProjectModal = true; showAssignToProjectModal = true"
+                class="notebook-button-secondary px-4 py-2 rounded cursor-pointer text-sm transition"
+                title="Assign to project"
+              >
+                + Project
+              </button>
+
               <!-- All files get Properties button -->
               <button
                 @click="toggleProperties"
@@ -951,6 +961,15 @@
     directory
     style="display: none"
     @change="onFolderUploadInputChange"
+  />
+
+  <!-- Assign to Project modal (create project or single-image assign) -->
+  <AssignToProjectModal
+    v-if="showCreateProjectModal && workspaceStore.currentWorkspace"
+    :workspace-slug="workspaceStore.currentWorkspace.slug"
+    :image-ids="showAssignToProjectModal && workspaceStore.currentLeafBlock ? [workspaceStore.currentLeafBlock.block_id] : []"
+    @close="showCreateProjectModal = false; showAssignToProjectModal = false"
+    @assigned="showCreateProjectModal = false; showAssignToProjectModal = false; projectsStore.fetchProjects(workspaceStore.currentWorkspace!.slug)"
   />
 
   <!-- Settings Dialog -->
@@ -2150,6 +2169,23 @@ const currentNotebookPath = computed(() => {
 
 function handleOpenAgentChat(agent: Agent) {
   agentStore.openChat(agent)
+}
+
+// ---- Projects ----
+
+function onProjectsTabClick() {
+  sidebarTab.value = "projects"
+  const ws = workspaceStore.currentWorkspace
+  if (ws) {
+    projectsStore.fetchProjects(ws.slug)
+  }
+}
+
+function navigateToProject(slug: string) {
+  const ws = workspaceStore.currentWorkspace
+  if (ws) {
+    router.push(`/projects/${ws.slug}/${slug}`)
+  }
 }
 </script>
 

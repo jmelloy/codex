@@ -68,6 +68,16 @@ class BulkTagRequest(BaseModel):
     tag_names: List[str]
 
 
+class BulkRemoveTagRequest(BaseModel):
+    image_ids: List[int]
+    tag_name: str
+
+
+class BulkRatingRequest(BaseModel):
+    image_ids: List[int]
+    rating: int
+
+
 class TagsAddRequest(BaseModel):
     tag_names: List[str]
 

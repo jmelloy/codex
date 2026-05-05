@@ -1,0 +1,13 @@
+pillow
+requests
+pandas
+exifread
+PyYAML
+python-ulid
+tqdm
+
+# Optional: macOS/Apple Silicon only (required by moments.py)
+# mlx-vlm
+
+# Note: exiftool must be installed separately
+# brew install exiftool

@@ -105,6 +105,22 @@ def list_images(
     return schemas.ImageListResponse(items=items, total=total, page=page, pages=pages)
 
 
+@router.get("/dates", response_model=list)
+def get_dates(db: Session = Depends(get_db)):
+    results = (
+        db.query(
+            func.date(models.Image.date_taken).label("date"),
+            func.count(models.Image.id).label("count"),
+        )
+        .filter(models.Image.date_taken != None)
+        .filter(models.Image.hidden == False)
+        .group_by(func.date(models.Image.date_taken))
+        .order_by(func.date(models.Image.date_taken).desc())
+        .all()
+    )
+    return [{"date": str(row.date), "count": row.count} for row in results]
+
+
 @router.get("/{image_id}", response_model=schemas.Image)
 def get_image(image_id: int, db: Session = Depends(get_db)):
     img = db.query(models.Image).filter(models.Image.id == image_id).first()

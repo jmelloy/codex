@@ -18,6 +18,7 @@ export const useImagesStore = defineStore('images', {
     sortDir: 'desc',
     selectedImageIds: [],
     allTags: [],
+    availableDates: [],
   }),
 
   actions: {
@@ -144,6 +145,11 @@ export const useImagesStore = defineStore('images', {
     async fetchAllTags() {
       const res = await axios.get('/api/tags')
       this.allTags = res.data
+    },
+
+    async fetchDates() {
+      const res = await axios.get('/api/images/dates')
+      this.availableDates = res.data
     },
 
     toggleImageSelection(id) {

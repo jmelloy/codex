@@ -34,24 +34,64 @@
         <label for="show-hidden" class="text-sm text-gray-300">Show thumbs-down</label>
       </div>
 
-      <!-- Date range -->
+      <!-- Date browser tree -->
       <div class="mb-4">
-        <label class="block text-xs text-gray-400 mb-1">Date From</label>
-        <input
-          v-model="store.dateFrom"
-          type="date"
-          @change="store.fetchImages(true)"
-          class="w-full bg-gray-700 border border-gray-600 text-white rounded px-2 py-1 text-sm"
-        />
-      </div>
-      <div class="mb-4">
-        <label class="block text-xs text-gray-400 mb-1">Date To</label>
-        <input
-          v-model="store.dateTo"
-          type="date"
-          @change="store.fetchImages(true)"
-          class="w-full bg-gray-700 border border-gray-600 text-white rounded px-2 py-1 text-sm"
-        />
+        <div class="flex items-center justify-between mb-2">
+          <label class="block text-xs text-gray-400 uppercase tracking-wider">Browse by Date</label>
+          <button
+            v-if="selectedDay"
+            @click="clearDateFilter"
+            class="text-xs text-purple-400 hover:text-purple-300"
+          >
+            Clear
+          </button>
+        </div>
+        <div v-if="!store.availableDates.length" class="text-xs text-gray-500 italic">
+          No dates available
+        </div>
+        <div v-else class="text-sm select-none">
+          <div v-for="(months, year) in dateTree" :key="year" class="mb-0.5">
+            <!-- Year row -->
+            <button
+              @click="toggleYear(year)"
+              class="flex items-center gap-1 w-full text-left text-gray-300 hover:text-white py-0.5 rounded hover:bg-gray-700 px-1"
+            >
+              <span class="text-gray-500 text-xs w-3 flex-shrink-0">{{ expandedYears.has(year) ? '▾' : '▸' }}</span>
+              <span class="font-medium">{{ year }}</span>
+            </button>
+            <!-- Months -->
+            <div v-if="expandedYears.has(year)" class="ml-3">
+              <div v-for="(days, month) in months" :key="month" class="mb-0.5">
+                <!-- Month row -->
+                <button
+                  @click="toggleMonth(`${year}-${month}`)"
+                  class="flex items-center gap-1 w-full text-left text-gray-400 hover:text-gray-200 py-0.5 rounded hover:bg-gray-700 px-1"
+                >
+                  <span class="text-gray-500 text-xs w-3 flex-shrink-0">{{ expandedMonths.has(`${year}-${month}`) ? '▾' : '▸' }}</span>
+                  <span>{{ monthName(month) }}</span>
+                  <span class="text-gray-600 ml-auto text-xs">{{ days.reduce((s, d) => s + d.count, 0) }}</span>
+                </button>
+                <!-- Days -->
+                <div v-if="expandedMonths.has(`${year}-${month}`)" class="ml-3">
+                  <button
+                    v-for="d in days"
+                    :key="d.date"
+                    @click="selectDay(d.date)"
+                    :class="[
+                      'flex items-center justify-between w-full text-left px-1 py-0.5 rounded text-xs transition-colors',
+                      selectedDay === d.date
+                        ? 'bg-purple-700 text-white'
+                        : 'text-gray-400 hover:bg-gray-700 hover:text-gray-200',
+                    ]"
+                  >
+                    <span>{{ d.day }}</span>
+                    <span :class="selectedDay === d.date ? 'text-purple-300' : 'text-gray-600'">{{ d.count }}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Sort -->
@@ -209,10 +249,64 @@ const bulkTagInput = ref('')
 const bulkRemoveTagInput = ref('')
 const galleryEl = ref(null)
 
+// Date tree state — default current year + month expanded
+const today = new Date()
+const currentYear = today.getFullYear().toString()
+const currentMonth = String(today.getMonth() + 1).padStart(2, '0')
+const expandedYears = ref(new Set([currentYear]))
+const expandedMonths = ref(new Set([`${currentYear}-${currentMonth}`]))
+const selectedDay = ref(null)
+
 onMounted(() => {
   store.fetchImages(true)
   store.fetchAllTags()
+  store.fetchDates()
 })
+
+// Build year → month → days tree from flat date list
+const dateTree = computed(() => {
+  const tree = {}
+  for (const { date, count } of store.availableDates) {
+    const [year, month, day] = date.split('-')
+    if (!tree[year]) tree[year] = {}
+    if (!tree[year][month]) tree[year][month] = []
+    tree[year][month].push({ day, date, count })
+  }
+  return tree
+})
+
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+function monthName(mm) {
+  return MONTH_NAMES[parseInt(mm) - 1] || mm
+}
+
+function toggleYear(year) {
+  const next = new Set(expandedYears.value)
+  if (next.has(year)) next.delete(year)
+  else next.add(year)
+  expandedYears.value = next
+}
+
+function toggleMonth(yearMonth) {
+  const next = new Set(expandedMonths.value)
+  if (next.has(yearMonth)) next.delete(yearMonth)
+  else next.add(yearMonth)
+  expandedMonths.value = next
+}
+
+function selectDay(date) {
+  selectedDay.value = date
+  store.dateFrom = date
+  store.dateTo = date
+  store.fetchImages(true)
+}
+
+function clearDateFilter() {
+  selectedDay.value = null
+  store.dateFrom = ''
+  store.dateTo = ''
+  store.fetchImages(true)
+}
 
 function toggleTagFilter(tagName) {
   const idx = store.selectedTags.indexOf(tagName)

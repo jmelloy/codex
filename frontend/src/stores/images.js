@@ -115,6 +115,25 @@ export const useImagesStore = defineStore('images', {
       await this.fetchAllTags()
     },
 
+    async bulkRemoveTag(tagName) {
+      if (!this.selectedImageIds.length || !tagName) return
+      await axios.post('/api/images/bulk-remove-tag', {
+        image_ids: this.selectedImageIds,
+        tag_name: tagName,
+      })
+      await this.fetchImages()
+      await this.fetchAllTags()
+    },
+
+    async bulkRate(rating) {
+      if (!this.selectedImageIds.length) return
+      await axios.post('/api/images/bulk-rating', {
+        image_ids: this.selectedImageIds,
+        rating,
+      })
+      await this.fetchImages()
+    },
+
     async scanDirectory(directory) {
       const res = await axios.post('/api/images/scan', { directory })
       await this.fetchImages(true)

@@ -100,7 +100,7 @@
       <!-- Bulk actions -->
       <div v-if="store.selectedImageIds.length" class="mt-4 border-t border-gray-700 pt-4">
         <p class="text-xs text-gray-400 mb-2">{{ store.selectedImageIds.length }} selected</p>
-        <div class="flex gap-1 mb-2">
+        <div class="flex gap-1 mb-3">
           <button @click="store.selectAll()" class="text-xs bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded">
             All
           </button>
@@ -108,6 +108,8 @@
             None
           </button>
         </div>
+
+        <!-- Add tags -->
         <input
           v-model="bulkTagInput"
           placeholder="tag1, tag2…"
@@ -116,9 +118,36 @@
         />
         <button
           @click="doBulkTag"
-          class="w-full bg-purple-600 hover:bg-purple-700 text-white rounded px-2 py-1 text-xs"
+          class="w-full bg-purple-600 hover:bg-purple-700 text-white rounded px-2 py-1 text-xs mb-3"
         >
           Bulk Tag
+        </button>
+
+        <!-- Remove tag -->
+        <div v-if="selectedImagesTags.length" class="mb-3">
+          <label class="block text-xs text-gray-400 mb-1">Remove Tag</label>
+          <select
+            v-model="bulkRemoveTagInput"
+            class="w-full bg-gray-700 border border-gray-600 text-white rounded px-2 py-1 text-xs mb-1"
+          >
+            <option value="">— pick a tag —</option>
+            <option v-for="tag in selectedImagesTags" :key="tag" :value="tag">{{ tag }}</option>
+          </select>
+          <button
+            @click="doBulkRemoveTag"
+            :disabled="!bulkRemoveTagInput"
+            class="w-full bg-red-700 hover:bg-red-600 disabled:opacity-40 text-white rounded px-2 py-1 text-xs"
+          >
+            Remove Tag
+          </button>
+        </div>
+
+        <!-- Thumbs down -->
+        <button
+          @click="doBulkThumbsDown"
+          class="w-full bg-gray-700 hover:bg-gray-600 text-white rounded px-2 py-1 text-xs"
+        >
+          👎 Thumbs Down
         </button>
       </div>
     </aside>
@@ -177,6 +206,7 @@ import ImageCard from '../components/ImageCard.vue'
 
 const store = useImagesStore()
 const bulkTagInput = ref('')
+const bulkRemoveTagInput = ref('')
 const galleryEl = ref(null)
 
 onMounted(() => {
@@ -196,6 +226,32 @@ async function doBulkTag() {
   if (!tags.length) return
   await store.bulkTag(tags)
   bulkTagInput.value = ''
+}
+
+const selectedImagesTags = computed(() => {
+  const names = new Set()
+  for (const img of store.images) {
+    if (store.selectedImageIds.includes(img.id)) {
+      for (const tag of img.tags) names.add(tag.name)
+    }
+  }
+  return [...names].sort()
+})
+
+async function doBulkRemoveTag() {
+  const tag = bulkRemoveTagInput.value
+  if (!tag) return
+  const n = store.selectedImageIds.length
+  if (!confirm(`Remove tag "${tag}" from ${n} selected image${n !== 1 ? 's' : ''}?`)) return
+  await store.bulkRemoveTag(tag)
+  bulkRemoveTagInput.value = ''
+}
+
+async function doBulkThumbsDown() {
+  const n = store.selectedImageIds.length
+  if (!confirm(`Mark ${n} image${n !== 1 ? 's' : ''} as thumbs-down? They will be hidden.`)) return
+  await store.bulkRate(-1)
+  store.clearSelection()
 }
 
 const groupedImages = computed(() => {

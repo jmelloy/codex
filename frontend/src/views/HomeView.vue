@@ -100,18 +100,25 @@
       <!-- Sidebar Tabs -->
       <div class="sidebar-tabs flex" style="border-bottom: 1px solid var(--page-border)">
         <button
-          class="sidebar-tab flex-1 py-2 px-4 text-sm font-medium transition"
+          class="sidebar-tab flex-1 py-2 px-2 text-sm font-medium transition"
           :class="{ 'sidebar-tab-active': sidebarTab === 'files' }"
           @click="sidebarTab = 'files'"
         >
           Files
         </button>
         <button
-          class="sidebar-tab flex-1 py-2 px-4 text-sm font-medium transition"
+          class="sidebar-tab flex-1 py-2 px-2 text-sm font-medium transition"
           :class="{ 'sidebar-tab-active': sidebarTab === 'search' }"
           @click="sidebarTab = 'search'"
         >
           Search
+        </button>
+        <button
+          class="sidebar-tab flex-1 py-2 px-2 text-sm font-medium transition"
+          :class="{ 'sidebar-tab-active': sidebarTab === 'projects' }"
+          @click="onProjectsTabClick"
+        >
+          Projects
         </button>
       </div>
 
@@ -198,6 +205,56 @@
             </li>
           </ul>
         </div>
+      </div>
+
+      <!-- Projects Panel -->
+      <div v-else-if="sidebarTab === 'projects'" class="flex-1 flex flex-col overflow-hidden">
+        <div
+          class="flex justify-between items-center px-4 py-4"
+          style="border-bottom: 1px solid var(--page-border)"
+        >
+          <h2 class="m-0 text-sm font-semibold uppercase tracking-wide" style="color: var(--pen-gray)">
+            Projects
+          </h2>
+          <button
+            @click="showCreateProjectModal = true"
+            title="Create Project"
+            class="notebook-button text-white border-none w-6 h-6 rounded-full cursor-pointer text-base flex items-center justify-center transition"
+          >
+            +
+          </button>
+        </div>
+        <div
+          v-if="projectsStore.loading"
+          class="p-4 text-sm text-center"
+          style="color: var(--pen-gray)"
+        >
+          Loading…
+        </div>
+        <div
+          v-else-if="projectsStore.projects.length === 0"
+          class="p-4 text-sm text-center"
+          style="color: var(--pen-gray)"
+        >
+          No projects yet. Create one to get started.
+        </div>
+        <ul v-else class="list-none p-0 m-0 overflow-y-auto flex-1">
+          <li
+            v-for="project in projectsStore.projects"
+            :key="project.slug"
+            class="project-item py-2.5 px-4 cursor-pointer text-sm transition flex items-center justify-between"
+            style="border-bottom: 1px solid var(--page-border)"
+            @click="navigateToProject(project.slug)"
+          >
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="text-base">🎬</span>
+              <span class="truncate font-medium" style="color: var(--notebook-text)">{{ project.name }}</span>
+            </div>
+            <span class="text-xs flex-shrink-0 ml-2" style="color: var(--pen-gray)">
+              {{ project.image_count }}
+            </span>
+          </li>
+        </ul>
       </div>
 
       <!-- Files Panel (existing content) -->
@@ -919,6 +976,7 @@ import { ref, onMounted, watch, computed } from "vue"
 import { useRouter, useRoute } from "vue-router"
 import { useAuthStore } from "../stores/auth"
 import { useWorkspaceStore } from "../stores/workspace"
+import { useProjectsStore } from "../stores/projects"
 import type { Workspace, Notebook, Block } from "../services/codex"
 import { blockService, searchService } from "../services/codex"
 import { getDisplayType } from "../utils/contentType"
@@ -930,6 +988,7 @@ import BlockPropertiesPanel from "../components/BlockPropertiesPanel.vue"
 import BlockView from "../components/BlockView.vue"
 import BlockHeader from "../components/BlockHeader.vue"
 import BlockTreeItem from "../components/BlockTreeItem.vue"
+import AssignToProjectModal from "../components/AssignToProjectModal.vue"
 import SettingsDialog from "../components/SettingsDialog.vue"
 import AgentChat from "../components/agent/AgentChat.vue"
 import { useAgentStore } from "../stores/agent"
@@ -945,10 +1004,13 @@ const route = useRoute()
 const authStore = useAuthStore()
 const workspaceStore = useWorkspaceStore()
 const agentStore = useAgentStore()
+const projectsStore = useProjectsStore()
 
 // Modal state
 const showCreateWorkspace = ref(false)
 const showCreateNotebook = ref(false)
+const showCreateProjectModal = ref(false)
+const showAssignToProjectModal = ref(false)
 const showCreatePage = ref(false)
 const showSettingsDialog = ref(false)
 
@@ -971,7 +1033,7 @@ function closeSidebarOnMobile() {
 }
 
 // Sidebar tab state
-const sidebarTab = ref<"files" | "search">("files")
+const sidebarTab = ref<"files" | "search" | "projects">("files")
 const searchQuery = ref("")
 const searchResults = ref<Block[]>([])
 const isSearching = ref(false)

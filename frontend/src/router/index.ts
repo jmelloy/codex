@@ -7,6 +7,7 @@ import ForgotPasswordView from "../views/ForgotPasswordView.vue"
 import ResetPasswordView from "../views/ResetPasswordView.vue"
 import OAuthCallbackView from "../views/OAuthCallbackView.vue"
 import CalendarView from "../views/CalendarView.vue"
+import ProjectView from "../views/ProjectView.vue"
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -29,10 +30,16 @@ const router = createRouter({
       component: HomeView,
       meta: { requiresAuth: true },
     },
-{
+    {
       path: "/calendar",
       name: "calendar",
       component: CalendarView,
+      meta: { requiresAuth: true },
+    },
+    {
+      path: "/projects/:workspaceSlug/:slug",
+      name: "project-view",
+      component: ProjectView,
       meta: { requiresAuth: true },
     },
     {

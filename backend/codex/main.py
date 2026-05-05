@@ -23,6 +23,7 @@ from codex.api.routes import (
     notebooks,
     oauth,
     plugins,
+    projects,
     search,
     snippets,
     tasks,
@@ -240,6 +241,11 @@ app.include_router(tokens.router, prefix="/api/v1/tokens", tags=["tokens"])
 app.include_router(snippets.router, prefix="/api/v1/snippets", tags=["snippets"])
 app.include_router(oauth.router, prefix="/api/v1/oauth", tags=["oauth"])
 app.include_router(calendar.router, prefix="/api/v1/calendar", tags=["calendar"])
+app.include_router(
+    projects.nested_router,
+    prefix="/api/v1/workspaces/{workspace_identifier}/projects",
+    tags=["projects"],
+)
 
 # Serve frontend static files if the build is present (production)
 _static_dir = Path(__file__).parent.parent / "static"

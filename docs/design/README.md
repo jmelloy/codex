@@ -72,6 +72,20 @@ Design and implementation of scoped AI agents for automated assistance within Co
 - Tool routing for file operations
 - Action logging for auditability
 
+### [Mac App](./mac-app.md)
+**Status**: 🚧 Proposed (Draft)
+**Version**: 1.0
+**Date**: 2026-07-19
+
+Design for shipping Codex as a native macOS application: a thin native shell around the existing Vue frontend with the Python backend embedded as a bundled sidecar.
+
+**Topics**:
+- Shell architecture options (Electron vs Tauri/WKWebView vs SwiftUI rewrite)
+- Embedded engine packaging and desktop configuration profile
+- macOS integrations: Spotlight, Quick Look, quick capture, notifications, `codex://` links
+- Sync strategies (remote workspace attach, git-based notebook sync)
+- Distribution, signing, and phased rollout
+
 ## Document Status
 
 | Document | Status | Version | Last Updated |
@@ -79,6 +93,7 @@ Design and implementation of scoped AI agents for automated assistance within Co
 | Dynamic Views | ✅ Implemented (v1) | 1.1 | 2026-01-24 |
 | Plugin System | ✅ Implemented | 1.0 | 2026-01-28 |
 | AI Agent Integration | ✅ Implemented (Phase 1 & 2) | 1.0 | 2026-02-06 |
+| Mac App | 🚧 Proposed (Draft) | 1.0 | 2026-07-19 |
 
 ## Contributing
 

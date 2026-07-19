@@ -154,12 +154,20 @@ These are the reasons to build a Mac app at all, in priority order.
 
 ## Sync with a Remote Server
 
-Local-first does not mean local-only. Two mechanisms, both opt-in:
+Local-first does not mean local-only. Three mechanisms, all opt-in:
 
 1. **Remote workspace attach (v1)**: the app can add a remote Codex server as an additional workspace source — the SPA simply points those workspaces' API calls at the remote base URL with a stored PAT (Keychain). Local and remote workspaces coexist in the sidebar. No offline editing of remote workspaces in v1; they behave like the web app does today.
-2. **Git-based notebook sync (v1.x)**: `core/git_manager.py` and `git_lock_manager.py` already exist. Because a notebook is a folder of files plus a rebuildable SQLite index, a notebook syncs cleanly as a git repo with `.codex/` gitignored — each machine rebuilds its own index. The app adds UI for "publish notebook to git remote" and background pull/push with conflict surfacing (conflicted files flagged in the block tree, resolved in an external editor). This gives multi-Mac and Mac↔server sync without inventing a sync protocol.
+2. **Git-based notebook sync for text (v1.x)**: `core/git_manager.py` and `git_lock_manager.py` already exist. Because a notebook is a folder of files plus a rebuildable SQLite index, the *text* content of a notebook syncs cleanly as a git repo with `.codex/` gitignored — each machine rebuilds its own index. The app adds UI for "publish notebook to git remote" and background pull/push with conflict surfacing (conflicted files flagged in the block tree, resolved in an external editor).
 
-Explicitly rejected for now: CRDT/operational-transform sync. The unit of storage is a file; git-level conflict handling is acceptable for a single-author journal and is enormously cheaper.
+3. **S3 pointer sync for binaries (v1.x, required alongside git sync)**: git alone does **not** carry images or other binaries — `GitManager` writes a `.gitignore` excluding them and its `commit()` filters binary files out of the index. The existing answer is `core/s3_storage.py`: binaries upload to a versioned S3-compatible bucket (AWS, MinIO, R2 via `CODEX_S3_ENDPOINT_URL`), and a small `.s3ref` JSON pointer (bucket, key, version_id, sha256) is kept on disk and *always* committed, so git history records every binary version without the bytes — effectively a built-in git-LFS. The watcher already performs the upload-and-pointer flow when S3 is configured, falling back to local-only storage when it isn't.
+
+   Desktop implications:
+   - **Multi-machine sync therefore has two legs**: git remote for text + pointers, S3 bucket for binary bytes. The "publish notebook" UI must configure both together and refuse to advertise a notebook as synced if S3 is unconfigured — otherwise every image would silently stay on one machine.
+   - The app stores S3 credentials in the **Keychain** and lets the user point at any S3-compatible endpoint (a self-hosted MinIO next to a self-hosted Codex server is the natural pairing).
+   - On a machine pulling a notebook, the app materializes binaries lazily: a `.s3ref` without its sibling file renders via presigned URL (already supported by the blocks API) and downloads on demand, keeping clones small.
+   - Single-machine local-only use needs none of this; binaries just live on disk as today.
+
+Explicitly rejected for now: CRDT/operational-transform sync, and committing binaries directly to git or git-LFS (the `.s3ref` mechanism already exists and supports lazy fetch + versioned storage). The unit of storage is a file; git-level conflict handling is acceptable for a single-author journal and is enormously cheaper.
 
 ---
 
@@ -176,7 +184,7 @@ Explicitly rejected for now: CRDT/operational-transform sync. The unit of storag
 | **1. Engine-in-a-box** | PyInstaller build of backend, `CODEX_MODE=desktop` (implicit user, LocalQueue, App Support paths), Tauri shell loading the SPA, sidecar supervision, signed DMG | Fresh Mac: download DMG → create notebook → edit a file in VS Code → change appears in app. No Docker, no login. |
 | **2. Mac citizenship** | Menus/shortcuts, file associations, `codex://`, quick capture, notifications, Sparkle | Daily-drivable as primary journal |
 | **3. System search & share** | Spotlight indexing, Quick Look, Share extension, Keychain-backed secrets | Notebook content findable from Spotlight |
-| **4. Sync** | Remote workspace attach; git notebook sync UI | Same notebook usable on two Macs |
+| **4. Sync** | Remote workspace attach; git + S3 notebook sync UI (text via git remote, binaries via `.s3ref` pointers) | Same notebook — including images — usable on two Macs |
 
 ## Risks
 

@@ -72,6 +72,22 @@ Design and implementation of scoped AI agents for automated assistance within Co
 - Tool routing for file operations
 - Action logging for auditability
 
+### [Multi-User & Multi-Org](./multi-user-multi-org.md)
+**Status**: 📝 Draft  
+**Version**: 0.1  
+**Date**: 2026-07-19
+
+Design for organizations, enforced workspace sharing, comments, notifications, and bots as
+first-class principals, with S3 as the source of truth for shared workspaces.
+
+**Topics**:
+- Principals (humans and bots in one identity model), orgs, and role-based membership
+- Permission resolution (`read < comment < write < admin`) enforced on routes and WebSockets
+- S3 sync architecture with backend-vended scoped STS credentials
+- Block-anchored comments with mentions that can invoke bots
+- Event/notification pipeline (in-app, email digest, webhooks for bots)
+- Current limitations inventory (L1–L12) and a six-phase rollout plan
+
 ## Document Status
 
 | Document | Status | Version | Last Updated |
@@ -79,6 +95,7 @@ Design and implementation of scoped AI agents for automated assistance within Co
 | Dynamic Views | ✅ Implemented (v1) | 1.1 | 2026-01-24 |
 | Plugin System | ✅ Implemented | 1.0 | 2026-01-28 |
 | AI Agent Integration | ✅ Implemented (Phase 1 & 2) | 1.0 | 2026-02-06 |
+| Multi-User & Multi-Org | 📝 Draft | 0.1 | 2026-07-19 |
 
 ## Contributing
 

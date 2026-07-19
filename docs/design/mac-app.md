@@ -58,7 +58,9 @@ Three options were considered:
 
 **Recommendation: Option B — a thin native shell (Tauri v2, or a small Swift/AppKit app hosting WKWebView) around the existing Vue frontend, with the Python backend embedded as a bundled sidecar process.** Tauri is preferred over a hand-rolled Swift shell because it ships the sidecar-process, auto-update, deep-link, tray/menu-bar, and notification plumbing out of the box, while still using the system WebView (WKWebView) so the app feels and sizes like a Mac app rather than a bundled browser.
 
-Option C is rejected for v1: the block tree, MarkdownViewer custom blocks, dynamic views (`.cdx`), plugin-loaded Vue components, and themes represent years of UI surface that would all need Swift equivalents — and the plugin system's frontend contract is "a compiled Vue component," which a native UI cannot load.
+Option C is rejected for v1 on UI-surface breadth: the block/page tree, MarkdownViewer's fenced custom blocks (api, database, weather, GitHub, link-preview), the agent chat UI, settings, and themes would all need Swift equivalents before reaching parity, for no v1 user benefit.
+
+One earlier argument against a native UI has weakened, and it's worth recording: the plugin system has been pared back to **CSS themes + backend integration proxies**. There is no third-party frontend-component ecosystem to host — every custom block component is compiled into the SPA bundle (`frontend/src/components/blocks/`), and the runtime "load compiled Vue component from `/api/v1/plugins/assets/`" path in `pluginLoader.ts` is vestigial: no build script produces `plugins.json`, the manifest endpoint returns an empty plugin list, and the `.vue` sources still sitting in `backend/plugins/*/components/` are never compiled or served. So the set of block types is closed and small, which means a native client (macOS or iOS) is *feasible* in a way it wasn't when plugins could ship arbitrary Vue components — it's rejected for v1 purely on cost, not possibility. This materially improves the story for a future iOS companion app.
 
 ### High-Level Architecture
 
@@ -120,6 +122,15 @@ The engine binary must be signed and notarized along with the app (hardened runt
 1. **FSEvents observer accumulation**: the test-suite note in CLAUDE.md (accumulated FSEvents observers segfault) hints at fragility. The desktop app runs for weeks at a time, so watchers must be provably torn down when a notebook is closed/removed; add a lifecycle test that opens/closes 100 notebooks under FSEvents.
 2. **iCloud Drive / Desktop & Documents sync**: files in iCloud-managed folders may be dataless (evicted) placeholders. The watcher and indexer must treat `NSFileProviderIdentifier`-style placeholder files as "present but not readable yet" rather than deleting index entries, and must not force-download entire notebooks just to index them. v1: detect iCloud placeholder files (`.icloud` naming / zero-size + extended attributes) and index lazily on materialization.
 
+### Plugins in the desktop app
+
+The plugin system today is effectively two things, and both port trivially:
+
+- **Themes** are CSS files (`backend/plugins/<theme>/styles/main.css`) served by `/api/v1/plugins/assets/` — they work unchanged inside the WebView.
+- **Integrations** (GitHub, OpenGraph, weather) are backend-side API proxies with manifest-declared config; their block components are compiled into the SPA. Secrets move to the Keychain per the desktop profile above.
+
+The desktop build should **drop the vestigial runtime component-loading path** (dynamic `import()` of plugin JS from the assets endpoint) rather than carry it: it currently has nothing to load, and removing it lets the WebView run under a strict CSP with no runtime-fetched executable code — a meaningful hardening win for an app whose engine holds filesystem access and agent credentials. If loadable frontend plugins ever return, they should return behind a deliberate design (signed bundles), not this leftover mechanism.
+
 ### WebSockets
 
 The frontend's WebSocket channel (`api/routes/ws.py`, `core/websocket.py`) works unchanged against `ws://127.0.0.1:<port>` and remains the push path for watcher-driven UI refresh and agent/task progress — no polling needed in the shell.
@@ -134,14 +145,14 @@ These are the reasons to build a Mac app at all, in priority order.
 
 1. **App lifecycle**: engine starts with the app, stops on quit; crash of either side is detected and the engine restarted (shell supervises the sidecar). Closing the window keeps the app (and watchers, and scheduled agent tasks) running in the background — standard Mac document-app behavior.
 2. **Native menus & shortcuts**: File/Edit/View/Window menus mapped to SPA routes and actions (⌘N new note, ⌘⇧F workspace search, ⌘, settings). The Vue app exposes a small `window.codexShell` command bus the shell invokes.
-3. **Open/import via Finder**: register the app as a handler for `.md` and `.cdx` and for notebook folders; drag a folder onto the Dock icon to register it as a notebook (the "notebook registration" flow that exists in the API today).
+3. **Open/import via Finder**: register the app as a handler for `.md` files and notebook folders; drag a folder onto the Dock icon to register it as a notebook (the "notebook registration" flow that exists in the API today).
 4. **`codex://` URL scheme**: `codex://workspace/<ws>/notebook/<nb>/block/<id>` deep links for use in other apps, agents, and notifications. This also becomes the target of Spotlight results.
 5. **Signed, notarized DMG with Sparkle auto-update.**
 
 ### P1 — the mac-native payoff
 
 6. **Spotlight (Core Spotlight)**: a shell-side indexer mirrors the notebook search index into `CSSearchableItem`s (title, tags, snippet, `codex://` URL). Codex already maintains `SearchIndex` per notebook; the shell subscribes to index-change events over the WebSocket channel and upserts into Spotlight. Full-text stays in Codex; Spotlight gets titles/tags/summaries to keep the system index lean.
-7. **Quick Look extension** for `.cdx` files: render frontmatter + Markdown body statically (no query execution) so pressing Space in Finder shows something meaningful.
+7. **Quick Look extension** for Codex notebook pages: render frontmatter metadata + Markdown body statically, with fenced custom blocks (```` ```weather ````, ```` ```github-issues ```` …) shown as labeled placeholders rather than executed, so pressing Space in Finder shows something meaningful instead of raw YAML.
 8. **Menu-bar quick capture**: global hotkey opens a small always-on-top capture window (title + Markdown body + target notebook picker) that POSTs to the blocks API. This is the single highest-leverage feature for a journal app — capture without context-switching.
 9. **Notifications**: task completion, agent run finished/needs-confirmation, calendar events (`google_calendar.py` integration) surfaced via `UNUserNotificationCenter`, with actions deep-linking back into the app.
 10. **Share extension**: "Share → Codex" from Safari/Finder creates a block with the shared URL/file; pairs with the existing OpenGraph plugin for link unfurling.
@@ -202,8 +213,10 @@ Explicitly rejected for now: CRDT/operational-transform sync, and committing bin
 
 ## References
 
-- [Plugin System](./plugin-system.md) — frontend plugin contract (compiled Vue components) that constrains the shell choice
 - [AI Agent Integration](./ai-agent-integration.md) — agent engine that must run inside the sidecar
-- [Dynamic Views](./dynamic-views.md) — `.cdx` format relevant to Quick Look
+- `backend/codex/plugins/` + `frontend/src/services/pluginLoader.ts` — current (reduced) plugin system: CSS themes, integration proxies, SPA-bundled block components
 - `backend/codex/core/watcher.py` — FSEvents-backed notebook sync
 - `backend/codex/core/git_manager.py` — basis for git notebook sync
+- `backend/codex/core/s3_storage.py` — `.s3ref` pointer mechanism for binary sync
+
+(The former Plugin System and Dynamic Views design docs have been removed from the repo along with most of the features they described; this doc reflects the code as of 2026-07.)

@@ -44,7 +44,7 @@ dev = [
     "ruff>=0.7.0",
     "black>=24.10.0",
     "mypy>=1.20.2",
-    "greenlet>=3.3.1",
+    "greenlet>=3.5.3",
 ]
 
 [build-system]

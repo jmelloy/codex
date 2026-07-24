@@ -79,7 +79,7 @@ class WorkspacePermission(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     workspace_id: int = Field(foreign_key="workspaces.id")
     user_id: int = Field(foreign_key="users.id")
-    permission_level: str = Field(default="read")  # read, write, admin
+    permission_level: str = Field(default="read")  # read, comment, write, admin
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
     )

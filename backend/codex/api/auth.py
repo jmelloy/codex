@@ -9,6 +9,7 @@ from enum import StrEnum
 from fastapi import Cookie, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
+from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -144,20 +145,41 @@ async def rotate_refresh_token(plain_token: str, session: AsyncSession) -> tuple
     )
 
     token_hash_value = hash_token(plain_token)
+    now = datetime.now(UTC)
+
+    # Atomically claim the token by flipping revoked_at from NULL in a single
+    # UPDATE. Only one of two concurrent requests presenting the same refresh
+    # token can match the WHERE clause, so only one can mint a new token pair.
+    claim_result = await session.execute(
+        update(RefreshToken)
+        .where(RefreshToken.token_hash == token_hash_value, RefreshToken.revoked_at.is_(None))
+        .values(revoked_at=now)
+    )
+    await session.commit()
+
+    if claim_result.rowcount == 0:
+        # Either the token never existed, or a concurrent refresh already claimed it.
+        raise invalid_exception
+
     result = await session.execute(select(RefreshToken).where(RefreshToken.token_hash == token_hash_value))
     stored = result.scalar_one_or_none()
 
-    if stored is None or stored.revoked_at is not None or stored.expires_at < datetime.now(UTC):
+    if stored is None:
+        raise invalid_exception
+
+    # SQLite drops tzinfo on round-trip even for DateTime(timezone=True) columns,
+    # so a value read back in a fresh session/connection comes back naive.
+    stored_expires_at = stored.expires_at
+    if stored_expires_at.tzinfo is None:
+        stored_expires_at = stored_expires_at.replace(tzinfo=UTC)
+
+    if stored_expires_at < now:
         raise invalid_exception
 
     user_result = await session.execute(select(User).where(User.id == stored.user_id))
     user = user_result.scalar_one_or_none()
     if user is None or not user.is_active:
         raise invalid_exception
-
-    # Rotate: revoke the presented token so it can't be replayed.
-    stored.revoked_at = datetime.now(UTC)
-    session.add(stored)
 
     new_access_token = create_access_token(
         data={"sub": user.username}, expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)

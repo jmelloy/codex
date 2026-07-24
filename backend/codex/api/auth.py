@@ -4,7 +4,7 @@ import hashlib
 import os
 import secrets
 from datetime import UTC, datetime, timedelta
-from enum import Enum
+from enum import StrEnum
 
 from fastapi import Cookie, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
@@ -27,7 +27,7 @@ REFRESH_TOKEN_PREFIX = "cdxr_"
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
 
 
-class PermissionScope(str, Enum):
+class PermissionScope(StrEnum):
     """Formal scopes that can be granted to a personal access token.
 
     Replaces the old free-form comma-delimited scope string (design doc L11).

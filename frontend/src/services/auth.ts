@@ -1,4 +1,4 @@
-import apiClient from "./api"
+import apiClient, { refreshAccessToken } from "./api"
 
 export interface User {
   id: number
@@ -22,6 +22,7 @@ export interface RegisterData {
 export interface TokenResponse {
   access_token: string
   token_type: string
+  refresh_token?: string
 }
 
 // Helper to set the access token cookie (for browser-initiated requests like <img src>)
@@ -74,6 +75,10 @@ export const authService = {
   logout() {
     clearToken()
   },
+
+  // Exchange the httponly refresh_token cookie (set at login) for a new
+  // access token, without requiring the user to re-enter credentials.
+  refreshAccessToken,
 
   isAuthenticated(): boolean {
     const token = localStorage.getItem("access_token")

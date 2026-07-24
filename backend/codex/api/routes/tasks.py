@@ -9,6 +9,7 @@ from sqlmodel import select
 
 from codex.api.auth import get_current_active_user
 from codex.api.routes.workspaces import get_workspace_by_slug
+from codex.core.permissions import PermissionLevel, require_level
 from codex.db.database import get_system_session
 from codex.db.models import Task, User, Workspace
 
@@ -30,14 +31,17 @@ class TaskUpdate(BaseModel):
     assigned_to: str | None = None
 
 
-async def _verify_workspace_access(workspace_id: int, current_user: User, session: AsyncSession) -> Workspace:
-    """Verify the current user owns the workspace."""
-    result = await session.execute(
-        select(Workspace).where(Workspace.id == workspace_id, Workspace.owner_id == current_user.id)
-    )
-    workspace = result.scalar_one_or_none()
+async def _verify_workspace_access(
+    workspace_id: int,
+    current_user: User,
+    session: AsyncSession,
+    required_level: PermissionLevel = PermissionLevel.READ,
+) -> Workspace:
+    """Verify the current user has at least `required_level` access to the workspace."""
+    workspace = await session.get(Workspace, workspace_id)
     if not workspace:
         raise HTTPException(status_code=404, detail="Workspace not found")
+    await require_level(current_user, workspace, required_level, session)
     return workspace
 
 
@@ -84,7 +88,9 @@ async def create_task(
     session: AsyncSession = Depends(get_system_session),
 ) -> Task:
     """Create a new task."""
-    workspace = await get_workspace_by_slug(workspace_identifier, current_user, session)
+    workspace = await get_workspace_by_slug(
+        workspace_identifier, current_user, session, required_level=PermissionLevel.WRITE
+    )
     task = Task(
         workspace_id=workspace.id,
         title=body.title,
@@ -110,7 +116,7 @@ async def update_task(
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    await _verify_workspace_access(task.workspace_id, current_user, session)
+    await _verify_workspace_access(task.workspace_id, current_user, session, required_level=PermissionLevel.WRITE)
 
     if body.status is not None:
         task.status = body.status
@@ -139,7 +145,7 @@ async def delete_task(
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    await _verify_workspace_access(task.workspace_id, current_user, session)
+    await _verify_workspace_access(task.workspace_id, current_user, session, required_level=PermissionLevel.WRITE)
     await session.delete(task)
     await session.commit()
 
@@ -157,7 +163,7 @@ async def enqueue_task(
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    await _verify_workspace_access(task.workspace_id, current_user, session)
+    await _verify_workspace_access(task.workspace_id, current_user, session, required_level=PermissionLevel.WRITE)
 
     if task.status not in ("pending", "failed"):
         raise HTTPException(

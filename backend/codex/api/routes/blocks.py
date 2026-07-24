@@ -55,6 +55,7 @@ from codex.core.blocks import (
 )
 from codex.core.import_worker import process_zip_import
 from codex.core.md_import import import_markdown_to_page
+from codex.core.permissions import PermissionLevel
 from codex.core.websocket import notify_file_change
 from codex.db.database import get_notebook_session, get_system_session
 from codex.db.models import Block, Task, User
@@ -345,7 +346,7 @@ async def create_new_block(
 ):
     """Create a new block within a page."""
     notebook_path, notebook, workspace = await get_notebook_path_nested(
-        workspace_identifier, notebook_identifier, current_user, session
+        workspace_identifier, notebook_identifier, current_user, session, required_level=PermissionLevel.WRITE
     )
 
     nb_session = get_notebook_session(str(notebook_path))
@@ -404,7 +405,7 @@ async def create_new_page(
 ):
     """Create a new page (folder with block structure)."""
     notebook_path, notebook, workspace = await get_notebook_path_nested(
-        workspace_identifier, notebook_identifier, current_user, session
+        workspace_identifier, notebook_identifier, current_user, session, required_level=PermissionLevel.WRITE
     )
 
     nb_session = get_notebook_session(str(notebook_path))
@@ -468,7 +469,7 @@ async def update_block(
 ):
     """Update block content."""
     notebook_path, notebook, workspace = await get_notebook_path_nested(
-        workspace_identifier, notebook_identifier, current_user, session
+        workspace_identifier, notebook_identifier, current_user, session, required_level=PermissionLevel.WRITE
     )
 
     nb_session = get_notebook_session(str(notebook_path))
@@ -517,7 +518,7 @@ async def move_block_endpoint(
 ):
     """Move a block to a new parent and/or position."""
     notebook_path, notebook, workspace = await get_notebook_path_nested(
-        workspace_identifier, notebook_identifier, current_user, session
+        workspace_identifier, notebook_identifier, current_user, session, required_level=PermissionLevel.WRITE
     )
 
     nb_session = get_notebook_session(str(notebook_path))
@@ -565,7 +566,7 @@ async def reorder_blocks_endpoint(
 ):
     """Reorder children of a page block."""
     notebook_path, notebook, workspace = await get_notebook_path_nested(
-        workspace_identifier, notebook_identifier, current_user, session
+        workspace_identifier, notebook_identifier, current_user, session, required_level=PermissionLevel.WRITE
     )
 
     nb_session = get_notebook_session(str(notebook_path))
@@ -598,7 +599,7 @@ async def delete_block_endpoint(
 ):
     """Delete a block. For pages, recursively deletes all children."""
     notebook_path, notebook, workspace = await get_notebook_path_nested(
-        workspace_identifier, notebook_identifier, current_user, session
+        workspace_identifier, notebook_identifier, current_user, session, required_level=PermissionLevel.WRITE
     )
 
     nb_session = get_notebook_session(str(notebook_path))
@@ -642,7 +643,7 @@ async def convert_file_to_blocks(
 ):
     """Convert an existing markdown file in the notebook to a page of blocks."""
     notebook_path, notebook, workspace = await get_notebook_path_nested(
-        workspace_identifier, notebook_identifier, current_user, session
+        workspace_identifier, notebook_identifier, current_user, session, required_level=PermissionLevel.WRITE
     )
 
     # Resolve the file path
@@ -703,7 +704,7 @@ async def import_markdown(
         current_user.username,
     )
     notebook_path, notebook, workspace = await get_notebook_path_nested(
-        workspace_identifier, notebook_identifier, current_user, session
+        workspace_identifier, notebook_identifier, current_user, session, required_level=PermissionLevel.WRITE
     )
 
     if not file.filename or not file.filename.endswith(".md"):
@@ -830,7 +831,7 @@ async def upload_block(
         current_user.username,
     )
     notebook_path, notebook, workspace = await get_notebook_path_nested(
-        workspace_identifier, notebook_identifier, current_user, session
+        workspace_identifier, notebook_identifier, current_user, session, required_level=PermissionLevel.WRITE
     )
     if not file.filename:
         logger.warning("upload_block: rejected - no filename provided")
@@ -900,7 +901,7 @@ async def upload_folder(
         current_user.username,
     )
     notebook_path, notebook, workspace = await get_notebook_path_nested(
-        workspace_identifier, notebook_identifier, current_user, session
+        workspace_identifier, notebook_identifier, current_user, session, required_level=PermissionLevel.WRITE
     )
     if len(files) != len(paths):
         raise HTTPException(status_code=400, detail="files and paths length mismatch")
@@ -1014,7 +1015,7 @@ async def import_folder(
 ):
     """Import a folder tree as nested pages."""
     notebook_path, notebook, workspace = await get_notebook_path_nested(
-        workspace_identifier, notebook_identifier, current_user, session
+        workspace_identifier, notebook_identifier, current_user, session, required_level=PermissionLevel.WRITE
     )
     nb_session = get_notebook_session(str(notebook_path))
     try:
@@ -1200,7 +1201,7 @@ async def update_block_properties_endpoint(
 ):
     """Update block properties."""
     notebook_path, notebook, workspace = await get_notebook_path_nested(
-        workspace_identifier, notebook_identifier, current_user, session
+        workspace_identifier, notebook_identifier, current_user, session, required_level=PermissionLevel.WRITE
     )
     nb_session = get_notebook_session(str(notebook_path))
     try:

@@ -13,6 +13,7 @@ from sqlmodel import select
 from codex.api.auth import get_current_active_user
 from codex.api.routes.utils import slugify
 from codex.api.schemas import MessageResponse, WorkspacePluginConfigResponse
+from codex.core.permissions import PermissionLevel, check_permission
 from codex.core.watcher import get_watcher_for_notebook, unregister_watcher
 from codex.db.database import DATA_DIRECTORY, get_system_session
 from codex.db.models import (
@@ -65,8 +66,16 @@ router = APIRouter()
 async def list_workspaces(
     current_user: User = Depends(get_current_active_user), session: AsyncSession = Depends(get_system_session)
 ) -> list[Workspace]:
-    """List all workspaces for the current user."""
-    result = await session.execute(select(Workspace).where(Workspace.owner_id == current_user.id))
+    """List all workspaces owned by, or shared with, the current user."""
+    result = await session.execute(
+        select(Workspace)
+        .outerjoin(
+            WorkspacePermission,
+            (WorkspacePermission.workspace_id == Workspace.id)
+            & (WorkspacePermission.user_id == current_user.id),
+        )
+        .where((Workspace.owner_id == current_user.id) | (WorkspacePermission.user_id == current_user.id))
+    )
     return result.scalars().all()
 
 
@@ -93,28 +102,50 @@ async def slug_exists_in_db(session: AsyncSession, slug: str, owner_id: int) -> 
 
 
 async def get_workspace_by_slug(
-    workspace_slug: str, current_user: User, session: AsyncSession
+    workspace_slug: str,
+    current_user: User,
+    session: AsyncSession,
+    required_level: PermissionLevel = PermissionLevel.READ,
 ) -> Workspace:
-    """Get workspace by slug.
+    """Get workspace by slug, asserting the caller has at least `required_level` access.
+
+    Slugs are only unique per-owner (see docs/design/multi-user-multi-org.md, L10), so the
+    lookup is scoped to workspaces the user owns or has an explicit permission grant on rather
+    than searching all workspaces by slug.
 
     Args:
         workspace_slug: URL-safe slug identifier
         current_user: Current authenticated user
         session: Database session
+        required_level: Minimum permission level required for this operation
 
     Returns:
         Workspace object
 
     Raises:
-        HTTPException if workspace not found
+        HTTPException: 404 if no accessible workspace matches, 403 if the caller's
+            permission level is below `required_level`
     """
     result = await session.execute(
-        select(Workspace).where(Workspace.slug == workspace_slug, Workspace.owner_id == current_user.id)
+        select(Workspace)
+        .outerjoin(
+            WorkspacePermission,
+            (WorkspacePermission.workspace_id == Workspace.id)
+            & (WorkspacePermission.user_id == current_user.id),
+        )
+        .where(
+            Workspace.slug == workspace_slug,
+            (Workspace.owner_id == current_user.id) | (WorkspacePermission.user_id == current_user.id),
+        )
     )
-    workspace = result.scalar_one_or_none()
+    workspace = result.scalars().first()
 
     if not workspace:
         raise HTTPException(status_code=404, detail="Workspace not found")
+
+    if not await check_permission(current_user, workspace, required_level, session):
+        raise HTTPException(status_code=403, detail="Insufficient permission for this operation")
+
     return workspace
 
 
@@ -197,7 +228,9 @@ async def update_workspace_theme(
     session: AsyncSession = Depends(get_system_session),
 ) -> Workspace:
     """Update the theme setting for a workspace by slug or ID."""
-    workspace = await get_workspace_by_slug(workspace_identifier, current_user, session)
+    workspace = await get_workspace_by_slug(
+        workspace_identifier, current_user, session, required_level=PermissionLevel.WRITE
+    )
 
     workspace.theme_setting = body.theme
     session.add(workspace)
@@ -302,7 +335,9 @@ async def update_workspace_plugin_config(
     Returns:
         Updated plugin configuration
     """
-    workspace = await get_workspace_by_slug(workspace_identifier, current_user, session)
+    workspace = await get_workspace_by_slug(
+        workspace_identifier, current_user, session, required_level=PermissionLevel.WRITE
+    )
 
     # Check if config exists
     stmt = select(PluginConfig).where(
@@ -353,7 +388,9 @@ async def delete_workspace(
     session: AsyncSession = Depends(get_system_session),
 ):
     """Delete a workspace and all its contents."""
-    workspace = await get_workspace_by_slug(workspace_identifier, current_user, session)
+    workspace = await get_workspace_by_slug(
+        workspace_identifier, current_user, session, required_level=PermissionLevel.ADMIN
+    )
 
     # Save path before ORM object may be expired by subsequent queries
     workspace_path = workspace.path
@@ -464,7 +501,9 @@ async def delete_workspace_plugin_config(
     Returns:
         Success message
     """
-    workspace = await get_workspace_by_slug(workspace_identifier, current_user, session)
+    workspace = await get_workspace_by_slug(
+        workspace_identifier, current_user, session, required_level=PermissionLevel.WRITE
+    )
 
     # Query workspace plugin config
     stmt = select(PluginConfig).where(

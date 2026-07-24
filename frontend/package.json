@@ -17,26 +17,26 @@
     "js-yaml": "^4.1.1",
     "marked": "^18.0.2",
     "pinia": "^3.0.4",
-    "vue": "^3.5.34",
-    "vue-router": "^5.0.7"
+    "vue": "^3.5.40",
+    "vue-router": "^5.2.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.2",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^26.1.1",
-    "@vitejs/plugin-vue": "^6.0.6",
+    "@vitejs/plugin-vue": "^6.0.8",
     "@vitest/coverage-v8": "^4.0.18",
     "@vitest/ui": "^4.0.16",
-    "@vue/test-utils": "^2.4.9",
+    "@vue/test-utils": "^2.4.11",
     "@vue/tsconfig": "^0.9.1",
     "autoprefixer": "^10.4.27",
-    "happy-dom": "^20.8.9",
+    "happy-dom": "^20.11.0",
     "postcss": "^8.5.14",
     "tailwindcss": "^4.2.2",
     "typescript": "^5",
-    "vite": "^8.0.10",
+    "vite": "^8.1.5",
     "vitest": "^4.0.16",
-    "vue-tsc": "^3.2.8"
+    "vue-tsc": "^3.3.7"
   },
   "engines": {
     "node": ">=24.0.0"

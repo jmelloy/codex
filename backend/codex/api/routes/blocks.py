@@ -382,6 +382,8 @@ async def create_new_block(
             path=result.get("path", page_path),
             block_id=result.get("block_id"),
             block_type=request.block_type,
+            workspace_id=workspace.id,
+            actor_principal_id=current_user.id,
         )
 
         # Return created block plus all siblings so frontend doesn't need a refetch
@@ -449,6 +451,8 @@ async def create_new_page(
             title=request.title,
             block_type="page",
             properties=request.properties,
+            workspace_id=workspace.id,
+            actor_principal_id=current_user.id,
         )
 
         return result
@@ -490,6 +494,8 @@ async def update_block(
             block_id=block_id,
             title=result.get("title"),
             block_type=result.get("block_type"),
+            workspace_id=workspace.id,
+            actor_principal_id=current_user.id,
         )
 
         # Include updated siblings when type changed (view needs refresh)
@@ -544,6 +550,8 @@ async def move_block_endpoint(
             block_id=block_id,
             title=result.get("title"),
             block_type=result.get("block_type"),
+            workspace_id=workspace.id,
+            actor_principal_id=current_user.id,
         )
 
         return result
@@ -621,6 +629,8 @@ async def delete_block_endpoint(
             event_type="deleted",
             path=block_path,
             block_id=block_id,
+            workspace_id=workspace.id,
+            actor_principal_id=current_user.id,
         )
 
         result: dict[str, Any] = {"message": "Block deleted successfully"}
@@ -1221,6 +1231,8 @@ async def update_block_properties_endpoint(
             title=result.get("title"),
             block_type=result.get("block_type"),
             properties=result.get("properties"),
+            workspace_id=workspace.id,
+            actor_principal_id=current_user.id,
         )
 
         return result

@@ -1,4 +1,14 @@
-"""WebSocket manager for broadcasting file change events."""
+"""WebSocket manager for broadcasting file change events.
+
+Connections are organized by channel rather than by bare notebook/workspace id:
+
+- ``workspace:{workspace_id}`` - file change events for everything in that workspace.
+- ``principal:{user_id}`` - events addressed to a specific connected user.
+
+A socket can be subscribed to multiple channels at once; subscriptions are only
+granted by callers (see `codex.api.routes.ws`) after checking the connecting
+principal's effective permission level.
+"""
 
 from __future__ import annotations
 
@@ -15,6 +25,17 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+WORKSPACE_CHANNEL_PREFIX = "workspace:"
+PRINCIPAL_CHANNEL_PREFIX = "principal:"
+
+
+def workspace_channel(workspace_id: int) -> str:
+    return f"{WORKSPACE_CHANNEL_PREFIX}{workspace_id}"
+
+
+def principal_channel(user_id: int) -> str:
+    return f"{PRINCIPAL_CHANNEL_PREFIX}{user_id}"
+
 
 @dataclass
 class FileChangeEvent:
@@ -29,6 +50,8 @@ class FileChangeEvent:
     title: str | None = None
     block_type: str | None = None
     properties: dict | None = None
+    workspace_id: int | None = None  # Routing target; resolved lazily if not given
+    actor_principal_id: int | None = None  # User whose action triggered this event
 
     def to_dict(self) -> dict:
         result = {
@@ -47,53 +70,84 @@ class FileChangeEvent:
             result["block_type"] = self.block_type
         if self.properties is not None:
             result["properties"] = self.properties
+        if self.actor_principal_id is not None:
+            result["actor_principal_id"] = self.actor_principal_id
         return result
 
 
+def _lookup_workspace_id_sync(notebook_id: int) -> int | None:
+    """Blocking lookup of a notebook's workspace id, for use in a worker thread."""
+    from codex.db.database import get_system_session_sync
+    from codex.db.models import Notebook
+
+    session = get_system_session_sync()
+    try:
+        notebook = session.get(Notebook, notebook_id)
+        return notebook.workspace_id if notebook else None
+    finally:
+        session.close()
+
+
 class ConnectionManager:
-    """Manages WebSocket connections for file change notifications."""
+    """Manages WebSocket connections and their channel subscriptions."""
 
     def __init__(self):
-        # Map of notebook_id -> set of connected WebSockets
-        self._connections: dict[int, set[WebSocket]] = {}
+        # Map of channel -> set of connected WebSockets
+        self._channels: dict[str, set[WebSocket]] = {}
+        # Map of WebSocket -> set of channels it is subscribed to (for cleanup)
+        self._socket_channels: dict[WebSocket, set[str]] = {}
         # Event queue for broadcasting from sync threads
         self._event_queue: asyncio.Queue[FileChangeEvent] | None = None
         self._broadcast_task: asyncio.Task | None = None
+        # Cache of notebook_id -> workspace_id for events that don't carry it
+        self._notebook_workspace_cache: dict[int, int] = {}
 
-    async def connect(self, websocket: WebSocket, notebook_id: int):
-        """Accept a new WebSocket connection for a notebook."""
+    async def connect(self, websocket: WebSocket) -> None:
+        """Accept a new WebSocket connection. Subscribe it to channels separately."""
         await websocket.accept()
-        if notebook_id not in self._connections:
-            self._connections[notebook_id] = set()
-        self._connections[notebook_id].add(websocket)
-        logger.info(
-            f"WebSocket connected for notebook {notebook_id}. Total connections: {len(self._connections[notebook_id])}"
-        )
+        self._socket_channels[websocket] = set()
 
-    def disconnect(self, websocket: WebSocket, notebook_id: int):
-        """Remove a WebSocket connection."""
-        if notebook_id in self._connections:
-            self._connections[notebook_id].discard(websocket)
-            if not self._connections[notebook_id]:
-                del self._connections[notebook_id]
-            logger.info(f"WebSocket disconnected for notebook {notebook_id}")
+    def subscribe(self, websocket: WebSocket, channel: str) -> None:
+        """Subscribe an already-connected socket to a channel.
 
-    async def broadcast_to_notebook(self, notebook_id: int, message: dict):
-        """Broadcast a message to all connections for a notebook."""
-        if notebook_id not in self._connections:
+        Callers are responsible for checking that the connecting principal is
+        authorized for `channel` before calling this.
+        """
+        self._channels.setdefault(channel, set()).add(websocket)
+        self._socket_channels.setdefault(websocket, set()).add(channel)
+
+    def disconnect(self, websocket: WebSocket) -> None:
+        """Remove a WebSocket connection from all channels it was subscribed to."""
+        channels = self._socket_channels.pop(websocket, set())
+        for channel in channels:
+            connections = self._channels.get(channel)
+            if connections is not None:
+                connections.discard(websocket)
+                if not connections:
+                    del self._channels[channel]
+        if channels:
+            logger.info(f"WebSocket disconnected from channels: {sorted(channels)}")
+
+    async def broadcast(self, channel: str, message: dict) -> None:
+        """Broadcast a message to all connections subscribed to a channel."""
+        connections = self._channels.get(channel)
+        if not connections:
             return
 
         dead_connections = []
-        for websocket in self._connections[notebook_id]:
+        # Snapshot the set before awaiting: disconnect() can mutate `connections`
+        # concurrently (e.g. a client dropping mid-broadcast), and iterating the
+        # live set while awaiting send_json() would raise "Set changed size
+        # during iteration".
+        for websocket in list(connections):
             try:
                 await websocket.send_json(message)
             except Exception as e:
                 logger.warning(f"Failed to send WebSocket message: {e}")
                 dead_connections.append(websocket)
 
-        # Clean up dead connections
-        for ws in dead_connections:
-            self._connections[notebook_id].discard(ws)
+        for websocket in dead_connections:
+            connections.discard(websocket)
 
     def queue_event(self, event: FileChangeEvent):
         """Queue an event for async broadcasting (thread-safe)."""
@@ -120,12 +174,27 @@ class ConnectionManager:
         self._event_queue = None
         logger.info("WebSocket broadcast loop stopped")
 
+    async def _resolve_workspace_id(self, notebook_id: int) -> int | None:
+        if notebook_id in self._notebook_workspace_cache:
+            return self._notebook_workspace_cache[notebook_id]
+
+        workspace_id = await asyncio.to_thread(_lookup_workspace_id_sync, notebook_id)
+        if workspace_id is not None:
+            self._notebook_workspace_cache[notebook_id] = workspace_id
+        return workspace_id
+
     async def _broadcast_loop(self):
         """Process events from the queue and broadcast them."""
         while True:
             try:
                 event = await self._event_queue.get()
-                await self.broadcast_to_notebook(event.notebook_id, event.to_dict())
+                workspace_id = event.workspace_id
+                if workspace_id is None:
+                    workspace_id = await self._resolve_workspace_id(event.notebook_id)
+                if workspace_id is None:
+                    logger.warning(f"Could not resolve workspace for notebook {event.notebook_id}, dropping event")
+                    continue
+                await self.broadcast(workspace_channel(workspace_id), event.to_dict())
             except asyncio.CancelledError:
                 break
             except Exception as e:
@@ -145,10 +214,15 @@ def notify_file_change(
     title: str | None = None,
     block_type: str | None = None,
     properties: dict | None = None,
+    workspace_id: int | None = None,
+    actor_principal_id: int | None = None,
 ):
     """Notify connected clients about a file change.
 
     This function is thread-safe and can be called from the watcher threads.
+    `workspace_id`/`actor_principal_id` are optional: callers with a request context
+    (e.g. API routes) should pass them; the watcher (a background thread with no
+    request context) omits them and the broadcast loop resolves workspace_id lazily.
     """
     event = FileChangeEvent(
         notebook_id=notebook_id,
@@ -159,5 +233,7 @@ def notify_file_change(
         title=title,
         block_type=block_type,
         properties=properties,
+        workspace_id=workspace_id,
+        actor_principal_id=actor_principal_id,
     )
     connection_manager.queue_event(event)

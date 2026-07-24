@@ -230,6 +230,33 @@ async def _authenticate_via_pat(token: str, session: AsyncSession) -> tuple[User
     return user_result.scalar_one_or_none(), pat
 
 
+async def get_user_from_token(token: str, session: AsyncSession) -> User | None:
+    """Resolve a User from a bearer token string (PAT or JWT). Returns None if invalid.
+
+    Unlike `get_current_user`, this never raises - it's meant for callers (like the
+    WebSocket handshake) that need to decide for themselves how to react to a missing
+    or invalid token rather than getting an HTTP-shaped exception.
+    """
+    if not token:
+        return None
+
+    # Check if this is a personal access token (starts with cdx_)
+    if token.startswith(PAT_PREFIX):
+        return await _authenticate_via_pat(token, session)
+
+    # Otherwise treat as JWT
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str | None = payload.get("sub")
+    except JWTError:
+        return None
+
+    if username is None:
+        return None
+
+    return await get_user_by_username(username, session)
+
+
 async def get_current_user(
     request: Request,
     session: AsyncSession = Depends(get_system_session),

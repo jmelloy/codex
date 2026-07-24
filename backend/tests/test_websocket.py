@@ -1,13 +1,14 @@
 """Tests for WebSocket file change notifications."""
 
-from fastapi.testclient import TestClient
+import time
+
+from starlette.websockets import WebSocketDisconnect
 
 from codex.core.websocket import (
     ConnectionManager,
     FileChangeEvent,
     notify_file_change,
 )
-from codex.main import app
 
 
 class TestFileChangeEvent:
@@ -64,21 +65,23 @@ class TestConnectionManager:
 class TestWebSocketEndpoint:
     """Tests for the WebSocket endpoint."""
 
-    def test_websocket_connection(self):
-        """Test WebSocket connection establishment."""
-        client = TestClient(app)
+    def test_websocket_connection(self, test_client, auth_headers, workspace_and_notebook):
+        """Test WebSocket connection establishment with a token query param."""
+        _, notebook = workspace_and_notebook
+        token = auth_headers[0]["Authorization"].removeprefix("Bearer ")
 
-        with client.websocket_connect("/api/v1/ws/notebooks/1") as websocket:
+        with test_client.websocket_connect(f"/api/v1/ws/notebooks/{notebook['id']}?token={token}") as websocket:
             # Should receive connection confirmation
             data = websocket.receive_json()
             assert data["type"] == "connected"
-            assert data["notebook_id"] == 1
+            assert data["notebook_id"] == notebook["id"]
 
-    def test_websocket_ping_pong(self):
+    def test_websocket_ping_pong(self, test_client, auth_headers, workspace_and_notebook):
         """Test WebSocket ping/pong."""
-        client = TestClient(app)
+        _, notebook = workspace_and_notebook
+        token = auth_headers[0]["Authorization"].removeprefix("Bearer ")
 
-        with client.websocket_connect("/api/v1/ws/notebooks/1") as websocket:
+        with test_client.websocket_connect(f"/api/v1/ws/notebooks/{notebook['id']}?token={token}") as websocket:
             # Consume the connection message
             websocket.receive_json()
 
@@ -88,6 +91,69 @@ class TestWebSocketEndpoint:
             # Should receive pong
             response = websocket.receive_text()
             assert response == "pong"
+
+    def test_websocket_connection_via_first_message_auth(self, test_client, auth_headers, workspace_and_notebook):
+        """Test authenticating via a first `{"type": "auth", ...}` message instead of a query param."""
+        _, notebook = workspace_and_notebook
+        token = auth_headers[0]["Authorization"].removeprefix("Bearer ")
+
+        with test_client.websocket_connect(f"/api/v1/ws/notebooks/{notebook['id']}") as websocket:
+            websocket.send_json({"type": "auth", "token": token})
+            data = websocket.receive_json()
+            assert data["type"] == "connected"
+            assert data["notebook_id"] == notebook["id"]
+
+    def test_websocket_rejects_unauthenticated_connection(self, test_client, workspace_and_notebook):
+        """An unauthenticated connection (no token, no auth message) is closed with a policy code."""
+        _, notebook = workspace_and_notebook
+
+        with test_client.websocket_connect(f"/api/v1/ws/notebooks/{notebook['id']}") as websocket:
+            try:
+                websocket.receive_json()
+                assert False, "expected the connection to be closed"
+            except WebSocketDisconnect as exc:
+                assert exc.code == 1008
+
+    def test_websocket_rejects_invalid_token(self, test_client, workspace_and_notebook):
+        """A connection with a bogus token is closed with a policy code."""
+        _, notebook = workspace_and_notebook
+
+        with test_client.websocket_connect(
+            f"/api/v1/ws/notebooks/{notebook['id']}?token=not-a-real-token"
+        ) as websocket:
+            try:
+                websocket.receive_json()
+                assert False, "expected the connection to be closed"
+            except WebSocketDisconnect as exc:
+                assert exc.code == 1008
+
+    def test_websocket_rejects_user_without_access(self, test_client, workspace_and_notebook):
+        """A user with no permission on the workspace cannot subscribe to its events."""
+        _, notebook = workspace_and_notebook
+
+        stranger_username = f"ws_stranger_{int(time.time() * 1_000_000)}"
+        test_client.post(
+            "/api/v1/users/register",
+            json={
+                "username": stranger_username,
+                "email": f"{stranger_username}@example.com",
+                "password": "testpass123",
+            },
+        )
+        login_response = test_client.post(
+            "/api/v1/users/token", data={"username": stranger_username, "password": "testpass123"}
+        )
+        assert login_response.status_code == 200
+        stranger_token = login_response.json()["access_token"]
+
+        with test_client.websocket_connect(
+            f"/api/v1/ws/notebooks/{notebook['id']}?token={stranger_token}"
+        ) as websocket:
+            try:
+                websocket.receive_json()
+                assert False, "expected the connection to be closed"
+            except WebSocketDisconnect as exc:
+                assert exc.code == 1008
 
 
 class TestNotifyFileChange:

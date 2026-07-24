@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from codex.api.auth import generate_pat, get_current_active_user, hash_token
+from codex.api.auth import ALLOWED_SCOPES, generate_pat, get_current_active_user, hash_token
 from codex.db.database import get_system_session
 from codex.db.models import PersonalAccessToken, User
 
@@ -18,7 +18,7 @@ class CreateTokenRequest(BaseModel):
     """Request to create a personal access token."""
 
     name: str
-    scopes: str | None = None  # e.g. "snippets:write"
+    scopes: list[str] | None = None  # e.g. ["workspace:write"], must be drawn from ALLOWED_SCOPES
     workspace_id: int | None = None
     notebook_id: int | None = None
     expires_at: datetime | None = None
@@ -31,7 +31,7 @@ class TokenResponse(BaseModel):
     name: str
     token: str  # Only returned on creation
     token_prefix: str
-    scopes: str | None = None
+    scopes: list[str] | None = None
     workspace_id: int | None = None
     notebook_id: int | None = None
     expires_at: datetime | None = None
@@ -44,7 +44,7 @@ class TokenListItem(BaseModel):
     id: int
     name: str
     token_prefix: str
-    scopes: str | None = None
+    scopes: list[str] | None = None
     workspace_id: int | None = None
     notebook_id: int | None = None
     last_used_at: datetime | None = None
@@ -63,6 +63,14 @@ async def create_token(
 
     The plain token is returned only in this response. Store it securely.
     """
+    if request.scopes:
+        invalid = [s for s in request.scopes if s not in ALLOWED_SCOPES]
+        if invalid:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Unknown scope(s): {', '.join(invalid)}. Allowed scopes: {', '.join(ALLOWED_SCOPES)}",
+            )
+
     plain_token = generate_pat()
     token_hash_value = hash_token(plain_token)
 

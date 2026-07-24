@@ -17,6 +17,7 @@ from ulid import ULID
 
 from codex.api.routes import (
     agents,
+    auth as auth_routes,
     blocks,
     calendar,
     integrations,
@@ -47,6 +48,10 @@ async def lifespan(app: FastAPI):
     """Initialize database and plugins on startup."""
 
     await init_system_db()
+
+    # Refuse to boot in multi-user mode with the default SECRET_KEY (issue #527).
+    async with async_session_maker() as _startup_session:
+        await assert_secret_key_is_safe(_startup_session)
 
     # Start WebSocket broadcast loop
     await connection_manager.start_broadcast_loop()
@@ -240,6 +245,7 @@ app.include_router(agents.session_router, prefix="/api/v1/sessions", tags=["agen
 app.include_router(tokens.router, prefix="/api/v1/tokens", tags=["tokens"])
 app.include_router(snippets.router, prefix="/api/v1/snippets", tags=["snippets"])
 app.include_router(oauth.router, prefix="/api/v1/oauth", tags=["oauth"])
+app.include_router(auth_routes.router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(calendar.router, prefix="/api/v1/calendar", tags=["calendar"])
 
 # Serve frontend static files if the build is present (production)

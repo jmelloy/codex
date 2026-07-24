@@ -1,6 +1,7 @@
 """API routes package."""
 
 from . import (
+    auth,
     calendar,
     integrations,
     notebooks,
@@ -15,6 +16,7 @@ from . import (
 )
 
 __all__ = [
+    "auth",
     "calendar",
     "integrations",
     "notebooks",

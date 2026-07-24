@@ -11,10 +11,12 @@ from sqlmodel import select
 
 from codex.api.auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
+    REFRESH_TOKEN_EXPIRE_DAYS,
     create_access_token,
     get_current_active_user,
     get_password_hash,
     hash_token,
+    issue_refresh_token,
     verify_password,
 )
 from codex.api.routes.workspaces import WorkspaceCreate, create_workspace
@@ -34,6 +36,7 @@ from codex.db.models import (
     OAuthConnection,
     PasswordResetToken,
     PersonalAccessToken,
+    RefreshToken,
     User,
     Workspace,
     WorkspacePermission,
@@ -65,8 +68,9 @@ async def login(
 
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(data={"sub": user.username}, expires_delta=access_token_expires)
+    refresh_token = await issue_refresh_token(user, session)
 
-    # Set cookie with the access token
+    # Set cookies with the access and refresh tokens
     response.set_cookie(
         key="access_token",
         value=access_token,
@@ -75,8 +79,17 @@ async def login(
         samesite="lax",
         secure=False,  # Set to True in production with HTTPS
     )
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+        samesite="lax",
+        secure=False,  # Set to True in production with HTTPS
+        path="/api/v1/auth/refresh",
+    )
 
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {"access_token": access_token, "token_type": "bearer", "refresh_token": refresh_token}
 
 
 @router.get("/me")
@@ -237,6 +250,11 @@ async def delete_user(
     for token in pat_result.scalars().all():
         await session.delete(token)
 
+    # Delete refresh tokens
+    refresh_result = await session.execute(select(RefreshToken).where(RefreshToken.user_id == current_user.id))
+    for refresh_token in refresh_result.scalars().all():
+        await session.delete(refresh_token)
+
     # Delete OAuth connections
     oauth_result = await session.execute(select(OAuthConnection).where(OAuthConnection.user_id == current_user.id))
     for conn in oauth_result.scalars().all():
@@ -256,8 +274,9 @@ async def delete_user(
     await session.delete(current_user)
     await session.commit()
 
-    # Clear the auth cookie
+    # Clear the auth cookies
     response.delete_cookie(key="access_token")
+    response.delete_cookie(key="refresh_token", path="/api/v1/auth/refresh")
 
     return {"message": "User deleted successfully"}
 

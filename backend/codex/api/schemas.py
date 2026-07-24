@@ -191,6 +191,13 @@ class TokenResponse(BaseModel):
 
     access_token: str
     token_type: str
+    refresh_token: str | None = None
+
+
+class RefreshTokenRequest(BaseModel):
+    """Request body for exchanging a refresh token for a new token pair."""
+
+    refresh_token: str
 
 
 # --- Notebook responses ---

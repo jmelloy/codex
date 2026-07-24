@@ -135,7 +135,11 @@ class ConnectionManager:
             return
 
         dead_connections = []
-        for websocket in connections:
+        # Snapshot the set before awaiting: disconnect() can mutate `connections`
+        # concurrently (e.g. a client dropping mid-broadcast), and iterating the
+        # live set while awaiting send_json() would raise "Set changed size
+        # during iteration".
+        for websocket in list(connections):
             try:
                 await websocket.send_json(message)
             except Exception as e:

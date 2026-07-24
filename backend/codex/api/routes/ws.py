@@ -24,11 +24,16 @@ WS_POLICY_VIOLATION = 1008
 AUTH_MESSAGE_TIMEOUT_SECONDS = 10.0
 
 
-async def _deny(websocket: WebSocket, reason: str) -> None:
+async def _deny(websocket: WebSocket) -> None:
     """Close a connection that failed authentication/authorization, tolerating a client
-    that has already disconnected on its own."""
+    that has already disconnected on its own.
+
+    Always closes with the same generic reason - the specific cause (missing auth,
+    unknown notebook, or insufficient permission) is deliberately not disclosed, so an
+    unauthenticated caller can't use the close reason to probe what exists.
+    """
     try:
-        await websocket.close(code=WS_POLICY_VIOLATION, reason=reason)
+        await websocket.close(code=WS_POLICY_VIOLATION, reason="Forbidden")
     except Exception:
         pass
     connection_manager.disconnect(websocket)
@@ -77,30 +82,37 @@ async def notebook_websocket(websocket: WebSocket, notebook_id: int, token: str 
     """
     await connection_manager.connect(websocket)
 
-    async with async_session_maker() as session:
-        user = await _resolve_principal(websocket, token, session)
-        if user is None:
-            await _deny(websocket, "Authentication required")
-            return
+    try:
+        async with async_session_maker() as session:
+            user = await _resolve_principal(websocket, token, session)
+            if user is None:
+                await _deny(websocket)
+                return
 
-        result = await session.execute(
-            select(Notebook, Workspace)
-            .join(Workspace, Notebook.workspace_id == Workspace.id)
-            .where(Notebook.id == notebook_id)
-        )
-        row = result.first()
-        if row is None:
-            await _deny(websocket, "Notebook not found")
-            return
-        notebook, workspace = row
+            result = await session.execute(
+                select(Notebook, Workspace)
+                .join(Workspace, Notebook.workspace_id == Workspace.id)
+                .where(Notebook.id == notebook_id)
+            )
+            row = result.first()
+            if row is None:
+                await _deny(websocket)
+                return
+            notebook, workspace = row
 
-        level = await effective_level(user, workspace, session)
-        if level is None or level < PermissionLevel.READ:
-            await _deny(websocket, "Insufficient permission")
-            return
+            level = await effective_level(user, workspace, session)
+            if level is None or level < PermissionLevel.READ:
+                await _deny(websocket)
+                return
 
-    connection_manager.subscribe(websocket, workspace_channel(workspace.id))
-    connection_manager.subscribe(websocket, principal_channel(user.id))
+        connection_manager.subscribe(websocket, workspace_channel(workspace.id))
+        connection_manager.subscribe(websocket, principal_channel(user.id))
+    except Exception:
+        # Any unexpected failure during auth/authorization (DB error, etc.) must still
+        # untrack the socket - otherwise it lingers in connection_manager forever.
+        logger.exception(f"WebSocket handshake failed for notebook {notebook_id}")
+        await _deny(websocket)
+        return
 
     try:
         # Send initial connection confirmation

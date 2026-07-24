@@ -9,6 +9,7 @@ vi.mock("../../services/api", () => ({
     post: vi.fn(),
     patch: vi.fn(),
   },
+  refreshAccessToken: vi.fn(),
 }))
 
 describe("Auth Service", () => {

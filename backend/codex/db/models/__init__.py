@@ -40,6 +40,7 @@ from .system import (
     PluginAPILog,
     PluginConfig,
     PluginSecret,
+    RefreshToken,
     Task,
     User,
     Workspace,
@@ -64,6 +65,7 @@ __all__ = [
     # Token models
     "PasswordResetToken",
     "PersonalAccessToken",
+    "RefreshToken",
     # OAuth models
     "OAuthConnection",
     # Agent models

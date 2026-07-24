@@ -15,7 +15,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from codex.api.auth import get_current_active_user
+from codex.api.auth import PermissionScope, get_current_active_user, require_scope
 from codex.api.routes.helpers import get_notebook_path_nested
 from codex.api.schemas import (
     BlockAtCommitResponse,
@@ -341,10 +341,14 @@ async def create_new_block(
     workspace_identifier: str,
     notebook_identifier: str,
     request: CreateBlockRequest,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_scope(PermissionScope.WORKSPACE_WRITE)),
     session: AsyncSession = Depends(get_system_session),
 ):
-    """Create a new block within a page."""
+    """Create a new block within a page.
+
+    Requires the `workspace:write` scope when authenticated via a personal
+    access token (issue #527); full human sessions are unaffected.
+    """
     notebook_path, notebook, workspace = await get_notebook_path_nested(
         workspace_identifier, notebook_identifier, current_user, session, required_level=PermissionLevel.WRITE
     )

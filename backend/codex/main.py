@@ -37,7 +37,7 @@ from codex.api.routes import (
 )
 from codex.core.watcher import NotebookWatcher, register_watcher, stop_all_watchers
 from codex.core.websocket import connection_manager
-from codex.db.database import async_session_maker, get_system_session_sync, init_notebook_db, init_system_db
+from codex.db.database import get_system_session_sync, init_notebook_db, init_system_db
 from codex.db.models import Notebook, Workspace
 
 request_id_var: ContextVar[str] = ContextVar("request_id", default="")
@@ -52,8 +52,7 @@ async def lifespan(app: FastAPI):
     await init_system_db()
 
     # Refuse to boot in multi-user mode with the default SECRET_KEY (issue #527).
-    async with async_session_maker() as _startup_session:
-        await assert_secret_key_is_safe(_startup_session)
+    assert_secret_key_is_safe()
 
     # Start WebSocket broadcast loop
     await connection_manager.start_broadcast_loop()

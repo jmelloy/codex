@@ -47,28 +47,24 @@ def is_default_secret_key() -> bool:
     return SECRET_KEY == DEFAULT_SECRET_KEY
 
 
-async def assert_secret_key_is_safe(session: AsyncSession) -> None:
+def is_multi_user_mode() -> bool:
+    """Return True if the MULTI_USER env flag is set."""
+    return os.getenv("MULTI_USER", "").strip().lower() in {"1", "true", "yes"}
+
+
+def assert_secret_key_is_safe() -> None:
     """Refuse to run in multi-user mode with the default SECRET_KEY.
 
-    Multi-user mode is detected via the MULTI_USER env flag, or by the presence
-    of more than one registered user account (a single personal account is
-    treated as a single-user/local install and may keep the default key for
-    development). Raises RuntimeError so startup fails loudly.
+    Multi-user mode is opted into explicitly via the MULTI_USER env flag
+    (issue #527 acceptance: "default secret + multi-user flag"). Raises
+    RuntimeError so startup fails loudly instead of issuing tokens that are
+    trivially forgeable once other users are present.
     """
-    if not is_default_secret_key():
-        return
-
-    multi_user_env = os.getenv("MULTI_USER", "").strip().lower() in {"1", "true", "yes"}
-    if not multi_user_env:
-        result = await session.execute(select(User.id))
-        user_count = len(result.scalars().all())
-        if user_count <= 1:
-            return
-
-    raise RuntimeError(
-        "Default SECRET_KEY detected. Multi-user mode requires a custom SECRET_KEY. "
-        "Set a secure SECRET_KEY in your .env file."
-    )
+    if is_multi_user_mode() and is_default_secret_key():
+        raise RuntimeError(
+            "Default SECRET_KEY detected while MULTI_USER is enabled. Refusing to start: "
+            "set a secure, unique SECRET_KEY in your .env file before running in multi-user mode."
+        )
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -143,7 +139,9 @@ async def rotate_refresh_token(plain_token: str, session: AsyncSession) -> tuple
     supplied refresh token is missing, expired, already revoked, or the
     associated user is gone/inactive.
     """
-    invalid_exception = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired refresh token")
+    invalid_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired refresh token"
+    )
 
     token_hash_value = hash_token(plain_token)
     result = await session.execute(select(RefreshToken).where(RefreshToken.token_hash == token_hash_value))

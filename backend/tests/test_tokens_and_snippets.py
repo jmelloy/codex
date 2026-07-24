@@ -121,11 +121,21 @@ class TestPersonalAccessTokens:
         headers, _, _ = user_and_token
         resp = test_client.post(
             "/api/v1/tokens/",
-            json={"name": "scoped-token", "scopes": "snippets:write"},
+            json={"name": "scoped-token", "scopes": ["workspace:write"]},
             headers=headers,
         )
         assert resp.status_code == 201
-        assert resp.json()["scopes"] == "snippets:write"
+        assert resp.json()["scopes"] == ["workspace:write"]
+
+    def test_create_token_with_invalid_scope_rejected(self, test_client, user_and_token):
+        headers, _, _ = user_and_token
+        resp = test_client.post(
+            "/api/v1/tokens/",
+            json={"name": "bad-scope-token", "scopes": ["snippets:write"]},
+            headers=headers,
+        )
+        assert resp.status_code == 400
+        assert "snippets:write" in resp.json()["detail"]
 
 
 # ── Snippet Posting Tests ────────────────────────────────────────────

@@ -383,12 +383,37 @@ class PersonalAccessToken(SQLModel, table=True):
     name: str  # Human-readable label, e.g. "pre-commit hook"
     token_hash: str = Field(unique=True, index=True)  # SHA-256 of the full token
     token_prefix: str  # First 8 chars of the token for identification
-    scopes: str | None = None  # Comma-separated scopes, e.g. "snippets:write"
+    # List of formal scopes (see PermissionScope in api/auth.py), e.g. ["workspace:write"].
+    # A null/empty list means the token carries no scopes and every scope-gated route rejects it.
+    scopes: list[str] | None = Field(default=None, sa_column=Column(JSON))
     workspace_id: int | None = Field(default=None, foreign_key="workspaces.id")  # Optional scope to workspace
     notebook_id: int | None = Field(default=None, foreign_key="notebooks.id")  # Optional scope to notebook
     last_used_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
     expires_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
     is_active: bool = Field(default=True)
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
+    )
+
+    # Relationships
+    user: User = Relationship()
+
+
+class RefreshToken(SQLModel, table=True):
+    """Refresh tokens for obtaining new access tokens without re-authenticating.
+
+    Tokens are hashed with SHA-256 before storage; the plain token is only
+    returned at issuance. Each refresh consumes (revokes) the old token and
+    issues a new one, so a stolen-but-unused token has a limited window.
+    """
+
+    __tablename__ = "refresh_tokens"  # type: ignore[assignment]
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="users.id", index=True)
+    token_hash: str = Field(unique=True, index=True)  # SHA-256 of the full token
+    expires_at: datetime = Field(sa_column=Column(DateTime(timezone=True)))
+    revoked_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
     )

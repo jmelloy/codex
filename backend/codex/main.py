@@ -31,9 +31,10 @@ from codex.api.routes import (
     workspaces,
     ws,
 )
+from codex.api.auth import assert_secret_key_is_safe
 from codex.core.watcher import NotebookWatcher, register_watcher, stop_all_watchers
 from codex.core.websocket import connection_manager
-from codex.db.database import get_system_session_sync, init_notebook_db, init_system_db
+from codex.db.database import async_session_maker, get_system_session_sync, init_notebook_db, init_system_db
 from codex.db.models import Notebook, Workspace
 
 request_id_var: ContextVar[str] = ContextVar("request_id", default="")

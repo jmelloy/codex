@@ -13,6 +13,7 @@ export interface FileChangeEvent {
   title?: string
   block_type?: string
   properties?: Record<string, any>
+  actor_principal_id?: number
 }
 
 export interface ConnectionEvent {
@@ -35,12 +36,15 @@ class WebSocketService {
   private intentionallyDisconnected: Set<number> = new Set()
 
   /**
-   * Get the WebSocket URL for a notebook.
+   * Get the WebSocket URL for a notebook, including the session token so the
+   * server can authenticate the connection at handshake time.
    */
   private getWebSocketUrl(notebookId: number): string {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:"
     const host = window.location.host
-    return `${protocol}//${host}/api/v1/ws/notebooks/${notebookId}`
+    const token = localStorage.getItem("access_token")
+    const query = token ? `?token=${encodeURIComponent(token)}` : ""
+    return `${protocol}//${host}/api/v1/ws/notebooks/${notebookId}${query}`
   }
 
   /**

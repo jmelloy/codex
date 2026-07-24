@@ -18,6 +18,7 @@ from codex.api.schemas import (
     NotebookPluginConfigResponse,
     NotebookResponse,
 )
+from codex.core.permissions import PermissionLevel, require_level
 from codex.core.watcher import NotebookWatcher, get_watcher_for_notebook, unregister_watcher
 from codex.db.database import get_system_session, init_notebook_db
 from codex.db.models import Notebook, NotebookPluginConfig, User, Workspace
@@ -71,14 +72,20 @@ def _format_plugin_config(config: NotebookPluginConfig) -> dict:
     }
 
 
-async def _verify_notebook_access(notebook_id: int, current_user: User, session: AsyncSession) -> Notebook:
-    """Verify the current user has access to the notebook."""
-    result = await session.execute(
-        select(Notebook).join(Workspace).where(Notebook.id == notebook_id, Workspace.owner_id == current_user.id)
-    )
+async def _verify_notebook_access(
+    notebook_id: int,
+    current_user: User,
+    session: AsyncSession,
+    required_level: PermissionLevel = PermissionLevel.READ,
+) -> Notebook:
+    """Verify the current user has at least `required_level` access to the notebook's workspace."""
+    result = await session.execute(select(Notebook).where(Notebook.id == notebook_id))
     notebook = result.scalar_one_or_none()
     if not notebook:
         raise HTTPException(status_code=404, detail="Notebook not found")
+
+    workspace = await session.get(Workspace, notebook.workspace_id)
+    await require_level(current_user, workspace, required_level, session)
     return notebook
 
 
@@ -189,7 +196,7 @@ async def update_notebook_plugin_config(
     session: AsyncSession = Depends(get_system_session),
 ):
     """Update plugin configuration for a notebook."""
-    await _verify_notebook_access(notebook_id, current_user, session)
+    await _verify_notebook_access(notebook_id, current_user, session, required_level=PermissionLevel.WRITE)
     return await _update_plugin_config(notebook_id, plugin_id, request_data, session)
 
 
@@ -201,7 +208,7 @@ async def delete_notebook_plugin_config(
     session: AsyncSession = Depends(get_system_session),
 ):
     """Delete plugin configuration for a notebook (revert to workspace defaults)."""
-    await _verify_notebook_access(notebook_id, current_user, session)
+    await _verify_notebook_access(notebook_id, current_user, session, required_level=PermissionLevel.WRITE)
     return await _delete_plugin_config(notebook_id, plugin_id, session)
 
 
@@ -246,7 +253,9 @@ async def create_notebook_nested(
     session: AsyncSession = Depends(get_system_session),
 ):
     """Create a new notebook."""
-    workspace = await get_workspace_by_slug(workspace_identifier, current_user, session)
+    workspace = await get_workspace_by_slug(
+        workspace_identifier, current_user, session, required_level=PermissionLevel.WRITE
+    )
 
     base_slug = slugify(body.name, default="notebook")
     final_slug = base_slug
@@ -372,7 +381,9 @@ async def update_notebook_plugin_config_nested(
     session: AsyncSession = Depends(get_system_session),
 ):
     """Update plugin configuration for a notebook."""
-    workspace = await get_workspace_by_slug(workspace_identifier, current_user, session)
+    workspace = await get_workspace_by_slug(
+        workspace_identifier, current_user, session, required_level=PermissionLevel.WRITE
+    )
     notebook = await get_notebook_by_slug(notebook_identifier, workspace, session)
     return await _update_plugin_config(notebook.id, plugin_id, request_data, session)
 
@@ -385,7 +396,9 @@ async def delete_notebook_nested(
     session: AsyncSession = Depends(get_system_session),
 ):
     """Delete a notebook and all its contents from disk."""
-    workspace = await get_workspace_by_slug(workspace_identifier, current_user, session)
+    workspace = await get_workspace_by_slug(
+        workspace_identifier, current_user, session, required_level=PermissionLevel.WRITE
+    )
     notebook = await get_notebook_by_slug(notebook_identifier, workspace, session)
 
     # Save path before ORM objects are expired by commit
@@ -422,6 +435,8 @@ async def delete_notebook_plugin_config_nested(
     session: AsyncSession = Depends(get_system_session),
 ):
     """Delete plugin configuration for a notebook (revert to workspace defaults)."""
-    workspace = await get_workspace_by_slug(workspace_identifier, current_user, session)
+    workspace = await get_workspace_by_slug(
+        workspace_identifier, current_user, session, required_level=PermissionLevel.WRITE
+    )
     notebook = await get_notebook_by_slug(notebook_identifier, workspace, session)
     return await _delete_plugin_config(notebook.id, plugin_id, session)

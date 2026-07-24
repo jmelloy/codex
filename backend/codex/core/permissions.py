@@ -15,6 +15,7 @@ in this codebase; when they land, that lookup slots in between (1) and (2).
 
 from enum import IntEnum
 
+from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -79,3 +80,22 @@ async def check_permission(
     """Resolve `user`'s level on `workspace` and check it against `required`."""
     level = await effective_level(user, workspace, session)
     return has_permission(level, required)
+
+
+async def require_level(
+    user: User,
+    workspace: Workspace,
+    required: PermissionLevel,
+    session: AsyncSession,
+) -> None:
+    """Assert `user` has at least `required` access to `workspace`.
+
+    Raises a 404 if the user has no access at all (so the workspace's existence
+    isn't leaked to outsiders) and a 403 if they have some access but not enough
+    to satisfy `required`.
+    """
+    level = await effective_level(user, workspace, session)
+    if level is None:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+    if not has_permission(level, required):
+        raise HTTPException(status_code=403, detail="Insufficient permission for this operation")

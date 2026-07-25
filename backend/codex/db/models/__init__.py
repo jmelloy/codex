@@ -30,6 +30,7 @@ from .system import (
     AgentActionLog,
     AgentCredential,
     AgentSession,
+    AgentWebhookDelivery,
     Comment,
     CommentMention,
     Event,
@@ -85,6 +86,7 @@ __all__ = [
     "AgentCredential",
     "AgentSession",
     "AgentActionLog",
+    "AgentWebhookDelivery",
     # Notebook models
     "Block",
     "Tag",

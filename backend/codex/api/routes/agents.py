@@ -123,6 +123,9 @@ async def create_agent(
         max_requests_per_hour=body.max_requests_per_hour,
         max_tokens_per_request=body.max_tokens_per_request,
         system_prompt=body.system_prompt,
+        webhook_url=body.webhook_url,
+        webhook_secret_encrypted=encrypt_value(body.webhook_secret) if body.webhook_secret else None,
+        webhook_max_retries=body.webhook_max_retries,
     )
     session.add(agent)
     try:
@@ -168,6 +171,10 @@ async def update_agent(
     update_data = body.model_dump(exclude_unset=True)
     if "principal_id" in update_data and update_data["principal_id"] is not None:
         await _get_principal(update_data["principal_id"], session)
+
+    if "webhook_secret" in update_data:
+        secret = update_data.pop("webhook_secret")
+        agent.webhook_secret_encrypted = encrypt_value(secret) if secret else None
 
     for field, value in update_data.items():
         setattr(agent, field, value)

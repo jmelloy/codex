@@ -319,6 +319,16 @@ class Agent(SQLModel, table=True):
     # Status
     is_active: bool = Field(default=True)
     system_prompt: str | None = None
+
+    # Webhook delivery config for external bots (issue #536, design doc §2.1 /
+    # §8 phase 3). Only meaningful when kind == "external": a mention wakes the
+    # bot with a signed POST to webhook_url instead of the ARQ agent-execution
+    # pipeline used for hosted agents. webhook_secret_encrypted is Fernet-
+    # encrypted at rest, the same as AgentCredential.encrypted_value.
+    webhook_url: str | None = None
+    webhook_secret_encrypted: str | None = None
+    webhook_max_retries: int = Field(default=5)
+
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
     )
@@ -331,6 +341,10 @@ class Agent(SQLModel, table=True):
     principal: User | None = Relationship(back_populates="agents")
     credentials: list["AgentCredential"] = Relationship(back_populates="agent")
     sessions: list["AgentSession"] = Relationship(back_populates="agent")
+
+    @property
+    def webhook_configured(self) -> bool:
+        return bool(self.webhook_url and self.webhook_secret_encrypted)
 
 
 class AgentCredential(SQLModel, table=True):
@@ -393,6 +407,30 @@ class AgentActionLog(SQLModel, table=True):
 
     was_allowed: bool = Field(default=True)  # Did scope guard permit this?
     execution_time_ms: int = Field(default=0)
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
+    )
+
+
+class AgentWebhookDelivery(SQLModel, table=True):
+    """Audit record for one webhook delivery attempt to an external bot (issue #536).
+
+    One row per attempt, not per event: a mention that needs several tries
+    because of exponential backoff leaves a full trail, mirroring how
+    `AgentActionLog` audits hosted-agent tool calls.
+    """
+
+    __tablename__ = "agent_webhook_deliveries"  # type: ignore[assignment]
+
+    id: int | None = Field(default=None, primary_key=True)
+    agent_id: int = Field(foreign_key="agents.id", index=True)
+    event_id: int = Field(foreign_key="events.id", index=True)
+
+    attempt: int = Field(default=1)
+    status: str = Field(default="pending")  # pending, delivered, failed
+    response_status_code: int | None = None
+    error: str | None = None
+
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
     )

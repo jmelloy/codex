@@ -198,7 +198,7 @@ function formatTime(iso: string): string {
   }
 }
 
-watch(() => props.blockId, load)
+watch(() => [props.workspaceId, props.notebookId, props.blockId], load)
 onMounted(load)
 </script>
 

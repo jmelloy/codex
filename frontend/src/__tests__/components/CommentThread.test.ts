@@ -161,6 +161,22 @@ describe("CommentThread", () => {
     expect(wrapper.text()).not.toContain("root comment")
   })
 
+  it("reloads comments when workspaceId or notebookId change while blockId stays the same", async () => {
+    mockList.mockResolvedValue([])
+    await mountThread()
+    expect(mockList).toHaveBeenCalledWith("ws", "nb", "blk_1")
+    mockList.mockClear()
+
+    await wrapper.setProps({ notebookId: "nb2" })
+    await wrapper.vm.$nextTick()
+    expect(mockList).toHaveBeenCalledWith("ws", "nb2", "blk_1")
+    mockList.mockClear()
+
+    await wrapper.setProps({ workspaceId: "ws2" })
+    await wrapper.vm.$nextTick()
+    expect(mockList).toHaveBeenCalledWith("ws2", "nb2", "blk_1")
+  })
+
   it("edits a comment's body inline", async () => {
     mockList.mockResolvedValue([makeComment({ id: 1, author_id: 99, body: "before" })])
     mockUpdate.mockResolvedValue(makeComment({ id: 1, author_id: 99, body: "after" }))

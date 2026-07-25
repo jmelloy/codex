@@ -100,6 +100,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   document.removeEventListener("click", handleOutsideClick)
+  store.teardown()
 })
 </script>
 

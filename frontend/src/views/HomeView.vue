@@ -1031,10 +1031,13 @@ function closeComments() {
   activeCommentBlockId.value = null
 }
 
-// Refresh @mention principals + the user's comment permission whenever the workspace changes
+// Refresh @mention principals + the user's comment permission whenever the workspace changes.
+// Also close the comment panel — otherwise it keeps showing a block from the previous
+// workspace and would send CRUD requests against the new workspace with a stale block id.
 watch(
   () => workspaceStore.currentWorkspace?.slug,
   (slug) => {
+    activeCommentBlockId.value = null
     if (!slug) {
       commentsStore.reset()
       return
@@ -1043,6 +1046,14 @@ watch(
     commentsStore.fetchMyPermission(slug)
   },
   { immediate: true },
+)
+
+// Close the comment panel on notebook switch, for the same reason as above.
+watch(
+  () => workspaceStore.currentBlock?.notebook_id,
+  () => {
+    activeCommentBlockId.value = null
+  },
 )
 
 // Refresh per-block comment counts whenever a new page's blocks are displayed

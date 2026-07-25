@@ -21,6 +21,7 @@ from codex.api.routes import (
     blocks,
     calendar,
     collaborators,
+    comments,
     integrations,
     notebooks,
     oauth,

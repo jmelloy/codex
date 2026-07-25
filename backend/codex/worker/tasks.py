@@ -289,7 +289,8 @@ RECIPIENT_RESOLVERS: dict[str, RecipientResolver] = {
 
 # ---------------------------------------------------------------------------
 # Bot mention dispatch — hosted task enqueue / external webhook delivery
-# (issue #536, design doc §2.1 and §8 phase 3)
+# (issue #535 hosted path, issue #536 external webhook path, design doc §2.1
+# and §8 phase 3)
 # ---------------------------------------------------------------------------
 
 
@@ -297,9 +298,9 @@ async def _build_comment_context(session: AsyncSession, comment: Any) -> dict[st
     """Serialize a comment plus its thread ancestry for a bot mention payload.
 
     Threads are flattened one level deep (see `Comment.thread_id`), so the
-    "parent chain" is just the root comment (if `comment` is a reply) followed
-    by every comment in the thread up to and including `comment` itself —
-    replies posted after it are excluded since they aren't context yet.
+    "parent chain" is every earlier comment in the thread (the root, plus any
+    replies before this one) — `comment` itself is excluded since it's carried
+    separately as the triggering mention.
     """
     from codex.db.models import Comment, User
 
@@ -310,7 +311,7 @@ async def _build_comment_context(session: AsyncSession, comment: Any) -> dict[st
         .where(
             Comment.deleted_at.is_(None),
             (Comment.id == root_id) | (Comment.thread_id == root_id),
-            Comment.id <= comment.id,
+            Comment.id != comment.id,
         )
         .order_by(Comment.created_at)
     )
@@ -333,7 +334,7 @@ async def _build_comment_context(session: AsyncSession, comment: Any) -> dict[st
     }
 
 
-async def _enqueue_bot_mention_tasks(ctx: dict, session: AsyncSession, event: Any) -> dict[str, int]:
+async def _enqueue_bot_mention_tasks(ctx: dict, session: AsyncSession, event: Any) -> int:
     """Wake bot principals mentioned in a comment.
 
     `Agent.kind == "hosted"` bots run inside Codex: this creates a `Task` row
@@ -341,35 +342,57 @@ async def _enqueue_bot_mention_tasks(ctx: dict, session: AsyncSession, event: An
     created agent task. `Agent.kind == "external"` bots (e.g. a Claude Code
     session woken from outside) instead get a signed webhook delivery — Codex
     never runs their brain, it just wakes them over HTTP.
+
+    Idempotent on retry: a hosted bot already carrying a Task for this comment
+    (matched via `task_metadata.comment_id`) is skipped, and an external bot
+    that already has an `AgentWebhookDelivery` row for this event is skipped
+    too, so a retried `fanout_event` doesn't double-wake a bot.
+
+    Returns the number of hosted Tasks enqueued (external webhook deliveries
+    aren't counted here — see `deliver_webhook`'s own audit trail for those).
     """
-    from codex.db.models import Agent, Comment, Task, User, UserKind
+    from codex.db.models import Agent, AgentWebhookDelivery, Comment, Task, User, UserKind
 
     subject = event.subject or {}
     mentioned_ids = {int(uid) for uid in subject.get("mentioned_user_ids") or []}
     if not mentioned_ids:
-        return {"hosted": 0, "external": 0}
+        return 0
 
     comment_id = subject.get("comment_id")
     comment = await session.get(Comment, comment_id) if comment_id is not None else None
     if comment is None:
-        return {"hosted": 0, "external": 0}
+        return 0
 
     result = await session.execute(
         select(User, Agent)
         .join(Agent, Agent.principal_id == User.id)
-        .where(User.id.in_(mentioned_ids), User.kind == UserKind.BOT.value, Agent.is_active.is_(True))
+        .where(
+            User.id.in_(mentioned_ids),
+            User.kind == UserKind.BOT.value,
+            User.is_active.is_(True),
+            Agent.is_active.is_(True),
+        )
     )
     bot_agents = result.all()
     if not bot_agents:
-        return {"hosted": 0, "external": 0}
+        return 0
 
     author = await session.get(User, comment.author_id)
     comment_context = await _build_comment_context(session, comment)
     arq_pool = ctx.get("redis")
-    counts = {"hosted": 0, "external": 0}
+    hosted_enqueued = 0
 
     for bot, agent in bot_agents:
         if agent.kind == "external":
+            existing_delivery = await session.execute(
+                select(AgentWebhookDelivery.id).where(
+                    AgentWebhookDelivery.agent_id == agent.id,
+                    AgentWebhookDelivery.event_id == event.id,
+                )
+            )
+            if existing_delivery.first() is not None:
+                continue
+
             if arq_pool is None:
                 logger.warning("Skipping webhook delivery for agent %s — task queue unavailable", agent.id)
                 continue
@@ -386,8 +409,20 @@ async def _enqueue_bot_mention_tasks(ctx: dict, session: AsyncSession, event: An
                 },
             }
             await arq_pool.enqueue_job("deliver_webhook", agent.id, event.id, payload)
-            counts["external"] += 1
         else:
+            existing_result = await session.execute(
+                select(Task).where(
+                    Task.workspace_id == event.workspace_id,
+                    Task.task_type == "bot_mention",
+                    Task.assigned_to == str(agent.id),
+                )
+            )
+            if any(
+                json.loads(t.task_metadata or "{}").get("comment_id") == comment.id
+                for t in existing_result.scalars().all()
+            ):
+                continue
+
             task = Task(
                 workspace_id=event.workspace_id,
                 title=f"Mentioned in a comment on block {comment.block_id}",
@@ -395,22 +430,23 @@ async def _enqueue_bot_mention_tasks(ctx: dict, session: AsyncSession, event: An
                 task_type="bot_mention",
                 assigned_to=str(agent.id),
                 job_type="agent",
+                task_metadata=json.dumps({**comment_context, "mentioned_principal_id": bot.id}),
             )
             session.add(task)
             await session.commit()
             await session.refresh(task)
+            hosted_enqueued += 1
 
             if arq_pool is not None:
-                job = await arq_pool.enqueue_job("execute_agent_task", task.id)
+                job = await arq_pool.enqueue_job("run_job", task.id)
                 if job is not None:
                     task.job_id = job.job_id
                     session.add(task)
                     await session.commit()
             else:
                 logger.warning("Task %s created but not enqueued — task queue unavailable", task.id)
-            counts["hosted"] += 1
 
-    return counts
+    return hosted_enqueued
 
 
 def _sign_webhook_payload(secret: str, body: bytes) -> str:
@@ -503,6 +539,11 @@ async def fanout_event(ctx: dict, event_id: int) -> dict[str, Any]:
     first and skipped, and each insert is individually committed so a unique-
     constraint violation from a concurrent retry only rolls back that one row
     rather than the whole batch.
+
+    For `comment.mention` events, also wakes each mentioned bot principal —
+    a hosted Agent (issue #535) gets a Task enqueued, an external Agent
+    (issue #536) gets a signed webhook delivery — see
+    `_enqueue_bot_mention_tasks`.
     """
     from codex.core.events import serialize_notification
     from codex.core.websocket import connection_manager, principal_channel
@@ -514,17 +555,24 @@ async def fanout_event(ctx: dict, event_id: int) -> dict[str, Any]:
         if event is None:
             return {"status": "error", "detail": f"Event {event_id} not found"}
 
-        if event.kind == "comment.mention":
-            await _enqueue_bot_mention_tasks(ctx, session, event)
-
         resolver = RECIPIENT_RESOLVERS.get(event.kind)
         if resolver is None:
             logger.warning("No recipient resolver registered for event kind %r", event.kind)
             return {"status": "error", "detail": f"Unknown event kind: {event.kind}"}
 
         recipients = await resolver(session, event)
+
+        bot_tasks_enqueued = 0
+        if event.kind == "comment.mention":
+            bot_tasks_enqueued = await _enqueue_bot_mention_tasks(ctx, session, event)
+
         if not recipients:
-            return {"status": "completed", "event_id": event.id, "notifications_created": 0}
+            return {
+                "status": "completed",
+                "event_id": event.id,
+                "notifications_created": 0,
+                "bot_tasks_enqueued": bot_tasks_enqueued,
+            }
 
         existing_result = await session.execute(
             select(Notification.recipient_id).where(Notification.event_id == event.id)
@@ -549,4 +597,9 @@ async def fanout_event(ctx: dict, event_id: int) -> dict[str, Any]:
                 {"type": "notification", "notification": serialize_notification(notification, event)},
             )
 
-        return {"status": "completed", "event_id": event.id, "notifications_created": created}
+        return {
+            "status": "completed",
+            "event_id": event.id,
+            "notifications_created": created,
+            "bot_tasks_enqueued": bot_tasks_enqueued,
+        }

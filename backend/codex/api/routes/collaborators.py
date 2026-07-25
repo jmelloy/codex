@@ -93,6 +93,7 @@ async def list_collaborators(
         select(WorkspacePermission, User)
         .join(User, WorkspacePermission.user_id == User.id)
         .where(WorkspacePermission.workspace_id == workspace.id)
+        .where(WorkspacePermission.user_id != workspace.owner_id)
     )
     for permission, user in result.all():
         collaborators.append(

@@ -4,7 +4,11 @@ Covers invite/list/update/revoke over the WorkspacePermission table, admin-only
 enforcement via the permission resolver, and owner protections.
 """
 
+import asyncio
 import time
+
+from codex.db.database import async_session_maker
+from codex.db.models import WorkspacePermission
 
 
 def _register_and_login(test_client, *, username=None):
@@ -128,6 +132,37 @@ def test_list_collaborators_includes_owner_and_grants(test_client, auth_headers,
     assert entries[owner_username]["permission_level"] == "admin"
     assert entries[collaborator_username]["is_owner"] is False
     assert entries[collaborator_username]["permission_level"] == "comment"
+
+
+def test_list_collaborators_does_not_duplicate_owner_with_legacy_permission_row(
+    test_client, auth_headers, create_workspace
+):
+    """A stray workspace_permissions row for the owner (e.g. legacy/seed data) must not
+    produce a duplicate entry - the owner is always represented exactly once, via the
+    is_owner branch.
+    """
+    workspace = create_workspace()
+    owner_headers, owner_username = auth_headers
+
+    async def _seed_legacy_owner_permission():
+        async with async_session_maker() as session:
+            session.add(
+                WorkspacePermission(
+                    workspace_id=workspace["id"], user_id=workspace["owner_id"], permission_level="write"
+                )
+            )
+            await session.commit()
+
+    asyncio.run(_seed_legacy_owner_permission())
+
+    response = test_client.get(f"/api/v1/workspaces/{workspace['slug']}/collaborators", headers=owner_headers)
+    assert response.status_code == 200
+    entries = response.json()
+
+    owner_entries = [entry for entry in entries if entry["username"] == owner_username]
+    assert len(owner_entries) == 1
+    assert owner_entries[0]["is_owner"] is True
+    assert owner_entries[0]["permission_level"] == "admin"
 
 
 def test_non_admin_cannot_list_collaborators(test_client, auth_headers, create_workspace):

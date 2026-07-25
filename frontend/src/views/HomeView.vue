@@ -222,7 +222,7 @@
         </div>
         <ul class="list-none p-0 m-0 max-h-[150px] overflow-y-auto">
           <li
-            v-for="workspace in workspaceStore.workspaces"
+            v-for="workspace in ownedWorkspaces"
             :key="workspace.id"
             :class="[
               'workspace-item py-2.5 px-4 cursor-pointer text-sm transition',
@@ -236,6 +236,31 @@
             {{ workspace.name }}
           </li>
         </ul>
+
+        <div v-if="sharedWorkspaces.length > 0">
+          <h2
+            class="m-0 px-4 pt-3 pb-1 text-xs font-semibold uppercase tracking-wide"
+            style="color: var(--pen-gray)"
+          >
+            Shared with me
+          </h2>
+          <ul class="list-none p-0 m-0 max-h-[150px] overflow-y-auto">
+            <li
+              v-for="workspace in sharedWorkspaces"
+              :key="workspace.id"
+              :class="[
+                'workspace-item py-2.5 px-4 cursor-pointer text-sm transition',
+                {
+                  'workspace-active font-semibold':
+                    workspaceStore.currentWorkspace?.id === workspace.id,
+                },
+              ]"
+              @click="selectWorkspace(workspace)"
+            >
+              {{ workspace.name }}
+            </li>
+          </ul>
+        </div>
 
         <div
           v-if="workspaceStore.currentWorkspace"
@@ -945,6 +970,14 @@ const route = useRoute()
 const authStore = useAuthStore()
 const workspaceStore = useWorkspaceStore()
 const agentStore = useAgentStore()
+
+// Workspaces the current user owns vs. workspaces shared with them (read/comment/write/admin grant)
+const ownedWorkspaces = computed(() =>
+  workspaceStore.workspaces.filter((w) => w.owner_id === authStore.user?.id)
+)
+const sharedWorkspaces = computed(() =>
+  workspaceStore.workspaces.filter((w) => w.owner_id !== authStore.user?.id)
+)
 
 // Modal state
 const showCreateWorkspace = ref(false)

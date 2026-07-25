@@ -1,15 +1,15 @@
 """Add agents.kind and agents.principal_id
 
-Revision ID: 021
-Revises: 020
+Revision ID: 022
+Revises: 021
 Create Date: 2026-07-25
 
 Adds `kind` ("hosted" | "external") and `principal_id` (nullable FK to
 `users.id`, unique) to `agents`, linking the agent "brain config" to a bot
 principal identity (issue #534, docs/design/multi-user-multi-org.md §2.1).
-Depends conceptually on `users.kind` from issue #533 (PR #568, not yet
-merged) for distinguishing bot principals, but does not require it: existing
-agents get `kind="hosted"` and `principal_id=NULL`, unaffected either way.
+Chained after revision 021 (`users.kind` from issue #533, PR #568, now
+merged), whose bot principals this column links to. Existing agents get
+`kind="hosted"` and `principal_id=NULL`, unaffected by the new column.
 """
 
 from collections.abc import Sequence
@@ -19,8 +19,8 @@ import sqlmodel
 from alembic import op
 
 # revision identifiers
-revision: str = "021"
-down_revision: str | None = "020"
+revision: str = "022"
+down_revision: str | None = "021"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

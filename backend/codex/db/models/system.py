@@ -18,7 +18,9 @@ These models are stored in the system database (codex_system.db):
 """
 
 from datetime import datetime, timezone
+from enum import StrEnum
 
+from pydantic import model_validator
 from sqlalchemy import DateTime, UniqueConstraint
 from sqlmodel import JSON, Column, Field, Relationship, SQLModel
 
@@ -28,15 +30,34 @@ from .base import utc_now
 TZDateTime = DateTime(timezone=True)
 
 
+class UserKind(StrEnum):
+    """Distinguishes human users from bot service accounts (issue #533)."""
+
+    HUMAN = "human"
+    BOT = "bot"
+
+
 class User(SQLModel, table=True):
-    """User accounts for authentication."""
+    """User accounts for authentication.
+
+    A user is either a human (authenticates via password + JWT) or a bot
+    service account (authenticates exclusively via PAT, no password). Both
+    kinds are "principals": grantable in `WorkspacePermission` and rendered
+    anywhere a human is, with `is_bot` driving the bot badge (issue #533).
+    """
 
     __tablename__ = "users"  # type: ignore[assignment]
 
     id: int | None = Field(default=None, primary_key=True)
     username: str = Field(unique=True, index=True)
     email: str = Field(unique=True, index=True)
-    hashed_password: str
+    hashed_password: str | None = None  # Null for bots: they never have a password.
+    kind: str = Field(default=UserKind.HUMAN.value, index=True)  # "human" | "bot"
+    display_name: str | None = None
+    avatar_url: str | None = None
+    # Null for humans. Once orgs land, this points at the owning org; there's no
+    # orgs table yet so it isn't a FK (issue #533: "org admin once orgs land").
+    bot_owner_org_id: str | None = None
     is_active: bool = Field(default=True)
     theme_setting: str | None = Field(default="cream")  # User's preferred theme
     created_at: datetime = Field(
@@ -49,6 +70,16 @@ class User(SQLModel, table=True):
     # Relationships
     workspaces: list["Workspace"] = Relationship(back_populates="owner")
     agents: list["Agent"] = Relationship(back_populates="principal")
+
+    @property
+    def is_bot(self) -> bool:
+        return self.kind == UserKind.BOT.value
+
+    @model_validator(mode="after")
+    def _enforce_bot_has_no_password(self) -> "User":
+        if self.kind == UserKind.BOT.value and self.hashed_password:
+            raise ValueError("Bot accounts cannot have a password hash; they authenticate via PAT only")
+        return self
 
 
 class Workspace(SQLModel, table=True):

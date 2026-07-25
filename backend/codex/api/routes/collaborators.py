@@ -44,6 +44,8 @@ class CollaboratorResponse(BaseModel):
     email: str
     permission_level: str
     is_owner: bool = False
+    is_bot: bool = False
+    display_name: str | None = None
     created_at: str | None = None
 
 
@@ -86,6 +88,8 @@ async def list_collaborators(
             email=owner.email,
             permission_level="admin",
             is_owner=True,
+            is_bot=owner.is_bot,
+            display_name=owner.display_name,
             created_at=workspace.created_at.isoformat() if workspace.created_at else None,
         )
     ]
@@ -104,6 +108,8 @@ async def list_collaborators(
                 email=user.email,
                 permission_level=permission.permission_level,
                 is_owner=False,
+                is_bot=user.is_bot,
+                display_name=user.display_name,
                 created_at=permission.created_at.isoformat() if permission.created_at else None,
             )
         )
@@ -175,6 +181,8 @@ async def invite_collaborator(
         email=grantee.email,
         permission_level=level,
         is_owner=False,
+        is_bot=grantee.is_bot,
+        display_name=grantee.display_name,
         created_at=permission.created_at.isoformat() if permission.created_at else None,
     )
 
@@ -230,6 +238,8 @@ async def update_collaborator(
         email=grantee.email,
         permission_level=level,
         is_owner=False,
+        is_bot=grantee.is_bot,
+        display_name=grantee.display_name,
         created_at=permission.created_at.isoformat() if permission.created_at else None,
     )
 

@@ -6,6 +6,7 @@ from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -19,7 +20,8 @@ from codex.api.auth import (
     issue_refresh_token,
     verify_password,
 )
-from codex.api.routes.workspaces import WorkspaceCreate, create_workspace
+from codex.api.routes.utils import slugify
+from codex.api.routes.workspaces import WorkspaceCreate, create_workspace, get_workspace_by_slug
 from codex.api.schemas import (
     ChangePasswordRequest,
     ForgotPasswordRequest,
@@ -30,6 +32,7 @@ from codex.api.schemas import (
     UserCreate,
     UserResponse,
 )
+from codex.core.permissions import PermissionLevel
 from codex.db.database import get_system_session
 from codex.db.models import (
     AgentSession,
@@ -38,6 +41,7 @@ from codex.db.models import (
     PersonalAccessToken,
     RefreshToken,
     User,
+    UserKind,
     Workspace,
     WorkspacePermission,
 )
@@ -47,6 +51,11 @@ logger = logging.getLogger(__name__)
 PASSWORD_RESET_EXPIRE_MINUTES = 60
 
 router = APIRouter()
+
+# Bot lifecycle endpoints, mounted separately at
+# /api/v1/workspaces/{workspace_identifier}/bots (see codex/main.py). Split from
+# `router` because it's nested under a workspace path rather than /api/v1/users.
+bots_router = APIRouter()
 
 
 @router.post("/token", response_model=TokenResponse)
@@ -59,7 +68,15 @@ async def login(
     result = await session.execute(select(User).where(User.username == form_data.username))
     user = result.scalar_one_or_none()
 
-    if not user or not verify_password(form_data.password, user.hashed_password):
+    if user and user.is_bot:
+        # Bots have no password and never log in interactively (issue #533
+        # acceptance: "Login endpoint rejects bot credentials outright").
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Bot accounts cannot log in. Authenticate with a personal access token instead.",
+        )
+
+    if not user or not user.hashed_password or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
@@ -293,3 +310,138 @@ async def update_user_theme(
     await session.commit()
     await session.refresh(current_user)
     return UserResponse.model_validate(current_user)
+
+
+# ── Bot service accounts (issue #533) ────────────────────────────────
+
+
+class BotCreate(BaseModel):
+    """Request body for creating a bot service account."""
+
+    display_name: str = Field(..., min_length=1, max_length=100)
+    avatar_url: str | None = None
+
+
+class BotUpdate(BaseModel):
+    """Request body for updating a bot's profile."""
+
+    display_name: str | None = Field(default=None, min_length=1, max_length=100)
+    avatar_url: str | None = None
+
+
+async def _get_bot_in_workspace(bot_id: int, workspace: Workspace, session: AsyncSession) -> User:
+    """Fetch a bot by id, scoped to `workspace` (the bot must have a permission grant there)."""
+    bot = await session.get(User, bot_id)
+    if bot is None or not bot.is_bot:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bot not found")
+
+    grant_result = await session.execute(
+        select(WorkspacePermission).where(
+            WorkspacePermission.workspace_id == workspace.id,
+            WorkspacePermission.user_id == bot.id,
+        )
+    )
+    if grant_result.scalar_one_or_none() is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bot not found in this workspace")
+
+    return bot
+
+
+@bots_router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+async def create_bot(
+    workspace_identifier: str,
+    body: BotCreate,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+) -> UserResponse:
+    """Create a bot service account for a workspace (workspace admin only).
+
+    Auto-generates a unique username from `display_name`. The bot has no
+    password (`hashed_password` stays null) and authenticates exclusively via
+    PATs issued through `/api/v1/tokens/bots/{bot_id}/tokens`. It's granted
+    READ access to this workspace immediately so an issued PAT can read it
+    right away; an admin can raise the level via the collaborators endpoint.
+    """
+    workspace = await get_workspace_by_slug(
+        workspace_identifier, current_user, session, required_level=PermissionLevel.ADMIN
+    )
+
+    base_username = f"bot-{slugify(body.display_name, default='bot')}"
+    username = base_username
+    while (await session.execute(select(User).where(User.username == username))).scalar_one_or_none() is not None:
+        username = f"{base_username}-{secrets.token_hex(3)}"
+
+    bot = User(
+        username=username,
+        email=f"{username}@bots.codex.internal",
+        hashed_password=None,
+        kind=UserKind.BOT.value,
+        display_name=body.display_name,
+        avatar_url=body.avatar_url,
+        is_active=True,
+    )
+    session.add(bot)
+    await session.commit()
+    await session.refresh(bot)
+
+    session.add(WorkspacePermission(workspace_id=workspace.id, user_id=bot.id, permission_level="read"))
+    await session.commit()
+
+    return UserResponse.model_validate(bot)
+
+
+@bots_router.patch("/{bot_id}", response_model=UserResponse)
+async def update_bot(
+    workspace_identifier: str,
+    bot_id: int,
+    body: BotUpdate,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+) -> UserResponse:
+    """Update a bot's display_name/avatar_url (workspace admin only)."""
+    workspace = await get_workspace_by_slug(
+        workspace_identifier, current_user, session, required_level=PermissionLevel.ADMIN
+    )
+    bot = await _get_bot_in_workspace(bot_id, workspace, session)
+
+    if body.display_name is not None:
+        bot.display_name = body.display_name
+    if body.avatar_url is not None:
+        bot.avatar_url = body.avatar_url
+
+    session.add(bot)
+    await session.commit()
+    await session.refresh(bot)
+    return UserResponse.model_validate(bot)
+
+
+@bots_router.post("/{bot_id}/deactivate", response_model=UserResponse)
+async def deactivate_bot(
+    workspace_identifier: str,
+    bot_id: int,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+) -> UserResponse:
+    """Deactivate a bot and revoke all its PATs (workspace admin only).
+
+    `is_active=false` alone already blocks every route gated on
+    `get_current_active_user`, but PATs are revoked too so `GET /tokens`
+    reflects reality and a later reactivation doesn't resurrect old tokens
+    (issue #533 acceptance: "is_active=false kills all bot access immediately").
+    """
+    workspace = await get_workspace_by_slug(
+        workspace_identifier, current_user, session, required_level=PermissionLevel.ADMIN
+    )
+    bot = await _get_bot_in_workspace(bot_id, workspace, session)
+
+    bot.is_active = False
+    session.add(bot)
+
+    pat_result = await session.execute(select(PersonalAccessToken).where(PersonalAccessToken.user_id == bot.id))
+    for pat in pat_result.scalars().all():
+        pat.is_active = False
+        session.add(pat)
+
+    await session.commit()
+    await session.refresh(bot)
+    return UserResponse.model_validate(bot)

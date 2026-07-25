@@ -47,6 +47,7 @@ from .system import (
     RefreshToken,
     Task,
     User,
+    UserKind,
     Workspace,
     WorkspacePermission,
     WorkspaceWatch,
@@ -57,6 +58,7 @@ __all__ = [
     "utc_now",
     # System models
     "User",
+    "UserKind",
     "Workspace",
     "WorkspacePermission",
     "Task",

@@ -795,7 +795,6 @@
       :block-id="activeCommentBlockId"
       class="w-full lg:w-[340px] lg:min-w-[340px] fixed lg:relative inset-0 lg:inset-auto z-50 lg:z-auto pt-14 lg:pt-0"
       @close="closeComments"
-      @count-changed="handleCommentCountChanged"
     />
   </div>
 
@@ -1030,10 +1029,6 @@ function openComments(blockId: string) {
 
 function closeComments() {
   activeCommentBlockId.value = null
-}
-
-function handleCommentCountChanged(blockId: string, count: number) {
-  commentsStore.setCount(blockId, count)
 }
 
 // Refresh @mention principals + the user's comment permission whenever the workspace changes
@@ -1351,6 +1346,8 @@ onMounted(async () => {
       uploadMenuNotebookId.value = null
     }
   })
+
+  commentsStore.init()
 
   await workspaceStore.fetchWorkspaces()
 

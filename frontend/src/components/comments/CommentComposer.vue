@@ -40,11 +40,13 @@ const props = withDefaults(
     placeholder?: string
     submitLabel?: string
     showCancel?: boolean
+    initialBody?: string
   }>(),
   {
     placeholder: "Write a comment...",
     submitLabel: "Comment",
     showCancel: false,
+    initialBody: "",
   },
 )
 
@@ -53,7 +55,7 @@ const emit = defineEmits<{
   cancel: []
 }>()
 
-const body = ref("")
+const body = ref(props.initialBody)
 const textareaRef = ref<HTMLTextAreaElement | null>(null)
 const autocompleteRef = ref<InstanceType<typeof MentionAutocomplete> | null>(null)
 const mentionQuery = ref<MentionQuery | null>(null)
@@ -123,7 +125,7 @@ function submit() {
 }
 
 function cancel() {
-  body.value = ""
+  body.value = props.initialBody
   mentionQuery.value = null
   emit("cancel")
 }

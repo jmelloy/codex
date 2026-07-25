@@ -17,22 +17,60 @@
         :class="{ resolved: !!thread.root.resolved_at }"
       >
         <div class="comment-item">
-          <div class="comment-item-header">
-            <span class="comment-author">{{ thread.root.author_username || "Unknown" }}</span>
-            <span class="comment-time">{{ formatTime(thread.root.created_at) }}</span>
+          <span class="comment-avatar" aria-hidden="true">{{ initials(thread.root.author_username) }}</span>
+          <div class="comment-item-body">
+            <div class="comment-item-header">
+              <span class="comment-author">{{ thread.root.author_username || "Unknown" }}</span>
+              <span class="comment-time">{{ formatTime(thread.root.created_at) }}</span>
+            </div>
+            <CommentComposer
+              v-if="editingId === thread.root.id"
+              :principals="principals"
+              :initial-body="thread.root.body"
+              submit-label="Save"
+              show-cancel
+              @submit="(body) => saveEdit(thread.root, body)"
+              @cancel="editingId = null"
+            />
+            <p v-else class="comment-body">{{ thread.root.body }}</p>
+            <div v-if="editingId !== thread.root.id" class="comment-item-actions">
+              <button v-if="canEdit(thread.root)" class="comment-inline-btn" @click="editingId = thread.root.id">
+                Edit
+              </button>
+              <button v-if="canDelete(thread.root)" class="comment-inline-btn" @click="removeComment(thread.root)">
+                Delete
+              </button>
+            </div>
           </div>
-          <p class="comment-body">{{ thread.root.body }}</p>
         </div>
 
         <div v-if="thread.root.resolved_at" class="comment-resolved-banner">Resolved</div>
 
         <div v-if="thread.replies.length > 0" class="comment-replies">
           <div v-for="reply in thread.replies" :key="reply.id" class="comment-item comment-reply">
-            <div class="comment-item-header">
-              <span class="comment-author">{{ reply.author_username || "Unknown" }}</span>
-              <span class="comment-time">{{ formatTime(reply.created_at) }}</span>
+            <span class="comment-avatar" aria-hidden="true">{{ initials(reply.author_username) }}</span>
+            <div class="comment-item-body">
+              <div class="comment-item-header">
+                <span class="comment-author">{{ reply.author_username || "Unknown" }}</span>
+                <span class="comment-time">{{ formatTime(reply.created_at) }}</span>
+              </div>
+              <CommentComposer
+                v-if="editingId === reply.id"
+                :principals="principals"
+                :initial-body="reply.body"
+                submit-label="Save"
+                show-cancel
+                @submit="(body) => saveEdit(reply, body)"
+                @cancel="editingId = null"
+              />
+              <p v-else class="comment-body">{{ reply.body }}</p>
+              <div v-if="editingId !== reply.id" class="comment-item-actions">
+                <button v-if="canEdit(reply)" class="comment-inline-btn" @click="editingId = reply.id">Edit</button>
+                <button v-if="canDelete(reply)" class="comment-inline-btn" @click="removeComment(reply)">
+                  Delete
+                </button>
+              </div>
             </div>
-            <p class="comment-body">{{ reply.body }}</p>
           </div>
         </div>
 
@@ -66,8 +104,9 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from "vue"
-import { commentService, type Comment } from "../../services/comments"
+import type { Comment } from "../../services/comments"
 import { useCommentsStore } from "../../stores/comments"
+import { useAuthStore } from "../../stores/auth"
 import CommentComposer from "./CommentComposer.vue"
 
 const props = defineProps<{
@@ -78,16 +117,19 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: []
-  countChanged: [blockId: string, count: number]
 }>()
 
 const commentsStore = useCommentsStore()
+const authStore = useAuthStore()
 const principals = computed(() => commentsStore.principals)
 const canComment = computed(() => commentsStore.canComment)
 
-const comments = ref<Comment[]>([])
-const loading = ref(false)
-const error = ref<string | null>(null)
+const comments = computed(() => commentsStore.comments)
+const loading = computed(() => commentsStore.loading)
+const error = computed(() => commentsStore.error)
+
+// Comment id currently being edited inline, or null.
+const editingId = ref<number | null>(null)
 
 interface ThreadGroup {
   root: Comment
@@ -107,50 +149,45 @@ const threads = computed<ThreadGroup[]>(() => {
     .map((root) => ({ root, replies: repliesByRoot.get(root.id) ?? [] }))
 })
 
-async function load() {
-  loading.value = true
-  error.value = null
-  try {
-    comments.value = await commentService.list(props.workspaceId, props.notebookId, props.blockId)
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || "Failed to load comments"
-  } finally {
-    loading.value = false
-  }
+function load() {
+  commentsStore.fetchComments(props.workspaceId, props.notebookId, props.blockId)
 }
 
 async function postNew(body: string) {
-  try {
-    const created = await commentService.create(props.workspaceId, props.notebookId, props.blockId, body)
-    comments.value = [...comments.value, created]
-    emitCount()
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || "Failed to post comment"
-  }
+  await commentsStore.createComment(props.workspaceId, props.notebookId, props.blockId, body)
 }
 
 async function postReply(root: Comment, body: string) {
-  try {
-    const created = await commentService.create(props.workspaceId, props.notebookId, props.blockId, body, root.id)
-    comments.value = [...comments.value, created]
-    emitCount()
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || "Failed to post reply"
-  }
+  await commentsStore.createComment(props.workspaceId, props.notebookId, props.blockId, body, root.id)
 }
 
 async function resolveThread(root: Comment) {
-  try {
-    const resolved = await commentService.resolve(root.id)
-    const idx = comments.value.findIndex((c) => c.id === resolved.id)
-    if (idx !== -1) comments.value[idx] = resolved
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || "Failed to resolve thread"
-  }
+  await commentsStore.resolveComment(root.id)
 }
 
-function emitCount() {
-  emit("countChanged", props.blockId, comments.value.length)
+async function saveEdit(comment: Comment, body: string) {
+  await commentsStore.updateComment(comment.id, body)
+  editingId.value = null
+}
+
+async function removeComment(comment: Comment) {
+  await commentsStore.deleteComment(comment.id)
+}
+
+// Only the comment's author may edit it (mirrors the backend's PATCH /comments/{id} check).
+function canEdit(comment: Comment): boolean {
+  return canComment.value && comment.author_id === authStore.user?.id
+}
+
+// The author or a workspace admin may delete a comment (mirrors DELETE /comments/{id}).
+function canDelete(comment: Comment): boolean {
+  if (commentsStore.myPermissionLevel === "admin") return true
+  return canEdit(comment)
+}
+
+function initials(username?: string | null): string {
+  if (!username) return "?"
+  return username.slice(0, 2).toUpperCase()
 }
 
 function formatTime(iso: string): string {
@@ -235,11 +272,55 @@ onMounted(load)
   opacity: 0.7;
 }
 
+.comment-item {
+  display: flex;
+  gap: 8px;
+}
+
+.comment-avatar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--notebook-accent, #2563eb);
+  color: white;
+  font-size: 0.625rem;
+  font-weight: 700;
+}
+
+.comment-item-body {
+  flex: 1;
+  min-width: 0;
+}
+
 .comment-item-header {
   display: flex;
   align-items: baseline;
   gap: 6px;
   margin-bottom: 2px;
+}
+
+.comment-item-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.comment-inline-btn {
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: var(--color-text-tertiary, #999);
+  font-size: 0.6875rem;
+  cursor: pointer;
+}
+
+.comment-inline-btn:hover {
+  color: var(--notebook-accent, #2563eb);
+  text-decoration: underline;
 }
 
 .comment-author {

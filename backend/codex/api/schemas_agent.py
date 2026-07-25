@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 # --- Agent CRUD ---
+
+AgentKind = Literal["hosted", "external"]
 
 
 class AgentCreate(BaseModel):
@@ -17,6 +19,13 @@ class AgentCreate(BaseModel):
     description: str | None = None
     provider: str = Field(..., description="Provider name, e.g. 'openai', 'anthropic', 'ollama'")
     model: str = Field(..., description="Model identifier, e.g. 'gpt-4o', 'claude-sonnet-4-20250514', 'ollama/llama3'")
+
+    kind: AgentKind = Field(
+        default="hosted", description="'hosted' (Codex runs it via the agent engine) or 'external' (bot-driven)"
+    )
+    principal_id: int | None = Field(
+        default=None, description="Bot principal (users.id) this agent config is linked to"
+    )
 
     scope: dict[str, Any] = Field(
         default_factory=lambda: {"notebooks": ["*"], "folders": ["*"], "file_types": ["*"]},
@@ -35,6 +44,12 @@ class AgentCreate(BaseModel):
 
     system_prompt: str | None = None
 
+    @model_validator(mode="after")
+    def _validate_principal_for_kind(self) -> "AgentCreate":
+        if self.kind == "external" and self.principal_id is None:
+            raise ValueError("principal_id is required when kind is 'external'")
+        return self
+
 
 class AgentUpdate(BaseModel):
     """Update an existing agent."""
@@ -43,6 +58,8 @@ class AgentUpdate(BaseModel):
     description: str | None = None
     provider: str | None = None
     model: str | None = None
+    kind: AgentKind | None = None
+    principal_id: int | None = None
     scope: dict[str, Any] | None = None
 
     can_read: bool | None = None
@@ -70,6 +87,8 @@ class AgentResponse(BaseModel):
     description: str | None = None
     provider: str
     model: str
+    kind: str
+    principal_id: int | None = None
     scope: dict[str, Any]
     can_read: bool
     can_write: bool

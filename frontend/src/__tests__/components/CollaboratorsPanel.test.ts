@@ -93,8 +93,10 @@ describe("CollaboratorsPanel", () => {
     ;(wrapper.find("button.create-btn").element as HTMLElement).click()
     await wrapper.vm.$nextTick()
 
-    const input = wrapper.find('input[type="text"]')
-    await input.setValue("jane")
+    const input = document.querySelector('input[type="text"]') as HTMLInputElement
+    input.value = "jane"
+    input.dispatchEvent(new Event("input"))
+    await wrapper.vm.$nextTick()
 
     ;(document.querySelector(".btn-primary") as HTMLElement).click()
     await new Promise((resolve) => setTimeout(resolve, 0))

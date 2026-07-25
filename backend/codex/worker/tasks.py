@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
@@ -276,6 +277,129 @@ RECIPIENT_RESOLVERS: dict[str, RecipientResolver] = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Bot mention -> Task enqueue (issue #535)
+# ---------------------------------------------------------------------------
+
+
+async def _enqueue_bot_mention_tasks(ctx: dict, session: AsyncSession, event: Any) -> int:
+    """Enqueue a Task for each mentioned bot principal that has a *hosted* Agent.
+
+    Mentioning a bot is the human->bot invocation gesture (design doc §4/§5,
+    §8 phase 3): for a bot backed by a *hosted* Agent (`Agent.kind == "hosted"`,
+    Codex runs it directly via the agent engine) the same fanout that creates
+    in-app notifications also enqueues the agent's Task — no HTTP hop. Bots
+    backed by an *external* Agent (webhook-driven, e.g. an outside Claude Code
+    session) are left alone here; they're woken via webhook delivery instead
+    (not yet built).
+
+    Best-effort like the rest of fanout: a Task row is only left dangling
+    (never enqueued) if the worker's Redis pool is unavailable, mirroring how
+    `enqueue_fanout` tolerates a missing `arq_pool` on the request path.
+    """
+    from codex.db.models import Agent, Comment, Task, User
+
+    subject = event.subject or {}
+    mentioned_ids = {int(uid) for uid in subject.get("mentioned_user_ids") or []}
+    if not mentioned_ids:
+        return 0
+
+    result = await session.execute(
+        select(User, Agent)
+        .join(Agent, Agent.principal_id == User.id)
+        .where(
+            User.id.in_(mentioned_ids),
+            User.kind == "bot",
+            User.is_active.is_(True),
+            Agent.kind == "hosted",
+            Agent.is_active.is_(True),
+        )
+    )
+    bots = result.all()
+    if not bots:
+        return 0
+
+    comment_id = subject.get("comment_id")
+    comment = await session.get(Comment, comment_id) if comment_id is not None else None
+
+    parent_chain: list[dict[str, Any]] = []
+    if comment is not None:
+        thread_root_id = comment.thread_id or comment.id
+        chain_result = await session.execute(
+            select(Comment)
+            .where(
+                Comment.deleted_at.is_(None),
+                (Comment.id == thread_root_id) | (Comment.thread_id == thread_root_id),
+                Comment.id != comment.id,
+            )
+            .order_by(Comment.created_at)
+        )
+        parent_chain = [
+            {"comment_id": c.id, "author_id": c.author_id, "body": c.body} for c in chain_result.scalars().all()
+        ]
+
+    redis = ctx.get("redis")
+    enqueued = 0
+    for bot_user, agent in bots:
+        # Skip if a retry of this same fanout job already created a task for this
+        # (comment, agent) pair — Task has no event_id column to dedup on directly,
+        # so the comment id embedded in task_metadata stands in for one.
+        existing_result = await session.execute(
+            select(Task).where(
+                Task.workspace_id == event.workspace_id,
+                Task.task_type == "bot_mention",
+                Task.assigned_to == str(agent.id),
+            )
+        )
+        if any(
+            json.loads(t.task_metadata or "{}").get("comment_id") == comment_id for t in existing_result.scalars().all()
+        ):
+            continue
+
+        prompt_lines = [f"@{bot_user.username} was mentioned in a comment thread."]
+        for entry in parent_chain:
+            prompt_lines.append(f"- comment {entry['comment_id']} (author {entry['author_id']}): {entry['body']}")
+        if comment is not None:
+            prompt_lines.append(f"Latest comment (author {comment.author_id}): {comment.body}")
+
+        task = Task(
+            workspace_id=event.workspace_id,
+            title=f"@{bot_user.username} mention in comment {comment_id}",
+            description="\n".join(prompt_lines),
+            task_type="bot_mention",
+            assigned_to=str(agent.id),
+            job_type="agent",
+            task_metadata=json.dumps(
+                {
+                    "comment_id": comment_id,
+                    "block_id": comment.block_id if comment is not None else subject.get("block_id"),
+                    "thread_id": subject.get("thread_id"),
+                    "parent_chain": parent_chain,
+                    "mentioned_principal_id": bot_user.id,
+                }
+            ),
+        )
+        session.add(task)
+        await session.commit()
+        await session.refresh(task)
+        enqueued += 1
+        task_id = task.id  # captured before commit below, in case it fails and expires this attribute
+
+        if redis is None:
+            logger.warning("Bot mention task %s created but not enqueued — no redis pool in worker ctx", task_id)
+            continue
+        try:
+            job = await redis.enqueue_job("run_job", task_id)
+            if job is not None:
+                task.job_id = job.job_id
+                session.add(task)
+                await session.commit()
+        except Exception:
+            logger.exception("Failed to enqueue bot mention task %s", task_id)
+
+    return enqueued
+
+
 async def fanout_event(ctx: dict, event_id: int) -> dict[str, Any]:
     """Fan an `Event` out into `Notification` rows for its resolved recipients.
 
@@ -283,6 +407,10 @@ async def fanout_event(ctx: dict, event_id: int) -> dict[str, Any]:
     first and skipped, and each insert is individually committed so a unique-
     constraint violation from a concurrent retry only rolls back that one row
     rather than the whole batch.
+
+    For `comment.mention` events, also enqueues a Task for each mentioned bot
+    principal that has a hosted Agent (issue #535) — see
+    `_enqueue_bot_mention_tasks`.
     """
     from codex.core.events import serialize_notification
     from codex.core.websocket import connection_manager, principal_channel
@@ -300,8 +428,18 @@ async def fanout_event(ctx: dict, event_id: int) -> dict[str, Any]:
             return {"status": "error", "detail": f"Unknown event kind: {event.kind}"}
 
         recipients = await resolver(session, event)
+
+        bot_tasks_enqueued = 0
+        if event.kind == "comment.mention":
+            bot_tasks_enqueued = await _enqueue_bot_mention_tasks(ctx, session, event)
+
         if not recipients:
-            return {"status": "completed", "event_id": event.id, "notifications_created": 0}
+            return {
+                "status": "completed",
+                "event_id": event.id,
+                "notifications_created": 0,
+                "bot_tasks_enqueued": bot_tasks_enqueued,
+            }
 
         existing_result = await session.execute(
             select(Notification.recipient_id).where(Notification.event_id == event.id)
@@ -326,4 +464,9 @@ async def fanout_event(ctx: dict, event_id: int) -> dict[str, Any]:
                 {"type": "notification", "notification": serialize_notification(notification, event)},
             )
 
-        return {"status": "completed", "event_id": event.id, "notifications_created": created}
+        return {
+            "status": "completed",
+            "event_id": event.id,
+            "notifications_created": created,
+            "bot_tasks_enqueued": bot_tasks_enqueued,
+        }

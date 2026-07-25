@@ -32,14 +32,21 @@
                 </div>
                 <div v-else class="nav-hierarchy">
                   <div v-for="ws in availableWorkspaces" :key="ws.id" class="nav-workspace-block">
-                    <button 
+                    <button
                       @click="navigateTo({ type: 'workspace', workspaceId: ws.id })"
                       :class="{ active: activeSection?.type === 'workspace' && activeSection?.workspaceId === ws.id }"
                       class="nav-item">
                       <span class="nav-icon">🗂️</span>
                       <span class="nav-label">{{ ws.name }}</span>
                     </button>
-                    
+                    <button
+                      @click="navigateTo({ type: 'sharing', workspaceId: ws.id })"
+                      :class="{ active: activeSection?.type === 'sharing' && activeSection?.workspaceId === ws.id }"
+                      class="nav-item nav-item-nested">
+                      <span class="nav-icon">👥</span>
+                      <span class="nav-label">Sharing</span>
+                    </button>
+
                     <!-- Notebooks under workspace -->
                     <div v-if="workspaceNotebooks[ws.id]?.length" class="nav-notebooks-list">
                       <button 
@@ -86,10 +93,13 @@
               <span aria-hidden="true">&larr;</span> Settings
             </button>
             <UserSettingsPanel v-if="activeSection?.type === 'user'" />
-            <WorkspaceSettingsPanel 
-              v-else-if="activeSection?.type === 'workspace' && activeSection.workspaceId" 
+            <WorkspaceSettingsPanel
+              v-else-if="activeSection?.type === 'workspace' && activeSection.workspaceId"
               :workspaceId="activeSection.workspaceId" />
-            <NotebookSettingsPanel 
+            <CollaboratorsPanel
+              v-else-if="activeSection?.type === 'sharing' && activeSection.workspaceId"
+              :workspaceId="activeSection.workspaceId" />
+            <NotebookSettingsPanel
               v-else-if="activeSection?.type === 'notebook' && activeSection.workspaceId && activeSection.notebookId" 
               :workspaceId="activeSection.workspaceId"
               :notebookId="activeSection.notebookId" />
@@ -111,6 +121,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useWorkspaceStore } from '../stores/workspace'
 import UserSettingsPanel from './settings/UserSettingsPanel.vue'
 import WorkspaceSettingsPanel from './settings/WorkspaceSettingsPanel.vue'
+import CollaboratorsPanel from './settings/CollaboratorsPanel.vue'
 import NotebookSettingsPanel from './settings/NotebookSettingsPanel.vue'
 import IntegrationsPanel from './settings/IntegrationsPanel.vue'
 import AgentsPanel from './settings/AgentsPanel.vue'
@@ -118,7 +129,7 @@ import { useAgentStore } from '../stores/agent'
 import type { Agent } from '../services/agent'
 
 interface NavigationTarget {
-  type: 'user' | 'workspace' | 'notebook' | 'integrations' | 'agents'
+  type: 'user' | 'workspace' | 'sharing' | 'notebook' | 'integrations' | 'agents'
   workspaceId?: number
   notebookId?: number
 }

@@ -30,6 +30,8 @@ from .system import (
     AgentActionLog,
     AgentCredential,
     AgentSession,
+    Comment,
+    CommentMention,
     IntegrationArtifact,
     Notebook,
     NotebookPluginConfig,
@@ -62,6 +64,8 @@ __all__ = [
     "PluginSecret",
     "PluginAPILog",
     "IntegrationArtifact",
+    "Comment",
+    "CommentMention",
     # Token models
     "PasswordResetToken",
     "PersonalAccessToken",

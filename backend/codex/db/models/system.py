@@ -8,6 +8,9 @@ These models are stored in the system database (codex_system.db):
 - Notebook: Notebook metadata
 - Comment: Threaded comments anchored to a block ULID
 - CommentMention: @handle mentions parsed from a comment at post time
+- Event: Append-only event outbox for notification fanout
+- Notification: Per-recipient delivery record for an Event
+- WorkspaceWatch: Per-user opt-in/mute notification preference for a workspace
 - Plugin: Plugin registry
 - PluginConfig: Plugin configurations per workspace
 - PluginSecret: Secure plugin secrets (encrypted)
@@ -533,3 +536,72 @@ class CommentMention(SQLModel, table=True):
 
     # Relationships
     comment: Comment = Relationship(back_populates="mentions")
+
+
+class Event(SQLModel, table=True):
+    """Append-only event outbox (issue #530).
+
+    Every notification-worthy action in a workspace writes one `Event` row here
+    (never updated or deleted). The ARQ `fanout_event` job reads new events and
+    fans them out into `Notification` rows for the relevant recipients, decoupling
+    "what happened" (recorded synchronously, in the request's DB transaction) from
+    "who should be told" (resolved asynchronously, off the request path).
+    """
+
+    __tablename__ = "events"  # type: ignore[assignment]
+
+    id: int | None = Field(default=None, primary_key=True)
+    workspace_id: int = Field(foreign_key="workspaces.id", index=True)
+    # Nullable: some future event kinds may originate from the system rather than a user action.
+    actor_id: int | None = Field(default=None, foreign_key="users.id", index=True)
+    # comment.created, comment.mention, comment.resolved, permission.granted, ...
+    kind: str = Field(index=True)
+    subject: dict = Field(default={}, sa_column=Column(JSON))
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
+    )
+
+
+class Notification(SQLModel, table=True):
+    """A single recipient's delivery record for an `Event` (issue #530).
+
+    One row per (event, recipient) — enforced by a unique constraint so the async
+    fanout job can be retried freely without creating duplicate notifications.
+    """
+
+    __tablename__ = "notifications"  # type: ignore[assignment]
+    __table_args__ = (UniqueConstraint("event_id", "recipient_id", name="uq_notifications_event_recipient"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    event_id: int = Field(foreign_key="events.id", index=True)
+    recipient_id: int = Field(foreign_key="users.id", index=True)
+    read_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    delivered_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
+    )
+
+
+class WorkspaceWatch(SQLModel, table=True):
+    """A user's opt-in/mute notification preference for a workspace (issue #530).
+
+    A row's presence means the user has opted in to being treated as a
+    "workspace watcher" for fanout purposes; `muted=True` suppresses the
+    watcher-derived notifications for that user without deleting the opt-in
+    (mentions and thread-participant notifications are unaffected by mute —
+    only the blanket workspace-watcher path is suppressed).
+    """
+
+    __tablename__ = "workspace_watches"  # type: ignore[assignment]
+    __table_args__ = (UniqueConstraint("workspace_id", "user_id", name="uq_workspace_watches_workspace_user"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    workspace_id: int = Field(foreign_key="workspaces.id", index=True)
+    user_id: int = Field(foreign_key="users.id", index=True)
+    muted: bool = Field(default=False)
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
+    )
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
+    )

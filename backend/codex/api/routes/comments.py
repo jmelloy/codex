@@ -10,7 +10,7 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -18,6 +18,7 @@ from codex.api.auth import PermissionScope, get_current_active_user, require_sco
 from codex.api.routes.helpers import get_notebook_path_nested
 from codex.api.schemas import CommentCreate, CommentMentionResponse, CommentResponse, CommentUpdate, MessageResponse
 from codex.core.blocks import get_block
+from codex.core.events import build_event, enqueue_fanout
 from codex.core.permissions import PermissionLevel, effective_level, has_permission, require_level
 from codex.db.database import get_notebook_session, get_system_session
 from codex.db.models import Comment, CommentMention, User, Workspace, WorkspacePermission
@@ -149,6 +150,7 @@ async def create_comment(
     notebook_identifier: str,
     block_id: str,
     payload: CommentCreate,
+    request: Request,
     current_user: User = Depends(require_scope(PermissionScope.COMMENTS_WRITE)),
     session: AsyncSession = Depends(get_system_session),
 ):
@@ -184,8 +186,26 @@ async def create_comment(
     await session.flush()
 
     mentions = await _parse_and_store_mentions(comment, workspace, session)
+
+    event = build_event(
+        workspace_id=workspace.id,
+        actor_id=current_user.id,
+        kind="comment.mention" if mentions else "comment.created",
+        subject={
+            "comment_id": comment.id,
+            "thread_id": comment.thread_id or comment.id,
+            "notebook_id": notebook.id,
+            "block_id": block_id,
+            "mentioned_user_ids": [m.mentioned_principal_id for m in mentions],
+        },
+    )
+    session.add(event)
+
     await session.commit()
     await session.refresh(comment)
+    await session.refresh(event)
+
+    await enqueue_fanout(request, event.id)
 
     return _serialize(comment, current_user.username, mentions)
 
@@ -249,6 +269,7 @@ async def delete_comment(
 @router.post("/{comment_id}/resolve", response_model=CommentResponse)
 async def resolve_comment(
     comment_id: int,
+    request: Request,
     current_user: User = Depends(require_scope(PermissionScope.COMMENTS_WRITE)),
     session: AsyncSession = Depends(get_system_session),
 ):
@@ -267,8 +288,26 @@ async def resolve_comment(
     comment.resolved_at = datetime.now(timezone.utc)
     comment.resolved_by_id = current_user.id
     session.add(comment)
+
+    event = build_event(
+        workspace_id=workspace.id,
+        actor_id=current_user.id,
+        kind="comment.resolved",
+        subject={
+            "comment_id": comment.id,
+            "thread_id": comment.thread_id or comment.id,
+            "notebook_id": comment.notebook_id,
+            "block_id": comment.block_id,
+            "mentioned_user_ids": [],
+        },
+    )
+    session.add(event)
+
     await session.commit()
     await session.refresh(comment)
+    await session.refresh(event)
+
+    await enqueue_fanout(request, event.id)
 
     author = await session.get(User, comment.author_id)
     mention_result = await session.execute(select(CommentMention).where(CommentMention.comment_id == comment.id))

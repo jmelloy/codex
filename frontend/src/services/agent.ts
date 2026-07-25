@@ -8,6 +8,8 @@ export interface AgentScope {
   file_types: string[]
 }
 
+export type AgentKind = "hosted" | "external"
+
 export interface Agent {
   id: number
   workspace_id: number
@@ -15,6 +17,8 @@ export interface Agent {
   description: string | null
   provider: string
   model: string
+  kind: AgentKind
+  principal_id: number | null
   scope: AgentScope
   can_read: boolean
   can_write: boolean
@@ -35,6 +39,8 @@ export interface AgentCreate {
   description?: string
   provider: string
   model: string
+  kind?: AgentKind
+  principal_id?: number | null
   scope?: AgentScope
   can_read?: boolean
   can_write?: boolean

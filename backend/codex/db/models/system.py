@@ -69,6 +69,7 @@ class User(SQLModel, table=True):
 
     # Relationships
     workspaces: list["Workspace"] = Relationship(back_populates="owner")
+    agents: list["Agent"] = Relationship(back_populates="principal")
 
     @property
     def is_bot(self) -> bool:
@@ -269,9 +270,18 @@ class PluginAPILog(SQLModel, table=True):
 
 
 class Agent(SQLModel, table=True):
-    """AI agent configuration for a workspace."""
+    """AI agent configuration for a workspace.
+
+    `kind` distinguishes agents Codex executes itself ("hosted", via the existing
+    engine) from agents that represent an externally-driven bot ("external", e.g. a
+    Claude Code session woken by webhook) — see docs/design/multi-user-multi-org.md
+    §2.1 and §8 phase 3 (issue #533). `principal_id` links the config to the bot's
+    `User` row (the "identity"); it is required for external agents and null for
+    hosted agents, which run as the system rather than as a distinct principal.
+    """
 
     __tablename__ = "agents"  # type: ignore[assignment]
+    __table_args__ = (UniqueConstraint("principal_id", name="uq_agents_principal_id"),)
 
     id: int | None = Field(default=None, primary_key=True)
     workspace_id: int = Field(foreign_key="workspaces.id", index=True)
@@ -279,6 +289,11 @@ class Agent(SQLModel, table=True):
     description: str | None = None
     provider: str  # "openai", "anthropic", "ollama", or any OpenAI-compatible provider
     model: str  # e.g. "gpt-4o", "claude-sonnet-4-20250514", "ollama/llama3"
+
+    kind: str = Field(default="hosted")  # "hosted" (Codex-run) | "external" (bot-driven)
+    # Bot principal (users.id) this agent config belongs to; one Agent per principal
+    # (uniqueness enforced by uq_agents_principal_id above).
+    principal_id: int | None = Field(default=None, foreign_key="users.id", index=True)
 
     # Scope configuration (JSON)
     scope: dict = Field(default={}, sa_column=Column(JSON))
@@ -313,6 +328,7 @@ class Agent(SQLModel, table=True):
 
     # Relationships
     workspace: Workspace = Relationship(back_populates="agents")
+    principal: User | None = Relationship(back_populates="agents")
     credentials: list["AgentCredential"] = Relationship(back_populates="agent")
     sessions: list["AgentSession"] = Relationship(back_populates="agent")
 

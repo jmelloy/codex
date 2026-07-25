@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -63,6 +64,21 @@ async def _get_agent(agent_id: int, session: AsyncSession) -> Agent:
     return agent
 
 
+async def _get_principal(principal_id: int, session: AsyncSession) -> User:
+    result = await session.execute(select(User).where(User.id == principal_id))
+    principal = result.scalar_one_or_none()
+    if not principal:
+        raise HTTPException(status_code=404, detail="Principal (user) not found")
+    return principal
+
+
+def _assert_principal_kind_consistent(kind: str, principal_id: int | None) -> None:
+    """External agents represent a bot-driven identity and must be linked to a
+    principal; hosted agents run as the system and may leave it null."""
+    if kind == "external" and principal_id is None:
+        raise HTTPException(status_code=400, detail="External agents must have a principal_id (bot principal) set")
+
+
 async def _get_session(session_id: int, db: AsyncSession) -> AgentSession:
     result = await db.execute(select(AgentSession).where(AgentSession.id == session_id))
     agent_session = result.scalar_one_or_none()
@@ -85,6 +101,9 @@ async def create_agent(
 ) -> Agent:
     """Create a new agent for a workspace."""
     await _get_workspace(workspace_id, session)
+    _assert_principal_kind_consistent(body.kind, body.principal_id)
+    if body.principal_id is not None:
+        await _get_principal(body.principal_id, session)
 
     agent = Agent(
         workspace_id=workspace_id,
@@ -92,6 +111,8 @@ async def create_agent(
         description=body.description,
         provider=body.provider,
         model=body.model,
+        kind=body.kind,
+        principal_id=body.principal_id,
         scope=body.scope,
         can_read=body.can_read,
         can_write=body.can_write,
@@ -104,7 +125,11 @@ async def create_agent(
         system_prompt=body.system_prompt,
     )
     session.add(agent)
-    await session.commit()
+    try:
+        await session.commit()
+    except IntegrityError as e:
+        await session.rollback()
+        raise HTTPException(status_code=409, detail="principal_id is already linked to another agent") from e
     await session.refresh(agent)
     return agent
 
@@ -141,12 +166,23 @@ async def update_agent(
     agent = await _get_agent(agent_id, session)
 
     update_data = body.model_dump(exclude_unset=True)
+    if "principal_id" in update_data and update_data["principal_id"] is not None:
+        await _get_principal(update_data["principal_id"], session)
+
     for field, value in update_data.items():
         setattr(agent, field, value)
     agent.updated_at = utc_now()
 
+    # Re-validate against the merged (existing + updated) state, since kind and
+    # principal_id may be updated independently of each other.
+    _assert_principal_kind_consistent(agent.kind, agent.principal_id)
+
     session.add(agent)
-    await session.commit()
+    try:
+        await session.commit()
+    except IntegrityError as e:
+        await session.rollback()
+        raise HTTPException(status_code=409, detail="principal_id is already linked to another agent") from e
     await session.refresh(agent)
     return agent
 

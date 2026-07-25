@@ -32,9 +32,11 @@ from .system import (
     AgentSession,
     Comment,
     CommentMention,
+    Event,
     IntegrationArtifact,
     Notebook,
     NotebookPluginConfig,
+    Notification,
     OAuthConnection,
     PasswordResetToken,
     PersonalAccessToken,
@@ -47,6 +49,7 @@ from .system import (
     User,
     Workspace,
     WorkspacePermission,
+    WorkspaceWatch,
 )
 
 __all__ = [
@@ -66,6 +69,9 @@ __all__ = [
     "IntegrationArtifact",
     "Comment",
     "CommentMention",
+    "Event",
+    "Notification",
+    "WorkspaceWatch",
     # Token models
     "PasswordResetToken",
     "PersonalAccessToken",

@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from typing import Any
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -211,3 +213,107 @@ async def _handle_agent_job(
 
         await _fail_task(session, task, str(exc)[:500])
         return {"status": "failed", "task_id": task.id, "error": str(exc)[:500]}
+
+
+# ---------------------------------------------------------------------------
+# Notification fanout (issue #530)
+# ---------------------------------------------------------------------------
+
+RecipientResolver = Callable[[AsyncSession, Any], Awaitable[set[int]]]
+
+
+async def _resolve_comment_recipients(session: AsyncSession, event: Any) -> set[int]:
+    """Recipients for comment.* events: mentioned principals + thread participants
+    + non-muted workspace watchers, minus the actor (actors never notify themselves).
+
+    Mute only suppresses the workspace-watcher path — a muted user who is directly
+    mentioned or participating in the thread is still notified.
+    """
+    from codex.db.models import Comment, WorkspaceWatch
+
+    subject = event.subject or {}
+    thread_root_id = subject.get("thread_id")
+    mentioned_ids = {int(uid) for uid in subject.get("mentioned_user_ids") or []}
+
+    participant_ids: set[int] = set()
+    if thread_root_id is not None:
+        result = await session.execute(
+            select(Comment.author_id).where(
+                Comment.deleted_at.is_(None),
+                (Comment.id == thread_root_id) | (Comment.thread_id == thread_root_id),
+            )
+        )
+        participant_ids = {row[0] for row in result.all()}
+
+    watcher_result = await session.execute(
+        select(WorkspaceWatch.user_id).where(
+            WorkspaceWatch.workspace_id == event.workspace_id,
+            WorkspaceWatch.muted.is_(False),
+        )
+    )
+    watcher_ids = {row[0] for row in watcher_result.all()}
+
+    recipients = mentioned_ids | participant_ids | watcher_ids
+    recipients.discard(event.actor_id)
+    return recipients
+
+
+async def _resolve_permission_granted_recipients(session: AsyncSession, event: Any) -> set[int]:
+    """Recipients for permission.granted events: the grantee only."""
+    subject = event.subject or {}
+    grantee_id = subject.get("grantee_id")
+    recipients = {int(grantee_id)} if grantee_id is not None else set()
+    recipients.discard(event.actor_id)
+    return recipients
+
+
+# Registry of recipient resolvers by event kind — extend this dict to support new kinds.
+RECIPIENT_RESOLVERS: dict[str, RecipientResolver] = {
+    "comment.created": _resolve_comment_recipients,
+    "comment.mention": _resolve_comment_recipients,
+    "comment.resolved": _resolve_comment_recipients,
+    "permission.granted": _resolve_permission_granted_recipients,
+}
+
+
+async def fanout_event(ctx: dict, event_id: int) -> dict[str, Any]:
+    """Fan an `Event` out into `Notification` rows for its resolved recipients.
+
+    Idempotent on retry: recipients already notified for this event are loaded
+    first and skipped, and each insert is individually committed so a unique-
+    constraint violation from a concurrent retry only rolls back that one row
+    rather than the whole batch.
+    """
+    from codex.db.models import Event, Notification
+
+    session_maker = ctx["session_maker"]
+    async with session_maker() as session:
+        event = await session.get(Event, event_id)
+        if event is None:
+            return {"status": "error", "detail": f"Event {event_id} not found"}
+
+        resolver = RECIPIENT_RESOLVERS.get(event.kind)
+        if resolver is None:
+            logger.warning("No recipient resolver registered for event kind %r", event.kind)
+            return {"status": "error", "detail": f"Unknown event kind: {event.kind}"}
+
+        recipients = await resolver(session, event)
+        if not recipients:
+            return {"status": "completed", "event_id": event.id, "notifications_created": 0}
+
+        existing_result = await session.execute(
+            select(Notification.recipient_id).where(Notification.event_id == event.id)
+        )
+        existing_recipient_ids = {row[0] for row in existing_result.all()}
+
+        created = 0
+        for recipient_id in sorted(recipients - existing_recipient_ids):
+            session.add(Notification(event_id=event.id, recipient_id=recipient_id))
+            try:
+                await session.commit()
+                created += 1
+            except IntegrityError:
+                # A concurrent retry already inserted this notification — safe to skip.
+                await session.rollback()
+
+        return {"status": "completed", "event_id": event.id, "notifications_created": created}

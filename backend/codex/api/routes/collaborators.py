@@ -6,7 +6,7 @@ described in docs/design/multi-user-multi-org.md §8 phase 1 ("invited collabora
 via the existing table").
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
@@ -14,6 +14,7 @@ from sqlmodel import select
 from codex.api.auth import get_current_active_user
 from codex.api.routes.workspaces import get_workspace_by_slug
 from codex.api.schemas import MessageResponse
+from codex.core.events import build_event, enqueue_fanout
 from codex.core.permissions import PermissionLevel
 from codex.core.websocket import connection_manager, principal_channel
 from codex.db.database import get_system_session
@@ -114,6 +115,7 @@ async def list_collaborators(
 async def invite_collaborator(
     workspace_identifier: str,
     body: CollaboratorInvite,
+    request: Request,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_system_session),
 ):
@@ -142,8 +144,18 @@ async def invite_collaborator(
 
     permission = WorkspacePermission(workspace_id=workspace.id, user_id=grantee.id, permission_level=level)
     session.add(permission)
+
+    event = build_event(
+        workspace_id=workspace.id,
+        actor_id=current_user.id,
+        kind="permission.granted",
+        subject={"grantee_id": grantee.id, "permission_level": level},
+    )
+    session.add(event)
+
     await session.commit()
     await session.refresh(permission)
+    await session.refresh(event)
 
     await connection_manager.broadcast(
         principal_channel(grantee.id),
@@ -155,6 +167,7 @@ async def invite_collaborator(
             "permission_level": level,
         },
     )
+    await enqueue_fanout(request, event.id)
 
     return CollaboratorResponse(
         user_id=grantee.id,

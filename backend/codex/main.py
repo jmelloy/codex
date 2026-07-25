@@ -24,6 +24,7 @@ from codex.api.routes import (
     comments,
     integrations,
     notebooks,
+    notifications,
     oauth,
     plugins,
     search,
@@ -261,6 +262,12 @@ app.include_router(
     tags=["comments"],
 )
 app.include_router(comments.router, prefix="/api/v1/comments", tags=["comments"])
+app.include_router(notifications.router, prefix="/api/v1/notifications", tags=["notifications"])
+app.include_router(
+    notifications.watch_router,
+    prefix="/api/v1/workspaces/{workspace_identifier}/watch",
+    tags=["notifications"],
+)
 
 # Serve frontend static files if the build is present (production)
 _static_dir = Path(__file__).parent.parent / "static"

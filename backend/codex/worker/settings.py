@@ -39,9 +39,9 @@ class WorkerSettings:
     Start the worker with: arq codex.worker.settings.WorkerSettings
     """
 
-    from codex.worker.tasks import execute_agent_task, run_job
+    from codex.worker.tasks import execute_agent_task, fanout_event, run_job
 
-    functions = [execute_agent_task, run_job]
+    functions = [execute_agent_task, run_job, fanout_event]
     redis_settings = get_redis_settings()
     max_jobs = 10
     job_timeout = 600  # 10 minutes

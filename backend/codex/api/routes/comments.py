@@ -54,12 +54,13 @@ async def _parse_and_store_mentions(comment: Comment, workspace: Workspace, sess
 
     result = await session.execute(
         select(User).where(
+            User.username.in_(handles),
             (User.id == workspace.owner_id)
             | (
                 User.id.in_(
                     select(WorkspacePermission.user_id).where(WorkspacePermission.workspace_id == workspace.id)
                 )
-            )
+            ),
         )
     )
     principals_by_handle = {user.username: user for user in result.scalars().all()}
@@ -231,8 +232,11 @@ async def delete_comment(
     """
     comment, workspace = await _get_comment_or_404(comment_id, session)
     level = await effective_level(current_user, workspace, session)
+    if level is None:
+        raise HTTPException(status_code=404, detail="Comment not found")
     is_author = comment.author_id == current_user.id
-    if not is_author and not has_permission(level, PermissionLevel.ADMIN):
+    is_admin = has_permission(level, PermissionLevel.ADMIN)
+    if not is_admin and not (is_author and has_permission(level, PermissionLevel.COMMENT)):
         raise HTTPException(status_code=403, detail="Only the comment's author or a workspace admin can delete it")
 
     comment.deleted_at = datetime.now(timezone.utc)
@@ -248,9 +252,17 @@ async def resolve_comment(
     current_user: User = Depends(require_scope(PermissionScope.COMMENTS_WRITE)),
     session: AsyncSession = Depends(get_system_session),
 ):
-    """Mark a comment thread resolved. Requires `comment` permission level (or higher)."""
+    """Mark a comment thread resolved. Requires `comment` permission level (or higher).
+
+    Resolves the thread root: if `comment_id` refers to a reply, the root
+    comment (`thread_id`) is resolved instead so the whole thread is marked
+    resolved regardless of which reply the client passed in.
+    """
     comment, workspace = await _get_comment_or_404(comment_id, session)
     await require_level(current_user, workspace, PermissionLevel.COMMENT, session)
+
+    if comment.thread_id is not None:
+        comment, workspace = await _get_comment_or_404(comment.thread_id, session)
 
     comment.resolved_at = datetime.now(timezone.utc)
     comment.resolved_by_id = current_user.id

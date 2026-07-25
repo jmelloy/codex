@@ -472,3 +472,46 @@ class NotebookTagSearchResponse(WorkspaceTagSearchResponse):
 
     notebook_id: int
     notebook_slug: str | None = None
+
+
+class CommentCreate(BaseModel):
+    """Request body for posting a comment on a block."""
+
+    body: str = Field(..., min_length=1)
+    thread_id: int | None = None
+
+
+class CommentUpdate(BaseModel):
+    """Request body for editing a comment's body."""
+
+    body: str = Field(..., min_length=1)
+
+
+class CommentMentionResponse(BaseModel):
+    """A single @handle mention resolved at comment creation time."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    mentioned_principal_id: int
+    handle: str
+
+
+class CommentResponse(BaseModel):
+    """Comment API response."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    workspace_id: int
+    notebook_id: int
+    block_id: str
+    thread_id: int | None = None
+    author_id: int
+    author_username: str | None = None
+    body: str
+    resolved_at: str | None = None
+    resolved_by_id: int | None = None
+    created_at: str
+    updated_at: str
+    mentions: list[CommentMentionResponse] = []

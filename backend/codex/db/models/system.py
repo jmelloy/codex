@@ -6,6 +6,8 @@ These models are stored in the system database (codex_system.db):
 - WorkspacePermission: Permission mapping between users and workspaces
 - Task: Tasks for agent work
 - Notebook: Notebook metadata
+- Comment: Threaded comments anchored to a block ULID
+- CommentMention: @handle mentions parsed from a comment at post time
 - Plugin: Plugin registry
 - PluginConfig: Plugin configurations per workspace
 - PluginSecret: Secure plugin secrets (encrypted)
@@ -477,3 +479,57 @@ class IntegrationArtifact(SQLModel, table=True):
     expires_at: datetime | None = Field(
         default=None, sa_column=Column(DateTime(timezone=True))
     )  # Optional expiration time for cache
+
+
+class Comment(SQLModel, table=True):
+    """Threaded comment anchored to a block's stable ULID (issue #529, design doc §4).
+
+    Anchored to `Block.block_id` (not the notebook-local numeric id) so a thread
+    survives the block's file being renamed or moved. `thread_id` is null for a
+    root comment and points at the root comment's id for replies (threads are
+    flattened one level deep, not arbitrarily nested).
+    """
+
+    __tablename__ = "comments"  # type: ignore[assignment]
+
+    id: int | None = Field(default=None, primary_key=True)
+    workspace_id: int = Field(foreign_key="workspaces.id", index=True)
+    notebook_id: int = Field(foreign_key="notebooks.id", index=True)
+    block_id: str = Field(index=True)  # ULID; Block.block_id in the notebook db
+    thread_id: int | None = Field(default=None, foreign_key="comments.id", index=True)
+    author_id: int = Field(foreign_key="users.id")
+    body: str
+    resolved_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    resolved_by_id: int | None = Field(default=None, foreign_key="users.id")
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
+    )
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
+    )
+    deleted_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+
+    # Relationships
+    mentions: list["CommentMention"] = Relationship(back_populates="comment")
+
+
+class CommentMention(SQLModel, table=True):
+    """@handle mention parsed from a comment body at post time.
+
+    Mentions are resolved against workspace-visible principals when the comment
+    is created and never re-parsed on read, so editing a user's handle later
+    does not retroactively change historical mentions.
+    """
+
+    __tablename__ = "comment_mentions"  # type: ignore[assignment]
+
+    id: int | None = Field(default=None, primary_key=True)
+    comment_id: int = Field(foreign_key="comments.id", index=True)
+    mentioned_principal_id: int = Field(foreign_key="users.id", index=True)
+    handle: str
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
+    )
+
+    # Relationships
+    comment: Comment = Relationship(back_populates="mentions")

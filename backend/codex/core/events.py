@@ -11,7 +11,7 @@ import logging
 
 from fastapi import Request
 
-from codex.db.models import Event
+from codex.db.models import Event, Notification
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +19,24 @@ logger = logging.getLogger(__name__)
 def build_event(workspace_id: int, actor_id: int | None, kind: str, subject: dict) -> Event:
     """Construct an `Event` row. Caller is responsible for `session.add` + commit."""
     return Event(workspace_id=workspace_id, actor_id=actor_id, kind=kind, subject=subject)
+
+
+def serialize_notification(notification: Notification, event: Event) -> dict:
+    """Denormalize a `Notification` with its underlying `Event` into a plain dict.
+
+    Shared by the REST list/read endpoints and the WebSocket push (issue #531)
+    so both deliver an identical representation of a notification.
+    """
+    return {
+        "id": notification.id,
+        "event_id": event.id,
+        "kind": event.kind,
+        "workspace_id": event.workspace_id,
+        "actor_id": event.actor_id,
+        "subject": event.subject,
+        "read_at": notification.read_at.isoformat() if notification.read_at else None,
+        "created_at": notification.created_at.isoformat(),
+    }
 
 
 async def enqueue_fanout(request: Request, event_id: int) -> None:

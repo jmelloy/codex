@@ -62,6 +62,8 @@ class PrincipalResponse(BaseModel):
 
     id: int
     username: str
+    is_bot: bool = False
+    display_name: str | None = None
 
 
 class PluginConfigUpdate(BaseModel):
@@ -143,7 +145,10 @@ async def list_principals(
         .where((User.id == workspace.owner_id) | (WorkspacePermission.workspace_id == workspace.id))
     )
     users = result.scalars().unique().all()
-    return [PrincipalResponse(id=user.id, username=user.username) for user in users]
+    return [
+        PrincipalResponse(id=user.id, username=user.username, is_bot=user.is_bot, display_name=user.display_name)
+        for user in users
+    ]
 
 
 async def path_exists_in_db(session: AsyncSession, path: str) -> bool:

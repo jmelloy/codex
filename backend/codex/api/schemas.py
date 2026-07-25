@@ -23,6 +23,10 @@ class UserResponse(BaseModel):
     email: str
     is_active: bool
     theme_setting: str | None = None
+    kind: str = "human"
+    display_name: str | None = None
+    avatar_url: str | None = None
+    is_bot: bool = False
 
 
 class ChangePasswordRequest(BaseModel):

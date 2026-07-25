@@ -284,6 +284,8 @@ async def fanout_event(ctx: dict, event_id: int) -> dict[str, Any]:
     constraint violation from a concurrent retry only rolls back that one row
     rather than the whole batch.
     """
+    from codex.core.events import serialize_notification
+    from codex.core.websocket import connection_manager, principal_channel
     from codex.db.models import Event, Notification
 
     session_maker = ctx["session_maker"]
@@ -308,12 +310,20 @@ async def fanout_event(ctx: dict, event_id: int) -> dict[str, Any]:
 
         created = 0
         for recipient_id in sorted(recipients - existing_recipient_ids):
-            session.add(Notification(event_id=event.id, recipient_id=recipient_id))
+            notification = Notification(event_id=event.id, recipient_id=recipient_id)
+            session.add(notification)
             try:
                 await session.commit()
                 created += 1
             except IntegrityError:
                 # A concurrent retry already inserted this notification — safe to skip.
                 await session.rollback()
+                continue
+
+            await session.refresh(notification)
+            await connection_manager.broadcast(
+                principal_channel(recipient_id),
+                {"type": "notification", "notification": serialize_notification(notification, event)},
+            )
 
         return {"status": "completed", "event_id": event.id, "notifications_created": created}

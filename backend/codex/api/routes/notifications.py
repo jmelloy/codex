@@ -9,14 +9,16 @@ workspace-watch (opt-in/mute) preference.
 
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from codex.api.auth import get_current_active_user
 from codex.api.routes.workspaces import get_workspace_by_slug
 from codex.api.schemas import MessageResponse
+from codex.core.notifications import serialize_notification
 from codex.db.database import get_system_session
 from codex.db.models import Event, Notification, User, WorkspaceWatch
 
@@ -53,22 +55,21 @@ class WorkspaceWatchUpdate(BaseModel):
     muted: bool = False
 
 
+class UnreadCountResponse(BaseModel):
+    """Just the unread count, for a nav-bar badge."""
+
+    unread_count: int
+
+
 def _serialize_notification(notification: Notification, event: Event) -> NotificationResponse:
-    return NotificationResponse(
-        id=notification.id,
-        event_id=event.id,
-        kind=event.kind,
-        workspace_id=event.workspace_id,
-        actor_id=event.actor_id,
-        subject=event.subject,
-        read_at=notification.read_at.isoformat() if notification.read_at else None,
-        created_at=notification.created_at.isoformat(),
-    )
+    return NotificationResponse(**serialize_notification(notification, event))
 
 
 @router.get("/", response_model=list[NotificationResponse])
 async def list_notifications(
     unread_only: bool = False,
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_system_session),
 ):
@@ -81,8 +82,24 @@ async def list_notifications(
     )
     if unread_only:
         stmt = stmt.where(Notification.read_at.is_(None))
+    stmt = stmt.offset(offset).limit(limit)
     result = await session.execute(stmt)
     return [_serialize_notification(notification, event) for notification, event in result.all()]
+
+
+@router.get("/unread-count", response_model=UnreadCountResponse)
+async def get_unread_count(
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Return just the current user's unread notification count."""
+    result = await session.execute(
+        select(func.count()).select_from(Notification).where(
+            Notification.recipient_id == current_user.id,
+            Notification.read_at.is_(None),
+        )
+    )
+    return UnreadCountResponse(unread_count=result.scalar_one())
 
 
 @router.post("/{notification_id}/read", response_model=NotificationResponse)
@@ -104,6 +121,27 @@ async def mark_notification_read(
 
     event = await session.get(Event, notification.event_id)
     return _serialize_notification(notification, event)
+
+
+@router.post("/read-all", response_model=MessageResponse)
+async def mark_all_notifications_read(
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Mark all of the current user's unread notifications as read."""
+    result = await session.execute(
+        select(Notification).where(
+            Notification.recipient_id == current_user.id,
+            Notification.read_at.is_(None),
+        )
+    )
+    now = datetime.now(UTC)
+    unread = result.scalars().all()
+    for notification in unread:
+        notification.read_at = now
+        session.add(notification)
+    await session.commit()
+    return {"message": f"Marked {len(unread)} notification(s) as read"}
 
 
 @watch_router.get("/", response_model=WorkspaceWatchResponse)

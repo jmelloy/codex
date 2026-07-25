@@ -13,7 +13,7 @@ from sqlmodel import select
 from codex.api.auth import get_current_active_user
 from codex.api.routes.utils import slugify
 from codex.api.schemas import MessageResponse, WorkspacePluginConfigResponse
-from codex.core.permissions import PermissionLevel, check_permission
+from codex.core.permissions import PermissionLevel, check_permission, effective_level
 from codex.core.watcher import get_watcher_for_notebook, unregister_watcher
 from codex.db.database import DATA_DIRECTORY, get_system_session
 from codex.db.models import (
@@ -49,6 +49,19 @@ class ThemeUpdate(BaseModel):
     """Request body for updating theme setting."""
 
     theme: str
+
+
+class MyPermissionResponse(BaseModel):
+    """The current user's effective permission level on a workspace."""
+
+    permission_level: str
+
+
+class PrincipalResponse(BaseModel):
+    """A workspace-visible principal (owner or granted collaborator), for @mention autocomplete."""
+
+    id: int
+    username: str
 
 
 class PluginConfigUpdate(BaseModel):
@@ -87,6 +100,50 @@ async def get_workspace(
 ) -> Workspace:
     """Get a specific workspace by slug."""
     return await get_workspace_by_slug(workspace_identifier, current_user, session)
+
+
+@router.get("/{workspace_identifier}/permission", response_model=MyPermissionResponse)
+async def get_my_permission(
+    workspace_identifier: str,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Get the current user's effective permission level on a workspace.
+
+    Used by the frontend to decide whether to show write/comment affordances
+    (e.g. the comment composer) without having to probe by attempting the action.
+    """
+    workspace = await get_workspace_by_slug(workspace_identifier, current_user, session)
+    level = await effective_level(current_user, workspace, session)
+    # get_workspace_by_slug already asserts at least READ access, so level is never None here.
+    return MyPermissionResponse(permission_level=level.name.lower())
+
+
+@router.get("/{workspace_identifier}/principals", response_model=list[PrincipalResponse])
+async def list_principals(
+    workspace_identifier: str,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """List workspace-visible principals (owner + granted collaborators) for @mention autocomplete.
+
+    Requires COMMENT level or higher, since only users who can post comments need to
+    resolve @handles. Returns id/username only — no email, unlike the admin-only
+    collaborators listing.
+    """
+    workspace = await get_workspace_by_slug(
+        workspace_identifier, current_user, session, required_level=PermissionLevel.COMMENT
+    )
+    result = await session.execute(
+        select(User)
+        .outerjoin(
+            WorkspacePermission,
+            (WorkspacePermission.workspace_id == workspace.id) & (WorkspacePermission.user_id == User.id),
+        )
+        .where((User.id == workspace.owner_id) | (WorkspacePermission.workspace_id == workspace.id))
+    )
+    users = result.scalars().unique().all()
+    return [PrincipalResponse(id=user.id, username=user.username) for user in users]
 
 
 async def path_exists_in_db(session: AsyncSession, path: str) -> bool:

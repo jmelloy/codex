@@ -262,6 +262,11 @@ app.include_router(
     tags=["comments"],
 )
 app.include_router(comments.router, prefix="/api/v1/comments", tags=["comments"])
+app.include_router(
+    comments.counts_router,
+    prefix="/api/v1/workspaces/{workspace_identifier}/notebooks/{notebook_identifier}/comments",
+    tags=["comments"],
+)
 app.include_router(notifications.router, prefix="/api/v1/notifications", tags=["notifications"])
 app.include_router(
     notifications.watch_router,

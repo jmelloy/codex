@@ -325,7 +325,7 @@ class BotCreate(BaseModel):
 class BotUpdate(BaseModel):
     """Request body for updating a bot's profile."""
 
-    display_name: str | None = None
+    display_name: str | None = Field(default=None, min_length=1, max_length=100)
     avatar_url: str | None = None
 
 

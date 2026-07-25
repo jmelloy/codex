@@ -253,13 +253,29 @@ async def create_bot_token(
     )
 
 
+async def _caller_is_admin_on_workspace(workspace_id: int | None, current_user: User, session: AsyncSession) -> bool:
+    """Check ADMIN on a specific workspace_id (False if the workspace is gone or unset)."""
+    if workspace_id is None:
+        return False
+    workspace = await session.get(Workspace, workspace_id)
+    if workspace is None:
+        return False
+    return await check_permission(current_user, workspace, PermissionLevel.ADMIN, session)
+
+
 @router.get("/bots/{bot_id}/tokens", response_model=list[TokenListItem])
 async def list_bot_tokens(
     bot_id: int,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_system_session),
 ) -> list[TokenListItem]:
-    """List all personal access tokens for a bot."""
+    """List a bot's personal access tokens, restricted to workspaces the caller administers.
+
+    A bot can hold PATs scoped to multiple workspaces; `_assert_can_manage_bot` only
+    proves the caller administers *some* workspace the bot belongs to, so each token
+    is additionally checked against its own `workspace_id` before being surfaced —
+    otherwise an admin of workspace A could see a bot's token scoped to workspace B.
+    """
     bot = await _get_bot_or_404(bot_id, session)
     await _assert_can_manage_bot(bot, current_user, session)
 
@@ -269,6 +285,17 @@ async def list_bot_tokens(
         .order_by(PersonalAccessToken.created_at.desc())
     )
     tokens = result.scalars().all()
+
+    admin_by_workspace: dict[int, bool] = {}
+    visible_tokens = []
+    for t in tokens:
+        if t.workspace_id not in admin_by_workspace:
+            admin_by_workspace[t.workspace_id] = await _caller_is_admin_on_workspace(
+                t.workspace_id, current_user, session
+            )
+        if admin_by_workspace[t.workspace_id]:
+            visible_tokens.append(t)
+
     return [
         TokenListItem(
             id=t.id,
@@ -282,7 +309,7 @@ async def list_bot_tokens(
             is_active=t.is_active,
             created_at=t.created_at,
         )
-        for t in tokens
+        for t in visible_tokens
     ]
 
 
@@ -293,9 +320,12 @@ async def revoke_bot_token(
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_system_session),
 ):
-    """Revoke (deactivate) a bot's personal access token."""
+    """Revoke (deactivate) a bot's personal access token.
+
+    Requires ADMIN on the *token's own* `workspace_id` — being admin of some other
+    workspace the bot also belongs to isn't enough to revoke this one.
+    """
     bot = await _get_bot_or_404(bot_id, session)
-    await _assert_can_manage_bot(bot, current_user, session)
 
     result = await session.execute(
         select(PersonalAccessToken).where(
@@ -306,6 +336,9 @@ async def revoke_bot_token(
     pat = result.scalar_one_or_none()
     if not pat:
         raise HTTPException(status_code=404, detail="Token not found")
+
+    if not await _caller_is_admin_on_workspace(pat.workspace_id, current_user, session):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permission for this operation")
 
     pat.is_active = False
     session.add(pat)

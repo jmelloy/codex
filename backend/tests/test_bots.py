@@ -5,7 +5,13 @@ bot reads workspace via API; login endpoint rejects bot credentials outright;
 and is_active=false kills all bot access immediately.
 """
 
+import re
 import time
+
+# Auto-generated bot usernames are "bot-{slug}" with an optional "-{6 hex chars}"
+# collision suffix (see users.py: secrets.token_hex(3)); match either shape rather
+# than asserting an exact value, since a colliding prior run would append a suffix.
+BOT_USERNAME_PATTERN = re.compile(r"^bot-ci-bot(-[0-9a-f]{6})?$")
 
 
 def _register_and_login(test_client, *, username=None):
@@ -29,6 +35,12 @@ def _create_bot(test_client, headers, workspace_slug, display_name="CI Bot"):
         headers=headers,
     )
     assert resp.status_code == 201, resp.text
+    return resp.json()
+
+
+def _create_workspace_as(test_client, headers, name):
+    resp = test_client.post("/api/v1/workspaces/", json={"name": name}, headers=headers)
+    assert resp.status_code == 200, resp.text
     return resp.json()
 
 
@@ -60,6 +72,13 @@ def test_non_admin_cannot_create_bot(test_client, auth_headers, create_workspace
     assert resp.status_code == 403
 
 
+def test_create_bot_auto_username(test_client, auth_headers, create_workspace):
+    """Username is auto-generated from display_name, tolerating a collision suffix."""
+    workspace = create_workspace()
+    bot = _create_bot(test_client, auth_headers[0], workspace["slug"])
+    assert BOT_USERNAME_PATTERN.match(bot["username"]), bot["username"]
+
+
 def test_create_bot_and_issue_token_reads_workspace(test_client, auth_headers, create_workspace):
     """Acceptance: create bot -> issue workspace-scoped PAT -> bot reads workspace via API."""
     workspace = create_workspace()
@@ -68,7 +87,7 @@ def test_create_bot_and_issue_token_reads_workspace(test_client, auth_headers, c
     bot = _create_bot(test_client, headers, workspace["slug"])
     assert bot["kind"] == "bot"
     assert bot["is_bot"] is True
-    assert bot["username"] == "bot-ci-bot"
+    assert BOT_USERNAME_PATTERN.match(bot["username"]), bot["username"]
     assert bot["is_active"] is True
 
     token_resp = test_client.post(
@@ -100,6 +119,78 @@ def test_bot_token_rejected_for_workspace_without_grant(test_client, auth_header
         headers=headers,
     )
     assert resp.status_code == 400
+
+
+def test_list_bot_tokens_excludes_tokens_from_workspaces_caller_cannot_admin(
+    test_client, auth_headers, create_workspace
+):
+    """A bot can hold tokens across several workspaces; an admin of only one of them
+    must not see tokens scoped to the others (issue #533 workspace-admin gating)."""
+    workspace_a = create_workspace(name="Workspace A")
+    owner_a_headers = auth_headers[0]
+    bot = _create_bot(test_client, owner_a_headers, workspace_a["slug"])
+
+    owner_b_headers, _, _ = _register_and_login(test_client)
+    workspace_b = _create_workspace_as(test_client, owner_b_headers, "Workspace B")
+    invite_resp = test_client.post(
+        f"/api/v1/workspaces/{workspace_b['slug']}/collaborators",
+        json={"username_or_email": bot["username"], "permission_level": "read"},
+        headers=owner_b_headers,
+    )
+    assert invite_resp.status_code == 201, invite_resp.text
+
+    token_a = test_client.post(
+        f"/api/v1/tokens/bots/{bot['id']}/tokens",
+        json={"name": "token-a", "workspace_id": workspace_a["id"]},
+        headers=owner_a_headers,
+    ).json()
+    token_b = test_client.post(
+        f"/api/v1/tokens/bots/{bot['id']}/tokens",
+        json={"name": "token-b", "workspace_id": workspace_b["id"]},
+        headers=owner_b_headers,
+    ).json()
+
+    # Workspace A's admin can only see the token scoped to A, not B's.
+    list_resp = test_client.get(f"/api/v1/tokens/bots/{bot['id']}/tokens", headers=owner_a_headers)
+    assert list_resp.status_code == 200
+    visible_ids = {t["id"] for t in list_resp.json()}
+    assert token_a["id"] in visible_ids
+    assert token_b["id"] not in visible_ids
+
+
+def test_revoke_bot_token_requires_admin_on_tokens_own_workspace(test_client, auth_headers, create_workspace):
+    """Being admin of *some* workspace the bot belongs to isn't enough to revoke a
+    token scoped to a different workspace (issue #533 workspace-admin gating)."""
+    workspace_a = create_workspace(name="Workspace A")
+    owner_a_headers = auth_headers[0]
+    bot = _create_bot(test_client, owner_a_headers, workspace_a["slug"])
+
+    owner_b_headers, _, _ = _register_and_login(test_client)
+    workspace_b = _create_workspace_as(test_client, owner_b_headers, "Workspace B")
+    test_client.post(
+        f"/api/v1/workspaces/{workspace_b['slug']}/collaborators",
+        json={"username_or_email": bot["username"], "permission_level": "read"},
+        headers=owner_b_headers,
+    )
+    token_b = test_client.post(
+        f"/api/v1/tokens/bots/{bot['id']}/tokens",
+        json={"name": "token-b", "workspace_id": workspace_b["id"]},
+        headers=owner_b_headers,
+    ).json()
+
+    # Workspace A's admin cannot revoke a token scoped to workspace B.
+    forbidden_resp = test_client.delete(
+        f"/api/v1/tokens/bots/{bot['id']}/tokens/{token_b['id']}",
+        headers=owner_a_headers,
+    )
+    assert forbidden_resp.status_code == 403
+
+    # Workspace B's admin can.
+    ok_resp = test_client.delete(
+        f"/api/v1/tokens/bots/{bot['id']}/tokens/{token_b['id']}",
+        headers=owner_b_headers,
+    )
+    assert ok_resp.status_code == 204
 
 
 def test_bot_appears_in_collaborators_with_is_bot_flag(test_client, auth_headers, create_workspace):
@@ -185,3 +276,23 @@ def test_update_bot_profile(test_client, auth_headers, create_workspace):
     body = resp.json()
     assert body["display_name"] == "New Name"
     assert body["avatar_url"] == "https://example.com/avatar.png"
+
+
+def test_update_bot_rejects_empty_or_oversized_display_name(test_client, auth_headers, create_workspace):
+    workspace = create_workspace()
+    headers = auth_headers[0]
+    bot = _create_bot(test_client, headers, workspace["slug"], display_name="Valid Name")
+
+    empty_resp = test_client.patch(
+        f"/api/v1/workspaces/{workspace['slug']}/bots/{bot['id']}",
+        json={"display_name": ""},
+        headers=headers,
+    )
+    assert empty_resp.status_code == 422
+
+    oversized_resp = test_client.patch(
+        f"/api/v1/workspaces/{workspace['slug']}/bots/{bot['id']}",
+        json={"display_name": "x" * 101},
+        headers=headers,
+    )
+    assert oversized_resp.status_code == 422

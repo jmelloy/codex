@@ -1,9 +1,10 @@
-"""Tests for bot mention detection -> Task enqueue for hosted agents (issue #535).
+"""Tests for bot mention dispatch (issue #535 hosted tasks, issue #536 webhooks).
 
 Mentioning a bot with a *hosted* Agent config should, once the comment's
 `comment.mention` event is fanned out, enqueue a Task (with comment/thread
-context) via the ARQ queue. Bots without a hosted Agent (no Agent at all, or
-an *external*/webhook-driven one) must not get a task.
+context) via the ARQ queue. Mentioning a bot with an *external* Agent config
+instead triggers a signed webhook delivery job — no Task is created for it.
+Bots with no Agent at all are just a plain mention/notification.
 """
 
 import json
@@ -117,13 +118,13 @@ async def test_hosted_bot_mention_enqueues_task(test_client, auth_headers, works
     mock_redis.enqueue_job.assert_called_once_with("run_job", task.id)
 
 
-async def test_external_bot_mention_does_not_enqueue_task(test_client, auth_headers, workspace_and_notebook):
-    """A bot backed by an *external* (webhook-driven) agent is not enqueued here."""
+async def test_external_bot_mention_triggers_webhook_not_task(test_client, auth_headers, workspace_and_notebook):
+    """A bot backed by an *external* (webhook-driven) agent gets a webhook delivery, not a Task."""
     headers = auth_headers[0]
     workspace, notebook = workspace_and_notebook
 
     bot = _create_bot(test_client, headers, workspace["slug"], display_name="Webhook Bot")
-    _create_agent(test_client, headers, workspace["id"], principal_id=bot["id"], kind="external")
+    agent = _create_agent(test_client, headers, workspace["id"], principal_id=bot["id"], kind="external")
     block_id = _create_block(test_client, headers, workspace["slug"], notebook["slug"])
 
     comment = _post_comment(
@@ -137,7 +138,18 @@ async def test_external_bot_mention_does_not_enqueue_task(test_client, auth_head
     ctx = {"session_maker": async_session_maker, "redis": mock_redis}
     result = await fanout_event(ctx, event.id)
     assert result["bot_tasks_enqueued"] == 0
-    mock_redis.enqueue_job.assert_not_called()
+
+    mock_redis.enqueue_job.assert_called_once()
+    call_args = mock_redis.enqueue_job.call_args.args
+    assert call_args[0] == "deliver_webhook"
+    assert call_args[1] == agent["id"]
+    assert call_args[2] == event.id
+
+    async with async_session_maker() as session:
+        task_result = await session.execute(
+            select(Task).where(Task.task_type == "bot_mention", Task.assigned_to == str(agent["id"]))
+        )
+        assert task_result.scalars().all() == []
 
 
 async def test_bot_mention_without_agent_does_not_enqueue_task(test_client, auth_headers, workspace_and_notebook):

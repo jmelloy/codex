@@ -2,17 +2,27 @@
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import json
 import logging
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from typing import Any
 
+import httpx
+from arq.worker import Retry
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 logger = logging.getLogger(__name__)
+
+# Webhook delivery tuning (issue #536) — exponential backoff between retries,
+# capped so a persistently-down bot doesn't push deferrals out for hours.
+WEBHOOK_TIMEOUT_SECONDS = 10
+WEBHOOK_BACKOFF_BASE_SECONDS = 5
+WEBHOOK_BACKOFF_CAP_SECONDS = 300
 
 # Registry of job type handlers — extend this dict to add new job types.
 JOB_TYPE_HANDLERS: dict[str, str] = {
@@ -278,30 +288,79 @@ RECIPIENT_RESOLVERS: dict[str, RecipientResolver] = {
 
 
 # ---------------------------------------------------------------------------
-# Bot mention -> Task enqueue (issue #535)
+# Bot mention dispatch — hosted task enqueue / external webhook delivery
+# (issue #535 hosted path, issue #536 external webhook path, design doc §2.1
+# and §8 phase 3)
 # ---------------------------------------------------------------------------
 
 
-async def _enqueue_bot_mention_tasks(ctx: dict, session: AsyncSession, event: Any) -> int:
-    """Enqueue a Task for each mentioned bot principal that has a *hosted* Agent.
+async def _build_comment_context(session: AsyncSession, comment: Any) -> dict[str, Any]:
+    """Serialize a comment plus its thread ancestry for a bot mention payload.
 
-    Mentioning a bot is the human->bot invocation gesture (design doc §4/§5,
-    §8 phase 3): for a bot backed by a *hosted* Agent (`Agent.kind == "hosted"`,
-    Codex runs it directly via the agent engine) the same fanout that creates
-    in-app notifications also enqueues the agent's Task — no HTTP hop. Bots
-    backed by an *external* Agent (webhook-driven, e.g. an outside Claude Code
-    session) are left alone here; they're woken via webhook delivery instead
-    (not yet built).
-
-    Best-effort like the rest of fanout: a Task row is only left dangling
-    (never enqueued) if the worker's Redis pool is unavailable, mirroring how
-    `enqueue_fanout` tolerates a missing `arq_pool` on the request path.
+    Threads are flattened one level deep (see `Comment.thread_id`), so the
+    "parent chain" is every earlier comment in the thread (the root, plus any
+    replies before this one) — `comment` itself is excluded since it's carried
+    separately as the triggering mention.
     """
-    from codex.db.models import Agent, Comment, Task, User
+    from codex.db.models import Comment, User
+
+    root_id = comment.thread_id or comment.id
+    result = await session.execute(
+        select(Comment, User.username)
+        .join(User, User.id == Comment.author_id)
+        .where(
+            Comment.deleted_at.is_(None),
+            (Comment.id == root_id) | (Comment.thread_id == root_id),
+            Comment.id != comment.id,
+        )
+        .order_by(Comment.created_at)
+    )
+    parent_chain = [
+        {
+            "comment_id": c.id,
+            "author_id": c.author_id,
+            "author_username": username,
+            "body": c.body,
+            "created_at": c.created_at.isoformat(),
+        }
+        for c, username in result.all()
+    ]
+    return {
+        "comment_id": comment.id,
+        "block_id": comment.block_id,
+        "notebook_id": comment.notebook_id,
+        "thread_id": comment.thread_id or comment.id,
+        "parent_chain": parent_chain,
+    }
+
+
+async def _enqueue_bot_mention_tasks(ctx: dict, session: AsyncSession, event: Any) -> int:
+    """Wake bot principals mentioned in a comment.
+
+    `Agent.kind == "hosted"` bots run inside Codex: this creates a `Task` row
+    and enqueues the existing ARQ agent-execution pipeline, same as a manually
+    created agent task. `Agent.kind == "external"` bots (e.g. a Claude Code
+    session woken from outside) instead get a signed webhook delivery — Codex
+    never runs their brain, it just wakes them over HTTP.
+
+    Idempotent on retry: a hosted bot already carrying a Task for this comment
+    (matched via `task_metadata.comment_id`) is skipped, and an external bot
+    that already has an `AgentWebhookDelivery` row for this event is skipped
+    too, so a retried `fanout_event` doesn't double-wake a bot.
+
+    Returns the number of hosted Tasks enqueued (external webhook deliveries
+    aren't counted here — see `deliver_webhook`'s own audit trail for those).
+    """
+    from codex.db.models import Agent, AgentWebhookDelivery, Comment, Task, User, UserKind
 
     subject = event.subject or {}
     mentioned_ids = {int(uid) for uid in subject.get("mentioned_user_ids") or []}
     if not mentioned_ids:
+        return 0
+
+    comment_id = subject.get("comment_id")
+    comment = await session.get(Comment, comment_id) if comment_id is not None else None
+    if comment is None:
         return 0
 
     result = await session.execute(
@@ -309,95 +368,168 @@ async def _enqueue_bot_mention_tasks(ctx: dict, session: AsyncSession, event: An
         .join(Agent, Agent.principal_id == User.id)
         .where(
             User.id.in_(mentioned_ids),
-            User.kind == "bot",
+            User.kind == UserKind.BOT.value,
             User.is_active.is_(True),
-            Agent.kind == "hosted",
             Agent.is_active.is_(True),
         )
     )
-    bots = result.all()
-    if not bots:
+    bot_agents = result.all()
+    if not bot_agents:
         return 0
 
-    comment_id = subject.get("comment_id")
-    comment = await session.get(Comment, comment_id) if comment_id is not None else None
+    author = await session.get(User, comment.author_id)
+    comment_context = await _build_comment_context(session, comment)
+    arq_pool = ctx.get("redis")
+    hosted_enqueued = 0
 
-    parent_chain: list[dict[str, Any]] = []
-    if comment is not None:
-        thread_root_id = comment.thread_id or comment.id
-        chain_result = await session.execute(
-            select(Comment)
-            .where(
-                Comment.deleted_at.is_(None),
-                (Comment.id == thread_root_id) | (Comment.thread_id == thread_root_id),
-                Comment.id != comment.id,
+    for bot, agent in bot_agents:
+        if agent.kind == "external":
+            existing_delivery = await session.execute(
+                select(AgentWebhookDelivery.id).where(
+                    AgentWebhookDelivery.agent_id == agent.id,
+                    AgentWebhookDelivery.event_id == event.id,
+                )
             )
-            .order_by(Comment.created_at)
-        )
-        parent_chain = [
-            {"comment_id": c.id, "author_id": c.author_id, "body": c.body} for c in chain_result.scalars().all()
-        ]
+            if existing_delivery.first() is not None:
+                continue
 
-    redis = ctx.get("redis")
-    enqueued = 0
-    for bot_user, agent in bots:
-        # Skip if a retry of this same fanout job already created a task for this
-        # (comment, agent) pair — Task has no event_id column to dedup on directly,
-        # so the comment id embedded in task_metadata stands in for one.
-        existing_result = await session.execute(
-            select(Task).where(
-                Task.workspace_id == event.workspace_id,
-                Task.task_type == "bot_mention",
-                Task.assigned_to == str(agent.id),
+            if arq_pool is None:
+                logger.warning("Skipping webhook delivery for agent %s — task queue unavailable", agent.id)
+                continue
+            payload = {
+                "event": event.kind,
+                "event_id": event.id,
+                "workspace_id": event.workspace_id,
+                "comment": comment_context,
+                "mention": {
+                    "mentioned_principal_id": bot.id,
+                    "mentioned_username": bot.username,
+                    "comment_author_id": comment.author_id,
+                    "comment_author_username": author.username if author else None,
+                },
+            }
+            await arq_pool.enqueue_job("deliver_webhook", agent.id, event.id, payload)
+        else:
+            existing_result = await session.execute(
+                select(Task).where(
+                    Task.workspace_id == event.workspace_id,
+                    Task.task_type == "bot_mention",
+                    Task.assigned_to == str(agent.id),
+                )
             )
-        )
-        if any(
-            json.loads(t.task_metadata or "{}").get("comment_id") == comment_id for t in existing_result.scalars().all()
-        ):
-            continue
+            if any(
+                json.loads(t.task_metadata or "{}").get("comment_id") == comment.id
+                for t in existing_result.scalars().all()
+            ):
+                continue
 
-        prompt_lines = [f"@{bot_user.username} was mentioned in a comment thread."]
-        for entry in parent_chain:
-            prompt_lines.append(f"- comment {entry['comment_id']} (author {entry['author_id']}): {entry['body']}")
-        if comment is not None:
-            prompt_lines.append(f"Latest comment (author {comment.author_id}): {comment.body}")
+            task = Task(
+                workspace_id=event.workspace_id,
+                title=f"Mentioned in a comment on block {comment.block_id}",
+                description=comment.body,
+                task_type="bot_mention",
+                assigned_to=str(agent.id),
+                job_type="agent",
+                task_metadata=json.dumps({**comment_context, "mentioned_principal_id": bot.id}),
+            )
+            session.add(task)
+            await session.commit()
+            await session.refresh(task)
+            hosted_enqueued += 1
 
-        task = Task(
-            workspace_id=event.workspace_id,
-            title=f"@{bot_user.username} mention in comment {comment_id}",
-            description="\n".join(prompt_lines),
-            task_type="bot_mention",
-            assigned_to=str(agent.id),
-            job_type="agent",
-            task_metadata=json.dumps(
-                {
-                    "comment_id": comment_id,
-                    "block_id": comment.block_id if comment is not None else subject.get("block_id"),
-                    "thread_id": subject.get("thread_id"),
-                    "parent_chain": parent_chain,
-                    "mentioned_principal_id": bot_user.id,
-                }
-            ),
-        )
-        session.add(task)
+            if arq_pool is not None:
+                job = await arq_pool.enqueue_job("run_job", task.id)
+                if job is not None:
+                    task.job_id = job.job_id
+                    session.add(task)
+                    await session.commit()
+            else:
+                logger.warning("Task %s created but not enqueued — task queue unavailable", task.id)
+
+    return hosted_enqueued
+
+
+def _sign_webhook_payload(secret: str, body: bytes) -> str:
+    return hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
+
+
+async def deliver_webhook(ctx: dict, agent_id: int, event_id: int, payload: dict[str, Any]) -> dict[str, Any]:
+    """Deliver a signed webhook to an external bot's `Agent.webhook_url` (issue #536).
+
+    Every attempt is recorded in `AgentWebhookDelivery` for audit. On failure,
+    retries with exponential backoff (capped at `WEBHOOK_BACKOFF_CAP_SECONDS`)
+    up to `Agent.webhook_max_retries` attempts by raising `arq.worker.Retry`,
+    which reschedules this same job — `ctx["job_try"]` tracks the attempt
+    number across those retries.
+    """
+    from codex.agents.crypto import decrypt_value
+    from codex.db.models import Agent, AgentWebhookDelivery
+
+    attempt = ctx.get("job_try", 1)
+    session_maker = ctx["session_maker"]
+
+    should_retry = False
+    async with session_maker() as session:
+        agent = await session.get(Agent, agent_id)
+        if agent is None or not agent.is_active:
+            logger.warning("Webhook delivery skipped — agent %s missing or inactive", agent_id)
+            return {"status": "skipped", "detail": "agent missing or inactive"}
+
+        if not agent.webhook_url or not agent.webhook_secret_encrypted:
+            logger.warning("Webhook delivery skipped — agent %s has no webhook configured", agent_id)
+            return {"status": "skipped", "detail": "webhook not configured"}
+
+        body = {
+            **payload,
+            "delivery": {
+                "attempt": attempt,
+                "max_retries": agent.webhook_max_retries,
+                "delivered_at": datetime.now(UTC).isoformat(),
+            },
+        }
+        body_bytes = json.dumps(body, sort_keys=True).encode()
+        secret = decrypt_value(agent.webhook_secret_encrypted)
+        signature = _sign_webhook_payload(secret, body_bytes)
+
+        headers = {
+            "Content-Type": "application/json",
+            "X-Codex-Event": str(payload.get("event", "comment.mention")),
+            "X-Codex-Signature-256": f"sha256={signature}",
+            "X-Codex-Delivery-Attempt": str(attempt),
+        }
+
+        delivery = AgentWebhookDelivery(agent_id=agent.id, event_id=event_id, attempt=attempt, status="pending")
+        session.add(delivery)
         await session.commit()
-        await session.refresh(task)
-        enqueued += 1
-        task_id = task.id  # captured before commit below, in case it fails and expires this attribute
+        await session.refresh(delivery)
 
-        if redis is None:
-            logger.warning("Bot mention task %s created but not enqueued — no redis pool in worker ctx", task_id)
-            continue
         try:
-            job = await redis.enqueue_job("run_job", task_id)
-            if job is not None:
-                task.job_id = job.job_id
-                session.add(task)
+            async with httpx.AsyncClient(timeout=WEBHOOK_TIMEOUT_SECONDS) as client:
+                response = await client.post(agent.webhook_url, content=body_bytes, headers=headers)
+            delivery.response_status_code = response.status_code
+            if 200 <= response.status_code < 300:
+                delivery.status = "delivered"
+                session.add(delivery)
                 await session.commit()
-        except Exception:
-            logger.exception("Failed to enqueue bot mention task %s", task_id)
+                return {"status": "delivered", "agent_id": agent.id, "attempt": attempt}
+            delivery.status = "failed"
+            delivery.error = f"HTTP {response.status_code}"
+        except httpx.HTTPError as exc:
+            delivery.status = "failed"
+            delivery.error = str(exc)[:500]
 
-    return enqueued
+        session.add(delivery)
+        await session.commit()
+
+        should_retry = attempt < agent.webhook_max_retries
+        max_retries = agent.webhook_max_retries
+
+    if should_retry:
+        backoff = min(WEBHOOK_BACKOFF_BASE_SECONDS * (2 ** (attempt - 1)), WEBHOOK_BACKOFF_CAP_SECONDS)
+        raise Retry(defer=backoff)
+
+    logger.error("Webhook delivery to agent %s failed permanently after %s attempts", agent_id, max_retries)
+    return {"status": "failed", "agent_id": agent_id, "attempt": attempt}
 
 
 async def fanout_event(ctx: dict, event_id: int) -> dict[str, Any]:
@@ -408,8 +540,9 @@ async def fanout_event(ctx: dict, event_id: int) -> dict[str, Any]:
     constraint violation from a concurrent retry only rolls back that one row
     rather than the whole batch.
 
-    For `comment.mention` events, also enqueues a Task for each mentioned bot
-    principal that has a hosted Agent (issue #535) — see
+    For `comment.mention` events, also wakes each mentioned bot principal —
+    a hosted Agent (issue #535) gets a Task enqueued, an external Agent
+    (issue #536) gets a signed webhook delivery — see
     `_enqueue_bot_mention_tasks`.
     """
     from codex.core.events import serialize_notification

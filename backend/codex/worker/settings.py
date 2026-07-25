@@ -4,6 +4,7 @@ import os
 from urllib.parse import urlparse
 
 from arq.connections import RedisSettings
+from arq.worker import func
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
@@ -39,9 +40,12 @@ class WorkerSettings:
     Start the worker with: arq codex.worker.settings.WorkerSettings
     """
 
-    from codex.worker.tasks import execute_agent_task, fanout_event, run_job
+    from codex.worker.tasks import deliver_webhook, execute_agent_task, fanout_event, run_job
 
-    functions = [execute_agent_task, run_job, fanout_event]
+    # deliver_webhook's own per-agent Agent.webhook_max_retries (<= 20, see
+    # schemas_agent.py) governs when it stops retrying by returning instead of
+    # raising Retry; this ceiling just guards against a runaway retry loop.
+    functions = [execute_agent_task, run_job, fanout_event, func(deliver_webhook, max_tries=20)]
     redis_settings = get_redis_settings()
     max_jobs = 10
     job_timeout = 600  # 10 minutes

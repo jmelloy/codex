@@ -44,6 +44,14 @@ class AgentCreate(BaseModel):
 
     system_prompt: str | None = None
 
+    webhook_url: str | None = Field(
+        default=None, description="URL to POST signed mention events to (external agents only)"
+    )
+    webhook_secret: str | None = Field(
+        default=None, description="Write-only; used to HMAC-sign webhook payloads, stored encrypted"
+    )
+    webhook_max_retries: int = Field(default=5, ge=1, le=20)
+
     @model_validator(mode="after")
     def _validate_principal_for_kind(self) -> "AgentCreate":
         if self.kind == "external" and self.principal_id is None:
@@ -75,6 +83,12 @@ class AgentUpdate(BaseModel):
     is_active: bool | None = None
     system_prompt: str | None = None
 
+    webhook_url: str | None = None
+    webhook_secret: str | None = Field(
+        default=None, description="Write-only; used to HMAC-sign webhook payloads, stored encrypted"
+    )
+    webhook_max_retries: int | None = Field(default=None, ge=1, le=20)
+
 
 class AgentResponse(BaseModel):
     """Agent response for API."""
@@ -100,6 +114,11 @@ class AgentResponse(BaseModel):
     max_tokens_per_request: int
     is_active: bool
     system_prompt: str | None = None
+
+    webhook_url: str | None = None
+    webhook_max_retries: int
+    webhook_configured: bool
+
     created_at: datetime
     updated_at: datetime
 

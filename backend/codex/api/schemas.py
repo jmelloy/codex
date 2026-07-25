@@ -497,6 +497,13 @@ class CommentMentionResponse(BaseModel):
     handle: str
 
 
+class CommentCountResponse(BaseModel):
+    """Comment count for a single block, for the block-gutter indicator."""
+
+    block_id: str
+    count: int
+
+
 class CommentResponse(BaseModel):
     """Comment API response."""
 

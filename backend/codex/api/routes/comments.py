@@ -11,12 +11,20 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from codex.api.auth import PermissionScope, get_current_active_user, require_scope
 from codex.api.routes.helpers import get_notebook_path_nested
-from codex.api.schemas import CommentCreate, CommentMentionResponse, CommentResponse, CommentUpdate, MessageResponse
+from codex.api.schemas import (
+    CommentCountResponse,
+    CommentCreate,
+    CommentMentionResponse,
+    CommentResponse,
+    CommentUpdate,
+    MessageResponse,
+)
 from codex.core.blocks import get_block
 from codex.core.events import build_event, enqueue_fanout
 from codex.core.permissions import PermissionLevel, effective_level, has_permission, require_level
@@ -29,6 +37,9 @@ MENTION_RE = re.compile(r"(?<!\w)@([A-Za-z0-9_.-]+)")
 
 # Nested under /workspaces/{workspace_identifier}/notebooks/{notebook_identifier}/blocks/{block_id}/comments
 nested_router = APIRouter()
+
+# Nested under /workspaces/{workspace_identifier}/notebooks/{notebook_identifier}/comments
+counts_router = APIRouter()
 
 # Top-level, mounted at /comments
 router = APIRouter()
@@ -103,6 +114,33 @@ async def _get_comment_or_404(comment_id: int, session: AsyncSession) -> tuple[C
     if workspace is None:
         raise HTTPException(status_code=404, detail="Comment not found")
     return comment, workspace
+
+
+@counts_router.get("/counts", response_model=list[CommentCountResponse])
+async def get_comment_counts(
+    workspace_identifier: str,
+    notebook_identifier: str,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Comment counts per block for an entire notebook, for the block-gutter indicator.
+
+    A single aggregate query instead of one list-comments call per block. Requires
+    read access.
+    """
+    _, notebook, workspace = await get_notebook_path_nested(
+        workspace_identifier, notebook_identifier, current_user, session, required_level=PermissionLevel.READ
+    )
+    result = await session.execute(
+        select(Comment.block_id, func.count(Comment.id))
+        .where(
+            Comment.workspace_id == workspace.id,
+            Comment.notebook_id == notebook.id,
+            Comment.deleted_at.is_(None),
+        )
+        .group_by(Comment.block_id)
+    )
+    return [CommentCountResponse(block_id=block_id, count=count) for block_id, count in result.all()]
 
 
 @nested_router.get("/", response_model=list[CommentResponse])

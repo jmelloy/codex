@@ -114,3 +114,58 @@ def test_admin_permission_can_delete_workspace(test_client, auth_headers, create
 
     delete_response = test_client.delete(f"/api/v1/workspaces/{workspace['slug']}", headers=admin_headers)
     assert delete_response.status_code == 200
+
+
+def test_permission_endpoint_reports_owner_as_admin(test_client, auth_headers, create_workspace):
+    """The workspace owner's own /permission call reports `admin`, used by the frontend to gate the comment composer."""
+    workspace = create_workspace()
+    owner_headers = auth_headers[0]
+
+    response = test_client.get(f"/api/v1/workspaces/{workspace['slug']}/permission", headers=owner_headers)
+    assert response.status_code == 200
+    assert response.json()["permission_level"] == "admin"
+
+
+def test_permission_endpoint_reports_granted_level(test_client, auth_headers, create_workspace):
+    """A collaborator's /permission call reports exactly the level they were granted."""
+    workspace = create_workspace()
+    reader_headers, reader_username = _register_and_login(test_client)
+    _grant(workspace_id=workspace["id"], username=reader_username, level="comment")
+
+    response = test_client.get(f"/api/v1/workspaces/{workspace['slug']}/permission", headers=reader_headers)
+    assert response.status_code == 200
+    assert response.json()["permission_level"] == "comment"
+
+
+def test_permission_endpoint_404s_for_stranger(test_client, auth_headers, create_workspace):
+    """A user with no grant at all gets 404, matching every other workspace endpoint."""
+    workspace = create_workspace()
+    stranger_headers, _ = _register_and_login(test_client)
+
+    response = test_client.get(f"/api/v1/workspaces/{workspace['slug']}/permission", headers=stranger_headers)
+    assert response.status_code == 404
+
+
+def test_principals_lists_owner_and_collaborators_only(test_client, auth_headers, create_workspace):
+    """@mention autocomplete should only ever see workspace-visible principals, not arbitrary registered users."""
+    workspace = create_workspace()
+    owner_headers, owner_username = auth_headers
+    commenter_headers, commenter_username = _register_and_login(test_client)
+    _grant(workspace_id=workspace["id"], username=commenter_username, level="comment")
+    _outsider_headers, outsider_username = _register_and_login(test_client)
+
+    response = test_client.get(f"/api/v1/workspaces/{workspace['slug']}/principals", headers=commenter_headers)
+    assert response.status_code == 200
+    usernames = {p["username"] for p in response.json()}
+    assert usernames == {owner_username, commenter_username}
+    assert outsider_username not in usernames
+
+
+def test_principals_requires_comment_level(test_client, auth_headers, create_workspace):
+    """A read-only collaborator can't enumerate principals (they can't post comments/mentions anyway)."""
+    workspace = create_workspace()
+    reader_headers, reader_username = _register_and_login(test_client)
+    _grant(workspace_id=workspace["id"], username=reader_username, level="read")
+
+    response = test_client.get(f"/api/v1/workspaces/{workspace['slug']}/principals", headers=reader_headers)
+    assert response.status_code == 403

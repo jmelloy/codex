@@ -41,7 +41,12 @@
         @mouseleave="handleBlockMouseLeave(index)"
       >
         <!-- Left gutter -->
-        <div class="block-gutter" :class="{ visible: hoveredIndex === index || typeMenuIndex === index }">
+        <div
+          class="block-gutter"
+          :class="{
+            visible: hoveredIndex === index || typeMenuIndex === index || commentCount(block.block_id) > 0,
+          }"
+        >
           <button
             class="gutter-btn gutter-add"
             title="Add block"
@@ -64,6 +69,19 @@
               <circle cx="3" cy="7" r="1.2" /><circle cx="7" cy="7" r="1.2" />
               <circle cx="3" cy="12" r="1.2" /><circle cx="7" cy="12" r="1.2" />
             </svg>
+          </button>
+          <button
+            class="gutter-btn gutter-comment"
+            :class="{ 'has-comments': commentCount(block.block_id) > 0 }"
+            title="Comments"
+            @click.stop="$emit('openComments', block.block_id)"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+            </svg>
+            <span v-if="commentCount(block.block_id) > 0" class="gutter-comment-count">{{
+              commentCount(block.block_id)
+            }}</span>
           </button>
         </div>
 
@@ -270,6 +288,7 @@ interface Props {
   pageCoverImage?: string
   workspaceId?: string
   notebookId?: string
+  commentCounts?: Map<string, number>
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -278,6 +297,7 @@ const props = withDefaults(defineProps<Props>(), {
   pageDescription: undefined,
   pageIcon: undefined,
   pageCoverImage: undefined,
+  commentCounts: () => new Map(),
 })
 
 const emit = defineEmits<{
@@ -288,7 +308,12 @@ const emit = defineEmits<{
   updateBlock: [block: { block_id: string; content: string; block_type?: string }]
   createSubpage: []
   uploadFile: [file: File, parentBlockId: string | undefined, position?: number]
+  openComments: [blockId: string]
 }>()
+
+function commentCount(blockId: string): number {
+  return props.commentCounts?.get(blockId) ?? 0
+}
 
 // File input ref for file uploads
 const fileInputRef = ref<HTMLInputElement | null>(null)
@@ -1045,6 +1070,24 @@ function onFileDrop(event: DragEvent) {
 
 .gutter-drag:active {
   cursor: grabbing;
+}
+
+.gutter-comment {
+  position: relative;
+  width: auto;
+  min-width: 22px;
+  padding: 0 4px;
+  gap: 2px;
+}
+
+.gutter-comment.has-comments {
+  color: var(--notebook-accent, #2563eb);
+}
+
+.gutter-comment-count {
+  font-size: 0.625rem;
+  font-weight: 600;
+  line-height: 1;
 }
 
 /* Type menu */

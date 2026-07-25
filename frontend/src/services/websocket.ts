@@ -22,14 +22,35 @@ export interface ConnectionEvent {
   message: string
 }
 
-export type WebSocketMessage = FileChangeEvent | ConnectionEvent
+/**
+ * A notification pushed over the notebook socket's `principal:{user_id}` channel
+ * subscription (see codex.worker.tasks.fanout_event). `notification` matches the
+ * REST NotificationResponse shape.
+ */
+export interface NotificationEvent {
+  type: "notification"
+  notification: {
+    id: number
+    event_id: number
+    kind: string
+    workspace_id: number
+    actor_id: number | null
+    subject: Record<string, any>
+    read_at: string | null
+    created_at: string
+  }
+}
+
+export type WebSocketMessage = FileChangeEvent | ConnectionEvent | NotificationEvent
 
 type MessageHandler = (event: FileChangeEvent) => void
+type NotificationHandler = (event: NotificationEvent["notification"]) => void
 type ConnectionHandler = (connected: boolean, notebookId: number) => void
 
 class WebSocketService {
   private connections: Map<number, WebSocket> = new Map()
   private messageHandlers: Set<MessageHandler> = new Set()
+  private notificationHandlers: Set<NotificationHandler> = new Set()
   private connectionHandlers: Set<ConnectionHandler> = new Set()
   private reconnectTimers: Map<number, number> = new Map()
   private pingIntervals: Map<number, number> = new Map()
@@ -81,6 +102,8 @@ class WebSocketService {
 
         if (data.type === "file_change") {
           this.notifyMessageHandlers(data)
+        } else if (data.type === "notification") {
+          this.notifyNotificationHandlers(data.notification)
         }
       } catch (e) {
         // Ignore non-JSON messages (like "pong")
@@ -149,6 +172,18 @@ class WebSocketService {
   }
 
   /**
+   * Register a handler for notification pushes. Delivered over whichever notebook
+   * socket happens to be open, since every notebook connection subscribes to the
+   * connecting user's `principal:{user_id}` channel regardless of notebook.
+   */
+  onNotification(handler: NotificationHandler): () => void {
+    this.notificationHandlers.add(handler)
+    return () => {
+      this.notificationHandlers.delete(handler)
+    }
+  }
+
+  /**
    * Register a handler for connection state changes.
    */
   onConnectionChange(handler: ConnectionHandler): () => void {
@@ -201,6 +236,16 @@ class WebSocketService {
         handler(event)
       } catch (e) {
         console.error("Error in WebSocket message handler:", e)
+      }
+    }
+  }
+
+  private notifyNotificationHandlers(notification: NotificationEvent["notification"]): void {
+    for (const handler of this.notificationHandlers) {
+      try {
+        handler(notification)
+      } catch (e) {
+        console.error("Error in WebSocket notification handler:", e)
       }
     }
   }

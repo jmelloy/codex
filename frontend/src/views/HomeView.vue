@@ -34,11 +34,13 @@
         </svg>
       </button>
       <h1 class="m-0 text-xl font-semibold" style="color: var(--notebook-text)">Codex</h1>
+      <div class="ml-auto flex items-center gap-1">
+        <NotificationBell />
       <!-- Mobile Properties Toggle -->
       <button
         v-if="workspaceStore.currentBlock"
         @click="toggleProperties"
-        class="sidebar-icon-button ml-auto"
+        class="sidebar-icon-button"
         title="Properties"
       >
         <svg
@@ -57,6 +59,7 @@
           <circle cx="12" cy="19" r="1"></circle>
         </svg>
       </button>
+      </div>
     </div>
 
     <!-- Left: File Browser Sidebar (280px) -->
@@ -718,6 +721,7 @@
             :page-cover-image="workspaceStore.currentPageBlock.properties?.cover_image"
             :workspace-id="workspaceStore.currentWorkspace?.slug"
             :notebook-id="nbSlug(workspaceStore.currentPageBlock.notebook_id)"
+            :comment-counts="commentsStore.commentCounts"
             class="flex-1 overflow-y-auto"
             @navigate-page="handleNavigatePageBlock"
             @delete-block="handleDeleteBlock"
@@ -726,6 +730,7 @@
             @update-block="handleUpdateBlock"
             @create-subpage="handleCreateSubpage"
             @upload-file="handleUploadFile"
+            @open-comments="openComments"
           />
         </div>
       </div>
@@ -775,6 +780,22 @@
       @close="showPropertiesPanel = false"
       @update-properties="handleUpdateProperties"
       @delete="handleDeletePageBlock"
+    />
+
+    <!-- Comment Thread Panel -->
+    <div
+      v-if="activeCommentBlockId"
+      class="fixed inset-0 bg-black/50 z-40 lg:hidden"
+      @click="closeComments"
+    ></div>
+    <CommentThread
+      v-if="activeCommentBlockId && workspaceStore.currentWorkspace"
+      :workspace-id="workspaceStore.currentWorkspace.slug"
+      :notebook-id="nbSlug(workspaceStore.currentBlock?.notebook_id)"
+      :block-id="activeCommentBlockId"
+      class="w-full lg:w-[340px] lg:min-w-[340px] fixed lg:relative inset-0 lg:inset-auto z-50 lg:z-auto pt-14 lg:pt-0"
+      @close="closeComments"
+      @count-changed="handleCommentCountChanged"
     />
   </div>
 
@@ -957,7 +978,10 @@ import BlockHeader from "../components/BlockHeader.vue"
 import BlockTreeItem from "../components/BlockTreeItem.vue"
 import SettingsDialog from "../components/SettingsDialog.vue"
 import AgentChat from "../components/agent/AgentChat.vue"
+import NotificationBell from "../components/NotificationBell.vue"
+import CommentThread from "../components/comments/CommentThread.vue"
 import { useAgentStore } from "../stores/agent"
+import { useCommentsStore } from "../stores/comments"
 import type { Agent } from "../services/agent"
 import { showToast } from "../utils/toast"
 import { createLogger } from "../utils/logger"
@@ -970,6 +994,7 @@ const route = useRoute()
 const authStore = useAuthStore()
 const workspaceStore = useWorkspaceStore()
 const agentStore = useAgentStore()
+const commentsStore = useCommentsStore()
 
 // Workspaces the current user owns vs. workspaces shared with them (read/comment/write/admin grant)
 const ownedWorkspaces = computed(() =>
@@ -995,6 +1020,46 @@ const createPageNotebook = ref<Notebook | null>(null)
 const showPropertiesPanel = ref(false)
 // Mobile sidebar state
 const sidebarOpen = ref(false)
+
+// Comment thread panel state — the block_id currently shown, or null if closed
+const activeCommentBlockId = ref<string | null>(null)
+
+function openComments(blockId: string) {
+  activeCommentBlockId.value = blockId
+}
+
+function closeComments() {
+  activeCommentBlockId.value = null
+}
+
+function handleCommentCountChanged(blockId: string, count: number) {
+  commentsStore.setCount(blockId, count)
+}
+
+// Refresh @mention principals + the user's comment permission whenever the workspace changes
+watch(
+  () => workspaceStore.currentWorkspace?.slug,
+  (slug) => {
+    if (!slug) {
+      commentsStore.reset()
+      return
+    }
+    commentsStore.fetchPrincipals(slug)
+    commentsStore.fetchMyPermission(slug)
+  },
+  { immediate: true },
+)
+
+// Refresh per-block comment counts whenever a new page's blocks are displayed
+watch(
+  () => workspaceStore.currentPageBlockId,
+  (pageBlockId) => {
+    const ws = workspaceStore.currentWorkspace
+    const notebookId = workspaceStore.currentBlock?.notebook_id
+    if (!pageBlockId || !ws || !notebookId) return
+    commentsStore.fetchCounts(ws.slug, nbSlug(notebookId))
+  },
+)
 
 // Helper to close sidebar on mobile (under lg breakpoint: 1024px)
 function closeSidebarOnMobile() {

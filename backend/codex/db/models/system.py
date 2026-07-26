@@ -13,6 +13,7 @@ These models are stored in the system database (codex_system.db):
 - Event: Append-only event outbox for notification fanout
 - Notification: Per-recipient delivery record for an Event
 - WorkspaceWatch: Per-user opt-in/mute notification preference for a workspace
+- SyncJournal: Append-only journal of S3-synced file changes (change feed cursor)
 - Plugin: Plugin registry
 - PluginConfig: Plugin configurations per workspace
 - PluginSecret: Secure plugin secrets (encrypted)
@@ -779,3 +780,37 @@ class WorkspaceWatch(SQLModel, table=True):
     updated_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
     )
+
+
+class SyncJournal(SQLModel, table=True):
+    """Append-only journal of S3-synced file changes (issue #541, design doc §3.2/§3.4).
+
+    Every observed change to a synced file is recorded here, populated from a
+    client's `POST .../sync/push-complete` call and/or an S3 event notification
+    (EventBridge -> SQS -> ARQ, where configured). `id` is a strictly monotonic,
+    never-reused autoincrement (`sqlite_autoincrement`), so it doubles as the
+    change feed's pull cursor for `GET .../sync/changes?since=cursor`. The
+    unique constraint on (path, s3_version_id) deduplicates the same S3 object
+    version being reported twice — e.g. a push-complete call racing a bucket
+    notification for the same write.
+
+    Column names (`ws_id`, `nb_id`, `actor_principal_id`, `ts`) intentionally
+    follow issue #541's schema rather than this file's usual `workspace_id`/
+    `actor_id`/`created_at` convention, since they name a wire-level cursor
+    contract shared with sync clients.
+    """
+
+    __tablename__ = "sync_journal"  # type: ignore[assignment]
+    __table_args__ = (
+        UniqueConstraint("path", "s3_version_id", name="uq_sync_journal_path_version"),
+        {"sqlite_autoincrement": True},
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    ws_id: int = Field(foreign_key="workspaces.id", index=True)
+    nb_id: int = Field(foreign_key="notebooks.id", index=True)
+    path: str = Field(index=True)  # S3 object key
+    s3_version_id: str
+    actor_principal_id: int | None = Field(default=None, foreign_key="users.id", index=True)
+    op: str = Field(index=True)  # "created" | "modified" | "deleted"
+    ts: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True)))

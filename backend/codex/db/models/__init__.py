@@ -49,6 +49,7 @@ from .system import (
     PluginConfig,
     PluginSecret,
     RefreshToken,
+    SyncJournal,
     Task,
     User,
     UserKind,
@@ -81,6 +82,7 @@ __all__ = [
     "Event",
     "Notification",
     "WorkspaceWatch",
+    "SyncJournal",
     # Token models
     "PasswordResetToken",
     "PersonalAccessToken",

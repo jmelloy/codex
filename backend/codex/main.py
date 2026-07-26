@@ -26,6 +26,7 @@ from codex.api.routes import (
     notebooks,
     notifications,
     oauth,
+    organizations,
     plugins,
     search,
     snippets,
@@ -277,6 +278,12 @@ app.include_router(
     notifications.watch_router,
     prefix="/api/v1/workspaces/{workspace_identifier}/watch",
     tags=["notifications"],
+)
+app.include_router(organizations.router, prefix="/api/v1/organizations", tags=["organizations"])
+app.include_router(
+    organizations.members_router,
+    prefix="/api/v1/organizations/{org_slug}/members",
+    tags=["organizations"],
 )
 
 # Serve frontend static files if the build is present (production)

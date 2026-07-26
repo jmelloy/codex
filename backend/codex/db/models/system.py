@@ -4,6 +4,8 @@ These models are stored in the system database (codex_system.db):
 - User: User accounts for authentication
 - Workspace: Workspaces for organizing notebooks
 - WorkspacePermission: Permission mapping between users and workspaces
+- Organization: An organization grouping principals via OrgMembership
+- OrgMembership: Role-based membership of a principal (human or bot) in an org
 - Task: Tasks for agent work
 - Notebook: Notebook metadata
 - Comment: Threaded comments anchored to a block ULID
@@ -123,6 +125,60 @@ class WorkspacePermission(SQLModel, table=True):
 
     # Relationships
     workspace: Workspace = Relationship(back_populates="permissions")
+
+
+class OrgRole(StrEnum):
+    """Role a principal holds within an organization (issue #537, design doc §2.2).
+
+    Ranked lowest to highest: guest < member < admin < owner. Role-gated
+    membership management lives in `codex.core.org_permissions`, not here.
+    """
+
+    GUEST = "guest"
+    MEMBER = "member"
+    ADMIN = "admin"
+    OWNER = "owner"
+
+
+class Organization(SQLModel, table=True):
+    """An organization grouping principals (humans and bots) via `OrgMembership`."""
+
+    __tablename__ = "organizations"  # type: ignore[assignment]
+
+    id: int | None = Field(default=None, primary_key=True)
+    name: str
+    slug: str = Field(unique=True, index=True)
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
+    )
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
+    )
+
+    # Relationships
+    memberships: list["OrgMembership"] = Relationship(back_populates="organization")
+
+
+class OrgMembership(SQLModel, table=True):
+    """A principal's (human or bot) role-based membership in an organization."""
+
+    __tablename__ = "org_memberships"  # type: ignore[assignment]
+    __table_args__ = (UniqueConstraint("org_id", "principal_id", name="uq_org_memberships_org_principal"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    org_id: int = Field(foreign_key="organizations.id", index=True)
+    principal_id: int = Field(foreign_key="users.id", index=True)
+    role: str = Field(default=OrgRole.MEMBER.value)  # "owner" | "admin" | "member" | "guest"
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
+    )
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
+    )
+
+    # Relationships
+    organization: Organization = Relationship(back_populates="memberships")
+    principal: User = Relationship()
 
 
 class Task(SQLModel, table=True):

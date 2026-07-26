@@ -11,7 +11,9 @@ Design doc §3.3/§3.4. All routes are nested under
 Credential/presign endpoints work identically for human JWTs and bot PATs: a
 JWT represents a full human session (permission level is the only gate),
 while a PAT must carry the `sync:credentials` scope and, if it's bound to a
-specific workspace, can only vend for that workspace.
+specific workspace, can only vend for that workspace. The change feed also
+fans out live over the existing `workspace:{id}` WebSocket channel so
+connected clients don't have to poll.
 """
 
 from datetime import datetime

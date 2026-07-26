@@ -176,6 +176,7 @@ def test_push_complete_succeeds_with_sync_credentials_scope(test_client, auth_he
 
     response = _push_complete(test_client, workspace, notebook, pat_headers)
     assert response.status_code == 200
+<<<<<<< HEAD
 
 
 def test_push_complete_rejects_parent_traversal_path(test_client, auth_headers, workspace_and_notebook):
@@ -250,3 +251,5 @@ def test_push_complete_succeeds_with_pat_scoped_to_matching_workspace(
 
     response = _push_complete(test_client, workspace, notebook, pat_headers)
     assert response.status_code == 200
+=======
+>>>>>>> origin/main

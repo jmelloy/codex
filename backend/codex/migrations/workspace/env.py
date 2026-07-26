@@ -9,10 +9,12 @@ from sqlalchemy.engine import Connection
 
 from alembic import context
 
-# Add backend directory to path for imports when running alembic CLI
-backend_dir = Path(__file__).resolve().parent.parent
-if str(backend_dir.parent) not in sys.path:
-    sys.path.insert(0, str(backend_dir.parent))
+# Add backend/ (not backend/codex) to sys.path so `import codex...` works when
+# running the alembic CLI directly - this file lives at
+# backend/codex/migrations/workspace/env.py, so backend/ is four levels up.
+backend_dir = Path(__file__).resolve().parents[3]
+if str(backend_dir) not in sys.path:
+    sys.path.insert(0, str(backend_dir))
 
 # Import only system models (not notebook models which are in separate databases)
 
@@ -34,15 +36,37 @@ target_metadata = SQLModel.metadata
 # Must match the default in backend/db/database.py
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./data/codex_system.db")
 
-_is_sqlite = DATABASE_URL.startswith("sqlite")
+try:
+    from codex.db.url import connect_args_for, to_sync_url
+except ImportError:
+    # backend/ is on sys.path (see above), so this should not normally happen;
+    # fall back to inlined equivalents so migrations still work standalone if
+    # codex.db.url is unimportable for some other reason (e.g. broken install).
+    from sqlalchemy.engine import make_url
 
-if not _is_sqlite:
-    raise RuntimeError("Codex workspace migrations require a SQLite DATABASE_URL (sqlite:///...)")
+    _SUPPORTED_BACKENDS = ("sqlite", "postgresql")
+
+    def _get_backend_name(url: str) -> str:
+        backend = make_url(url).get_backend_name()
+        if backend not in _SUPPORTED_BACKENDS:
+            raise ValueError(
+                f"Unsupported database backend {backend!r} in DATABASE_URL; "
+                f"Codex supports: {', '.join(_SUPPORTED_BACKENDS)}"
+            )
+        return backend
+
+    def to_sync_url(url: str) -> str:
+        parsed = make_url(url)
+        driver = "sqlite" if _get_backend_name(url) == "sqlite" else "postgresql+psycopg2"
+        return parsed.set(drivername=driver).render_as_string(hide_password=False)
+
+    def connect_args_for(url: str) -> dict:
+        return {"check_same_thread": False} if _get_backend_name(url) == "sqlite" else {}
 
 
 def get_url():
-    """Get database URL, preferring environment variable."""
-    return DATABASE_URL
+    """Get database URL (sync driver), preferring environment variable."""
+    return to_sync_url(DATABASE_URL)
 
 
 def run_migrations_offline() -> None:
@@ -88,12 +112,10 @@ def run_migrations_online() -> None:
     """
     url = get_url()
 
-    connect_args = {"check_same_thread": False}
-
     connectable = create_engine(
         url,
         poolclass=pool.NullPool,
-        connect_args=connect_args,
+        connect_args=connect_args_for(DATABASE_URL),
     )
 
     with connectable.connect() as connection:

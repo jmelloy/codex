@@ -8,23 +8,46 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlmodel import Session, create_engine
 
-# System database (users, workspaces, permissions, tasks)
+from codex.db.url import connect_args_for, is_postgres, to_async_url, to_sync_url
+
+# System database (users, workspaces, permissions, tasks). SQLite is the
+# default for single-user installs; PostgreSQL is required for multi-writer
+# installs (Organizations) - set DATABASE_URL=postgresql://... to switch.
 SYSTEM_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./data/codex_system.db")
 
-if not SYSTEM_DATABASE_URL.startswith("sqlite"):
-    raise RuntimeError("Codex requires a SQLite DATABASE_URL (sqlite:///...)")
+SYSTEM_DATABASE_URL_ASYNC = to_async_url(SYSTEM_DATABASE_URL)
+SYSTEM_DATABASE_URL_SYNC = to_sync_url(SYSTEM_DATABASE_URL)
+_connect_args = connect_args_for(SYSTEM_DATABASE_URL)
 
-SYSTEM_DATABASE_URL_ASYNC = SYSTEM_DATABASE_URL.replace("sqlite:///", "sqlite+aiosqlite:///")
-_connect_args = {"check_same_thread": False}
-# Data directory derived from SQLite database path
-_default_data_dir = os.path.dirname(SYSTEM_DATABASE_URL.replace("sqlite:///", "")) or "./data"
+# Data directory for workspace/notebook filesystem content. For SQLite this
+# defaults alongside the database file; for Postgres (no local db file to
+# anchor to) it defaults to ./data and must be set explicitly if that's wrong.
+if is_postgres(SYSTEM_DATABASE_URL):
+    _default_data_dir = "./data"
+else:
+    _default_data_dir = os.path.dirname(SYSTEM_DATABASE_URL.replace("sqlite:///", "")) or "./data"
 
 DATA_DIRECTORY = os.getenv("DATA_DIRECTORY", _default_data_dir)
 
-system_engine = create_async_engine(SYSTEM_DATABASE_URL_ASYNC, echo=False, connect_args=_connect_args)
+# Connection pool sizing (Postgres only - SQLite is single-file and doesn't
+# benefit from a multi-connection pool the same way).
+_pool_kwargs = {}
+if is_postgres(SYSTEM_DATABASE_URL):
+    _pool_kwargs = {
+        "pool_size": int(os.getenv("DATABASE_POOL_SIZE", "10")),
+        "max_overflow": int(os.getenv("DATABASE_MAX_OVERFLOW", "20")),
+        "pool_recycle": int(os.getenv("DATABASE_POOL_RECYCLE", "1800")),
+        "pool_pre_ping": True,
+    }
+
+system_engine = create_async_engine(
+    SYSTEM_DATABASE_URL_ASYNC, echo=False, connect_args=_connect_args, **_pool_kwargs
+)
 
 # Synchronous engine for use in thread pools (e.g., notebook watchers)
-system_engine_sync = create_engine(SYSTEM_DATABASE_URL, echo=False, connect_args=_connect_args)
+system_engine_sync = create_engine(
+    SYSTEM_DATABASE_URL_SYNC, echo=False, connect_args=_connect_args, **_pool_kwargs
+)
 
 async_session_maker = sessionmaker(system_engine, class_=AsyncSession, expire_on_commit=False)
 
@@ -125,14 +148,15 @@ async def init_system_db():
     For new databases, this creates all tables. For existing databases, this applies
     any pending migrations.
     """
-    # Ensure data directory exists for SQLite
-    db_path = SYSTEM_DATABASE_URL.replace("sqlite:///", "")
-    db_dir = os.path.dirname(db_path)
-    if db_dir and not os.path.exists(db_dir):
-        try:
-            os.makedirs(db_dir, exist_ok=True)
-        except FileExistsError:
-            pass
+    # Ensure data directory exists (SQLite only - Postgres has no local file path)
+    if not is_postgres(SYSTEM_DATABASE_URL):
+        db_path = SYSTEM_DATABASE_URL.replace("sqlite:///", "")
+        db_dir = os.path.dirname(db_path)
+        if db_dir and not os.path.exists(db_dir):
+            try:
+                os.makedirs(db_dir, exist_ok=True)
+            except FileExistsError:
+                pass
 
     # Run Alembic migrations
     run_alembic_migrations()

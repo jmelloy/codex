@@ -44,7 +44,7 @@ def upgrade() -> None:
     if table_exists("plugin_configs") and not column_exists("plugin_configs", "enabled"):
         op.add_column(
             "plugin_configs",
-            sa.Column("enabled", sa.Boolean(), nullable=False, server_default="1"),
+            sa.Column("enabled", sa.Boolean(), nullable=False, server_default=sa.text("true")),
         )
 
     # Create notebook_plugin_configs table

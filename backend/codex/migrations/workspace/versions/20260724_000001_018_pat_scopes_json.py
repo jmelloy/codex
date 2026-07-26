@@ -44,12 +44,15 @@ def upgrade() -> None:
             {"scopes": json.dumps(parsed) if parsed else None, "id": row_id},
         )
 
+    # Postgres requires an explicit USING clause for varchar->json (no implicit
+    # assignment cast); SQLite ignores postgresql_using and rebuilds via batch mode.
     with op.batch_alter_table("personal_access_tokens") as batch_op:
         batch_op.alter_column(
             "scopes",
             existing_type=sa.String(),
             type_=sa.JSON(),
             existing_nullable=True,
+            postgresql_using="scopes::json",
         )
 
 
@@ -62,6 +65,7 @@ def downgrade() -> None:
             existing_type=sa.JSON(),
             type_=sa.String(),
             existing_nullable=True,
+            postgresql_using="scopes::text",
         )
 
     rows = conn.execute(sa.text("SELECT id, scopes FROM personal_access_tokens WHERE scopes IS NOT NULL")).fetchall()

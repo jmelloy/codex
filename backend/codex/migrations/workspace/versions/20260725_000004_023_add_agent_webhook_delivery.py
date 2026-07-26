@@ -15,6 +15,7 @@ channel for external bots (issue #536, docs/design/multi-user-multi-org.md
 from collections.abc import Sequence
 
 import sqlalchemy as sa
+from sqlalchemy import inspect
 from alembic import op
 
 # revision identifiers
@@ -26,8 +27,8 @@ depends_on: str | Sequence[str] | None = None
 
 def _column_exists(table: str, column: str) -> bool:
     conn = op.get_bind()
-    result = conn.execute(sa.text(f"PRAGMA table_info({table})"))
-    return any(row[1] == column for row in result)
+    inspector = inspect(conn)
+    return any(col["name"] == column for col in inspector.get_columns(table))
 
 
 def upgrade() -> None:

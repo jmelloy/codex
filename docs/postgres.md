@@ -80,7 +80,9 @@ against either backend:
 DATABASE_URL=postgresql://localhost/codex_system_test pytest -v
 ```
 
-CI runs the suite against both SQLite and Postgres as a matrix job (`.github/workflows/test.yml`).
+A `[sqlite, postgres]` CI matrix job for `.github/workflows/test.yml` is written but not yet merged
+(blocked on `workflow` OAuth scope for the branch that introduced it - see the PR that added this
+doc). Until it lands, verify against Postgres locally with the command above.
 
 ## Known SQLite-isms audited for this change
 

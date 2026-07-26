@@ -11,7 +11,7 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select
+from sqlmodel import delete, select
 
 from codex.api.auth import get_current_active_user
 from codex.api.routes.utils import slugify
@@ -221,10 +221,7 @@ async def delete_organization(
     """Delete an organization and all its memberships. Requires owner."""
     org, _ = await get_org_by_slug(org_slug, current_user, session, required_rank=OrgRoleRank.OWNER)
 
-    result = await session.execute(select(OrgMembership).where(OrgMembership.org_id == org.id))
-    for membership in result.scalars().all():
-        await session.delete(membership)
-
+    await session.execute(delete(OrgMembership).where(OrgMembership.org_id == org.id))
     await session.delete(org)
     await session.commit()
 
@@ -322,6 +319,8 @@ async def update_member_role(
     await session.refresh(target)
 
     principal = await session.get(User, principal_id)
+    if principal is None:
+        raise HTTPException(status_code=404, detail="Member not found")
     return _serialize_membership(target, principal)
 
 

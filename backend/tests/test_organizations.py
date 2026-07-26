@@ -5,12 +5,12 @@ role-gated management ("admins manage members, owners manage admins"),
 last-owner protection, and bots as joinable members.
 """
 
-import time
+import uuid
 
 
 def _register_and_login(test_client, *, username=None):
     """Register and log in a second user, returning (headers, username, email)."""
-    username = username or f"org_user_{int(time.time() * 1_000_000)}"
+    username = username or f"org_user_{uuid.uuid4().hex}"
     email = f"{username}@example.com"
     test_client.post(
         "/api/v1/users/register",

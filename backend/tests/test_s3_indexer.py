@@ -102,6 +102,38 @@ def test_lock_for_notebook_is_stable_per_id_and_distinct_across_ids():
     assert lock_a1 is not lock_b
 
 
+# ── path validation ───────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "../etc/passwd",
+        "../../etc/passwd",
+        "notes/../../etc/passwd",
+        "/etc/passwd",
+        "",
+    ],
+)
+def test_is_safe_relative_path_rejects_traversal_and_absolute(path):
+    assert s3_indexer.is_safe_relative_path(path) is False
+
+
+@pytest.mark.parametrize("path", ["readme.md", "notes/hello.md", "a/b/c.md"])
+def test_is_safe_relative_path_accepts_notebook_relative_paths(path):
+    assert s3_indexer.is_safe_relative_path(path) is True
+
+
+def test_local_path_raises_for_traversal(tmp_path):
+    with pytest.raises(ValueError):
+        s3_indexer._local_path(tmp_path, "../../etc/passwd")
+
+
+def test_local_path_accepts_safe_relative_path(tmp_path):
+    result = s3_indexer._local_path(tmp_path, "notes/hello.md")
+    assert result == (tmp_path / "notes" / "hello.md").resolve()
+
+
 # ── rebuild_notebook_index ────────────────────────────────────────────
 
 
@@ -162,6 +194,39 @@ def test_rebuild_notebook_index_removes_stale_local_blocks(shared_workspace, fak
     finally:
         session.close()
     assert paths == {"keep.md"}
+
+
+def test_rebuild_notebook_index_skips_unsafe_stale_block_path(shared_workspace, fake_s3):
+    """A corrupted/malicious Block.path (e.g. containing '..') must not crash the cold-start
+    rebuild -- it should be logged and skipped like any other stale-cleanup failure."""
+    workspace, notebook = shared_workspace
+    prefix = _prefix(workspace, notebook)
+    fake_s3.put(f"{prefix}keep.md", b"keep me", version_id="v1")
+
+    # First rebuild establishes the working copy + notebook DB.
+    s3_indexer.rebuild_notebook_index(workspace, notebook)
+    notebook_path = s3_indexer.notebook_working_copy_path(workspace, notebook)
+
+    # Inject a Block row with an unsafe path directly, simulating corrupted local state --
+    # this file no longer exists in S3, so it becomes a stale-cleanup candidate.
+    notebook_session = get_notebook_session(str(notebook_path))
+    try:
+        notebook_session.add(
+            Block(
+                notebook_id=notebook.id,
+                block_id="bad-block",
+                path="../../etc/passwd",
+                block_type="text",
+            )
+        )
+        notebook_session.commit()
+    finally:
+        notebook_session.close()
+
+    result = s3_indexer.rebuild_notebook_index(workspace, notebook)
+
+    # The unsafe stale path is skipped (not counted as deleted, doesn't raise).
+    assert result.deleted == 0
 
 
 def test_rebuild_notebook_index_writes_cursor_file(shared_workspace, fake_s3):

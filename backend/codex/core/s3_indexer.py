@@ -31,7 +31,7 @@ import asyncio
 import logging
 import threading
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from sqlmodel import select
 
@@ -102,8 +102,29 @@ class IndexResult:
     errors: list[str] = field(default_factory=list)
 
 
+def is_safe_relative_path(path: str) -> bool:
+    """True if `path` is a notebook-relative path with no `..` segments or absolute paths.
+
+    Journal `path`/S3-key-derived relative paths are untrusted (they can come from a
+    client's push-complete call, a bucket notification, or a stale/corrupted `Block.path`
+    row) and are used to build local filesystem paths under the notebook's working copy --
+    reject anything that could escape that directory (design doc §3.2, issue #542).
+    """
+    if not path or path.startswith("/") or path.startswith("\\"):
+        return False
+    parts = PurePosixPath(path).parts
+    if not parts or ".." in parts:
+        return False
+    return True
+
+
 def _local_path(notebook_path: Path, relative_path: str) -> Path:
-    return notebook_path / relative_path
+    if not is_safe_relative_path(relative_path):
+        raise ValueError(f"unsafe relative path: {relative_path!r}")
+    local_path = (notebook_path / relative_path).resolve()
+    if not local_path.is_relative_to(notebook_path.resolve()):
+        raise ValueError(f"path escapes notebook working copy: {relative_path!r}")
+    return local_path
 
 
 def _materialize_object(notebook_path: Path, relative_path: str, s3_key: str, version_id: str | None) -> Path:
@@ -173,7 +194,11 @@ def rebuild_notebook_index(workspace: Workspace, notebook: Notebook) -> IndexRes
             notebook_session.close()
 
         for stale_path in existing_paths - seen_relative_paths:
-            local_file = _local_path(notebook_path, stale_path)
+            try:
+                local_file = _local_path(notebook_path, stale_path)
+            except ValueError as e:
+                logger.error("Skipping stale block with unsafe path %r for notebook %s: %s", stale_path, notebook.id, e)
+                continue
             if local_file.exists():
                 local_file.unlink()
             update_file_metadata(str(notebook_path), notebook.id, str(local_file), "deleted")

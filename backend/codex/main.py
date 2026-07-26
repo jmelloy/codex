@@ -31,6 +31,7 @@ from codex.api.routes import (
     plugins,
     search,
     snippets,
+    sync,
     tasks,
     tokens,
     users,
@@ -247,6 +248,11 @@ app.include_router(
     collaborators.router,
     prefix="/api/v1/workspaces/{workspace_identifier}/collaborators",
     tags=["collaborators"],
+)
+app.include_router(
+    sync.router,
+    prefix="/api/v1/workspaces/{workspace_identifier}/sync",
+    tags=["sync"],
 )
 app.include_router(
     users.bots_router,

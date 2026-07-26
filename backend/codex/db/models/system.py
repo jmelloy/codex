@@ -21,9 +21,10 @@ These models are stored in the system database (codex_system.db):
 
 from datetime import datetime, timezone
 from enum import StrEnum
+from typing import Optional
 
 from pydantic import model_validator
-from sqlalchemy import DateTime, UniqueConstraint
+from sqlalchemy import DateTime, Index, UniqueConstraint, text
 from sqlmodel import JSON, Column, Field, Relationship, SQLModel
 
 from .base import utc_now
@@ -85,16 +86,46 @@ class User(SQLModel, table=True):
 
 
 class Workspace(SQLModel, table=True):
-    """Workspace for organizing notebooks and files."""
+    """Workspace for organizing notebooks and files.
+
+    `org_id` is null for personal workspaces (today's behavior, unchanged); when set,
+    the workspace belongs to that org and slug uniqueness scopes to (org_id, slug)
+    instead of (owner_id, slug) (issue #538, design doc §2.2/§2.3). Both partial
+    unique indexes below live on the same `slug` column, split by whether org_id is
+    null, so personal and org workspaces never contend for the same uniqueness scope.
+    """
 
     __tablename__ = "workspaces"  # type: ignore[assignment]
-    __table_args__ = (UniqueConstraint("owner_id", "slug", name="uq_workspaces_owner_slug"),)
+    __table_args__ = (
+        Index(
+            "uq_workspaces_owner_slug",
+            "owner_id",
+            "slug",
+            unique=True,
+            sqlite_where=text("org_id IS NULL"),
+            postgresql_where=text("org_id IS NULL"),
+        ),
+        Index(
+            "uq_workspaces_org_slug",
+            "org_id",
+            "slug",
+            unique=True,
+            sqlite_where=text("org_id IS NOT NULL"),
+            postgresql_where=text("org_id IS NOT NULL"),
+        ),
+    )
 
     id: int | None = Field(default=None, primary_key=True)
     name: str = Field(index=True)
-    slug: str = Field(index=True)  # URL-safe identifier, unique per owner
+    slug: str = Field(index=True)  # URL-safe identifier, unique per owner (personal) or per org
     path: str = Field(unique=True)  # Filesystem path
     owner_id: int = Field(foreign_key="users.id")
+    # Null = personal workspace. Set = org workspace; slug uniqueness moves to (org_id, slug).
+    org_id: int | None = Field(default=None, foreign_key="organizations.id", index=True)
+    # Effective permission level for an org "member" role with no explicit grant (issue #538,
+    # design doc §2.3: "workspace default (configurable, default read)"). Irrelevant for
+    # personal workspaces. Org owner/admin always get admin; guest always needs an explicit grant.
+    org_member_default_level: str = Field(default="read")
     theme_setting: str | None = Field(default="cream")  # User's preferred theme
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True))
@@ -105,6 +136,7 @@ class Workspace(SQLModel, table=True):
 
     # Relationships
     owner: User = Relationship(back_populates="workspaces")
+    organization: Optional["Organization"] = Relationship(back_populates="workspaces")
     permissions: list["WorkspacePermission"] = Relationship(back_populates="workspace")
     notebooks: list["Notebook"] = Relationship(back_populates="workspace")
     agents: list["Agent"] = Relationship(back_populates="workspace")
@@ -157,6 +189,7 @@ class Organization(SQLModel, table=True):
 
     # Relationships
     memberships: list["OrgMembership"] = Relationship(back_populates="organization")
+    workspaces: list["Workspace"] = Relationship(back_populates="organization")
 
 
 class OrgMembership(SQLModel, table=True):

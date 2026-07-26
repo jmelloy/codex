@@ -4,13 +4,12 @@ Defines the permission level hierarchy (read < comment < write < admin) and a
 single `effective_level` resolver that every access-control decision (routes,
 websockets, search) should call rather than re-implementing its own checks.
 
-Resolution order:
+Resolution order (design doc §2.3):
 1. Workspace owner -> ADMIN, unconditionally.
-2. Explicit `WorkspacePermission` grant for the user -> the granted level.
-3. Otherwise -> None (no access).
-
-Org-role resolution is not implemented yet since organizations do not exist
-in this codebase; when they land, that lookup slots in between (1) and (2).
+2. Org role, if `workspace.org_id` is set: owner/admin -> ADMIN; member ->
+   `workspace.org_member_default_level`; guest -> no default (falls through to 3).
+3. Explicit `WorkspacePermission` grant for the user -> the granted level.
+4. The higher of (2) and (3), or None if neither applies.
 """
 
 from enum import IntEnum
@@ -19,6 +18,7 @@ from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from codex.core.org_permissions import OrgRoleRank, get_membership
 from codex.db.models import User, Workspace, WorkspacePermission
 
 
@@ -51,17 +51,31 @@ async def effective_level(
     if workspace.owner_id == user.id:
         return PermissionLevel.ADMIN
 
+    org_level: PermissionLevel | None = None
+    if workspace.org_id is not None:
+        membership = await get_membership(session, workspace.org_id, user.id)
+        if membership is not None:
+            org_rank = OrgRoleRank.from_str(membership.role)
+            if org_rank >= OrgRoleRank.ADMIN:
+                return PermissionLevel.ADMIN
+            if org_rank == OrgRoleRank.MEMBER:
+                org_level = PermissionLevel.from_str(workspace.org_member_default_level)
+            # Guest gets no default level; access requires an explicit grant below.
+
     result = await session.execute(
         select(WorkspacePermission).where(
             WorkspacePermission.workspace_id == workspace.id,
             WorkspacePermission.user_id == user.id,
         )
     )
-    grant = result.scalar_one_or_none()
-    if grant is None:
-        return None
+    grants = result.scalars().all()
+    grant_level = max((PermissionLevel.from_str(g.permission_level) for g in grants), default=None)
 
-    return PermissionLevel.from_str(grant.permission_level)
+    if org_level is None:
+        return grant_level
+    if grant_level is None:
+        return org_level
+    return max(org_level, grant_level)
 
 
 def has_permission(level: PermissionLevel | None, required: PermissionLevel) -> bool:

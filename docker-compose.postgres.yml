@@ -1,0 +1,47 @@
+# Postgres override for multi-user installs (required for Organizations, see
+# issue #539 / #521). SQLite (docker-compose.yml's default) only supports a
+# single writer and isn't suitable once orgs/shared workspaces are in use.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.postgres.yml up -d
+#
+# The backend/worker DATABASE_URL below points at the `postgres` service
+# instead of the local SQLite file; everything else (redis, frontend) is
+# unchanged from docker-compose.yml.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-codex}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-codex}
+      - POSTGRES_DB=${POSTGRES_DB:-codex_system}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-codex}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-codex}:${POSTGRES_PASSWORD:-codex}@postgres:5432/${POSTGRES_DB:-codex_system}
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  worker:
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-codex}:${POSTGRES_PASSWORD:-codex}@postgres:5432/${POSTGRES_DB:-codex_system}
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres-data:

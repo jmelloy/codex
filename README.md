@@ -2,7 +2,7 @@
 
 A hierarchical digital laboratory journal system for tracking computational experiments, creative iterations, and technical investigations.
 
-**Stack**: Python 3.13 / FastAPI + SQLModel · Vue.js 3 / TypeScript · SQLite · Docker · Kubernetes
+**Stack**: Python 3.13 / FastAPI + SQLModel · Vue.js 3 / TypeScript · SQLite/PostgreSQL · Docker · Kubernetes
 
 **Hierarchy**: Workspace → Notebook → Files
 

@@ -23,7 +23,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN pip install uv
 
 COPY backend/pyproject.toml ./
-RUN uv pip install --system .
+# Install the postgres extra unconditionally so the same image works with
+# either backend (selected at runtime via DATABASE_URL) - see docker-compose.postgres.yml.
+RUN uv pip install --system ".[postgres]"
 
 COPY backend/ .
 

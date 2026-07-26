@@ -11,9 +11,12 @@ from pathlib import Path
 import pytest
 
 # Create a temporary directory for test databases BEFORE importing codex modules,
-# since database.py reads DATABASE_URL at import time.
+# since database.py reads DATABASE_URL at import time. Respect a DATABASE_URL
+# that's already set in the environment (e.g. the Postgres CI matrix job)
+# instead of forcing SQLite, so the same suite runs against either backend.
 _test_data_dir = tempfile.mkdtemp(prefix="codex_test_")
-os.environ["DATABASE_URL"] = f"sqlite:///{_test_data_dir}/codex_system.db"
+if not os.environ.get("DATABASE_URL"):
+    os.environ["DATABASE_URL"] = f"sqlite:///{_test_data_dir}/codex_system.db"
 os.environ["DATA_DIRECTORY"] = _test_data_dir
 
 from fastapi.testclient import TestClient  # noqa: E402

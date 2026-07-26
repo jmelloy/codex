@@ -53,7 +53,7 @@ class AgentCreate(BaseModel):
     webhook_max_retries: int = Field(default=5, ge=1, le=20)
 
     @model_validator(mode="after")
-    def _validate_principal_for_kind(self) -> "AgentCreate":
+    def _validate_principal_for_kind(self) -> AgentCreate:
         if self.kind == "external" and self.principal_id is None:
             raise ValueError("principal_id is required when kind is 'external'")
         return self

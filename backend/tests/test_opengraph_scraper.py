@@ -90,7 +90,6 @@ async def test_fallback_to_opengraph_io_when_direct_fails():
 
         # Track whether fallback method was called
         fallback_called = False
-        original_fallback = scraper._scrape_with_opengraph_io
 
         async def mock_fallback(url):
             nonlocal fallback_called

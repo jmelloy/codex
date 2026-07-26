@@ -105,9 +105,9 @@ def test_url_detection_in_markdown():
 
     markdown = """
     # My Notes
-    
+
     9:00 - https://amazon.com
-    
+
     Some other text here.
     """
 

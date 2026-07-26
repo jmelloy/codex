@@ -10,7 +10,6 @@ Adds a table for storing hashed password reset tokens with expiration.
 from collections.abc import Sequence
 
 import sqlalchemy as sa
-
 from alembic import op
 
 # revision identifiers

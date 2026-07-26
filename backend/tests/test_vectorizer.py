@@ -6,15 +6,15 @@ import sqlite3
 import tempfile
 
 import pytest
-from sqlmodel import Session, create_engine, select
+from sqlmodel import Session, create_engine
 
 from codex.core.vectorizer import (
-    _serialize_f32,
     _deserialize_f32,
+    _serialize_f32,
     build_page_text,
+    delete_page_fts,
     ensure_search_tables,
     index_page_fts,
-    delete_page_fts,
     search_by_fts,
 )
 from codex.db.models.notebook import Block
@@ -31,7 +31,7 @@ def notebook_dir():
 
         # Create tables
         from sqlmodel import SQLModel
-        from codex.db.models.notebook import Block, Tag, BlockTag, SearchIndex
+
 
         SQLModel.metadata.create_all(engine)
 

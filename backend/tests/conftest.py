@@ -364,8 +364,6 @@ def ensure_valid_cwd():
         # If current directory doesn't exist, change to backend dir
         os.chdir(backend_dir)
 
-    original_cwd = os.getcwd()
-
     yield
 
     # After test: restore to a valid directory if needed

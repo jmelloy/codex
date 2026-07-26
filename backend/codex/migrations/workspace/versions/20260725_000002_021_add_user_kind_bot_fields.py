@@ -15,9 +15,9 @@ via PATs and never have a password.
 from collections.abc import Sequence
 
 import sqlalchemy as sa
-from sqlalchemy import inspect
 import sqlmodel
 from alembic import op
+from sqlalchemy import inspect
 
 # revision identifiers
 revision: str = "021"

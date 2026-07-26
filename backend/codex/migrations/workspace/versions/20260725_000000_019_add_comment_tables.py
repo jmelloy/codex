@@ -12,7 +12,6 @@ numeric id, so a thread survives the block being renamed or moved.
 from collections.abc import Sequence
 
 import sqlalchemy as sa
-
 from alembic import op
 
 # revision identifiers

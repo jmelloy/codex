@@ -275,7 +275,7 @@ async def create_notebook_nested(
 
         from codex.core.git_manager import GitManager
 
-        git_manager = GitManager(str(notebook_path))
+        GitManager(str(notebook_path))
 
         notebook = Notebook(
             workspace_id=workspace.id, name=body.name, slug=final_slug, path=final_slug, description=body.description

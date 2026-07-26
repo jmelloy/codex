@@ -11,7 +11,6 @@ updates search_index to reference blocks, then drops file_metadata.
 from collections.abc import Sequence
 
 import sqlalchemy as sa
-
 from alembic import op
 
 # revision identifiers, used by Alembic.

@@ -16,9 +16,8 @@ from pathlib import Path
 
 import sqlalchemy as sa
 import sqlmodel
-from sqlalchemy import inspect
-
 from alembic import op
+from sqlalchemy import inspect
 
 # revision identifiers, used by Alembic.
 revision: str = "007"

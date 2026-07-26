@@ -711,7 +711,6 @@ def _sync_blocks_for_file(
         write_page_metadata,
     )
 
-    rel_path = os.path.relpath(filepath, notebook_path)
     filename = os.path.basename(filepath)
     parent_dir = os.path.dirname(filepath)
 

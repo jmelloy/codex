@@ -62,7 +62,7 @@ class ThemeResponse(BaseModel):
     name: str
     label: str
     description: str
-    className: str
+    className: str  # noqa: N815 -- matches frontend theme manifest field name
     category: str
     version: str
     author: str

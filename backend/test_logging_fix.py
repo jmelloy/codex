@@ -12,7 +12,7 @@ from codex.core.logging import get_logging_config
 logging.config.dictConfig(get_logging_config(log_level="INFO", log_format="colored"))
 
 # Now import codex modules
-from codex.db.database import init_notebook_db
+from codex.db.database import init_notebook_db  # noqa: E402
 
 # Get loggers
 root_logger = logging.getLogger()

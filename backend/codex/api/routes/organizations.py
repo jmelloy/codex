@@ -5,7 +5,7 @@ grants - see docs/design/multi-user-multi-org.md §2.2. Role gating and
 last-owner protection are enforced through `codex.core.org_permissions`.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -205,7 +205,7 @@ async def update_organization(
     org, membership = await get_org_by_slug(org_slug, current_user, session, required_rank=OrgRoleRank.ADMIN)
 
     org.name = body.name
-    org.updated_at = datetime.now(timezone.utc)
+    org.updated_at = datetime.now(UTC)
     session.add(org)
     await session.commit()
     await session.refresh(org)
@@ -313,7 +313,7 @@ async def update_member_role(
             raise HTTPException(status_code=400, detail="Cannot demote the last owner")
 
     target.role = new_role
-    target.updated_at = datetime.now(timezone.utc)
+    target.updated_at = datetime.now(UTC)
     session.add(target)
     await session.commit()
     await session.refresh(target)

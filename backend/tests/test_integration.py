@@ -163,8 +163,6 @@ class TestWorkspaceCRUD:
             json={"name": name},
             headers=headers,
         )
-        ws_id = create_resp.json()["id"]
-
         ws_slug = create_resp.json()["slug"]
 
         resp = client.get(f"/api/v1/workspaces/{ws_slug}", headers=headers)

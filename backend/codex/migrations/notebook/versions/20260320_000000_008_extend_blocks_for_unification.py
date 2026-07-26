@@ -12,9 +12,8 @@ from collections.abc import Sequence
 from datetime import UTC
 
 import sqlalchemy as sa
-from ulid import ULID
-
 from alembic import op
+from ulid import ULID
 
 # revision identifiers, used by Alembic.
 revision: str = "008"

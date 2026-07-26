@@ -15,9 +15,9 @@ merged), whose bot principals this column links to. Existing agents get
 from collections.abc import Sequence
 
 import sqlalchemy as sa
-from sqlalchemy import inspect
 import sqlmodel
 from alembic import op
+from sqlalchemy import inspect
 
 # revision identifiers
 revision: str = "022"

@@ -203,8 +203,8 @@ def test_lock_per_notebook_isolation():
 
     try:
         # Initialize two separate notebooks
-        git_manager1 = GitManager(temp_dir1)
-        git_manager2 = GitManager(temp_dir2)
+        GitManager(temp_dir1)
+        GitManager(temp_dir2)
 
         results = []
 
@@ -278,7 +278,7 @@ def test_concurrent_init_same_path():
                 original_cwd = None
                 try:
                     original_cwd = os.getcwd()
-                except:
+                except Exception:
                     pass
 
                 try:
@@ -288,7 +288,7 @@ def test_concurrent_init_same_path():
                     if original_cwd and os.path.exists(original_cwd):
                         try:
                             os.chdir(original_cwd)
-                        except:
+                        except Exception:
                             pass
             except Exception as e:
                 errors.append(str(e))

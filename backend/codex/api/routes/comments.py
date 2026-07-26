@@ -7,7 +7,7 @@ post time, and never re-parsed on read (design doc §4).
 """
 
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -266,7 +266,7 @@ async def update_comment(
         raise HTTPException(status_code=403, detail="Insufficient permission for this operation")
 
     comment.body = payload.body
-    comment.updated_at = datetime.now(timezone.utc)
+    comment.updated_at = datetime.now(UTC)
     session.add(comment)
     await session.commit()
     await session.refresh(comment)
@@ -297,7 +297,7 @@ async def delete_comment(
     if not is_admin and not (is_author and has_permission(level, PermissionLevel.COMMENT)):
         raise HTTPException(status_code=403, detail="Only the comment's author or a workspace admin can delete it")
 
-    comment.deleted_at = datetime.now(timezone.utc)
+    comment.deleted_at = datetime.now(UTC)
     session.add(comment)
     await session.commit()
 
@@ -323,7 +323,7 @@ async def resolve_comment(
     if comment.thread_id is not None:
         comment, workspace = await _get_comment_or_404(comment.thread_id, session)
 
-    comment.resolved_at = datetime.now(timezone.utc)
+    comment.resolved_at = datetime.now(UTC)
     comment.resolved_by_id = current_user.id
     session.add(comment)
 

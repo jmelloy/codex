@@ -12,9 +12,8 @@ from collections.abc import Sequence
 
 import sqlalchemy as sa
 import sqlmodel
-from sqlalchemy import inspect
-
 from alembic import op
+from sqlalchemy import inspect
 
 # revision identifiers, used by Alembic.
 revision: str = "002"

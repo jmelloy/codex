@@ -121,7 +121,6 @@ async def google_login_callback(
         )
 
     provider_email = token_data.get("provider_email")
-    provider_user_id = token_data.get("provider_user_id")
 
     if not provider_email:
         raise HTTPException(

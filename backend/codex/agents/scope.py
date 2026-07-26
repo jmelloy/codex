@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 ActionType = Literal["read", "write", "create", "delete", "execute"]
 
 
-class ScopeViolation(Exception):
+class ScopeViolationError(Exception):
     """Raised when an agent attempts an out-of-scope action."""
 
     def __init__(self, action: ActionType, target: str, reason: str):
@@ -80,9 +80,9 @@ class ScopeGuard:
         return True
 
     def validate_or_raise(self, action: ActionType, target: str) -> None:
-        """Validate action or raise ScopeViolation."""
+        """Validate action or raise ScopeViolationError."""
         if not self.check_path_access(target, action):
-            raise ScopeViolation(
+            raise ScopeViolationError(
                 action=action,
                 target=target,
                 reason=f"Agent '{self.agent.name}' not permitted to {action} '{target}'",

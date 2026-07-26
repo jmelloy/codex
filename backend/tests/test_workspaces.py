@@ -85,8 +85,6 @@ def test_get_other_users_workspace(test_client, auth_headers, temp_workspace_dir
     create_response = test_client.post(
         "/api/v1/workspaces/", json={"name": "Private Workspace", "path": temp_workspace_dir}, headers=headers1
     )
-    workspace_id = create_response.json()["id"]
-
     # Create second user
     username2 = f"test_ws_user2_{int(time.time() * 1000)}"
     test_client.post(
@@ -111,7 +109,6 @@ def test_update_workspace_theme(test_client, auth_headers, temp_workspace_dir):
     create_response = test_client.post(
         "/api/v1/workspaces/", json={"name": "Theme Workspace", "path": temp_workspace_dir}, headers=headers
     )
-    workspace_id = create_response.json()["id"]
     workspace_slug = create_response.json()["slug"]
 
     # Default theme should be "cream"
@@ -149,8 +146,6 @@ def test_update_theme_other_users_workspace(test_client, auth_headers, temp_work
     create_response = test_client.post(
         "/api/v1/workspaces/", json={"name": "Private Theme Workspace", "path": temp_workspace_dir}, headers=headers1
     )
-    workspace_id = create_response.json()["id"]
-
     # Create second user
     username2 = f"test_ws_user2_{int(time.time() * 1000)}"
     test_client.post(

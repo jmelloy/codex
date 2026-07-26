@@ -7,14 +7,14 @@ OpenAI-compatible APIs for provider-agnostic model access.
 
 from .engine import AgentEngine
 from .provider import CompletionProvider
-from .scope import ScopeGuard, ScopeViolation
+from .scope import ScopeGuard, ScopeViolationError
 from .tools import ToolDefinition, ToolRouter
 
 __all__ = [
     "AgentEngine",
     "CompletionProvider",
     "ScopeGuard",
-    "ScopeViolation",
+    "ScopeViolationError",
     "ToolDefinition",
     "ToolRouter",
 ]

@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 
-from .scope import ScopeGuard, ScopeViolation
+from .scope import ScopeGuard, ScopeViolationError
 
 if TYPE_CHECKING:
     from codex.db.models import AgentSession
@@ -214,7 +214,7 @@ class ToolRouter:
                 }
             )
             return result
-        except ScopeViolation as e:
+        except ScopeViolationError as e:
             elapsed_ms = int((time.monotonic() - start_time) * 1000)
             self._action_logs.append(
                 {
@@ -243,7 +243,7 @@ class ToolRouter:
         # Ensure the resolved path is within the notebook directory
         notebook_resolved = Path(self.notebook_path).resolve()
         if not str(resolved).startswith(str(notebook_resolved)):
-            raise ScopeViolation(
+            raise ScopeViolationError(
                 action="read",
                 target=path,
                 reason=f"Path '{path}' resolves outside notebook directory",

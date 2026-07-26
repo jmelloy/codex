@@ -82,7 +82,7 @@ class GitManager:
         try:
             try:
                 original_cwd = os.getcwd()
-            except:
+            except Exception:
                 pass
 
             self.repo.index.add([".gitignore"])
@@ -91,7 +91,7 @@ class GitManager:
             if original_cwd and os.path.exists(original_cwd):
                 try:
                     os.chdir(original_cwd)
-                except:
+                except Exception:
                     pass
 
     def is_binary_file(self, filepath: str) -> bool:
@@ -323,8 +323,6 @@ class GitManager:
         if not self.repo:
             return
 
-        resolved_path = str(Path(filepath).resolve())
-        rel_path = os.path.relpath(resolved_path, self.notebook_path)
         filename = os.path.basename(filepath)
 
         with git_lock_manager.lock(self.notebook_path):

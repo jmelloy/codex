@@ -206,7 +206,6 @@ def test_list_notebooks_nonexistent_workspace(test_client, auth_headers):
 def test_list_notebooks_other_users_workspace(test_client, auth_headers, create_workspace):
     """Test that users cannot list notebooks in other users' workspaces."""
     # Create workspace with first user
-    headers1 = auth_headers[0]
     workspace = create_workspace()
 
     # Create second user

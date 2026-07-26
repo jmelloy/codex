@@ -4,10 +4,9 @@ import os
 import sys
 from pathlib import Path
 
+from alembic import context
 from sqlalchemy import create_engine, pool
 from sqlalchemy.engine import Connection
-
-from alembic import context
 
 # Add backend/ (not backend/codex) to sys.path so `import codex...` works when
 # running the alembic CLI directly - this file lives at
@@ -19,7 +18,7 @@ if str(backend_dir) not in sys.path:
 # Import only system models (not notebook models which are in separate databases)
 
 # Import SQLModel to ensure metadata is populated
-from sqlmodel import SQLModel
+from sqlmodel import SQLModel  # noqa: E402
 
 # Alembic Config object
 config = context.config

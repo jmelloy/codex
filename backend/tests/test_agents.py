@@ -88,14 +88,14 @@ class TestScopeGuard:
         assert guard.check_notebook_access("any-notebook") is True
 
     def test_validate_or_raise(self):
-        from codex.agents.scope import ScopeGuard, ScopeViolation
+        from codex.agents.scope import ScopeGuard, ScopeViolationError
 
         agent = self._make_agent()
         guard = ScopeGuard(agent)
         # Read should pass
         guard.validate_or_raise("read", "hello.md")
         # Write should raise
-        with pytest.raises(ScopeViolation):
+        with pytest.raises(ScopeViolationError):
             guard.validate_or_raise("write", "hello.md")
 
 

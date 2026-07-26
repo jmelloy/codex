@@ -283,6 +283,9 @@ async def get_current_user(
             raise credentials_exception
         # Stash the token's scopes so route-level require_scope() dependencies can enforce them.
         request.state.token_scopes = list(pat.scopes) if pat.scopes else []
+        # Stash the token's workspace binding so routes that vend credentials/secrets can
+        # confirm a workspace-scoped PAT isn't used to reach a different workspace.
+        request.state.token_workspace_id = pat.workspace_id
         return user
 
     # Otherwise treat as JWT
@@ -300,6 +303,7 @@ async def get_current_user(
 
     # A JWT represents a full human session (not a scope-restricted PAT).
     request.state.token_scopes = None
+    request.state.token_workspace_id = None
     return user
 
 

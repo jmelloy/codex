@@ -84,7 +84,7 @@ def is_pointer_file(filepath: str) -> bool:
 _s3_client = None
 
 
-def _get_s3_client():
+def get_s3_client():
     global _s3_client
     if _s3_client is None:
         kwargs = {"region_name": S3_REGION}
@@ -110,7 +110,7 @@ def ensure_versioning(bucket: str | None = None) -> bool:
     if not bucket:
         return False
     try:
-        client = _get_s3_client()
+        client = get_s3_client()
         client.put_bucket_versioning(
             Bucket=bucket,
             VersioningConfiguration={"Status": "Enabled"},
@@ -128,7 +128,7 @@ def get_versioning_status(bucket: str | None = None) -> str | None:
     if not bucket:
         return None
     try:
-        client = _get_s3_client()
+        client = get_s3_client()
         resp = client.get_bucket_versioning(Bucket=bucket)
         return resp.get("Status")
     except ClientError as e:
@@ -160,7 +160,7 @@ def upload_binary(
     if not bucket:
         raise RuntimeError("CODEX_S3_BUCKET is not configured")
 
-    client = _get_s3_client()
+    client = get_s3_client()
     resp = client.put_object(
         Bucket=bucket,
         Key=s3_key,
@@ -187,7 +187,7 @@ def download_binary(s3_key: str, version_id: str | None = None, bucket: str | No
     if not bucket:
         raise RuntimeError("CODEX_S3_BUCKET is not configured")
 
-    client = _get_s3_client()
+    client = get_s3_client()
     kwargs: dict = {"Bucket": bucket, "Key": s3_key}
     if version_id and version_id != "null":
         kwargs["VersionId"] = version_id
@@ -202,7 +202,7 @@ def generate_presigned_url(s3_key: str, version_id: str | None = None, bucket: s
     if not bucket:
         raise RuntimeError("CODEX_S3_BUCKET is not configured")
 
-    client = _get_s3_client()
+    client = get_s3_client()
     params: dict = {"Bucket": bucket, "Key": s3_key}
     if version_id and version_id != "null":
         params["VersionId"] = version_id
@@ -216,7 +216,7 @@ def list_versions(s3_key: str, bucket: str | None = None) -> list[dict]:
     if not bucket:
         return []
 
-    client = _get_s3_client()
+    client = get_s3_client()
     try:
         resp = client.list_object_versions(Bucket=bucket, Prefix=s3_key)
         versions = []

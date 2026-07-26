@@ -250,6 +250,11 @@ app.include_router(
     tags=["collaborators"],
 )
 app.include_router(
+    sync.router,
+    prefix="/api/v1/workspaces/{workspace_identifier}/sync",
+    tags=["sync"],
+)
+app.include_router(
     users.bots_router,
     prefix="/api/v1/workspaces/{workspace_identifier}/bots",
     tags=["bots"],

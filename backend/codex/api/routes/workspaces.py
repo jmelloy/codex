@@ -157,9 +157,18 @@ async def path_exists_in_db(session: AsyncSession, path: str) -> bool:
     return result.scalar_one_or_none() is not None
 
 
-async def slug_exists_in_db(session: AsyncSession, slug: str, owner_id: int) -> bool:
-    """Check if a workspace slug already exists for this owner."""
-    result = await session.execute(select(Workspace).where(Workspace.slug == slug, Workspace.owner_id == owner_id))
+async def slug_exists_in_db(session: AsyncSession, slug: str, owner_id: int, org_id: int | None = None) -> bool:
+    """Check if a workspace slug already exists in the relevant uniqueness scope.
+
+    Personal workspaces (`org_id=None`) are unique per owner; org workspaces are unique
+    per org (`uq_workspaces_org_slug`), so a different owner in the same org still collides.
+    """
+    query = select(Workspace).where(Workspace.slug == slug)
+    if org_id is not None:
+        query = query.where(Workspace.org_id == org_id)
+    else:
+        query = query.where(Workspace.owner_id == owner_id, Workspace.org_id.is_(None))
+    result = await session.execute(query)
     return result.scalar_one_or_none() is not None
 
 
@@ -168,18 +177,22 @@ async def get_workspace_by_slug(
     current_user: User,
     session: AsyncSession,
     required_level: PermissionLevel = PermissionLevel.READ,
+    org_id: int | None = None,
 ) -> Workspace:
     """Get workspace by slug, asserting the caller has at least `required_level` access.
 
-    Slugs are only unique per-owner (see docs/design/multi-user-multi-org.md, L10), so the
-    lookup is scoped to workspaces the user owns or has an explicit permission grant on rather
-    than searching all workspaces by slug.
+    Slugs are unique per-owner for personal workspaces and per-org for org workspaces
+    (issue #538, design doc §2.2), not globally, so this resolves every workspace
+    matching the slug (optionally narrowed to `org_id`) and returns the first one the
+    caller can actually access via `effective_level` -- which folds in org-role-based
+    implicit access, not just ownership or an explicit grant (design doc §2.3, the L1 fix).
 
     Args:
         workspace_slug: URL-safe slug identifier
         current_user: Current authenticated user
         session: Database session
         required_level: Minimum permission level required for this operation
+        org_id: If set, only consider workspaces belonging to this org
 
     Returns:
         Workspace object
@@ -188,19 +201,17 @@ async def get_workspace_by_slug(
         HTTPException: 404 if no accessible workspace matches, 403 if the caller's
             permission level is below `required_level`
     """
-    result = await session.execute(
-        select(Workspace)
-        .outerjoin(
-            WorkspacePermission,
-            (WorkspacePermission.workspace_id == Workspace.id)
-            & (WorkspacePermission.user_id == current_user.id),
-        )
-        .where(
-            Workspace.slug == workspace_slug,
-            (Workspace.owner_id == current_user.id) | (WorkspacePermission.user_id == current_user.id),
-        )
-    )
-    workspace = result.scalars().first()
+    query = select(Workspace).where(Workspace.slug == workspace_slug)
+    if org_id is not None:
+        query = query.where(Workspace.org_id == org_id)
+    result = await session.execute(query)
+    candidates = result.scalars().all()
+
+    workspace = None
+    for candidate in candidates:
+        if await effective_level(current_user, candidate, session) is not None:
+            workspace = candidate
+            break
 
     if not workspace:
         raise HTTPException(status_code=404, detail="Workspace not found")

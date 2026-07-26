@@ -788,9 +788,11 @@ class SyncJournal(SQLModel, table=True):
     (EventBridge -> SQS -> ARQ, where configured). `id` is a strictly monotonic,
     never-reused autoincrement (`sqlite_autoincrement`), so it doubles as the
     change feed's pull cursor for `GET .../sync/changes?since=cursor`. The
-    unique constraint on (path, s3_version_id) deduplicates the same S3 object
-    version being reported twice — e.g. a push-complete call racing a bucket
-    notification for the same write.
+    unique constraint on (ws_id, nb_id, path, s3_version_id) deduplicates the
+    same S3 object version being reported twice for the same notebook — e.g. a
+    push-complete call racing a bucket notification for the same write. `path`
+    is notebook-relative, so the workspace/notebook must be part of the key or
+    two different notebooks with the same relative path could collide.
 
     Column names (`ws_id`, `nb_id`, `actor_principal_id`, `ts`) intentionally
     follow issue #541's schema rather than this file's usual `workspace_id`/
@@ -800,7 +802,7 @@ class SyncJournal(SQLModel, table=True):
 
     __tablename__ = "sync_journal"  # type: ignore[assignment]
     __table_args__ = (
-        UniqueConstraint("path", "s3_version_id", name="uq_sync_journal_path_version"),
+        UniqueConstraint("ws_id", "nb_id", "path", "s3_version_id", name="uq_sync_journal_scope_path_version"),
         {"sqlite_autoincrement": True},
     )
 

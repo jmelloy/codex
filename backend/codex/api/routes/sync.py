@@ -231,13 +231,16 @@ async def _record_journal_entry(
     op: str,
     actor_principal_id: int | None,
 ) -> tuple[SyncJournal, bool]:
-    """Insert a journal row, deduplicating on (path, s3_version_id).
+    """Insert a journal row, deduplicating on (ws_id, nb_id, path, s3_version_id).
 
     Returns `(entry, created)`. `created` is False when a row for this exact
-    (path, s3_version_id) pair already exists — e.g. this push-complete call
-    raced a bucket-notification-sourced write for the same S3 object version —
-    in which case the existing row is returned rather than inserting a
-    duplicate.
+    (ws_id, nb_id, path, s3_version_id) tuple already exists — e.g. this
+    push-complete call raced a bucket-notification-sourced write for the same
+    S3 object version — in which case the existing row is returned rather than
+    inserting a duplicate. `path` is notebook-relative, so the fallback lookup
+    is scoped by ws_id/nb_id too, otherwise it could return an unrelated row
+    from a different workspace/notebook that happens to share the same path
+    and version.
     """
     entry = SyncJournal(
         ws_id=ws_id,
@@ -254,11 +257,16 @@ async def _record_journal_entry(
         await session.rollback()
         result = await session.execute(
             select(SyncJournal).where(
+                SyncJournal.ws_id == ws_id,
+                SyncJournal.nb_id == nb_id,
                 SyncJournal.path == path,
                 SyncJournal.s3_version_id == s3_version_id,
             )
         )
-        return result.scalar_one(), False
+        existing = result.scalar_one_or_none()
+        if existing is None:
+            raise
+        return existing, False
     await session.refresh(entry)
     return entry, True
 
@@ -274,9 +282,9 @@ async def push_complete(
 
     Requires the `sync:credentials` scope when authenticated via a personal
     access token (design doc §3.4); full human sessions are unaffected.
-    Duplicate (path, s3_version_id) pairs are deduplicated: calling this twice
-    for the same object version returns the existing journal row instead of
-    creating a second one.
+    Duplicate (path, s3_version_id) pairs within the same workspace/notebook
+    are deduplicated: calling this twice for the same object version returns
+    the existing journal row instead of creating a second one.
     """
     if body.op not in VALID_OPS:
         raise HTTPException(status_code=400, detail=f"op must be one of {sorted(VALID_OPS)}")

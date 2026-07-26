@@ -81,6 +81,33 @@ def test_push_complete_same_path_different_version_is_not_deduped(test_client, a
     assert first.json()["id"] != second.json()["id"]
 
 
+def test_push_complete_same_path_and_version_different_workspace_is_not_deduped(
+    test_client, auth_headers, workspace_and_notebook, create_workspace
+):
+    """Dedup is scoped by (ws_id, nb_id): `path` is notebook-relative, so the same
+    (path, s3_version_id) pair in a different workspace/notebook must not be treated
+    as a duplicate of, or resolve to, the other workspace's journal row."""
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
+
+    other_workspace = create_workspace(name="Other Workspace")
+    other_nb_response = test_client.post(
+        f"/api/v1/workspaces/{other_workspace['slug']}/notebooks/",
+        json={"name": "Other Notebook"},
+        headers=headers,
+    )
+    assert other_nb_response.status_code == 200
+    other_notebook = other_nb_response.json()
+
+    first = _push_complete(test_client, workspace, notebook, headers, path="shared.md", version="v1")
+    second = _push_complete(test_client, other_workspace, other_notebook, headers, path="shared.md", version="v1")
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert first.json()["id"] != second.json()["id"]
+    assert first.json()["ws_id"] == workspace["id"]
+    assert second.json()["ws_id"] == other_workspace["id"]
+
+
 def test_push_complete_requires_authentication(test_client):
     response = test_client.post(
         "/api/v1/workspaces/no-such-ws/sync/push-complete",

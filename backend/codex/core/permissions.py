@@ -68,8 +68,8 @@ async def effective_level(
             WorkspacePermission.user_id == user.id,
         )
     )
-    grant = result.scalar_one_or_none()
-    grant_level = PermissionLevel.from_str(grant.permission_level) if grant is not None else None
+    grants = result.scalars().all()
+    grant_level = max((PermissionLevel.from_str(g.permission_level) for g in grants), default=None)
 
     if org_level is None:
         return grant_level

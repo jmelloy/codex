@@ -21,6 +21,7 @@ These models are stored in the system database (codex_system.db):
 
 from datetime import datetime, timezone
 from enum import StrEnum
+from typing import Optional
 
 from pydantic import model_validator
 from sqlalchemy import DateTime, Index, UniqueConstraint, text
@@ -135,7 +136,7 @@ class Workspace(SQLModel, table=True):
 
     # Relationships
     owner: User = Relationship(back_populates="workspaces")
-    organization: "Organization" = Relationship(back_populates="workspaces")
+    organization: Optional["Organization"] = Relationship(back_populates="workspaces")
     permissions: list["WorkspacePermission"] = Relationship(back_populates="workspace")
     notebooks: list["Notebook"] = Relationship(back_populates="workspace")
     agents: list["Agent"] = Relationship(back_populates="workspace")

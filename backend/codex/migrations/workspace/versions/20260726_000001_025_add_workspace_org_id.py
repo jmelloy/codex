@@ -29,8 +29,11 @@ depends_on: str | Sequence[str] | None = None
 
 def _column_exists(table: str, column: str) -> bool:
     conn = op.get_bind()
-    result = conn.execute(sa.text(f"PRAGMA table_info({table})"))
-    return any(row[1] == column for row in result)
+    if conn.dialect.name == "sqlite":
+        result = conn.execute(sa.text(f"PRAGMA table_info({table})"))
+        return any(row[1] == column for row in result)
+    inspector = sa.inspect(conn)
+    return any(col["name"] == column for col in inspector.get_columns(table))
 
 
 def upgrade() -> None:

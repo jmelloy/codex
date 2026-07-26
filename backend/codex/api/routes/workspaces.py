@@ -13,7 +13,7 @@ from sqlmodel import select
 from codex.api.auth import get_current_active_user
 from codex.api.routes.utils import slugify
 from codex.api.schemas import MessageResponse, WorkspacePluginConfigResponse
-from codex.core.permissions import PermissionLevel, check_permission, effective_level
+from codex.core.permissions import PermissionLevel, effective_level, has_permission
 from codex.core.watcher import get_watcher_for_notebook, unregister_watcher
 from codex.db.database import DATA_DIRECTORY, get_system_session
 from codex.db.models import (
@@ -208,15 +208,17 @@ async def get_workspace_by_slug(
     candidates = result.scalars().all()
 
     workspace = None
+    level = None
     for candidate in candidates:
-        if await effective_level(current_user, candidate, session) is not None:
+        level = await effective_level(current_user, candidate, session)
+        if level is not None:
             workspace = candidate
             break
 
     if not workspace:
         raise HTTPException(status_code=404, detail="Workspace not found")
 
-    if not await check_permission(current_user, workspace, required_level, session):
+    if not has_permission(level, required_level):
         raise HTTPException(status_code=403, detail="Insufficient permission for this operation")
 
     return workspace

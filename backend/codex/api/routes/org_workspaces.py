@@ -47,10 +47,17 @@ async def list_org_workspaces(
     explicit grant on a given workspace won't see it, even though they can see the
     org itself).
     """
-    org, _ = await get_org_by_slug(org_slug, current_user, session)
+    org, membership = await get_org_by_slug(org_slug, current_user, session)
 
     result = await session.execute(select(Workspace).where(Workspace.org_id == org.id))
     workspaces = result.scalars().all()
+
+    # Member/admin/owner always resolve a non-None effective_level on every workspace
+    # in their org (member via org_member_default_level, admin/owner via ADMIN), so
+    # skip the per-workspace resolve entirely and just return them all. Guests get no
+    # default level, so their visibility still depends on an explicit per-workspace grant.
+    if OrgRoleRank.from_str(membership.role) >= OrgRoleRank.MEMBER:
+        return list(workspaces)
 
     visible = []
     for workspace in workspaces:

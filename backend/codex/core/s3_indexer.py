@@ -235,7 +235,9 @@ def _conflict_copy_relative_path(notebook_path: Path, relative_path: str, date_s
         n += 1
 
 
-def _materialize_conflict_copy(workspace: Workspace, notebook: Notebook, notebook_path: Path, entry: SyncJournal) -> str:
+def _materialize_conflict_copy(
+    workspace: Workspace, notebook: Notebook, notebook_path: Path, entry: SyncJournal
+) -> str:
     """Fetch the version an entry's write superseded and save it as a conflict copy.
 
     Returns the notebook-relative path of the copy. The copy is fetched straight from S3 by

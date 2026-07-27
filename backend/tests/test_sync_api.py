@@ -176,3 +176,77 @@ def test_push_complete_succeeds_with_sync_credentials_scope(test_client, auth_he
 
     response = _push_complete(test_client, workspace, notebook, pat_headers)
     assert response.status_code == 200
+
+
+def test_push_complete_rejects_parent_traversal_path(test_client, auth_headers, workspace_and_notebook):
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
+
+    response = _push_complete(test_client, workspace, notebook, headers, path="../../etc/passwd")
+    assert response.status_code == 400
+
+
+def test_push_complete_rejects_absolute_path(test_client, auth_headers, workspace_and_notebook):
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
+
+    response = _push_complete(test_client, workspace, notebook, headers, path="/etc/passwd")
+    assert response.status_code == 400
+
+
+def test_push_complete_does_not_dedupe_same_path_across_notebooks(test_client, auth_headers, create_workspace):
+    """Two notebooks sharing a relative path + version string must not collide (Copilot review, PR #578)."""
+    headers = auth_headers[0]
+    workspace = create_workspace()
+
+    nb_a = test_client.post(
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/", json={"name": "NB A"}, headers=headers
+    ).json()
+    nb_b = test_client.post(
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/", json={"name": "NB B"}, headers=headers
+    ).json()
+
+    first = _push_complete(test_client, workspace, nb_a, headers, path="readme.md", version="v1")
+    second = _push_complete(test_client, workspace, nb_b, headers, path="readme.md", version="v1")
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert first.json()["id"] != second.json()["id"]
+    assert first.json()["nb_id"] == nb_a["id"]
+    assert second.json()["nb_id"] == nb_b["id"]
+
+
+def test_push_complete_rejects_pat_scoped_to_other_workspace(
+    test_client, auth_headers, workspace_and_notebook, create_workspace
+):
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
+    other_workspace = create_workspace(name="Other Workspace")
+
+    token_resp = test_client.post(
+        "/api/v1/tokens/",
+        json={"name": "scoped-to-other", "scopes": ["sync:credentials"], "workspace_id": other_workspace["id"]},
+        headers=headers,
+    )
+    assert token_resp.status_code == 201
+    pat_headers = {"Authorization": f"Bearer {token_resp.json()['token']}"}
+
+    response = _push_complete(test_client, workspace, notebook, pat_headers)
+    assert response.status_code == 403
+
+
+def test_push_complete_succeeds_with_pat_scoped_to_matching_workspace(
+    test_client, auth_headers, workspace_and_notebook
+):
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
+
+    token_resp = test_client.post(
+        "/api/v1/tokens/",
+        json={"name": "scoped-to-this", "scopes": ["sync:credentials"], "workspace_id": workspace["id"]},
+        headers=headers,
+    )
+    assert token_resp.status_code == 201
+    pat_headers = {"Authorization": f"Bearer {token_resp.json()['token']}"}
+
+    response = _push_complete(test_client, workspace, notebook, pat_headers)
+    assert response.status_code == 200

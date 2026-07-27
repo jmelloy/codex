@@ -95,11 +95,20 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Error starting notebook watcher: {e}", exc_info=True)
 
+    # Start the S3 working-copy indexer for shared (org) notebooks (issue #542).
+    # No-op if S3 isn't configured; personal workspaces keep the watcher path above.
+    from codex.core.s3_indexer import indexer_service
+
+    indexer_service.start()
+
     yield
 
     # Close ARQ Redis pool
     if getattr(app.state, "arq_pool", None) is not None:
         await app.state.arq_pool.close()
+
+    # Stop the S3 working-copy indexer
+    await indexer_service.stop()
 
     # Stop all watchers on shutdown
     stop_all_watchers()

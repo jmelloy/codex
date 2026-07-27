@@ -788,9 +788,11 @@ class SyncJournal(SQLModel, table=True):
     (EventBridge -> SQS -> ARQ, where configured). `id` is a strictly monotonic,
     never-reused autoincrement (`sqlite_autoincrement`), so it doubles as the
     change feed's pull cursor for `GET .../sync/changes?since=cursor`. The
-    unique constraint on (path, s3_version_id) deduplicates the same S3 object
-    version being reported twice — e.g. a push-complete call racing a bucket
-    notification for the same write.
+    unique constraint on (ws_id, nb_id, path, s3_version_id) deduplicates the same
+    S3 object version being reported twice — e.g. a push-complete call racing a
+    bucket notification for the same write. `path` is only unique within a given
+    notebook, so ws_id/nb_id must be part of the key or distinct notebooks sharing
+    a relative path (e.g. two notebooks each with a "readme.md") would collide.
 
     Column names (`ws_id`, `nb_id`, `actor_principal_id`, `ts`) intentionally
     follow issue #541's schema rather than this file's usual `workspace_id`/
@@ -800,14 +802,14 @@ class SyncJournal(SQLModel, table=True):
 
     __tablename__ = "sync_journal"  # type: ignore[assignment]
     __table_args__ = (
-        UniqueConstraint("path", "s3_version_id", name="uq_sync_journal_path_version"),
+        UniqueConstraint("ws_id", "nb_id", "path", "s3_version_id", name="uq_sync_journal_path_version"),
         {"sqlite_autoincrement": True},
     )
 
     id: int | None = Field(default=None, primary_key=True)
     ws_id: int = Field(foreign_key="workspaces.id", index=True)
     nb_id: int = Field(foreign_key="notebooks.id", index=True)
-    path: str = Field(index=True)  # S3 object key
+    path: str = Field(index=True)  # notebook-relative path, not the full S3 key
     s3_version_id: str
     actor_principal_id: int | None = Field(default=None, foreign_key="users.id", index=True)
     op: str = Field(index=True)  # "created" | "modified" | "deleted"

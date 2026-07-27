@@ -1,19 +1,19 @@
-"""S3 sync routes: credential vending + journal/change feed.
+"""S3 sync routes: credential vendor (#540) + journal/change feed (#541).
 
-Credential vending (issue #540, design doc §3.3):
-    POST .../sync/credentials  - scoped, short-lived STS credentials
-    POST .../sync/presign      - presigned-URL batch fallback for stores without STS
+Design doc §3.3/§3.4. All routes are nested under
+/workspaces/{workspace_identifier}/sync:
 
-Journal + change feed (issue #541, design doc §3.2/§3.4):
-    POST .../sync/push-complete - records a journal row for a completed S3 write
-    GET  .../sync/changes       - lets sync clients pull new rows incrementally
+    POST .../sync/credentials     - scoped, short-lived STS credentials
+    POST .../sync/presign         - presigned-URL batch fallback for stores without STS
+    POST .../sync/push-complete   - record a completed S3 write in the sync journal
+    GET  .../sync/changes         - cursor-based incremental pull of journal rows
 
-Both groups work identically for human JWTs and bot PATs: a JWT represents a
-full human session (permission level is the only gate), while a PAT must carry
-the `sync:credentials` scope and, if it's bound to a specific workspace, can
-only act on that workspace. The change feed also fans out live over the
-existing `workspace:{id}` WebSocket channel so connected clients don't have to
-poll.
+Credential/presign endpoints work identically for human JWTs and bot PATs: a
+JWT represents a full human session (permission level is the only gate),
+while a PAT must carry the `sync:credentials` scope and, if it's bound to a
+specific workspace, can only vend for that workspace. The change feed also
+fans out live over the existing `workspace:{id}` WebSocket channel so
+connected clients don't have to poll.
 """
 
 from datetime import datetime
@@ -29,6 +29,7 @@ from codex.api.auth import PermissionScope, User, get_current_active_user, requi
 from codex.api.routes.notebooks import get_notebook_by_slug
 from codex.api.routes.workspaces import get_workspace_by_slug
 from codex.core.permissions import PermissionLevel
+from codex.core.s3_indexer import is_safe_relative_path
 from codex.core.sync_credentials import (
     SYNC_CREDENTIAL_TTL,
     WRITE_OPERATIONS,
@@ -101,7 +102,7 @@ class PushCompleteRequest(BaseModel):
     """Body for `POST .../sync/push-complete`."""
 
     notebook_slug: str
-    path: str  # S3 object key for the synced file
+    path: str  # notebook-relative path under the notebook's S3 content prefix, not the full S3 key
     s3_version_id: str
     op: str  # "created" | "modified" | "deleted"
 
@@ -231,13 +232,15 @@ async def _record_journal_entry(
     op: str,
     actor_principal_id: int | None,
 ) -> tuple[SyncJournal, bool]:
-    """Insert a journal row, deduplicating on (path, s3_version_id).
+    """Insert a journal row, deduplicating on (ws_id, nb_id, path, s3_version_id).
 
     Returns `(entry, created)`. `created` is False when a row for this exact
-    (path, s3_version_id) pair already exists — e.g. this push-complete call
-    raced a bucket-notification-sourced write for the same S3 object version —
-    in which case the existing row is returned rather than inserting a
-    duplicate.
+    (ws_id, nb_id, path, s3_version_id) key already exists — e.g. this
+    push-complete call raced a bucket-notification-sourced write for the same
+    S3 object version — in which case the existing row is returned rather than
+    inserting a duplicate. ws_id/nb_id are part of the lookup (matching the
+    unique constraint) since `path` is only notebook-relative and could
+    otherwise match an unrelated notebook's row.
     """
     entry = SyncJournal(
         ws_id=ws_id,
@@ -254,6 +257,8 @@ async def _record_journal_entry(
         await session.rollback()
         result = await session.execute(
             select(SyncJournal).where(
+                SyncJournal.ws_id == ws_id,
+                SyncJournal.nb_id == nb_id,
                 SyncJournal.path == path,
                 SyncJournal.s3_version_id == s3_version_id,
             )
@@ -267,6 +272,7 @@ async def _record_journal_entry(
 async def push_complete(
     workspace_identifier: str,
     body: PushCompleteRequest,
+    request: Request,
     current_user: User = Depends(require_scope(PermissionScope.SYNC_CREDENTIALS)),
     session: AsyncSession = Depends(get_system_session),
 ) -> SyncJournal:
@@ -274,16 +280,19 @@ async def push_complete(
 
     Requires the `sync:credentials` scope when authenticated via a personal
     access token (design doc §3.4); full human sessions are unaffected.
-    Duplicate (path, s3_version_id) pairs are deduplicated: calling this twice
-    for the same object version returns the existing journal row instead of
-    creating a second one.
+    Duplicate (ws_id, nb_id, path, s3_version_id) keys are deduplicated:
+    calling this twice for the same object version returns the existing
+    journal row instead of creating a second one.
     """
     if body.op not in VALID_OPS:
         raise HTTPException(status_code=400, detail=f"op must be one of {sorted(VALID_OPS)}")
+    if not is_safe_relative_path(body.path):
+        raise HTTPException(status_code=400, detail="path must be a notebook-relative path with no '..' segments")
 
     workspace = await get_workspace_by_slug(
         workspace_identifier, current_user, session, required_level=PermissionLevel.WRITE
     )
+    _enforce_pat_workspace_scope(request, workspace)
     notebook = await get_notebook_by_slug(body.notebook_slug, workspace, session)
 
     entry, created = await _record_journal_entry(

@@ -20,6 +20,7 @@ from codex.api.schemas import (
 )
 from codex.core.permissions import PermissionLevel, require_level
 from codex.core.watcher import NotebookWatcher, get_watcher_for_notebook, unregister_watcher
+from codex.core.workspace_sharing import is_shared_workspace
 from codex.db.database import get_system_session, init_notebook_db
 from codex.db.models import Notebook, NotebookPluginConfig, User, Workspace
 
@@ -273,10 +274,6 @@ async def create_notebook_nested(
 
         init_notebook_db(str(notebook_path))
 
-        from codex.core.git_manager import GitManager
-
-        GitManager(str(notebook_path))
-
         notebook = Notebook(
             workspace_id=workspace.id, name=body.name, slug=final_slug, path=final_slug, description=body.description
         )
@@ -284,7 +281,16 @@ async def create_notebook_nested(
         await session.commit()
         await session.refresh(notebook)
 
-        NotebookWatcher(str(notebook_path), notebook.id).start()
+        # Shared (org) notebooks are S3-synced; git is demoted to an optional,
+        # server-side export loop for them (issue #544, design doc §3.5) rather than
+        # an inline commit-on-every-write repo, and their working copy is indexed by
+        # S3IndexerService, not a filesystem watcher. Personal notebooks keep both.
+        if not is_shared_workspace(workspace):
+            from codex.core.git_manager import GitManager
+
+            GitManager(str(notebook_path))
+
+            NotebookWatcher(str(notebook_path), notebook.id).start()
 
         return {
             "id": notebook.id,

@@ -62,12 +62,8 @@ class User(SQLModel, table=True):
     bot_owner_org_id: str | None = None
     is_active: bool = Field(default=True)
     theme_setting: str | None = Field(default="cream")  # User's preferred theme
-    created_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True))
-    )
-    updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True))
-    )
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
 
     # Relationships
     workspaces: list["Workspace"] = Relationship(back_populates="owner")
@@ -126,12 +122,8 @@ class Workspace(SQLModel, table=True):
     # personal workspaces. Org owner/admin always get admin; guest always needs an explicit grant.
     org_member_default_level: str = Field(default="read")
     theme_setting: str | None = Field(default="cream")  # User's preferred theme
-    created_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True))
-    )
-    updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True))
-    )
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
 
     # Relationships
     owner: User = Relationship(back_populates="workspaces")
@@ -150,9 +142,7 @@ class WorkspacePermission(SQLModel, table=True):
     workspace_id: int = Field(foreign_key="workspaces.id")
     user_id: int = Field(foreign_key="users.id")
     permission_level: str = Field(default="read")  # read, comment, write, admin
-    created_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True))
-    )
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
 
     # Relationships
     workspace: Workspace = Relationship(back_populates="permissions")
@@ -179,12 +169,8 @@ class Organization(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     name: str
     slug: str = Field(unique=True, index=True)
-    created_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True))
-    )
-    updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True))
-    )
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
 
     # Relationships
     memberships: list["OrgMembership"] = Relationship(back_populates="organization")
@@ -201,12 +187,8 @@ class OrgMembership(SQLModel, table=True):
     org_id: int = Field(foreign_key="organizations.id", index=True)
     principal_id: int = Field(foreign_key="users.id", index=True)
     role: str = Field(default=OrgRole.MEMBER.value)  # "owner" | "admin" | "member" | "guest"
-    created_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True))
-    )
-    updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True))
-    )
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
 
     # Relationships
     organization: Organization = Relationship(back_populates="memberships")
@@ -228,12 +210,8 @@ class Task(SQLModel, table=True):
     job_id: str | None = None  # ARQ job identifier for background execution
     job_type: str = Field(default="agent")  # Job type for generic dispatch
     task_metadata: str | None = None  # JSON-encoded task-specific context
-    created_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True))
-    )
-    updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True))
-    )
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
     completed_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
 
 
@@ -248,12 +226,8 @@ class Notebook(SQLModel, table=True):
     slug: str = Field(index=True)  # URL-safe identifier (unique per workspace)
     path: str = Field(index=True)  # Relative path from workspace
     description: str | None = None
-    created_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True))
-    )
-    updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True))
-    )
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
 
     # Relationships
     workspace: Workspace = Relationship(back_populates="notebooks")
@@ -270,12 +244,8 @@ class Plugin(SQLModel, table=True):
     version: str
     type: str  # 'view', 'theme', 'integration'
     enabled: bool = Field(default=True)
-    installed_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True))
-    )
-    updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True))
-    )
+    installed_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
     manifest: dict = Field(default={}, sa_column=Column(JSON))  # Full plugin manifest
 
     # Relationships
@@ -293,12 +263,8 @@ class PluginConfig(SQLModel, table=True):
     version: str | None = Field(default=None)  # Pinned plugin version (None = latest)
     enabled: bool = Field(default=True)  # Workspace-level enable/disable
     config: dict = Field(default={}, sa_column=Column(JSON))
-    created_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True))
-    )
-    updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True))
-    )
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
 
     # Relationships
     plugin: Plugin = Relationship(back_populates="configs")
@@ -315,12 +281,8 @@ class NotebookPluginConfig(SQLModel, table=True):
     version: str | None = Field(default=None)  # Pinned plugin version (None = latest)
     enabled: bool = Field(default=True)  # Notebook-level enable/disable (overrides workspace)
     config: dict = Field(default={}, sa_column=Column(JSON))
-    created_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True))
-    )
-    updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True))
-    )
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
 
 
 class PluginSecret(SQLModel, table=True):
@@ -333,12 +295,8 @@ class PluginSecret(SQLModel, table=True):
     plugin_id: str = Field(foreign_key="plugins.plugin_id", index=True)
     key: str
     encrypted_value: str
-    created_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True))
-    )
-    updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True))
-    )
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
 
 
 class PluginAPILog(SQLModel, table=True):
@@ -350,9 +308,7 @@ class PluginAPILog(SQLModel, table=True):
     workspace_id: int = Field(foreign_key="workspaces.id", index=True)
     plugin_id: str = Field(foreign_key="plugins.plugin_id", index=True)
     endpoint_id: str
-    timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True))
-    )
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
     status_code: int | None = None
     error: str | None = None
 
@@ -417,12 +373,8 @@ class Agent(SQLModel, table=True):
     webhook_secret_encrypted: str | None = None
     webhook_max_retries: int = Field(default=5)
 
-    created_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True))
-    )
-    updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True))
-    )
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
 
     # Relationships
     workspace: Workspace = Relationship(back_populates="agents")
@@ -444,9 +396,7 @@ class AgentCredential(SQLModel, table=True):
     agent_id: int = Field(foreign_key="agents.id", index=True)
     key_name: str  # "api_key", "organization_id", etc.
     encrypted_value: str  # Fernet-encrypted
-    created_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True))
-    )
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
 
     # Relationships
     agent: Agent = Relationship(back_populates="credentials")
@@ -470,9 +420,7 @@ class AgentSession(SQLModel, table=True):
     api_calls_made: int = Field(default=0)
     files_modified: list = Field(default=[], sa_column=Column(JSON))
 
-    started_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True))
-    )
+    started_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
     completed_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
     error_message: str | None = None
 
@@ -495,9 +443,7 @@ class AgentActionLog(SQLModel, table=True):
 
     was_allowed: bool = Field(default=True)  # Did scope guard permit this?
     execution_time_ms: int = Field(default=0)
-    created_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True))
-    )
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
 
 
 class AgentWebhookDelivery(SQLModel, table=True):
@@ -519,9 +465,7 @@ class AgentWebhookDelivery(SQLModel, table=True):
     response_status_code: int | None = None
     error: str | None = None
 
-    created_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True))
-    )
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
 
 
 class PasswordResetToken(SQLModel, table=True):
@@ -539,9 +483,7 @@ class PasswordResetToken(SQLModel, table=True):
     expires_at: datetime = Field(sa_column=Column(DateTime(timezone=True)))
     used_at: datetime | None = Field(sa_column=Column(DateTime(timezone=True)))
 
-    created_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True))
-    )
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
 
     # Relationships
     user: User = Relationship()
@@ -569,9 +511,7 @@ class PersonalAccessToken(SQLModel, table=True):
     last_used_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
     expires_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
     is_active: bool = Field(default=True)
-    created_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True))
-    )
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
 
     # Relationships
     user: User = Relationship()
@@ -592,9 +532,7 @@ class RefreshToken(SQLModel, table=True):
     token_hash: str = Field(unique=True, index=True)  # SHA-256 of the full token
     expires_at: datetime = Field(sa_column=Column(DateTime(timezone=True)))
     revoked_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
-    created_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True))
-    )
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
 
     # Relationships
     user: User = Relationship()
@@ -618,12 +556,8 @@ class OAuthConnection(SQLModel, table=True):
     token_expires_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
     scopes: str | None = None  # Comma-separated OAuth scopes granted
     is_active: bool = Field(default=True)
-    created_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True))
-    )
-    updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True))
-    )
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
 
     # Relationships
     user: User = Relationship()
@@ -649,9 +583,7 @@ class IntegrationArtifact(SQLModel, table=True):
     parameters_hash: str = Field(index=True)  # Hash of request parameters for cache key
     artifact_path: str  # Relative path to artifact file within workspace
     content_type: str = Field(default="application/json")  # MIME type of the artifact
-    fetched_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True))
-    )
+    fetched_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
     expires_at: datetime | None = Field(
         default=None, sa_column=Column(DateTime(timezone=True))
     )  # Optional expiration time for cache
@@ -677,12 +609,8 @@ class Comment(SQLModel, table=True):
     body: str
     resolved_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
     resolved_by_id: int | None = Field(default=None, foreign_key="users.id")
-    created_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True))
-    )
-    updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True))
-    )
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
     deleted_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
 
     # Relationships
@@ -703,9 +631,7 @@ class CommentMention(SQLModel, table=True):
     comment_id: int = Field(foreign_key="comments.id", index=True)
     mentioned_principal_id: int = Field(foreign_key="users.id", index=True)
     handle: str
-    created_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True))
-    )
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
 
     # Relationships
     comment: Comment = Relationship(back_populates="mentions")
@@ -730,9 +656,7 @@ class Event(SQLModel, table=True):
     # comment.created, comment.mention, comment.resolved, permission.granted, ...
     kind: str = Field(index=True)
     subject: dict = Field(default={}, sa_column=Column(JSON))
-    created_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True))
-    )
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
 
 
 class Notification(SQLModel, table=True):
@@ -750,9 +674,7 @@ class Notification(SQLModel, table=True):
     recipient_id: int = Field(foreign_key="users.id", index=True)
     read_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
     delivered_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
-    created_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True))
-    )
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
 
 
 class WorkspaceWatch(SQLModel, table=True):
@@ -772,12 +694,8 @@ class WorkspaceWatch(SQLModel, table=True):
     workspace_id: int = Field(foreign_key="workspaces.id", index=True)
     user_id: int = Field(foreign_key="users.id", index=True)
     muted: bool = Field(default=False)
-    created_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True))
-    )
-    updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True))
-    )
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
 
 
 class SyncJournal(SQLModel, table=True):
@@ -798,6 +716,15 @@ class SyncJournal(SQLModel, table=True):
     follow issue #541's schema rather than this file's usual `workspace_id`/
     `actor_id`/`created_at` convention, since they name a wire-level cursor
     contract shared with sync clients.
+
+    Conflict detection (issue #543, design doc §3.4) is compare-and-swap: a
+    writer reports the version it last saw as `base_version_id`. If that
+    doesn't match the path's HEAD version at write time, `conflict=True` and
+    `loser_version_id` records the version this write silently superseded
+    (still recoverable -- S3 versioning keeps it). The write still lands (this
+    row is created either way); the working-copy indexer materializes the
+    superseded content as a `name (conflict YYYY-MM-DD).md` copy and records
+    its path in `conflict_copy_path` once done.
     """
 
     __tablename__ = "sync_journal"  # type: ignore[assignment]
@@ -814,3 +741,7 @@ class SyncJournal(SQLModel, table=True):
     actor_principal_id: int | None = Field(default=None, foreign_key="users.id", index=True)
     op: str = Field(index=True)  # "created" | "modified" | "deleted"
     ts: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
+    base_version_id: str | None = Field(default=None)  # version the writer last saw before this write
+    conflict: bool = Field(default=False, index=True)
+    loser_version_id: str | None = Field(default=None)  # version this write superseded, if conflict
+    conflict_copy_path: str | None = Field(default=None)  # set once the indexer materializes the copy

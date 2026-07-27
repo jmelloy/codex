@@ -387,6 +387,126 @@ def test_service_poll_once_indexes_shared_workspace_from_journal(test_client, au
     assert block is not None
 
 
+# ── Conflict copy materialization (issue #543) ───────────────────────
+
+
+def _conflict_entry(nb_id, ws_id, path, version, loser_version_id, op="modified"):
+    return SyncJournal(
+        nb_id=nb_id,
+        ws_id=ws_id,
+        path=path,
+        s3_version_id=version,
+        op=op,
+        actor_principal_id=None,
+        conflict=True,
+        loser_version_id=loser_version_id,
+    )
+
+
+def test_apply_journal_entry_materializes_conflict_copy_alongside_winner(shared_workspace, fake_s3):
+    workspace, notebook = shared_workspace
+    prefix = _prefix(workspace, notebook)
+    fake_s3.put(f"{prefix}a.md", b"original", version_id="v1")
+    s3_indexer.rebuild_notebook_index(workspace, notebook)
+
+    # The winning write lands as v2; it superseded v1, which is still fetchable by version id.
+    fake_s3.put(f"{prefix}a.md", b"winning content", version_id="v2")
+    entry = _conflict_entry(notebook.id, workspace.id, "a.md", "v2", loser_version_id="v1")
+
+    s3_indexer.apply_journal_entry(workspace, notebook, entry)
+
+    notebook_path = s3_indexer.notebook_working_copy_path(workspace, notebook)
+    assert (notebook_path / "a.md").read_bytes() == b"winning content"
+
+    date_str = entry.ts.strftime("%Y-%m-%d")
+    conflict_copy = notebook_path / f"a (conflict {date_str}).md"
+    assert conflict_copy.exists()
+    assert conflict_copy.read_bytes() == b"original"
+
+
+def test_apply_journal_entry_conflict_copy_is_indexed_as_block(shared_workspace, fake_s3):
+    workspace, notebook = shared_workspace
+    prefix = _prefix(workspace, notebook)
+    fake_s3.put(f"{prefix}notes/a.md", b"original", version_id="v1")
+    s3_indexer.rebuild_notebook_index(workspace, notebook)
+
+    fake_s3.put(f"{prefix}notes/a.md", b"winning content", version_id="v2")
+    entry = _conflict_entry(notebook.id, workspace.id, "notes/a.md", "v2", loser_version_id="v1")
+
+    s3_indexer.apply_journal_entry(workspace, notebook, entry)
+
+    notebook_path = s3_indexer.notebook_working_copy_path(workspace, notebook)
+    date_str = entry.ts.strftime("%Y-%m-%d")
+    conflict_relative_path = f"notes/a (conflict {date_str}).md"
+
+    session = get_notebook_session(str(notebook_path))
+    try:
+        paths = {b.path for b in session.execute(select(Block)).scalars().all()}
+    finally:
+        session.close()
+    assert "notes/a.md" in paths
+    assert conflict_relative_path in paths
+
+
+def test_apply_journal_entry_conflict_copy_path_avoids_collision(shared_workspace, fake_s3):
+    """A second conflict on the same path the same day must not overwrite the first copy."""
+    workspace, notebook = shared_workspace
+    prefix = _prefix(workspace, notebook)
+    fake_s3.put(f"{prefix}a.md", b"v1 content", version_id="v1")
+    s3_indexer.rebuild_notebook_index(workspace, notebook)
+
+    fake_s3.put(f"{prefix}a.md", b"v2 content", version_id="v2")
+    first_conflict = _conflict_entry(notebook.id, workspace.id, "a.md", "v2", loser_version_id="v1")
+    s3_indexer.apply_journal_entry(workspace, notebook, first_conflict)
+
+    fake_s3.put(f"{prefix}a.md", b"v3 content", version_id="v3")
+    second_conflict = _conflict_entry(notebook.id, workspace.id, "a.md", "v3", loser_version_id="v2")
+    s3_indexer.apply_journal_entry(workspace, notebook, second_conflict)
+
+    notebook_path = s3_indexer.notebook_working_copy_path(workspace, notebook)
+    date_str = first_conflict.ts.strftime("%Y-%m-%d")
+    first_copy = notebook_path / f"a (conflict {date_str}).md"
+    second_copy = notebook_path / f"a (conflict {date_str} 2).md"
+    assert first_copy.read_bytes() == b"v1 content"
+    assert second_copy.read_bytes() == b"v2 content"
+    assert (notebook_path / "a.md").read_bytes() == b"v3 content"
+
+
+def test_apply_journal_entry_records_conflict_copy_path_on_journal_row_when_session_given(shared_workspace, fake_s3):
+    workspace, notebook = shared_workspace
+    prefix = _prefix(workspace, notebook)
+    fake_s3.put(f"{prefix}a.md", b"original", version_id="v1")
+    s3_indexer.rebuild_notebook_index(workspace, notebook)
+
+    fake_s3.put(f"{prefix}a.md", b"winning content", version_id="v2")
+    entry = _conflict_entry(notebook.id, workspace.id, "a.md", "v2", loser_version_id="v1")
+
+    system_session = get_system_session_sync()
+    try:
+        s3_indexer.apply_journal_entry(workspace, notebook, entry, session=system_session)
+        assert entry.conflict_copy_path is not None
+        date_str = entry.ts.strftime("%Y-%m-%d")
+        assert entry.conflict_copy_path == f"a (conflict {date_str}).md"
+    finally:
+        system_session.close()
+
+
+def test_apply_journal_entry_no_conflict_copy_when_not_flagged(shared_workspace, fake_s3):
+    """A non-conflicting entry must not create a conflict copy even if loser_version_id is unset."""
+    workspace, notebook = shared_workspace
+    prefix = _prefix(workspace, notebook)
+    s3_indexer.rebuild_notebook_index(workspace, notebook)
+
+    fake_s3.put(f"{prefix}plain.md", b"plain content", version_id="v1")
+    entry = _journal_entry(notebook.id, workspace.id, "plain.md", "v1")
+
+    s3_indexer.apply_journal_entry(workspace, notebook, entry)
+
+    notebook_path = s3_indexer.notebook_working_copy_path(workspace, notebook)
+    conflict_copies = list(notebook_path.glob("*conflict*"))
+    assert conflict_copies == []
+
+
 def test_service_poll_once_ignores_personal_workspaces(test_client, workspace_and_notebook, fake_s3):
     workspace, notebook = workspace_and_notebook
     notebook_path = (Path(workspace["path"]) / notebook["path"]).resolve()

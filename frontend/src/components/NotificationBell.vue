@@ -65,9 +65,13 @@ const KIND_LABELS: Record<string, string> = {
   "comment.mention": "You were mentioned in a comment",
   "comment.resolved": "A comment thread was resolved",
   "permission.granted": "You were granted workspace access",
+  "sync.conflict": "A sync conflict was detected",
 }
 
 function describe(notification: Notification): string {
+  if (notification.kind === "sync.conflict" && notification.subject?.path) {
+    return `Sync conflict on ${notification.subject.path}`
+  }
   return KIND_LABELS[notification.kind] || notification.kind
 }
 

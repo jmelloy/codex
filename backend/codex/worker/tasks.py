@@ -278,12 +278,23 @@ async def _resolve_permission_granted_recipients(session: AsyncSession, event: A
     return recipients
 
 
+async def _resolve_sync_conflict_recipients(session: AsyncSession, event: Any) -> set[int]:
+    """Recipients for sync.conflict events: both writers whose changes collided (issue #543).
+
+    Unlike the other resolvers, the acting writer is *not* discarded here — both sides of the
+    race need to know their write turned out to conflict, including the one who caused it.
+    """
+    subject = event.subject or {}
+    return {int(uid) for uid in subject.get("writer_ids") or []}
+
+
 # Registry of recipient resolvers by event kind — extend this dict to support new kinds.
 RECIPIENT_RESOLVERS: dict[str, RecipientResolver] = {
     "comment.created": _resolve_comment_recipients,
     "comment.mention": _resolve_comment_recipients,
     "comment.resolved": _resolve_comment_recipients,
     "permission.granted": _resolve_permission_granted_recipients,
+    "sync.conflict": _resolve_sync_conflict_recipients,
 }
 
 

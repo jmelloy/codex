@@ -1,4 +1,12 @@
-"""Tests for the S3 sync journal + change feed API (issue #541)."""
+"""Tests for the S3 sync journal + change feed API (issue #541) and
+compare-and-swap conflict detection (issue #543)."""
+
+import time
+
+from sqlmodel import select
+
+from codex.db.database import async_session_maker
+from codex.db.models import Event
 
 
 def _sync_url(workspace):
@@ -6,17 +14,43 @@ def _sync_url(workspace):
     return f"/api/v1/workspaces/{workspace['slug']}/sync"
 
 
-def _push_complete(test_client, workspace, notebook, headers, *, path="foo.md", version="v1", op="created"):
-    return test_client.post(
-        f"{_sync_url(workspace)}/push-complete",
-        json={
-            "notebook_slug": notebook["slug"],
-            "path": path,
-            "s3_version_id": version,
-            "op": op,
-        },
-        headers=headers,
+def _push_complete(
+    test_client, workspace, notebook, headers, *, path="foo.md", version="v1", op="created", base_version=None
+):
+    body = {
+        "notebook_slug": notebook["slug"],
+        "path": path,
+        "s3_version_id": version,
+        "op": op,
+    }
+    if base_version is not None:
+        body["base_version_id"] = base_version
+    return test_client.post(f"{_sync_url(workspace)}/push-complete", json=body, headers=headers)
+
+
+def _register_and_login(test_client, *, username=None):
+    """Register and log in a second user, returning (headers, username)."""
+    username = username or f"sync_user_{int(time.time() * 1_000_000)}"
+    email = f"{username}@example.com"
+    test_client.post(
+        "/api/v1/users/register",
+        json={"username": username, "email": email, "password": "testpass123"},
     )
+    login_response = test_client.post("/api/v1/users/token", data={"username": username, "password": "testpass123"})
+    assert login_response.status_code == 200
+    token = login_response.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}, username
+
+
+def _add_write_collaborator(test_client, workspace, owner_headers, collaborator_headers):
+    me = test_client.get("/api/v1/users/me", headers=collaborator_headers).json()
+    response = test_client.post(
+        f"/api/v1/workspaces/{workspace['slug']}/collaborators",
+        json={"username_or_email": me["username"], "permission_level": "write"},
+        headers=owner_headers,
+    )
+    assert response.status_code == 201
+    return me
 
 
 def test_push_complete_records_journal_entry(test_client, auth_headers, workspace_and_notebook):
@@ -250,3 +284,147 @@ def test_push_complete_succeeds_with_pat_scoped_to_matching_workspace(
 
     response = _push_complete(test_client, workspace, notebook, pat_headers)
     assert response.status_code == 200
+
+
+# ── Conflict detection (issue #543) ──────────────────────────────────────
+
+
+def test_push_complete_first_write_with_no_base_is_not_a_conflict(test_client, auth_headers, workspace_and_notebook):
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
+
+    response = _push_complete(test_client, workspace, notebook, headers, path="new.md", version="v1")
+    assert response.status_code == 200
+    entry = response.json()
+    assert entry["conflict"] is False
+    assert entry["loser_version_id"] is None
+    assert entry["base_version_id"] is None
+
+
+def test_push_complete_matching_base_is_not_a_conflict(test_client, auth_headers, workspace_and_notebook):
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
+
+    _push_complete(test_client, workspace, notebook, headers, path="doc.md", version="v1")
+    second = _push_complete(test_client, workspace, notebook, headers, path="doc.md", version="v2", base_version="v1")
+    assert second.status_code == 200
+    entry = second.json()
+    assert entry["conflict"] is False
+    assert entry["base_version_id"] == "v1"
+
+
+def test_push_complete_stale_base_flags_conflict_and_records_loser(test_client, auth_headers, workspace_and_notebook):
+    """Two writers race on the same path: writer A's write lands first (v1 -> v2), and writer
+    B's write is based on the now-stale v1. B's write still lands (it still gets a journal row
+    with its own version id), but is flagged as a conflict recording the version it superseded."""
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
+
+    _push_complete(test_client, workspace, notebook, headers, path="racy.md", version="v1")
+    winner = _push_complete(test_client, workspace, notebook, headers, path="racy.md", version="v2", base_version="v1")
+    assert winner.json()["conflict"] is False
+
+    # Writer B never saw v2 -- it based its write on v1, which is no longer HEAD.
+    loser = _push_complete(test_client, workspace, notebook, headers, path="racy.md", version="v3", base_version="v1")
+    assert loser.status_code == 200
+    entry = loser.json()
+    assert entry["conflict"] is True
+    assert entry["loser_version_id"] == "v2"
+    assert entry["base_version_id"] == "v1"
+
+    # The write still lands: both versions remain visible in the journal.
+    changes = test_client.get(f"{_sync_url(workspace)}/changes", headers=headers).json()
+    versions = {c["s3_version_id"] for c in changes["changes"] if c["path"] == "racy.md"}
+    assert versions == {"v1", "v2", "v3"}
+
+
+def test_push_complete_omitted_base_conflicts_with_existing_content(test_client, auth_headers, workspace_and_notebook):
+    """Omitting base_version_id means 'I believe this path doesn't exist yet' -- if it already
+    has content, that's a conflict just like an explicit stale base would be."""
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
+
+    _push_complete(test_client, workspace, notebook, headers, path="exists.md", version="v1")
+    second = _push_complete(test_client, workspace, notebook, headers, path="exists.md", version="v2")
+    assert second.status_code == 200
+    entry = second.json()
+    assert entry["conflict"] is True
+    assert entry["loser_version_id"] == "v1"
+
+
+def test_push_complete_deleted_path_resets_expected_base_to_none(test_client, auth_headers, workspace_and_notebook):
+    """Once a path is deleted, there's nothing live to base a write on, so a fresh create with
+    no base_version_id is not a conflict."""
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
+
+    _push_complete(test_client, workspace, notebook, headers, path="revived.md", version="v1")
+    _push_complete(
+        test_client, workspace, notebook, headers, path="revived.md", version="v2", base_version="v1", op="deleted"
+    )
+    recreated = _push_complete(test_client, workspace, notebook, headers, path="revived.md", version="v3")
+    assert recreated.status_code == 200
+    assert recreated.json()["conflict"] is False
+
+
+def test_push_complete_different_paths_do_not_conflict(test_client, auth_headers, workspace_and_notebook):
+    """Concurrent, non-conflicting writes to different paths must not produce false positives."""
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
+
+    first = _push_complete(test_client, workspace, notebook, headers, path="a.md", version="v1")
+    second = _push_complete(test_client, workspace, notebook, headers, path="b.md", version="v1")
+    assert first.json()["conflict"] is False
+    assert second.json()["conflict"] is False
+
+
+async def test_push_complete_conflict_emits_sync_conflict_event_for_both_writers(
+    test_client, auth_headers, workspace_and_notebook
+):
+    owner_headers, _ = auth_headers
+    workspace, notebook = workspace_and_notebook
+    collaborator_headers, _ = _register_and_login(test_client)
+    collaborator = _add_write_collaborator(test_client, workspace, owner_headers, collaborator_headers)
+    me = test_client.get("/api/v1/users/me", headers=owner_headers).json()
+
+    _push_complete(test_client, workspace, notebook, owner_headers, path="shared.md", version="v1")
+    # The collaborator's write never saw v1 -- it still lands (becomes the new HEAD, "winner"),
+    # but is flagged as a conflict that superseded v1 (recorded as "loser").
+    conflicting = _push_complete(
+        test_client,
+        workspace,
+        notebook,
+        collaborator_headers,
+        path="shared.md",
+        version="v2",
+        base_version=None,
+    )
+    assert conflicting.json()["conflict"] is True
+
+    async with async_session_maker() as session:
+        result = await session.execute(
+            select(Event).where(Event.workspace_id == workspace["id"], Event.kind == "sync.conflict")
+        )
+        events = result.scalars().all()
+    assert len(events) == 1
+    subject = events[0].subject
+    assert subject["path"] == "shared.md"
+    assert subject["winner_version_id"] == "v2"
+    assert subject["loser_version_id"] == "v1"
+    assert sorted(subject["writer_ids"]) == sorted([me["id"], collaborator["id"]])
+
+
+async def test_push_complete_no_conflict_does_not_emit_sync_conflict_event(
+    test_client, auth_headers, workspace_and_notebook
+):
+    headers = auth_headers[0]
+    workspace, notebook = workspace_and_notebook
+
+    _push_complete(test_client, workspace, notebook, headers, path="quiet.md", version="v1")
+
+    async with async_session_maker() as session:
+        result = await session.execute(
+            select(Event).where(Event.workspace_id == workspace["id"], Event.kind == "sync.conflict")
+        )
+        events = result.scalars().all()
+    assert events == []

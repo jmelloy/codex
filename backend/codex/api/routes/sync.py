@@ -28,6 +28,7 @@ from sqlmodel import select
 from codex.api.auth import PermissionScope, User, get_current_active_user, require_scope
 from codex.api.routes.notebooks import get_notebook_by_slug
 from codex.api.routes.workspaces import get_workspace_by_slug
+from codex.core.events import build_event, enqueue_fanout
 from codex.core.permissions import PermissionLevel
 from codex.core.s3_indexer import is_safe_relative_path
 from codex.core.sync_credentials import (
@@ -105,6 +106,11 @@ class PushCompleteRequest(BaseModel):
     path: str  # notebook-relative path under the notebook's S3 content prefix, not the full S3 key
     s3_version_id: str
     op: str  # "created" | "modified" | "deleted"
+    # The s3_version_id this write was based on (the version the client last saw for this path),
+    # or None if the client believes the path doesn't exist yet. Powers compare-and-swap conflict
+    # detection (design doc §3.4): omitting it is treated as "unknown base", which conflicts with
+    # any path that already has content.
+    base_version_id: str | None = None
 
 
 class SyncChangeOut(BaseModel):
@@ -120,6 +126,10 @@ class SyncChangeOut(BaseModel):
     actor_principal_id: int | None
     op: str
     ts: datetime
+    base_version_id: str | None
+    conflict: bool
+    loser_version_id: str | None
+    conflict_copy_path: str | None
 
 
 class SyncChangesResponse(BaseModel):
@@ -222,6 +232,17 @@ async def get_sync_presigned_urls(
     )
 
 
+async def _latest_entry_for_path(session: AsyncSession, ws_id: int, nb_id: int, path: str) -> SyncJournal | None:
+    """The most recent journal row for this path, or None if it has never been synced."""
+    result = await session.execute(
+        select(SyncJournal)
+        .where(SyncJournal.ws_id == ws_id, SyncJournal.nb_id == nb_id, SyncJournal.path == path)
+        .order_by(SyncJournal.id.desc())
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
 async def _record_journal_entry(
     session: AsyncSession,
     *,
@@ -231,6 +252,9 @@ async def _record_journal_entry(
     s3_version_id: str,
     op: str,
     actor_principal_id: int | None,
+    base_version_id: str | None,
+    conflict: bool,
+    loser_version_id: str | None,
 ) -> tuple[SyncJournal, bool]:
     """Insert a journal row, deduplicating on (ws_id, nb_id, path, s3_version_id).
 
@@ -249,6 +273,9 @@ async def _record_journal_entry(
         s3_version_id=s3_version_id,
         op=op,
         actor_principal_id=actor_principal_id,
+        base_version_id=base_version_id,
+        conflict=conflict,
+        loser_version_id=loser_version_id,
     )
     session.add(entry)
     try:
@@ -295,6 +322,16 @@ async def push_complete(
     _enforce_pat_workspace_scope(request, workspace)
     notebook = await get_notebook_by_slug(body.notebook_slug, workspace, session)
 
+    # Compare-and-swap: the path's HEAD version at write time is whatever the latest journal
+    # row for it says, unless that row was itself a delete (then there's nothing live to base
+    # a write on, so the expected base is None). A mismatch means this write raced another one
+    # -- it still lands (S3 versioning keeps both), but gets flagged so the loser is recoverable.
+    previous = await _latest_entry_for_path(session, workspace.id, notebook.id, body.path)
+    expected_base_version_id = previous.s3_version_id if (previous is not None and previous.op != "deleted") else None
+    conflict = body.base_version_id != expected_base_version_id
+    loser_version_id = expected_base_version_id if conflict else None
+    previous_actor_id = previous.actor_principal_id if previous is not None else None
+
     entry, created = await _record_journal_entry(
         session,
         ws_id=workspace.id,
@@ -303,6 +340,9 @@ async def push_complete(
         s3_version_id=body.s3_version_id,
         op=body.op,
         actor_principal_id=current_user.id,
+        base_version_id=body.base_version_id,
+        conflict=conflict,
+        loser_version_id=loser_version_id,
     )
 
     if created:
@@ -318,10 +358,63 @@ async def push_complete(
                 "actor_principal_id": entry.actor_principal_id,
                 "op": entry.op,
                 "ts": entry.ts.isoformat(),
+                "conflict": entry.conflict,
             },
         )
 
+    if created and entry.conflict:
+        await _notify_sync_conflict(request, session, workspace.id, notebook.id, entry, previous_actor_id)
+
     return entry
+
+
+async def _notify_sync_conflict(
+    request: Request,
+    session: AsyncSession,
+    workspace_id: int,
+    notebook_id: int,
+    entry: SyncJournal,
+    previous_actor_id: int | None,
+) -> None:
+    """Notify both writers of a detected conflict (design doc §3.4).
+
+    Both the durable per-user notification (issue #530 outbox, so an offline
+    writer still sees it) and a live workspace-channel broadcast (so a
+    connected sync client learns immediately) are sent -- same dual-path
+    pattern the comment/mention events already use.
+    """
+    writer_ids = {uid for uid in (entry.actor_principal_id, previous_actor_id) if uid is not None}
+
+    event = build_event(
+        workspace_id=workspace_id,
+        actor_id=entry.actor_principal_id,
+        kind="sync.conflict",
+        subject={
+            "notebook_id": notebook_id,
+            "path": entry.path,
+            "sync_journal_id": entry.id,
+            "winner_version_id": entry.s3_version_id,
+            "loser_version_id": entry.loser_version_id,
+            "writer_ids": sorted(writer_ids),
+        },
+    )
+    session.add(event)
+    await session.commit()
+    await session.refresh(event)
+    await enqueue_fanout(request, event.id)
+
+    await connection_manager.broadcast(
+        workspace_channel(workspace_id),
+        {
+            "type": "sync.conflict",
+            "notebook_id": notebook_id,
+            "path": entry.path,
+            "sync_journal_id": entry.id,
+            "winner_version_id": entry.s3_version_id,
+            "loser_version_id": entry.loser_version_id,
+            "writer_ids": sorted(writer_ids),
+        },
+    )
 
 
 @router.get("/changes", response_model=SyncChangesResponse)

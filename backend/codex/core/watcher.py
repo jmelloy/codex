@@ -356,9 +356,18 @@ class FileOperationQueue:
                 op.completion_event.set()
 
     def _batch_git_commit(self, operations: list[FileOperation]):
-        """Create a single git commit for all operations in the batch."""
+        """Create a single git commit for all operations in the batch.
+
+        Skipped for shared notebooks (design doc §3.5): S3 versioning + the
+        sync journal are the source of truth for history there, and git is
+        demoted to an export-only format, not a sync mechanism.
+        """
         from codex.core.git_manager import GitManager
         from codex.core.s3_storage import POINTER_EXT
+        from codex.core.sharing import is_notebook_shared
+
+        if is_notebook_shared(self.notebook_id):
+            return
 
         try:
             git_manager = GitManager(self.notebook_path)
@@ -620,17 +629,21 @@ def update_file_metadata(
 
                 # Auto-commit to git if file should be tracked
                 # Skip git commits during scan - these are existing files
+                # Skip entirely for shared notebooks: git is export-only there
+                # (design doc §3.5) since S3 + the sync journal are canonical.
                 if event_type != "scanned":
                     from codex.core.git_manager import GitManager
+                    from codex.core.sharing import is_notebook_shared
 
-                    git_manager = GitManager(notebook_path)
+                    if not is_notebook_shared(notebook_id):
+                        git_manager = GitManager(notebook_path)
 
-                    try:
-                        commit_hash = git_manager.auto_commit_on_change(filepath, sidecar)
-                        if commit_hash:
-                            block.last_commit_hash = commit_hash
-                    except Exception as e:
-                        logger.warning(f"Could not commit file to git: {e}")
+                        try:
+                            commit_hash = git_manager.auto_commit_on_change(filepath, sidecar)
+                            if commit_hash:
+                                block.last_commit_hash = commit_hash
+                        except Exception as e:
+                            logger.warning(f"Could not commit file to git: {e}")
 
                 try:
                     session.commit()

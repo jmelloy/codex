@@ -798,6 +798,15 @@ class SyncJournal(SQLModel, table=True):
     follow issue #541's schema rather than this file's usual `workspace_id`/
     `actor_id`/`created_at` convention, since they name a wire-level cursor
     contract shared with sync clients.
+
+    Conflict detection (issue #543, design doc §3.4) is compare-and-swap: a
+    writer reports the version it last saw as `base_version_id`. If that
+    doesn't match the path's HEAD version at write time, `conflict=True` and
+    `loser_version_id` records the version this write silently superseded
+    (still recoverable -- S3 versioning keeps it). The write still lands (this
+    row is created either way); the working-copy indexer materializes the
+    superseded content as a `name (conflict YYYY-MM-DD).md` copy and records
+    its path in `conflict_copy_path` once done.
     """
 
     __tablename__ = "sync_journal"  # type: ignore[assignment]
@@ -814,3 +823,7 @@ class SyncJournal(SQLModel, table=True):
     actor_principal_id: int | None = Field(default=None, foreign_key="users.id", index=True)
     op: str = Field(index=True)  # "created" | "modified" | "deleted"
     ts: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
+    base_version_id: str | None = Field(default=None)  # version the writer last saw before this write
+    conflict: bool = Field(default=False, index=True)
+    loser_version_id: str | None = Field(default=None)  # version this write superseded, if conflict
+    conflict_copy_path: str | None = Field(default=None)  # set once the indexer materializes the copy

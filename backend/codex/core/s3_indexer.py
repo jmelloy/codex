@@ -23,6 +23,12 @@ The incremental cursor is persisted to a local `.codex/sync_cursor` file (not
 synced -- like the rest of `.codex/`, it's derived state) so a server restart
 resumes from where it left off instead of re-scanning S3 or replaying the
 whole journal.
+
+When `apply_journal_entry` sees a row flagged `conflict` (issue #543, the
+`sync.push-complete` route's compare-and-swap check), it first materializes
+the version that write superseded as a `name (conflict YYYY-MM-DD).md` copy
+alongside the winner, so the loser is recoverable and visible in the block
+tree rather than silently overwritten.
 """
 
 from __future__ import annotations
@@ -209,11 +215,56 @@ def rebuild_notebook_index(workspace: Workspace, notebook: Notebook) -> IndexRes
     return result
 
 
-def apply_journal_entry(workspace: Workspace, notebook: Notebook, entry: SyncJournal) -> None:
+def _conflict_copy_relative_path(notebook_path: Path, relative_path: str, date_str: str) -> str:
+    """Pick a non-colliding notebook-relative path for a conflict copy of `relative_path`.
+
+    Follows the `name (conflict YYYY-MM-DD).ext` convention (issue #543, design doc §3.4).
+    If that name is already taken (e.g. a second conflict on the same path the same day), a
+    counter is appended so no existing conflict copy is ever overwritten.
+    """
+    pure = PurePosixPath(relative_path)
+    directory = pure.parent
+    stem, suffix = pure.stem, pure.suffix
+    n = 1
+    while True:
+        label = f"conflict {date_str}" if n == 1 else f"conflict {date_str} {n}"
+        name = f"{stem} ({label}){suffix}"
+        candidate = str(directory / name) if str(directory) != "." else name
+        if not (notebook_path / candidate).exists():
+            return candidate
+        n += 1
+
+
+def _materialize_conflict_copy(workspace: Workspace, notebook: Notebook, notebook_path: Path, entry: SyncJournal) -> str:
+    """Fetch the version an entry's write superseded and save it as a conflict copy.
+
+    Returns the notebook-relative path of the copy. The copy is fetched straight from S3 by
+    version id rather than from the local working copy, so it doesn't matter whether the
+    superseded content is still materialized on disk at the moment this runs.
+    """
+    prefix = notebook_content_prefix(workspace, notebook)
+    s3_key = f"{prefix}{entry.path}"
+    date_str = entry.ts.strftime("%Y-%m-%d")
+    conflict_relative_path = _conflict_copy_relative_path(notebook_path, entry.path, date_str)
+    local_file = _local_path(notebook_path, conflict_relative_path)
+    local_file.parent.mkdir(parents=True, exist_ok=True)
+    data = download_binary(s3_key, version_id=entry.loser_version_id)
+    local_file.write_bytes(data)
+    update_file_metadata(str(notebook_path), notebook.id, str(local_file), "scanned")
+    return conflict_relative_path
+
+
+def apply_journal_entry(workspace: Workspace, notebook: Notebook, entry: SyncJournal, session=None) -> None:
     """Apply one `sync_journal` row to the notebook's local working copy + index.
 
     If no working copy exists yet, falls back to a full rebuild instead of
     patching in a single file -- consistent with the cold-start path above.
+
+    If `entry.conflict` is set and it superseded live content (`entry.loser_version_id`),
+    that content is materialized as a conflict copy alongside the winner (issue #543, design
+    doc §3.4) before the winning write is applied. `session` is the caller's system-DB session,
+    if any -- when given, `entry.conflict_copy_path` is written back to the journal row once the
+    copy exists, so it doesn't need recomputing later.
     """
     notebook_path = notebook_working_copy_path(workspace, notebook)
     if not (notebook_path / ".codex" / "notebook.db").exists():
@@ -223,16 +274,24 @@ def apply_journal_entry(workspace: Workspace, notebook: Notebook, entry: SyncJou
     with _lock_for_notebook(notebook.id):
         local_file = _local_path(notebook_path, entry.path)
 
+        conflict_copy_path: str | None = None
+        if entry.conflict and entry.loser_version_id:
+            conflict_copy_path = _materialize_conflict_copy(workspace, notebook, notebook_path, entry)
+
         if entry.op == "deleted":
             if local_file.exists():
                 local_file.unlink()
             update_file_metadata(str(notebook_path), notebook.id, str(local_file), "deleted")
-            return
+        else:
+            prefix = notebook_content_prefix(workspace, notebook)
+            s3_key = f"{prefix}{entry.path}"
+            _materialize_object(notebook_path, entry.path, s3_key, version_id=entry.s3_version_id)
+            update_file_metadata(str(notebook_path), notebook.id, str(local_file), "scanned")
 
-        prefix = notebook_content_prefix(workspace, notebook)
-        s3_key = f"{prefix}{entry.path}"
-        _materialize_object(notebook_path, entry.path, s3_key, version_id=entry.s3_version_id)
-        update_file_metadata(str(notebook_path), notebook.id, str(local_file), "scanned")
+        if conflict_copy_path is not None and session is not None:
+            entry.conflict_copy_path = conflict_copy_path
+            session.add(entry)
+            session.commit()
 
 
 class S3IndexerService:
@@ -325,7 +384,7 @@ class S3IndexerService:
 
         for entry in entries:
             try:
-                apply_journal_entry(workspace, notebook, entry)
+                apply_journal_entry(workspace, notebook, entry, session=session)
             except Exception:
                 logger.error(
                     "Failed to apply sync journal entry %s for notebook %s; will retry next poll",

@@ -796,6 +796,15 @@ class SyncJournal(SQLModel, table=True):
     follow issue #541's schema rather than this file's usual `workspace_id`/
     `actor_id`/`created_at` convention, since they name a wire-level cursor
     contract shared with sync clients.
+
+    Conflict tracking (issue #543, design doc §3.4) adds compare-and-swap
+    fields on top of the append-only feed: a writer reports the
+    `base_s3_version_id` it last saw for `path`; if that no longer matches the
+    latest journaled version, this row is flagged `conflict=True` and
+    `conflict_of_id` points at the journal row it raced (the "loser", whose
+    content is copied out to `conflict_copy_path`). The loser's own row is
+    never mutated -- the conflict is entirely recorded in new rows, preserving
+    the never-updated append-only property for existing cursor readers.
     """
 
     __tablename__ = "sync_journal"  # type: ignore[assignment]
@@ -812,3 +821,9 @@ class SyncJournal(SQLModel, table=True):
     actor_principal_id: int | None = Field(default=None, foreign_key="users.id", index=True)
     op: str = Field(index=True)  # "created" | "modified" | "deleted"
     ts: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
+    base_s3_version_id: str | None = Field(default=None)
+    conflict: bool = Field(default=False, index=True)
+    conflict_of_id: int | None = Field(default=None, foreign_key="sync_journal.id", index=True)
+    conflict_copy_path: str | None = Field(default=None)
+    resolved_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    resolved_by_id: int | None = Field(default=None, foreign_key="users.id")

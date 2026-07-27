@@ -278,12 +278,26 @@ async def _resolve_permission_granted_recipients(session: AsyncSession, event: A
     return recipients
 
 
+async def _resolve_sync_conflict_recipients(session: AsyncSession, event: Any) -> set[int]:
+    """Recipients for sync.conflict events: both racing writers (issue #543, design doc §3.4).
+
+    Unlike other resolvers, the actor is deliberately kept in the recipient set --
+    the writer whose push detected the conflict needs to know too, not just the
+    writer who lost.
+    """
+    subject = event.subject or {}
+    winning_id = subject.get("winning_actor_id")
+    losing_id = subject.get("losing_actor_id")
+    return {int(uid) for uid in (winning_id, losing_id) if uid is not None}
+
+
 # Registry of recipient resolvers by event kind — extend this dict to support new kinds.
 RECIPIENT_RESOLVERS: dict[str, RecipientResolver] = {
     "comment.created": _resolve_comment_recipients,
     "comment.mention": _resolve_comment_recipients,
     "comment.resolved": _resolve_comment_recipients,
     "permission.granted": _resolve_permission_granted_recipients,
+    "sync.conflict": _resolve_sync_conflict_recipients,
 }
 
 

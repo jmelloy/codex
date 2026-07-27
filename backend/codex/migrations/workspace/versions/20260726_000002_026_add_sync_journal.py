@@ -7,19 +7,12 @@ Create Date: 2026-07-26
 Adds the append-only SyncJournal table backing the S3 sync change feed
 (issue #541, design doc §3.2/§3.4). Rows are populated from a client's
 `POST .../sync/push-complete` call and/or an S3 bucket event notification
-<<<<<<< HEAD
 where configured; `id` is a strictly monotonic, never-reused autoincrement
 (`sqlite_autoincrement`) used as the `GET .../sync/changes?since=cursor`
 pull cursor. The unique constraint on (ws_id, nb_id, path, s3_version_id)
 deduplicates the same S3 object version being reported twice; ws_id/nb_id
 are part of the key because `path` is only notebook-relative, so distinct
 notebooks can legitimately share a path (e.g. two "readme.md" files).
-=======
-where configured; `id` is a strictly monotonic autoincrement used as the
-`GET .../sync/changes?since=cursor` pull cursor. The unique constraint on
-(path, s3_version_id) deduplicates the same S3 object version being
-reported twice.
->>>>>>> origin/main
 """
 
 from collections.abc import Sequence
@@ -45,12 +38,8 @@ def upgrade() -> None:
         sa.Column("actor_principal_id", sa.Integer(), sa.ForeignKey("users.id"), nullable=True, index=True),
         sa.Column("op", sa.String(), nullable=False, index=True),
         sa.Column("ts", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-<<<<<<< HEAD
         sa.UniqueConstraint("ws_id", "nb_id", "path", "s3_version_id", name="uq_sync_journal_path_version"),
         sqlite_autoincrement=True,
-=======
-        sa.UniqueConstraint("path", "s3_version_id", name="uq_sync_journal_path_version"),
->>>>>>> origin/main
     )
 
 

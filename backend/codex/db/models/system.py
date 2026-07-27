@@ -788,17 +788,11 @@ class SyncJournal(SQLModel, table=True):
     (EventBridge -> SQS -> ARQ, where configured). `id` is a strictly monotonic,
     never-reused autoincrement (`sqlite_autoincrement`), so it doubles as the
     change feed's pull cursor for `GET .../sync/changes?since=cursor`. The
-<<<<<<< HEAD
     unique constraint on (ws_id, nb_id, path, s3_version_id) deduplicates the same
     S3 object version being reported twice — e.g. a push-complete call racing a
     bucket notification for the same write. `path` is only unique within a given
     notebook, so ws_id/nb_id must be part of the key or distinct notebooks sharing
     a relative path (e.g. two notebooks each with a "readme.md") would collide.
-=======
-    unique constraint on (path, s3_version_id) deduplicates the same S3 object
-    version being reported twice — e.g. a push-complete call racing a bucket
-    notification for the same write.
->>>>>>> origin/main
 
     Column names (`ws_id`, `nb_id`, `actor_principal_id`, `ts`) intentionally
     follow issue #541's schema rather than this file's usual `workspace_id`/
@@ -808,22 +802,14 @@ class SyncJournal(SQLModel, table=True):
 
     __tablename__ = "sync_journal"  # type: ignore[assignment]
     __table_args__ = (
-<<<<<<< HEAD
         UniqueConstraint("ws_id", "nb_id", "path", "s3_version_id", name="uq_sync_journal_path_version"),
-=======
-        UniqueConstraint("path", "s3_version_id", name="uq_sync_journal_path_version"),
->>>>>>> origin/main
         {"sqlite_autoincrement": True},
     )
 
     id: int | None = Field(default=None, primary_key=True)
     ws_id: int = Field(foreign_key="workspaces.id", index=True)
     nb_id: int = Field(foreign_key="notebooks.id", index=True)
-<<<<<<< HEAD
     path: str = Field(index=True)  # notebook-relative path, not the full S3 key
-=======
-    path: str = Field(index=True)  # S3 object key
->>>>>>> origin/main
     s3_version_id: str
     actor_principal_id: int | None = Field(default=None, foreign_key="users.id", index=True)
     op: str = Field(index=True)  # "created" | "modified" | "deleted"

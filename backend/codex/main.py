@@ -43,6 +43,7 @@ from codex.api.routes import (
 )
 from codex.core.watcher import NotebookWatcher, register_watcher, stop_all_watchers
 from codex.core.websocket import connection_manager
+from codex.core.workspace_sharing import is_shared_workspace
 from codex.db.database import get_system_session_sync, init_notebook_db, init_system_db
 from codex.db.models import Notebook, Workspace
 
@@ -131,6 +132,15 @@ def _start_notebook_watchers_sync():
 
         for nb, workspace in rows:
             try:
+                # Shared (org) notebooks are S3-synced and indexed by S3IndexerService
+                # instead (issue #542); starting a filesystem watcher on the same working
+                # copy directory would race the indexer's writes and re-introduce the
+                # per-process git lock as a multi-writer bottleneck (issue #544, design
+                # doc §3.5). Personal notebooks keep this path unchanged.
+                if is_shared_workspace(workspace):
+                    logger.debug(f"Skipping filesystem watcher for shared notebook: {nb.name} (id={nb.id})")
+                    continue
+
                 # Compute full notebook path
                 notebook_path = (Path(workspace.path) / nb.path).resolve()  # Convert to absolute path
                 codex_db_path = notebook_path / ".codex" / "notebook.db"

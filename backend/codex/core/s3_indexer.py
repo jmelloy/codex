@@ -44,6 +44,7 @@ from sqlmodel import select
 from codex.core.s3_storage import S3_BUCKET, download_binary, get_s3_client, is_s3_configured
 from codex.core.sync_credentials import build_workspace_prefix
 from codex.core.watcher import update_file_metadata
+from codex.core.workspace_sharing import is_shared_workspace
 from codex.db.database import get_notebook_session, get_system_session_sync, init_notebook_db
 from codex.db.models import Block, Notebook, SyncJournal, Workspace
 
@@ -51,11 +52,6 @@ logger = logging.getLogger(__name__)
 
 POLL_INTERVAL = 5.0  # seconds; matches watcher.FileOperationQueue.BATCH_INTERVAL
 CURSOR_FILENAME = "sync_cursor"
-
-
-def is_shared_workspace(workspace: Workspace) -> bool:
-    """Org workspaces are S3-synced (shared); personal workspaces are not (design doc §1)."""
-    return workspace.org_id is not None
 
 
 def notebook_working_copy_path(workspace: Workspace, notebook: Notebook) -> Path:

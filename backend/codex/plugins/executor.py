@@ -418,6 +418,11 @@ class IntegrationExecutor:
         elif auth_method == "api_key" and "api_key" in config:
             # API key in header - common pattern
             headers["X-API-Key"] = config["api_key"]
+        elif auth_method == "oauth" and "access_token" in config:
+            # The caller (integrations.py::_execute_integration) resolves the workspace's
+            # bound OAuthConnection and injects the live access token here -- this method
+            # never resolves a connection itself, so it can't silently pick one (L12).
+            headers["Authorization"] = f"Bearer {config['access_token']}"
 
         return headers
 

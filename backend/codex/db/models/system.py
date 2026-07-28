@@ -263,6 +263,11 @@ class PluginConfig(SQLModel, table=True):
     version: str | None = Field(default=None)  # Pinned plugin version (None = latest)
     enabled: bool = Field(default=True)  # Workspace-level enable/disable
     config: dict = Field(default={}, sa_column=Column(JSON))
+    # Explicit workspace-level binding for OAuth-backed integrations (issue #546, design
+    # doc §1 L12 / §7): the connection an "oauth" auth_method integration authenticates
+    # as, set by a workspace admin. NULL means "not configured" -- execution must refuse
+    # rather than guess whichever member's OAuthConnection happens to exist.
+    oauth_connection_id: int | None = Field(default=None, foreign_key="oauth_connections.id", index=True)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
 

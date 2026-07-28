@@ -9,7 +9,9 @@ Handles the Google OAuth2 authorization code flow:
 
 import logging
 import os
+from dataclasses import dataclass
 from datetime import UTC, datetime
+from enum import StrEnum
 
 from cryptography.fernet import Fernet
 from google.auth.transport.requests import Request as GoogleAuthRequest
@@ -204,22 +206,14 @@ async def save_oauth_connection(
     return connection
 
 
-async def get_google_credentials(session: AsyncSession, user_id: int) -> Credentials | None:
-    """Get valid Google credentials for a user, refreshing if needed.
+async def _load_and_refresh_credentials(session: AsyncSession, connection: OAuthConnection) -> Credentials | None:
+    """Decrypt a connection's tokens into `Credentials`, refreshing if expired.
 
-    Returns None if no connection exists or tokens cannot be refreshed.
+    Shared by both the user-keyed lookup (`get_google_credentials`, used by the personal
+    Calendar feature) and the connection-id-keyed resolver (`get_credentials_for_connection`,
+    used by workspace integrations). Returns None if the stored refresh token can't produce
+    a fresh access token -- the caller decides what that means for its use case.
     """
-    result = await session.execute(
-        select(OAuthConnection).where(
-            OAuthConnection.user_id == user_id,
-            OAuthConnection.provider == "google",
-            OAuthConnection.is_active == True,  # noqa: E712
-        )
-    )
-    connection = result.scalar_one_or_none()
-    if not connection:
-        return None
-
     access_token = decrypt_token(connection.access_token)
     refresh_token = decrypt_token(connection.refresh_token) if connection.refresh_token else None
 
@@ -248,10 +242,81 @@ async def get_google_credentials(session: AsyncSession, user_id: int) -> Credent
             session.add(connection)
             await session.commit()
         except Exception as e:
-            logger.error(f"Failed to refresh Google credentials for user {user_id}: {e}")
+            logger.error(f"Failed to refresh Google credentials for connection {connection.id}: {e}")
             return None
 
     return creds
+
+
+async def get_google_credentials(session: AsyncSession, user_id: int) -> Credentials | None:
+    """Get valid Google credentials for a user, refreshing if needed.
+
+    Returns None if no connection exists or tokens cannot be refreshed. This is the
+    user-keyed lookup used by the personal Calendar feature, where "whose token" is
+    always "the caller's own" by design. Workspace integrations must NOT use this --
+    see `get_credentials_for_connection` below.
+    """
+    result = await session.execute(
+        select(OAuthConnection).where(
+            OAuthConnection.user_id == user_id,
+            OAuthConnection.provider == "google",
+            OAuthConnection.is_active == True,  # noqa: E712
+        )
+    )
+    connection = result.scalar_one_or_none()
+    if not connection:
+        return None
+
+    return await _load_and_refresh_credentials(session, connection)
+
+
+class OAuthConnectionStatus(StrEnum):
+    """Outcome of resolving an explicit, workspace-bound OAuth connection.
+
+    Deliberately distinct from a bare `None` return: a shared-workspace integration
+    must tell "nobody has bound a connection yet" (NOT_CONFIGURED) apart from "a
+    connection was bound but it's since been revoked/deactivated or won't refresh"
+    (REVOKED) so the UI can render the right explicit state instead of silently doing
+    nothing (design doc §1 L12).
+    """
+
+    NOT_CONFIGURED = "not_configured"
+    REVOKED = "connection_revoked"
+    VALID = "valid"
+
+
+@dataclass
+class ResolvedOAuthConnection:
+    """Result of `get_credentials_for_connection`."""
+
+    status: OAuthConnectionStatus
+    connection: OAuthConnection | None = None
+    credentials: Credentials | None = None
+
+
+async def get_credentials_for_connection(
+    session: AsyncSession, connection_id: int | None
+) -> ResolvedOAuthConnection:
+    """Resolve credentials for an explicit, workspace-bound `OAuthConnection` id.
+
+    Unlike `get_google_credentials` (keyed by `user_id`, for the personal Calendar
+    feature), this is keyed by the connection's own primary key: a shared-workspace
+    integration binds to exactly one connection (`PluginConfig.oauth_connection_id`)
+    and this resolver uses that connection regardless of who is viewing -- it never
+    falls back to "whichever member happens to have a connection for this provider".
+    """
+    if connection_id is None:
+        return ResolvedOAuthConnection(status=OAuthConnectionStatus.NOT_CONFIGURED)
+
+    connection = await session.get(OAuthConnection, connection_id)
+    if connection is None or not connection.is_active:
+        return ResolvedOAuthConnection(status=OAuthConnectionStatus.REVOKED, connection=connection)
+
+    creds = await _load_and_refresh_credentials(session, connection)
+    if creds is None:
+        return ResolvedOAuthConnection(status=OAuthConnectionStatus.REVOKED, connection=connection)
+
+    return ResolvedOAuthConnection(status=OAuthConnectionStatus.VALID, connection=connection, credentials=creds)
 
 
 async def revoke_oauth_connection(session: AsyncSession, user_id: int, provider: str) -> bool:

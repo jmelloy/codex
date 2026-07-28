@@ -86,9 +86,16 @@ class IntegrationResponse(BaseModel):
 
 
 class IntegrationConfigRequest(BaseModel):
-    """Schema for updating integration configuration."""
+    """Schema for updating integration configuration.
+
+    `oauth_connection_id` is optional and tri-state via `model_fields_set`: omit it
+    entirely to leave an existing binding untouched (e.g. a plain api_key/token save),
+    or send it explicitly (including `null`) to rebind/clear the workspace's explicit
+    OAuth identity (issue #546, design doc §1 L12) -- only a workspace admin may do so.
+    """
 
     config: dict[str, Any]
+    oauth_connection_id: int | None = None
 
 
 class PluginEnableRequest(BaseModel):
@@ -97,11 +104,26 @@ class PluginEnableRequest(BaseModel):
     enabled: bool
 
 
+class ConnectionOwnerInfo(BaseModel):
+    """Who a bound OAuth connection belongs to -- never the tokens themselves."""
+
+    connection_id: int
+    user_id: int
+    username: str
+    display_name: str | None = None
+    is_bot: bool = False
+    provider: str
+    provider_email: str | None = None
+    is_active: bool
+
+
 class IntegrationConfigResponse(BaseModel):
     """Schema for integration configuration response."""
 
     plugin_id: str
     config: dict[str, Any]
+    oauth_connection_id: int | None = None
+    connection_owner: ConnectionOwnerInfo | None = None
 
 
 class IntegrationTestRequest(BaseModel):
@@ -131,6 +153,22 @@ class IntegrationExecuteResponse(BaseModel):
     success: bool
     data: dict[str, Any] | None = None
     error: str | None = None
+    # Machine-readable outcome for OAuth-backed failures the frontend branches on
+    # ("not_configured" vs "connection_revoked") rather than string-matching `error`.
+    error_code: str | None = None
+    connection_owner: ConnectionOwnerInfo | None = None
+
+
+class OAuthCandidateResponse(BaseModel):
+    """A connection eligible to be bound to a workspace integration."""
+
+    connection_id: int
+    user_id: int
+    username: str
+    display_name: str | None = None
+    is_bot: bool = False
+    provider: str
+    provider_email: str | None = None
 
 
 class ViewResponse(BaseModel):

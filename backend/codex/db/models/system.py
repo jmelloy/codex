@@ -617,6 +617,10 @@ class Comment(SQLModel, table=True):
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
     deleted_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    # Set when a workspace admin archives an orphaned thread from the orphaned-discussions
+    # view (issue #547) so it stops resurfacing there without altering its delete/resolve state.
+    archived_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    archived_by_id: int | None = Field(default=None, foreign_key="users.id")
 
     # Relationships
     mentions: list["CommentMention"] = Relationship(back_populates="comment")

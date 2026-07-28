@@ -1,6 +1,6 @@
 """API schemas for request/response validation."""
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
@@ -564,3 +564,77 @@ class CommentResponse(BaseModel):
     created_at: str
     updated_at: str
     mentions: list[CommentMentionResponse] = []
+
+
+class OrphanedCommentResponse(BaseModel):
+    """A single comment (root or reply) within an orphaned discussion thread."""
+
+    id: int
+    author_id: int
+    author_username: str | None = None
+    body: str
+    created_at: str
+    deleted_at: str | None = None
+
+
+class OrphanedThreadResponse(BaseModel):
+    """A discussion thread whose anchor block was deleted, or whose root was soft-deleted
+    while replies remain (design doc §4 / phase-6 orphaned-discussions view, issue #547)."""
+
+    thread_id: int
+    workspace_id: int
+    notebook_id: int
+    notebook_name: str
+    block_id: str
+    reason: Literal["block_deleted", "root_deleted"]
+    root: OrphanedCommentResponse
+    replies: list[OrphanedCommentResponse] = []
+    reply_count: int
+    last_activity_at: str
+    archived_at: str | None = None
+    archived_by_id: int | None = None
+    archived_by_username: str | None = None
+
+
+class OrphanRestoreRequest(BaseModel):
+    """Request body for restoring an orphaned thread.
+
+    `block_id` is required when the thread's `reason` is `block_deleted` (it re-anchors
+    every comment in the thread to the given, still-existing block) and ignored when the
+    reason is `root_deleted` (restoring there just clears the root's soft-delete).
+    """
+
+    block_id: str | None = None
+
+
+class OrphanBulkActionRequest(BaseModel):
+    """Request body for acting on multiple orphaned threads at once."""
+
+    thread_ids: list[int] = Field(..., min_length=1)
+    action: Literal["archive", "restore", "delete"]
+    block_id: str | None = None  # required when action == "restore"
+
+
+class OrphanBulkActionResult(BaseModel):
+    """The outcome of a bulk action for a single thread."""
+
+    thread_id: int
+    success: bool
+    detail: str | None = None
+
+
+class OrphanBulkActionResponse(BaseModel):
+    """Aggregate result of a bulk orphaned-discussion action."""
+
+    results: list[OrphanBulkActionResult]
+
+
+class OrphanAuditLogEntryResponse(BaseModel):
+    """A single admin-audit-log entry for orphaned-discussion actions."""
+
+    id: int
+    kind: str
+    actor_id: int | None = None
+    actor_username: str | None = None
+    subject: dict
+    created_at: str

@@ -46,6 +46,13 @@
                       <span class="nav-icon">👥</span>
                       <span class="nav-label">Sharing</span>
                     </button>
+                    <button
+                      @click="navigateTo({ type: 'orphaned-discussions', workspaceId: ws.id })"
+                      :class="{ active: activeSection?.type === 'orphaned-discussions' && activeSection?.workspaceId === ws.id }"
+                      class="nav-item nav-item-nested">
+                      <span class="nav-icon">🧵</span>
+                      <span class="nav-label">Orphaned Discussions</span>
+                    </button>
 
                     <!-- Notebooks under workspace -->
                     <div v-if="workspaceNotebooks[ws.id]?.length" class="nav-notebooks-list">
@@ -99,6 +106,9 @@
             <CollaboratorsPanel
               v-else-if="activeSection?.type === 'sharing' && activeSection.workspaceId"
               :workspaceId="activeSection.workspaceId" />
+            <OrphanedDiscussionsPanel
+              v-else-if="activeSection?.type === 'orphaned-discussions' && activeSection.workspaceId"
+              :workspaceId="activeSection.workspaceId" />
             <NotebookSettingsPanel
               v-else-if="activeSection?.type === 'notebook' && activeSection.workspaceId && activeSection.notebookId" 
               :workspaceId="activeSection.workspaceId"
@@ -122,6 +132,7 @@ import { useWorkspaceStore } from '../stores/workspace'
 import UserSettingsPanel from './settings/UserSettingsPanel.vue'
 import WorkspaceSettingsPanel from './settings/WorkspaceSettingsPanel.vue'
 import CollaboratorsPanel from './settings/CollaboratorsPanel.vue'
+import OrphanedDiscussionsPanel from './settings/OrphanedDiscussionsPanel.vue'
 import NotebookSettingsPanel from './settings/NotebookSettingsPanel.vue'
 import IntegrationsPanel from './settings/IntegrationsPanel.vue'
 import AgentsPanel from './settings/AgentsPanel.vue'
@@ -129,7 +140,7 @@ import { useAgentStore } from '../stores/agent'
 import type { Agent } from '../services/agent'
 
 interface NavigationTarget {
-  type: 'user' | 'workspace' | 'sharing' | 'notebook' | 'integrations' | 'agents'
+  type: 'user' | 'workspace' | 'sharing' | 'orphaned-discussions' | 'notebook' | 'integrations' | 'agents'
   workspaceId?: number
   notebookId?: number
 }

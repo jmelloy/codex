@@ -28,6 +28,7 @@ from codex.api.routes import (
     oauth,
     org_workspaces,
     organizations,
+    orphaned_discussions,
     plugins,
     search,
     snippets,
@@ -315,6 +316,11 @@ app.include_router(
     org_workspaces.router,
     prefix="/api/v1/orgs/{org_slug}/workspaces",
     tags=["organizations", "workspaces"],
+)
+app.include_router(
+    orphaned_discussions.router,
+    prefix="/api/v1/workspaces/{workspace_identifier}/orphaned-discussions",
+    tags=["orphaned-discussions"],
 )
 
 # Serve frontend static files if the build is present (production)

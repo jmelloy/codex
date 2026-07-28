@@ -46,11 +46,18 @@ def _index_exists(table: str, index_name: str) -> bool:
 
 def upgrade() -> None:
     if not _column_exists("plugin_configs", "oauth_connection_id"):
-        op.add_column(
-            "plugin_configs",
-            sa.Column("oauth_connection_id", sa.Integer(), sa.ForeignKey("oauth_connections.id"), nullable=True),
-        )
-    if not _index_exists("plugin_configs", "ix_plugin_configs_oauth_connection_id"):
+        op.add_column("plugin_configs", sa.Column("oauth_connection_id", sa.Integer(), nullable=True))
+        with op.batch_alter_table("plugin_configs") as batch_op:
+            batch_op.create_foreign_key(
+                "fk_plugin_configs_oauth_connection_id_oauth_connections",
+                "oauth_connections",
+                ["oauth_connection_id"],
+                ["id"],
+            )
+        # Batch mode recreates the table (SQLite has no native ALTER for FK/constraints),
+        # which drops any index created beforehand -- so the index must run after the batch block.
+        op.create_index("ix_plugin_configs_oauth_connection_id", "plugin_configs", ["oauth_connection_id"])
+    elif not _index_exists("plugin_configs", "ix_plugin_configs_oauth_connection_id"):
         op.create_index("ix_plugin_configs_oauth_connection_id", "plugin_configs", ["oauth_connection_id"])
 
 
@@ -58,4 +65,8 @@ def downgrade() -> None:
     if _index_exists("plugin_configs", "ix_plugin_configs_oauth_connection_id"):
         op.drop_index("ix_plugin_configs_oauth_connection_id", table_name="plugin_configs")
     if _column_exists("plugin_configs", "oauth_connection_id"):
-        op.drop_column("plugin_configs", "oauth_connection_id")
+        with op.batch_alter_table("plugin_configs") as batch_op:
+            batch_op.drop_constraint(
+                "fk_plugin_configs_oauth_connection_id_oauth_connections", type_="foreignkey"
+            )
+            batch_op.drop_column("oauth_connection_id")

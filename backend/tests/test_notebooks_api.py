@@ -79,6 +79,29 @@ def test_create_notebook_without_description(test_client, auth_headers, create_w
     assert data["description"] is None
 
 
+def test_create_notebook_without_description_when_watcher_start_fails(
+    test_client, auth_headers, create_workspace, monkeypatch
+):
+    """Test notebook creation still succeeds if watcher startup fails."""
+    headers = auth_headers[0]
+    workspace = create_workspace()
+
+    def _raise_start_error(_self):
+        raise RuntimeError("watcher failed to start")
+
+    monkeypatch.setattr("codex.api.routes.notebooks.NotebookWatcher.start", _raise_start_error)
+
+    response = test_client.post(
+        f"/api/v1/workspaces/{workspace['slug']}/notebooks/",
+        json={"name": "No Description Notebook"},
+        headers=headers,
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "No Description Notebook"
+    assert data["description"] is None
+
+
 def test_create_notebook_generates_slug_path(test_client, auth_headers, create_workspace):
     """Test that notebook path is generated from name as a slug."""
     headers = auth_headers[0]

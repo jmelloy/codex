@@ -1,5 +1,6 @@
 """Notebook routes."""
 
+import logging
 import shutil
 from pathlib import Path
 from uuid import uuid4
@@ -23,6 +24,8 @@ from codex.core.watcher import NotebookWatcher, get_watcher_for_notebook, unregi
 from codex.core.workspace_sharing import is_shared_workspace
 from codex.db.database import get_system_session, init_notebook_db
 from codex.db.models import Notebook, NotebookPluginConfig, User, Workspace
+
+logger = logging.getLogger(__name__)
 
 
 class NotebookCreate(BaseModel):
@@ -288,9 +291,11 @@ async def create_notebook_nested(
         if not is_shared_workspace(workspace):
             from codex.core.git_manager import GitManager
 
-            GitManager(str(notebook_path))
-
-            NotebookWatcher(str(notebook_path), notebook.id).start()
+            try:
+                GitManager(str(notebook_path))
+                NotebookWatcher(str(notebook_path), notebook.id).start()
+            except Exception:
+                logger.exception("Notebook created but post-create initialization failed: %s", notebook_path)
 
         return {
             "id": notebook.id,

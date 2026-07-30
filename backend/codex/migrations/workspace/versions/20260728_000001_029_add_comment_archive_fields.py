@@ -1,7 +1,7 @@
 """Add archived_at/archived_by_id to comments
 
-Revision ID: 028
-Revises: 027
+Revision ID: 029
+Revises: 028
 Create Date: 2026-07-28
 
 Adds the archive fields a workspace admin sets when dismissing an orphaned
@@ -15,8 +15,8 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers
-revision: str = "028"
-down_revision: str | None = "027"
+revision: str = "029"
+down_revision: str | None = "028"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

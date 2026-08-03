@@ -43,7 +43,7 @@ postgres = [
 ]
 dev = [
     "pytest>=8.3.0",
-    "pytest-asyncio>=1.3.0",
+    "pytest-asyncio>=1.4.0",
     "pytest-cov>=6.0.0",
     "ruff>=0.16.0",
     "black>=24.10.0",

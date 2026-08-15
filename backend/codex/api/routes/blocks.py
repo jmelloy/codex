@@ -71,7 +71,7 @@ class CreateBlockRequest(BaseModel):
     block_type: str = "text"
     content: str = ""
     position: int | None = None
-    content_format: str = "markdown"
+    content_format: str = "mdx"
 
 
 class CreatePageRequest(BaseModel):
@@ -88,6 +88,7 @@ class UpdateBlockRequest(BaseModel):
 
     content: str
     block_type: str | None = None
+    content_format: str | None = None
 
 
 class MoveBlockRequest(BaseModel):
@@ -488,6 +489,7 @@ async def update_block(
             block_id=block_id,
             content=request.content,
             block_type=request.block_type,
+            content_format=request.content_format,
             nb_session=nb_session,
         )
 
@@ -513,6 +515,8 @@ async def update_block(
         return result
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     finally:
         nb_session.close()
 
@@ -816,8 +820,17 @@ async def get_block_text_endpoint(
         if content is None:
             raise HTTPException(status_code=404, detail="Block content not found")
 
+        # Block.render() strips any remaining frontmatter and, for "mdx" content,
+        # reports component tags outside the allowed registry.
+        rendered = block.render(content)
+
         props = _parse_json(block.properties) if block.properties else None
-        return {"content": content, "properties": props}
+        return {
+            "content": rendered["content"],
+            "properties": props,
+            "content_format": rendered["content_format"],
+            "unauthorized_components": rendered.get("unauthorized_components"),
+        }
     finally:
         nb_session.close()
 

@@ -365,6 +365,8 @@ class BlockTextContentResponse(BaseModel):
 
     content: str
     properties: dict[str, Any] | None = None
+    content_format: str | None = None
+    unauthorized_components: list[str] | None = None
 
 
 class BlockDeleteResponse(BaseModel):

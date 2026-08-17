@@ -18,6 +18,11 @@ from ulid import ULID
 
 from codex.db.models import Block
 from codex.db.models.base import utc_now
+from codex.db.models.notebook import (
+    CONTENT_FORMAT_LEGACY,
+    CONTENT_FORMAT_MDX,
+    VALID_CONTENT_FORMATS,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -373,7 +378,7 @@ def create_page(
             parent_block_id=parent_block_id,
             path=page_path,
             block_type=BLOCK_TYPE_PAGE,
-            content_format="markdown",
+            content_format=CONTENT_FORMAT_MDX,
             order_index=0.0,  # Pages use their parent's order for them
             title=title,
             description=description,
@@ -408,7 +413,7 @@ def create_block(
     block_type: str,
     content: str,
     position: int | None = None,
-    content_format: str = "markdown",
+    content_format: str = CONTENT_FORMAT_MDX,
     nb_session: Session | None = None,
 ) -> dict[str, Any]:
     """Create a new block (file) within a page (folder).
@@ -420,7 +425,7 @@ def create_block(
         block_type: Type of block (text, heading, code, etc.)
         content: Block content
         position: Optional position (0-indexed). None = append to end.
-        content_format: Content format (markdown, json, binary)
+        content_format: Content format ("mdx", "legacy", "markdown", "json", "binary")
         nb_session: Optional database session
 
     Returns:
@@ -428,6 +433,9 @@ def create_block(
     """
     if block_type not in VALID_BLOCK_TYPES:
         raise ValueError(f"Invalid block type: {block_type}. Must be one of {VALID_BLOCK_TYPES}")
+
+    if content_format not in VALID_CONTENT_FORMATS:
+        raise ValueError(f"Invalid content format: {content_format}. Must be one of {VALID_CONTENT_FORMATS}")
 
     if block_type == BLOCK_TYPE_PAGE:
         raise ValueError("Use create_page() to create page blocks")
@@ -509,9 +517,10 @@ def update_block_content(
     block_id: str,
     content: str,
     block_type: str | None = None,
+    content_format: str | None = None,
     nb_session: Session | None = None,
 ) -> dict[str, Any]:
-    """Update the content of a block, optionally changing its type.
+    """Update the content of a block, optionally changing its type or content format.
 
     Args:
         notebook_path: Root path of the notebook
@@ -519,6 +528,7 @@ def update_block_content(
         block_id: Block UUID to update
         content: New content
         block_type: Optional new block type
+        content_format: Optional new content format (e.g. to migrate "legacy" -> "mdx")
         nb_session: Database session
 
     Returns:
@@ -537,6 +547,11 @@ def update_block_content(
         f.write(content)
 
     from codex.db.models.base import utc_now
+
+    if content_format is not None:
+        if content_format not in VALID_CONTENT_FORMATS:
+            raise ValueError(f"Invalid content format: {content_format}. Must be one of {VALID_CONTENT_FORMATS}")
+        block.content_format = content_format
 
     # Update block type if requested
     if block_type and block_type in VALID_BLOCK_TYPES and block_type != BLOCK_TYPE_PAGE:
@@ -563,6 +578,7 @@ def update_block_content(
         "type": block.block_type,
         "path": block.path,
         "content": content,
+        "content_format": block.content_format,
     }
 
 
@@ -862,7 +878,10 @@ def sync_page_from_disk(
             parent_block_id=parent_block_id,
             path=page_path or "",
             block_type=BLOCK_TYPE_PAGE,
-            content_format="markdown",
+            # Discovered from disk rather than created via the API, so its
+            # authorship/format history is unknown - treat as legacy rather
+            # than assuming it's mdx-safe content.
+            content_format=CONTENT_FORMAT_LEGACY,
             order_index=0.0,
             title=page_meta.get("title"),
         )
@@ -913,7 +932,7 @@ def sync_page_from_disk(
                 parent_block_id=page_block_id,
                 path=rel_path,
                 block_type=block_type,
-                content_format="markdown",
+                content_format=CONTENT_FORMAT_LEGACY,
                 order_index=order,
             )
             nb_session.add(child)

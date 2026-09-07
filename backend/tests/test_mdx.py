@@ -32,9 +32,6 @@ class TestContentFormatDefaults:
                 title="My Page",
                 nb_session=nb_session,
             )
-            page = nb_session.exec(
-                Block.__table__.select().where(Block.block_id == result["block_id"])
-            ) if False else None  # placeholder to keep flake happy
             from sqlmodel import select
 
             page_block = nb_session.exec(select(Block).where(Block.block_id == result["block_id"])).first()
@@ -125,14 +122,18 @@ class TestContentFormatDefaults:
 
 class TestMigrationBackfill:
     def test_markdown_content_format_backfilled_to_legacy(self, tmp_path):
-        """A notebook DB created before migration 011 with content_format='markdown'
-        rows should have those rows backfilled to 'legacy' by migration 012."""
+        """A notebook DB stamped at migration 011 (pre-backfill) with a
+        content_format='markdown' row should have that row backfilled to
+        'legacy' when init_notebook_db() runs migration 012 against it."""
         notebook_path = tmp_path / "nb"
         notebook_path.mkdir()
 
+        # Get to a fully migrated DB first (012 has no schema change, so this
+        # gives us the right table shape), then roll the stamped version back
+        # to 011 and insert a pre-backfill row.
         engine = init_notebook_db(str(notebook_path))
-
         with engine.connect() as conn:
+            conn.execute(text("UPDATE alembic_version SET version_num = '011'"))
             conn.execute(
                 text(
                     "INSERT INTO blocks "
@@ -143,17 +144,16 @@ class TestMigrationBackfill:
                 )
             )
             conn.commit()
+        engine.dispose()
 
-        # Re-running init (idempotent) applies any migrations not yet stamped -
-        # since the DB was already fully migrated above, force the check by
-        # reading straight back; the INSERT above happened post-migration so
-        # assert the row is exactly what we inserted, then run the backfill
-        # logic directly to prove it's correct against a pre-012 style value.
+        # Re-running init applies migration 012 for real against the stamped-011 DB.
+        engine = init_notebook_db(str(notebook_path))
         with engine.connect() as conn:
-            conn.execute(text("UPDATE blocks SET content_format = 'legacy' WHERE content_format = 'markdown'"))
-            conn.commit()
+            version = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
+            assert version == "012"
             row = conn.execute(text("SELECT content_format FROM blocks WHERE block_id = 'blk-1'")).first()
             assert row[0] == "legacy"
+        engine.dispose()
 
 
 class TestBlockRender:
@@ -168,7 +168,7 @@ class TestBlockRender:
 
     def test_render_strips_frontmatter_for_mdx(self):
         block = self._block("mdx")
-        raw = "---\ntitle: Hi\n---\n\nHello <Calendar date=\"2026-01-01\" />"
+        raw = '---\ntitle: Hi\n---\n\nHello <Calendar date="2026-01-01" />'
         rendered = block.render(raw)
         assert rendered["content_format"] == "mdx"
         assert rendered["properties"] == {"title": "Hi"}
@@ -193,20 +193,20 @@ class TestBlockRender:
 
     def test_render_flags_unauthorized_components(self):
         block = self._block("mdx")
-        raw = "Hello <Calendar /> and <EvilScript src=\"x\" />"
+        raw = 'Hello <Calendar /> and <EvilScript src="x" />'
         rendered = block.render(raw)
         assert rendered["unauthorized_components"] == ["EvilScript"]
 
     def test_render_reports_no_unauthorized_components_when_all_allowed(self):
         block = self._block("mdx")
-        raw = "Hello <Calendar /> and <Weather location=\"NYC\" />"
+        raw = 'Hello <Calendar /> and <Weather location="NYC" />'
         rendered = block.render(raw)
         assert rendered["unauthorized_components"] == []
 
 
 class TestComponentRegistry:
     def test_extract_component_names_finds_capitalized_tags(self):
-        names = extract_component_names("Text <Calendar/> more <Weather x=\"1\"></Weather> <p>html</p>")
+        names = extract_component_names('Text <Calendar/> more <Weather x="1"></Weather> <p>html</p>')
         assert names == {"Calendar", "Weather"}
 
     def test_find_unauthorized_components_excludes_allowlisted(self):

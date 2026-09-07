@@ -820,11 +820,13 @@ async def get_block_text_endpoint(
         if content is None:
             raise HTTPException(status_code=404, detail="Block content not found")
 
-        # Block.render() strips any remaining frontmatter and, for "mdx" content,
-        # reports component tags outside the allowed registry.
+        # Block.render() strips frontmatter from the raw file content and, for
+        # "mdx" content, reports component tags outside the allowed registry.
         rendered = block.render(content)
 
-        props = _parse_json(block.properties) if block.properties else None
+        # Prefer the indexed properties (kept in sync by the file watcher) and
+        # fall back to what render() just parsed, e.g. for blocks not yet indexed.
+        props = (_parse_json(block.properties) if block.properties else None) or rendered["properties"] or None
         return {
             "content": rendered["content"],
             "properties": props,

@@ -1,12 +1,12 @@
 """MDX component registry and content inspection.
 
 Defines the allowlist of custom components that may be referenced from MDX
-block content (e.g. ``<Calendar date="2026-01-01" />``). This is the backend
-mirror of the frontend registry in frontend/src/mdx/componentRegistry.ts,
-which is the actual sandboxing enforcement point: the MDX-to-Vue runtime only
-resolves component tags present in that registry, so anything not registered
-fails to render instead of executing. Keep both lists in sync when adding or
-removing components.
+block content (e.g. ``<Calendar date="2026-01-01" />``). The actual
+sandboxing enforcement point is the frontend MDX renderer, which must only
+resolve component tags present in its own registry so anything not
+registered fails to render instead of executing; that frontend registry does
+not exist yet (frontend MDX rendering is later Phase-1/2 work) and must be
+kept in sync with this list once it's added.
 
 This module lets the API flag unauthorized component usage before content is
 ever served to a client, and gives tests/tools a single source of truth for

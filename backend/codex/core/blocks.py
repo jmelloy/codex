@@ -20,6 +20,7 @@ from codex.db.models import Block
 from codex.db.models.base import utc_now
 from codex.db.models.notebook import (
     CONTENT_FORMAT_LEGACY,
+    CONTENT_FORMAT_MARKDOWN,
     CONTENT_FORMAT_MDX,
     VALID_CONTENT_FORMATS,
 )
@@ -437,6 +438,11 @@ def create_block(
     if content_format not in VALID_CONTENT_FORMATS:
         raise ValueError(f"Invalid content format: {content_format}. Must be one of {VALID_CONTENT_FORMATS}")
 
+    # "markdown" is accepted as an input alias but migration 012 backfilled all
+    # stored rows to "legacy" - normalize here so newly created rows stay canonical.
+    if content_format == CONTENT_FORMAT_MARKDOWN:
+        content_format = CONTENT_FORMAT_LEGACY
+
     if block_type == BLOCK_TYPE_PAGE:
         raise ValueError("Use create_page() to create page blocks")
 
@@ -551,6 +557,9 @@ def update_block_content(
     if content_format is not None:
         if content_format not in VALID_CONTENT_FORMATS:
             raise ValueError(f"Invalid content format: {content_format}. Must be one of {VALID_CONTENT_FORMATS}")
+        # Normalize the "markdown" alias to "legacy", matching migration 012's backfill.
+        if content_format == CONTENT_FORMAT_MARKDOWN:
+            content_format = CONTENT_FORMAT_LEGACY
         block.content_format = content_format
 
     # Update block type if requested
@@ -1026,18 +1035,17 @@ def _parse_json(value: str | None) -> dict | None:
 
 
 def get_block_content(notebook_path: Path, block: Block) -> str | None:
-    """Read text content from a block's backing file."""
+    """Read raw text content from a block's backing file.
+
+    Frontmatter is intentionally left intact here - callers that need it
+    stripped should go through Block.render(), which also handles MDX
+    component validation and needs the untouched frontmatter to do so.
+    """
     file_path = notebook_path / block.path
     if not file_path.exists() or file_path.is_dir():
         return None
     try:
-        content = file_path.read_text()
-        # Strip frontmatter from markdown files
-        if block.path.endswith(".md"):
-            from codex.core.metadata import MetadataParser
-
-            _, content = MetadataParser.parse_frontmatter(content)
-        return content
+        return file_path.read_text()
     except Exception:
         return None
 

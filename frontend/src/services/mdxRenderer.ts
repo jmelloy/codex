@@ -72,6 +72,44 @@ export function buildComponentsMap(
   return map
 }
 
+// mdast/hast node types @mdx-js/mdx emits for ESM (`import`/`export`) and JS
+// expressions (`{...}`) - see mdast-util-mdxjs-esm and mdast-util-mdx-expression.
+// These let MDX source run arbitrary JS, which the allowed-component model
+// doesn't gate at all, so they're rejected outright before evaluation.
+const DISALLOWED_MDX_JS_NODE_TYPES = new Set(["mdxjsEsm", "mdxFlowExpression", "mdxTextExpression"])
+
+/** Throws if `tree` contains ESM, a bare JS expression, or a JSX attribute driven by one (mdast-util-mdx-jsx's `mdxJsxExpressionAttribute` / `mdxJsxAttributeValueExpression`). */
+function assertNoMdxJsNodes(node: unknown): void {
+  if (!node || typeof node !== "object") return
+  const n = node as Record<string, unknown>
+  if (typeof n.type === "string" && DISALLOWED_MDX_JS_NODE_TYPES.has(n.type)) {
+    throw new Error(`MDX content may not contain JS expressions or import/export statements (found "${n.type}")`)
+  }
+  if ((n.type === "mdxJsxFlowElement" || n.type === "mdxJsxTextElement") && Array.isArray(n.attributes)) {
+    for (const attr of n.attributes as Record<string, unknown>[]) {
+      const value = attr.value as Record<string, unknown> | string | undefined
+      if (
+        attr.type === "mdxJsxExpressionAttribute" ||
+        (value !== null && typeof value === "object" && value.type === "mdxJsxAttributeValueExpression")
+      ) {
+        throw new Error(
+          `MDX component attribute "${attr.name}" on <${n.name}> may not be a JS expression`,
+        )
+      }
+    }
+  }
+  if (Array.isArray(n.children)) {
+    for (const child of n.children) assertNoMdxJsNodes(child)
+  }
+}
+
+/** remark plugin: reject MDX ESM/expression nodes before they reach recma/evaluateSync. */
+function remarkRejectMdxJs() {
+  return (tree: unknown) => {
+    assertNoMdxJsNodes(tree)
+  }
+}
+
 function renderNode(type: unknown, rawProps: Record<string, unknown> | null | undefined): VNode {
   const { children, ...rest } = rawProps ?? {}
   const childVNodes = (children ?? undefined) as VNodeChild
@@ -88,6 +126,7 @@ export function renderMdxToVNode(mdxSource: string, components: Record<string, C
     Fragment: VueFragment,
     jsx: (type: unknown, props: Record<string, unknown> | null) => renderNode(type, props),
     jsxs: (type: unknown, props: Record<string, unknown> | null) => renderNode(type, props),
+    remarkPlugins: [remarkRejectMdxJs],
   }) as { default: (props: Record<string, unknown>) => VNode }
 
   return MDXContent({ components })

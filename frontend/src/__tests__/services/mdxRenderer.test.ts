@@ -76,6 +76,35 @@ describe("compileMdx", () => {
   it("throws MdxCompileError for invalid MDX syntax", () => {
     expect(() => compileMdx("<Unclosed>", () => undefined)).toThrow(MdxCompileError)
   })
+
+  it("rejects JS expressions embedded in MDX content", () => {
+    expect(() => compileMdx("Hello {1 + 1}", () => undefined)).toThrow(MdxCompileError)
+  })
+
+  it("rejects ESM import statements", () => {
+    expect(() => compileMdx('import x from "evil"\n\nHello', () => undefined)).toThrow(MdxCompileError)
+  })
+
+  it("rejects ESM export statements", () => {
+    expect(() => compileMdx("export const x = 1\n\nHello", () => undefined)).toThrow(MdxCompileError)
+  })
+
+  it("rejects JS expressions used as a component attribute value", () => {
+    expect(() => compileMdx('<Calendar date={window.location} />', () => undefined)).toThrow(
+      MdxCompileError,
+    )
+  })
+
+  it("rejects spread attributes on a component", () => {
+    expect(() => compileMdx("<Calendar {...evilProps} />", () => undefined)).toThrow(MdxCompileError)
+  })
+
+  it("still renders plain-string component attributes after JS-expression validation", () => {
+    const wrapper = renderMdx('<Calendar date="2026-01-01" />', (name) =>
+      name === "Calendar" ? { setup: () => () => null } : undefined,
+    )
+    expect(wrapper.find(".mdx-unauthorized-component").exists()).toBe(false)
+  })
 })
 
 describe("flattenChildrenToText", () => {

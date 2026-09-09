@@ -42,7 +42,7 @@ const props = withDefaults(defineProps<Props>(), {
   parentBlockId: undefined,
 })
 
-defineEmits<{
+const emit = defineEmits<{
   edit: []
   copy: []
 }>()
@@ -59,6 +59,7 @@ const renderRoot = useMdxRenderRoot(
 const copyContent = async () => {
   try {
     await navigator.clipboard.writeText(props.content)
+    emit("copy")
   } catch (e) {
     console.error("Copy failed:", e)
   }

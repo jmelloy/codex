@@ -11,6 +11,7 @@ to the system database (not a foreign key, since it's in a different database).
 """
 
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import DateTime, String, UniqueConstraint
 from sqlmodel import Field, Relationship, SQLModel
@@ -18,6 +19,31 @@ from sqlmodel import Field, Relationship, SQLModel
 from .base import utc_now
 
 TZDateTime = DateTime(timezone=True)
+
+# content_format values for prose blocks (text, heading, quote, list, divider, page).
+# "mdx" is the format for new content: markdown plus a registry-gated set of custom
+# components (see codex.core.mdx). "legacy" and "markdown" are plain markdown with no
+# component support - "markdown" is kept as an accepted alias for "legacy" so older
+# clients that still send it are not rejected.
+CONTENT_FORMAT_MDX = "mdx"
+CONTENT_FORMAT_LEGACY = "legacy"
+CONTENT_FORMAT_MARKDOWN = "markdown"
+# content_format values for non-prose blocks (embed/database/api use "json",
+# file/uploaded-image blocks use "binary"); unaffected by the mdx/legacy split.
+CONTENT_FORMAT_JSON = "json"
+CONTENT_FORMAT_BINARY = "binary"
+
+VALID_CONTENT_FORMATS = {
+    CONTENT_FORMAT_MDX,
+    CONTENT_FORMAT_LEGACY,
+    CONTENT_FORMAT_MARKDOWN,
+    CONTENT_FORMAT_JSON,
+    CONTENT_FORMAT_BINARY,
+}
+
+# content_format values whose file content is prose that may carry frontmatter and,
+# for "mdx", custom component tags.
+PROSE_CONTENT_FORMATS = {CONTENT_FORMAT_MDX, CONTENT_FORMAT_LEGACY, CONTENT_FORMAT_MARKDOWN}
 
 
 class BlockTag(SQLModel, table=True):
@@ -64,7 +90,7 @@ class Block(SQLModel, table=True):
     parent_block_id: str | None = Field(default=None, index=True)  # NULL = root-level
     path: str = Field(index=True, sa_type=String(collation="BINARY"))  # Filesystem path relative to notebook root
     block_type: str  # "page", "text", "heading", "code", "image", "list", "quote", "divider", "embed", "file"
-    content_format: str = Field(default="markdown")  # "markdown", "json", "binary"
+    content_format: str = Field(default=CONTENT_FORMAT_MDX)  # "mdx", "legacy", "markdown", "json", "binary"
     order_index: float = Field(default=0.0)  # Fractional indexing for ordering
     title: str | None = None
 
@@ -95,6 +121,37 @@ class Block(SQLModel, table=True):
 
     # Relationships
     tags: list[Tag] = Relationship(back_populates="blocks", link_model=BlockTag)
+
+    def render(self, content: str) -> dict[str, Any]:
+        """Prepare raw file content for frontend rendering.
+
+        The backend never renders HTML/markdown to keep that concern on the
+        frontend (see api/schemas.py) - this only strips frontmatter for prose
+        formats and, for "mdx" content, reports which custom component tags are
+        referenced so callers can flag ones outside the allowed registry
+        (codex.core.mdx.ALLOWED_COMPONENTS) before the content reaches a client.
+        Non-prose formats ("json", "binary") pass through unchanged.
+        """
+        properties: dict[str, Any] = {}
+        body = content
+
+        if self.content_format in PROSE_CONTENT_FORMATS:
+            from codex.core.metadata import MetadataParser
+
+            properties, body = MetadataParser.parse_frontmatter(content)
+
+        result: dict[str, Any] = {
+            "content": body,
+            "content_format": self.content_format,
+            "properties": properties,
+        }
+
+        if self.content_format == CONTENT_FORMAT_MDX:
+            from codex.core.mdx import find_unauthorized_components
+
+            result["unauthorized_components"] = sorted(find_unauthorized_components(body))
+
+        return result
 
 
 class SearchIndex(SQLModel, table=True):

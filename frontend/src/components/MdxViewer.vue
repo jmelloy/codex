@@ -16,12 +16,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, h, type Component, type VNode } from "vue"
 import { useThemeStore } from "../stores/theme"
-import { compileMdx, MdxCompileError } from "../services/mdxRenderer"
-import { resolveLegacyBackedMdxComponent } from "../services/mdxLegacyBlockAdapter"
-import Calendar from "./blocks/Calendar.vue"
-import CodeBlock from "./blocks/CodeBlock.vue"
+import { useMdxRenderRoot } from "../composables/useMdxContent"
 
 const themeStore = useThemeStore()
 
@@ -51,50 +47,14 @@ defineEmits<{
   copy: []
 }>()
 
-// Components with a dedicated MDX-native implementation, resolved before
-// falling back to legacy code-fence block components (Weather, GitHub*, etc).
-const DEDICATED_COMPONENTS: Record<string, Component> = {
-  Calendar,
-  CodeBlock,
-}
-
-function resolveComponent(name: string): Component | undefined {
-  return (
-    DEDICATED_COMPONENTS[name] ??
-    resolveLegacyBackedMdxComponent(name, {
-      workspaceId: props.workspaceId,
-      notebookId: props.notebookId,
-      parentBlockId: props.parentBlockId,
-    })
-  )
-}
-
-const renderedVNode = computed<{ vnode: VNode | null; error: string | null }>(() => {
-  if (!props.content.trim()) {
-    return { vnode: null, error: null }
-  }
-  try {
-    return { vnode: compileMdx(props.content, resolveComponent), error: null }
-  } catch (e) {
-    const message = e instanceof MdxCompileError ? e.message : String(e)
-    console.error("MDX compile error:", e)
-    return { vnode: null, error: message }
-  }
-})
-
-// A parameterless functional component so <component :is="renderRoot" /> can
-// render an already-built VNode tree from renderedVNode without re-invoking
-// MDXContent on every Vue re-render.
-const renderRoot = () => {
-  const { vnode, error } = renderedVNode.value
-  if (error) {
-    return h("p", { class: "error-content" }, `Error rendering MDX: ${error}`)
-  }
-  if (!vnode) {
-    return h("p", { class: "empty-content" }, "No content to display")
-  }
-  return vnode
-}
+const renderRoot = useMdxRenderRoot(
+  () => props.content,
+  () => ({
+    workspaceId: props.workspaceId,
+    notebookId: props.notebookId,
+    parentBlockId: props.parentBlockId,
+  }),
+)
 
 const copyContent = async () => {
   try {

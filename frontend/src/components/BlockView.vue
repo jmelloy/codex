@@ -263,7 +263,7 @@
                   :content="block.content"
                   :workspace-id="props.workspaceId"
                   :notebook-id="props.notebookId"
-                  :parent-block-id="blocks[0]?.parent_block_id || undefined"
+                  :parent-block-id="block.parent_block_id || undefined"
                 />
                 <div v-else-if="block.content" v-html="renderBlock(block)"></div>
                 <span v-else class="block-placeholder-text">{{

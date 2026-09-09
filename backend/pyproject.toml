@@ -34,6 +34,7 @@ dependencies = [
     "numpy>=2.4.6",
     "arq>=0.28.0",
     "redis[hiredis]>=5.0.0",
+    "typst>=0.13.0",
 ]
 
 [project.optional-dependencies]

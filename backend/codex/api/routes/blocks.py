@@ -10,7 +10,7 @@ import shutil
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
@@ -56,6 +56,7 @@ from codex.core.blocks import (
 from codex.core.import_worker import process_zip_import
 from codex.core.md_import import import_markdown_to_page
 from codex.core.permissions import PermissionLevel
+from codex.core.typst_export import TypstCompileError, export_block_to_pdf
 from codex.core.websocket import notify_file_change
 from codex.db.database import get_notebook_session, get_system_session
 from codex.db.models import Block, Task, User
@@ -833,6 +834,46 @@ async def get_block_text_endpoint(
             "content_format": rendered["content_format"],
             "unauthorized_components": rendered.get("unauthorized_components"),
         }
+    finally:
+        nb_session.close()
+
+
+@nested_router.get("/{block_id}/export/pdf")
+async def export_block_pdf_endpoint(
+    workspace_identifier: str,
+    notebook_identifier: str,
+    block_id: str,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Export a block to PDF via the Typst pipeline.
+
+    Page blocks export their full contents (every child block, in order) as a
+    single document; leaf blocks export just themselves. Content that has no
+    static PDF rendering (MDX components, images, database/api blocks) is
+    replaced with a labeled fallback box — see codex.core.typst_export.
+    """
+    notebook_path, notebook, workspace = await get_notebook_path_nested(
+        workspace_identifier, notebook_identifier, current_user, session
+    )
+    nb_session = get_notebook_session(str(notebook_path))
+    try:
+        block = get_block(notebook.id, block_id, nb_session)
+        if not block:
+            raise HTTPException(status_code=404, detail="Block not found")
+
+        try:
+            pdf_bytes = export_block_to_pdf(notebook_path, notebook.id, block, nb_session)
+        except TypstCompileError as e:
+            logger.error("PDF export failed for block %s: %s", block_id, e)
+            raise HTTPException(status_code=500, detail=f"PDF export failed: {e}")
+
+        filename = f"{block.title or block.block_id}.pdf"
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
     finally:
         nb_session.close()
 

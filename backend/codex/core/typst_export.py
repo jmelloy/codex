@@ -126,12 +126,27 @@ def _component_fallback(name: str, attrs: dict[str, str]) -> str:
     return fallback_box(f"{name} component", description, attrs)
 
 
-def _replace_components(content: str) -> str:
-    """Replace MDX component tags with a static fallback box (components have no PDF renderer)."""
-    return _COMPONENT_RE.sub(
-        lambda m: _component_fallback(m.group("name"), _parse_component_attrs(m.group("attrs") or "")),
-        content,
-    )
+def _stash_components(content: str) -> tuple[str, list[str]]:
+    """Replace MDX component tags with a placeholder holding their Typst fallback box.
+
+    The fallback box is itself Typst markup (``#block(...)[...]``), so it must
+    survive `_convert_inline()`'s per-character escaping of `#`/`[`/`]` later
+    in `mdx_to_typst()` — stashed the same way fenced code blocks are, and
+    restored verbatim after line-by-line inline conversion runs.
+    """
+    directives: list[str] = []
+
+    def _stash(m: re.Match[str]) -> str:
+        directives.append(_component_fallback(m.group("name"), _parse_component_attrs(m.group("attrs") or "")))
+        return f"\x00COMPONENT{len(directives) - 1}\x00"
+
+    return _COMPONENT_RE.sub(_stash, content), directives
+
+
+def _restore_components(content: str, directives: list[str]) -> str:
+    for i, directive in enumerate(directives):
+        content = content.replace(f"\x00COMPONENT{i}\x00", directive)
+    return content
 
 
 def _extract_fences(content: str) -> tuple[str, list[str]]:
@@ -166,7 +181,7 @@ def mdx_to_typst(content: str) -> str:
     text and escaped.
     """
     without_fences, fences = _extract_fences(content)
-    without_components = _replace_components(without_fences)
+    without_components, component_directives = _stash_components(without_fences)
 
     out_lines: list[str] = []
     quote_buffer: list[str] = []
@@ -217,7 +232,8 @@ def mdx_to_typst(content: str) -> str:
         out_lines.append(_convert_inline(line))
 
     _flush_quote()
-    return _restore_fences("\n".join(out_lines), fences)
+    result = _restore_fences("\n".join(out_lines), fences)
+    return _restore_components(result, component_directives)
 
 
 def render_typst_document(body: str, title: str | None = None) -> str:

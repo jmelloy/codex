@@ -84,6 +84,17 @@ class TestMdxToTypst:
         assert "Calendar component" in result
         assert "date: 2026-01-01" in result
 
+    def test_component_directive_is_not_escaped_by_surrounding_inline_conversion(self):
+        # Component tags are frequently mid-paragraph, so the fallback box they
+        # expand to must survive `_convert_inline()`'s escaping of the same
+        # `#`/`[`/`]` characters the directive is built from.
+        result = mdx_to_typst('Hello <Calendar date="2026-01-01" /> world')
+        assert "\\#block(" not in result
+        assert "\\[" not in result
+        assert "\\]" not in result
+        assert result.startswith("Hello #block(")
+        assert result.rstrip().endswith("] world") or "] world" in result
+
     def test_unknown_component_gets_generic_fallback_box(self):
         result = mdx_to_typst('<EvilScript src="x" />')
         assert "EvilScript component" in result
@@ -180,3 +191,29 @@ class TestExportEndpoint:
 
         response = test_client.get(f"{base}/does-not-exist/export/pdf", headers=headers)
         assert response.status_code == 404
+
+    def test_export_sanitizes_malicious_title_in_content_disposition(
+        self, test_client, auth_headers, workspace_and_notebook
+    ):
+        headers = auth_headers[0]
+        workspace, notebook = workspace_and_notebook
+        base = f"/api/v1/workspaces/{workspace['slug']}/notebooks/{notebook['slug']}/blocks"
+
+        page = test_client.post(
+            f"{base}/pages",
+            json={"title": 'evil"\r\nX-Injected: yes\r\n/../../etc/passwd'},
+            headers=headers,
+        ).json()
+
+        response = test_client.get(f"{base}/{page['block_id']}/export/pdf", headers=headers)
+        assert response.status_code == 200
+        disposition = response.headers["content-disposition"]
+        # No CR/LF means the malicious title can't terminate the header and
+        # inject a second one (e.g. the embedded "X-Injected: yes" line).
+        assert "\r" not in disposition
+        assert "\n" not in disposition
+        assert "/" not in disposition
+        assert disposition.startswith('attachment; filename="')
+        assert "filename*=UTF-8''" in disposition
+        # Only one Content-Disposition header made it through - not split into two.
+        assert len(response.headers.get_list("content-disposition")) == 1

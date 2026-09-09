@@ -4,10 +4,13 @@ Provides CRUD operations for blocks and pages, supporting Notion-like
 infinite block recursion backed by filesystem folders and files.
 """
 
+import asyncio
 import logging
 import mimetypes
+import re
 import shutil
 from typing import Any
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, Response
@@ -838,6 +841,23 @@ async def get_block_text_endpoint(
         nb_session.close()
 
 
+# Characters that could break a quoted Content-Disposition filename param or
+# smuggle a path separator into a "Save As" default (block titles are free text).
+_UNSAFE_CONTENT_DISPOSITION_CHARS_RE = re.compile(r'[\\"\r\n/\x00-\x1f]')
+
+
+def _content_disposition_pdf_filename(title: str | None, block_id: str) -> str:
+    """Build a `Content-Disposition` header value safe for an arbitrary block title.
+
+    Provides both the legacy quoted `filename` (ASCII, sanitized) and the
+    RFC 5987 `filename*` form (UTF-8, percent-encoded) so non-ASCII titles
+    still round-trip correctly in browsers that support it.
+    """
+    base = _UNSAFE_CONTENT_DISPOSITION_CHARS_RE.sub("_", (title or block_id).strip()) or block_id
+    ascii_name = base.encode("ascii", "ignore").decode("ascii").strip() or "export"
+    return f'attachment; filename="{ascii_name}.pdf"; filename*=UTF-8\'\'{quote(f"{base}.pdf", safe="")}'
+
+
 @nested_router.get("/{block_id}/export/pdf")
 async def export_block_pdf_endpoint(
     workspace_identifier: str,
@@ -863,16 +883,15 @@ async def export_block_pdf_endpoint(
             raise HTTPException(status_code=404, detail="Block not found")
 
         try:
-            pdf_bytes = export_block_to_pdf(notebook_path, notebook.id, block, nb_session)
+            pdf_bytes = await asyncio.to_thread(export_block_to_pdf, notebook_path, notebook.id, block, nb_session)
         except TypstCompileError as e:
             logger.error("PDF export failed for block %s: %s", block_id, e)
             raise HTTPException(status_code=500, detail=f"PDF export failed: {e}")
 
-        filename = f"{block.title or block.block_id}.pdf"
         return Response(
             content=pdf_bytes,
             media_type="application/pdf",
-            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+            headers={"Content-Disposition": _content_disposition_pdf_filename(block.title, block.block_id)},
         )
     finally:
         nb_session.close()

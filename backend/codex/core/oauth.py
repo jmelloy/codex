@@ -24,6 +24,11 @@ from codex.db.models import OAuthConnection
 
 logger = logging.getLogger(__name__)
 
+# Google's granular consent lets users untick optional scopes (e.g. calendar), and
+# include_granted_scopes can return extra previously-granted ones. Without this,
+# oauthlib raises "Scope has changed" whenever the granted set differs from the request.
+os.environ.setdefault("OAUTHLIB_RELAX_TOKEN_SCOPE", "1")
+
 # Configuration from environment variables
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
@@ -126,8 +131,11 @@ def exchange_google_code(code: str) -> dict:
         autogenerate_code_verifier=False,
     )
 
-    flow.fetch_token(code=code)
+    token = flow.fetch_token(code=code)
     credentials = flow.credentials
+    granted_scopes = token.get("scope") or credentials.scopes or GOOGLE_CALENDAR_SCOPES
+    if isinstance(granted_scopes, str):
+        granted_scopes = granted_scopes.split()
 
     # Get user info from the ID token
     from google.auth.transport import requests as google_requests
@@ -152,7 +160,7 @@ def exchange_google_code(code: str) -> dict:
         "access_token": credentials.token,
         "refresh_token": credentials.refresh_token,
         "token_expiry": credentials.expiry,
-        "scopes": ",".join(credentials.scopes or GOOGLE_CALENDAR_SCOPES),
+        "scopes": ",".join(granted_scopes),
         "provider_email": user_info.get("email"),
         "provider_user_id": user_info.get("sub"),
     }

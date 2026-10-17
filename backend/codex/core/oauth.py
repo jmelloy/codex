@@ -90,6 +90,7 @@ def get_google_auth_url(state: str | None = None) -> str:
         },
         scopes=GOOGLE_CALENDAR_SCOPES,
         redirect_uri=GOOGLE_REDIRECT_URI,
+        autogenerate_code_verifier=False,
     )
 
     authorization_url, _ = flow.authorization_url(
@@ -122,6 +123,7 @@ def exchange_google_code(code: str) -> dict:
         },
         scopes=GOOGLE_CALENDAR_SCOPES,
         redirect_uri=GOOGLE_REDIRECT_URI,
+        autogenerate_code_verifier=False,
     )
 
     flow.fetch_token(code=code)

@@ -43,7 +43,7 @@ export interface Block {
     | "file"
     | "database"
     | "api"
-  content_format: "markdown" | "json" | "binary"
+  content_format: "mdx" | "legacy" | "markdown" | "json" | "binary"
   order_index: number
   title?: string
   filename?: string
@@ -216,7 +216,9 @@ export const workspaceService = {
   },
 
   async updateTheme(identifier: string, theme: string): Promise<Workspace> {
-    const response = await apiClient.patch<Workspace>(`/api/v1/workspaces/${identifier}/theme`, { theme })
+    const response = await apiClient.patch<Workspace>(`/api/v1/workspaces/${identifier}/theme`, {
+      theme,
+    })
     return response.data
   },
 
@@ -228,14 +230,14 @@ export const workspaceService = {
 export const notebookService = {
   async list(workspaceIdentifier: string): Promise<Notebook[]> {
     const response = await apiClient.get<Notebook[]>(
-      `/api/v1/workspaces/${workspaceIdentifier}/notebooks/`
+      `/api/v1/workspaces/${workspaceIdentifier}/notebooks/`,
     )
     return response.data
   },
 
   async get(workspaceIdentifier: string, notebookIdentifier: string): Promise<Notebook> {
     const response = await apiClient.get<Notebook>(
-      `/api/v1/workspaces/${workspaceIdentifier}/notebooks/${notebookIdentifier}`
+      `/api/v1/workspaces/${workspaceIdentifier}/notebooks/${notebookIdentifier}`,
     )
     return response.data
   },
@@ -246,28 +248,25 @@ export const notebookService = {
       {
         name,
         description,
-      }
+      },
     )
     return response.data
   },
 
   async delete(workspaceIdentifier: string, notebookIdentifier: string): Promise<void> {
-    await apiClient.delete(`/api/v1/workspaces/${workspaceIdentifier}/notebooks/${notebookIdentifier}`)
+    await apiClient.delete(
+      `/api/v1/workspaces/${workspaceIdentifier}/notebooks/${notebookIdentifier}`,
+    )
   },
 }
-
-
 
 export const blockService = {
   /**
    * List root-level blocks/pages in a notebook.
    */
-  async listRootBlocks(
-    notebookId: string,
-    workspaceId: string
-  ): Promise<RootBlocksResponse> {
+  async listRootBlocks(notebookId: string, workspaceId: string): Promise<RootBlocksResponse> {
     const response = await apiClient.get<RootBlocksResponse>(
-      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/`
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/`,
     )
     return response.data
   },
@@ -278,10 +277,10 @@ export const blockService = {
   async getBlock(
     blockId: string,
     notebookId: string,
-    workspaceId: string
+    workspaceId: string,
   ): Promise<BlockWithChildren> {
     const response = await apiClient.get<BlockWithChildren>(
-      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/${blockId}`
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/${blockId}`,
     )
     return response.data
   },
@@ -292,10 +291,10 @@ export const blockService = {
   async getChildren(
     blockId: string,
     notebookId: string,
-    workspaceId: string
+    workspaceId: string,
   ): Promise<BlockChildrenResponse> {
     const response = await apiClient.get<BlockChildrenResponse>(
-      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/${blockId}/children`
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/${blockId}/children`,
     )
     return response.data
   },
@@ -312,11 +311,11 @@ export const blockService = {
       content?: string
       position?: number
       content_format?: string
-    }
+    },
   ): Promise<Block & { blocks?: Block[] }> {
     const response = await apiClient.post<Block & { blocks?: Block[] }>(
       `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/`,
-      data
+      data,
     )
     return response.data
   },
@@ -332,11 +331,11 @@ export const blockService = {
       title: string
       description?: string
       properties?: Record<string, any>
-    }
+    },
   ): Promise<PageMetadata> {
     const response = await apiClient.post<PageMetadata>(
       `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/pages`,
-      data
+      data,
     )
     return response.data
   },
@@ -349,13 +348,13 @@ export const blockService = {
     notebookId: string,
     workspaceId: string,
     content: string,
-    blockType?: string
+    blockType?: string,
   ): Promise<Block & { blocks?: Block[] }> {
     const data: { content: string; block_type?: string } = { content }
     if (blockType) data.block_type = blockType
     const response = await apiClient.put<Block & { blocks?: Block[] }>(
       `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/${blockId}`,
-      data
+      data,
     )
     return response.data
   },
@@ -370,11 +369,11 @@ export const blockService = {
     data: {
       new_parent_block_id?: string
       position?: number
-    }
+    },
   ): Promise<Block> {
     const response = await apiClient.patch<Block>(
       `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/${blockId}/move`,
-      data
+      data,
     )
     return response.data
   },
@@ -386,11 +385,11 @@ export const blockService = {
     blockId: string,
     notebookId: string,
     workspaceId: string,
-    blockIds: string[]
+    blockIds: string[],
   ): Promise<ReorderBlocksResponse> {
     const response = await apiClient.patch<ReorderBlocksResponse>(
       `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/${blockId}/reorder`,
-      { block_ids: blockIds }
+      { block_ids: blockIds },
     )
     return response.data
   },
@@ -401,10 +400,10 @@ export const blockService = {
   async deleteBlock(
     blockId: string,
     notebookId: string,
-    workspaceId: string
+    workspaceId: string,
   ): Promise<{ message: string; blocks?: Block[] }> {
     const response = await apiClient.delete<{ message: string; blocks?: Block[] }>(
-      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/${blockId}`
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/${blockId}`,
     )
     return response.data
   },
@@ -412,11 +411,7 @@ export const blockService = {
   /**
    * Import a markdown file as a page of blocks.
    */
-  async importMarkdown(
-    notebookId: string,
-    workspaceId: string,
-    file: File
-  ): Promise<PageMetadata> {
+  async importMarkdown(notebookId: string, workspaceId: string, file: File): Promise<PageMetadata> {
     uploadLog.info("importMarkdown: start", {
       notebookId,
       workspaceId,
@@ -428,7 +423,7 @@ export const blockService = {
     try {
       const response = await apiClient.post<PageMetadata>(
         `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/import-markdown`,
-        formData
+        formData,
       )
       uploadLog.info("importMarkdown: success", {
         filename: file.name,
@@ -448,12 +443,9 @@ export const blockService = {
   /**
    * Get hierarchical block tree for sidebar navigation.
    */
-  async getTree(
-    notebookId: string,
-    workspaceId: string
-  ): Promise<BlockTreeResponse> {
+  async getTree(notebookId: string, workspaceId: string): Promise<BlockTreeResponse> {
     const response = await apiClient.get<BlockTreeResponse>(
-      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/tree`
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/tree`,
     )
     return response.data
   },
@@ -464,10 +456,10 @@ export const blockService = {
   async getText(
     blockId: string,
     notebookId: string,
-    workspaceId: string
+    workspaceId: string,
   ): Promise<BlockTextContent> {
     const response = await apiClient.get<BlockTextContent>(
-      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/${blockId}/text`
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/${blockId}/text`,
     )
     return response.data
   },
@@ -494,7 +486,7 @@ export const blockService = {
     notebookId: string,
     workspaceId: string,
     file: File,
-    parentBlockId?: string
+    parentBlockId?: string,
   ): Promise<Block> {
     const start = performance.now()
     uploadLog.info("upload: start", {
@@ -513,7 +505,7 @@ export const blockService = {
     try {
       const response = await apiClient.post<Block>(
         `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/upload`,
-        formData
+        formData,
       )
       uploadLog.info("upload: success", {
         filename: file.name,
@@ -541,7 +533,7 @@ export const blockService = {
     notebookId: string,
     workspaceId: string,
     files: { file: File; relativePath: string }[],
-    parentPath?: string
+    parentPath?: string,
   ): Promise<{ task_id: number; status: string; message: string }> {
     const start = performance.now()
     const totalSize = files.reduce((acc, f) => acc + f.file.size, 0)
@@ -565,7 +557,7 @@ export const blockService = {
     try {
       const response = await apiClient.post(
         `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/upload-folder`,
-        formData
+        formData,
       )
       uploadLog.info("uploadFolder: task queued", {
         fileCount: files.length,
@@ -590,13 +582,11 @@ export const blockService = {
     workspaceId: string,
     taskId: number,
     pollIntervalMs = 500,
-    maxAttempts = 120
+    maxAttempts = 120,
   ): Promise<{ status: string; task_metadata?: string }> {
     uploadLog.debug("waitForTask: polling", { taskId, pollIntervalMs, maxAttempts })
     for (let i = 0; i < maxAttempts; i++) {
-      const response = await apiClient.get(
-        `/api/v1/workspaces/${workspaceId}/tasks/${taskId}`
-      )
+      const response = await apiClient.get(`/api/v1/workspaces/${workspaceId}/tasks/${taskId}`)
       const task = response.data
       if (task.status === "completed" || task.status === "failed") {
         uploadLog.info("waitForTask: terminal status", {
@@ -618,10 +608,10 @@ export const blockService = {
   async getHistory(
     blockId: string,
     notebookId: string,
-    workspaceId: string
+    workspaceId: string,
   ): Promise<BlockHistory> {
     const response = await apiClient.get<BlockHistory>(
-      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/${blockId}/history`
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/${blockId}/history`,
     )
     return response.data
   },
@@ -633,10 +623,10 @@ export const blockService = {
     blockId: string,
     notebookId: string,
     workspaceId: string,
-    commitHash: string
+    commitHash: string,
   ): Promise<BlockAtCommit | PageAtCommit> {
     const response = await apiClient.get<BlockAtCommit | PageAtCommit>(
-      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/${blockId}/history/${commitHash}`
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/${blockId}/history/${commitHash}`,
     )
     return response.data
   },
@@ -648,11 +638,11 @@ export const blockService = {
     link: string,
     notebookId: string,
     workspaceId: string,
-    currentFilePath?: string
+    currentFilePath?: string,
   ): Promise<Block & { resolved_path: string }> {
     const response = await apiClient.post<Block & { resolved_path: string }>(
       `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/resolve-link`,
-      { link, current_file_path: currentFilePath }
+      { link, current_file_path: currentFilePath },
     )
     return response.data
   },
@@ -664,11 +654,11 @@ export const blockService = {
     blockId: string,
     notebookId: string,
     workspaceId: string,
-    properties: Record<string, any>
+    properties: Record<string, any>,
   ): Promise<Block> {
     const response = await apiClient.patch<Block>(
       `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/${blockId}/properties`,
-      { properties }
+      { properties },
     )
     return response.data
   },
@@ -679,11 +669,11 @@ export const blockService = {
   async importFolder(
     notebookId: string,
     workspaceId: string,
-    folderPath: string
+    folderPath: string,
   ): Promise<ImportFolderResponse> {
     const response = await apiClient.post<ImportFolderResponse>(
       `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/blocks/import-folder`,
-      { folder_path: folderPath }
+      { folder_path: folderPath },
     )
     return response.data
   },
@@ -701,7 +691,7 @@ export const searchService = {
    */
   async search(workspaceId: string, query: string): Promise<SearchResponse> {
     const response = await apiClient.get<SearchResponse>(
-      `/api/v1/workspaces/${workspaceId}/search/?q=${encodeURIComponent(query)}`
+      `/api/v1/workspaces/${workspaceId}/search/?q=${encodeURIComponent(query)}`,
     )
     return response.data
   },
@@ -712,10 +702,10 @@ export const searchService = {
   async searchInNotebook(
     workspaceId: string,
     notebookId: string,
-    query: string
+    query: string,
   ): Promise<NotebookSearchResponse> {
     const response = await apiClient.get<NotebookSearchResponse>(
-      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/search/?q=${encodeURIComponent(query)}`
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/search/?q=${encodeURIComponent(query)}`,
     )
     return response.data
   },
@@ -725,7 +715,7 @@ export const searchService = {
    */
   async searchByTags(workspaceId: string, tags: string[]): Promise<TagSearchResponse> {
     const response = await apiClient.get<TagSearchResponse>(
-      `/api/v1/workspaces/${workspaceId}/search/tags?tags=${encodeURIComponent(tags.join(","))}`
+      `/api/v1/workspaces/${workspaceId}/search/tags?tags=${encodeURIComponent(tags.join(","))}`,
     )
     return response.data
   },
@@ -736,12 +726,11 @@ export const searchService = {
   async searchByTagsInNotebook(
     workspaceId: string,
     notebookId: string,
-    tags: string[]
+    tags: string[],
   ): Promise<NotebookTagSearchResponse> {
     const response = await apiClient.get<NotebookTagSearchResponse>(
-      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/search/tags?tags=${encodeURIComponent(tags.join(","))}`
+      `/api/v1/workspaces/${workspaceId}/notebooks/${notebookId}/search/tags?tags=${encodeURIComponent(tags.join(","))}`,
     )
     return response.data
   },
 }
-

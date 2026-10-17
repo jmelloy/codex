@@ -36,29 +36,29 @@
       <h1 class="m-0 text-xl font-semibold" style="color: var(--notebook-text)">Codex</h1>
       <div class="ml-auto flex items-center gap-1">
         <NotificationBell />
-      <!-- Mobile Properties Toggle -->
-      <button
-        v-if="workspaceStore.currentBlock"
-        @click="toggleProperties"
-        class="sidebar-icon-button"
-        title="Properties"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
+        <!-- Mobile Properties Toggle -->
+        <button
+          v-if="workspaceStore.currentBlock"
+          @click="toggleProperties"
+          class="sidebar-icon-button"
+          title="Properties"
         >
-          <circle cx="12" cy="12" r="1"></circle>
-          <circle cx="12" cy="5" r="1"></circle>
-          <circle cx="12" cy="19" r="1"></circle>
-        </svg>
-      </button>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="12" cy="12" r="1"></circle>
+            <circle cx="12" cy="5" r="1"></circle>
+            <circle cx="12" cy="19" r="1"></circle>
+          </svg>
+        </button>
       </div>
     </div>
 
@@ -191,7 +191,7 @@
                 <span class="mr-2 text-sm">{{ getBlockIcon(file) }}</span>
                 <div class="flex-1 min-w-0">
                   <div class="truncate font-medium" style="color: var(--notebook-text)">
-                    {{ file.title || file.filename || file.path.split('/').pop() }}
+                    {{ file.title || file.filename || file.path.split("/").pop() }}
                   </div>
                   <div class="truncate text-xs" style="color: var(--pen-gray)">
                     {{ file.path }}
@@ -328,7 +328,11 @@
                   <div
                     v-if="uploadMenuNotebookId === notebook.id"
                     class="absolute right-0 top-6 z-20 rounded shadow-md text-sm"
-                    style="background: var(--notebook-bg, #fff); border: 1px solid var(--page-border); min-width: 160px"
+                    style="
+                      background: var(--notebook-bg, #fff);
+                      border: 1px solid var(--page-border);
+                      min-width: 160px;
+                    "
                     @click.stop
                   >
                     <button
@@ -387,11 +391,12 @@
                           v-if="!node.isPage || hasSubpages(node)"
                           class="text-[10px] mr-2 w-3"
                           style="color: var(--pen-gray)"
-                        >{{
-                          isPageExpanded(notebook.id, node.path) ? "▼" : "▶"
-                        }}</span>
+                          >{{ isPageExpanded(notebook.id, node.path) ? "▼" : "▶" }}</span
+                        >
                         <span v-else class="mr-2 w-3"></span>
-                        <span class="mr-2 text-sm">{{ node.pageMeta?.properties?.icon || (node.isPage ? '📄' : '📁') }}</span>
+                        <span class="mr-2 text-sm">{{
+                          node.pageMeta?.properties?.icon || (node.isPage ? "📄" : "📁")
+                        }}</span>
                         <span class="overflow-hidden text-ellipsis whitespace-nowrap">{{
                           node.pageMeta?.title || node.name
                         }}</span>
@@ -590,7 +595,9 @@
           >
             <img
               :src="currentContentUrl"
-              :alt="workspaceStore.currentLeafBlock.title || workspaceStore.currentLeafBlock.filename"
+              :alt="
+                workspaceStore.currentLeafBlock.title || workspaceStore.currentLeafBlock.filename
+              "
               class="max-w-full max-h-full object-contain"
             />
           </div>
@@ -603,7 +610,9 @@
             <iframe
               :src="currentContentUrl"
               class="w-full h-full border-0"
-              :title="workspaceStore.currentLeafBlock.title || workspaceStore.currentLeafBlock.filename"
+              :title="
+                workspaceStore.currentLeafBlock.title || workspaceStore.currentLeafBlock.filename
+              "
             />
           </div>
 
@@ -637,7 +646,9 @@
             <iframe
               :src="currentContentUrl"
               class="w-full h-full border-0"
-              :title="workspaceStore.currentLeafBlock.title || workspaceStore.currentLeafBlock.filename"
+              :title="
+                workspaceStore.currentLeafBlock.title || workspaceStore.currentLeafBlock.filename
+              "
               sandbox="allow-scripts allow-same-origin"
             />
           </div>
@@ -663,7 +674,20 @@
             </div>
           </div>
 
-          <!-- Markdown Viewer (default) -->
+          <!-- MDX Viewer (content_format: mdx) -->
+          <MdxViewer
+            v-else-if="workspaceStore.currentLeafBlock.content_format === 'mdx'"
+            :content="workspaceStore.currentLeafBlock.content"
+            :frontmatter="workspaceStore.currentLeafBlock.properties"
+            :workspace-id="workspaceStore.currentWorkspace?.slug"
+            :notebook-id="workspaceStore.currentNotebook?.slug"
+            :show-frontmatter="false"
+            :show-toolbar="false"
+            @copy="handleCopy"
+            class="flex-1"
+          />
+
+          <!-- Markdown Viewer (default, content_format: legacy/markdown) -->
           <MarkdownViewer
             v-else
             :content="workspaceStore.currentLeafBlock.content"
@@ -680,10 +704,7 @@
       </div>
 
       <!-- Block/Page View Mode -->
-      <div
-        v-else-if="workspaceStore.currentPageBlock"
-        class="flex-1 flex overflow-hidden p-4"
-      >
+      <div v-else-if="workspaceStore.currentPageBlock" class="flex-1 flex overflow-hidden p-4">
         <div class="flex-1 flex flex-col overflow-hidden">
           <!-- Cover image -->
           <div
@@ -698,9 +719,14 @@
           </div>
 
           <!-- Page header bar -->
-          <div class="page-header-bar flex items-center justify-between px-4 py-2" style="border-bottom: 1px solid var(--page-border)">
+          <div
+            class="page-header-bar flex items-center justify-between px-4 py-2"
+            style="border-bottom: 1px solid var(--page-border)"
+          >
             <div class="flex items-center gap-2 min-w-0">
-              <span class="text-sm">{{ workspaceStore.currentPageBlock?.properties?.icon || '📄' }}</span>
+              <span class="text-sm">{{
+                workspaceStore.currentPageBlock?.properties?.icon || "📄"
+              }}</span>
               <span class="font-medium truncate" style="color: var(--notebook-text)">
                 {{ workspaceStore.currentPageBlock.title || workspaceStore.currentPageBlock.name }}
               </span>
@@ -759,7 +785,9 @@
     ></div>
 
     <BlockPropertiesPanel
-      v-if="showPropertiesPanel && workspaceStore.currentLeafBlock && workspaceStore.currentWorkspace"
+      v-if="
+        showPropertiesPanel && workspaceStore.currentLeafBlock && workspaceStore.currentWorkspace
+      "
       :block="workspaceStore.currentLeafBlock"
       :workspace-id="workspaceStore.currentWorkspace.slug"
       :notebook-id="nbSlug(workspaceStore.currentLeafBlock.notebook_id)"
@@ -772,7 +800,9 @@
 
     <!-- Page Properties Panel -->
     <BlockPropertiesPanel
-      v-if="showPropertiesPanel && workspaceStore.currentPageBlock && !workspaceStore.currentLeafBlock"
+      v-if="
+        showPropertiesPanel && workspaceStore.currentPageBlock && !workspaceStore.currentLeafBlock
+      "
       :block="workspaceStore.currentBlock"
       :workspace-id="workspaceStore.currentWorkspace?.slug ?? ''"
       :notebook-id="nbSlug(workspaceStore.currentBlock?.notebook_id)"
@@ -858,7 +888,8 @@
           class="w-full px-3 py-2 border border-border-medium rounded-md bg-bg-primary text-text-primary"
         />
         <p class="text-sm text-text-secondary mt-1">
-          Enter a name for the page, or a filename with extension for other file types (e.g., data.json, script.py)
+          Enter a name for the page, or a filename with extension for other file types (e.g.,
+          data.json, script.py)
         </p>
       </FormGroup>
 
@@ -893,17 +924,17 @@
       into, or leave as &ldquo;Auto&rdquo; to create a new root page per file.
     </p>
     <div class="mb-6">
-      <label class="block text-sm font-medium mb-1" style="color: var(--notebook-text)">Destination page</label>
+      <label class="block text-sm font-medium mb-1" style="color: var(--notebook-text)"
+        >Destination page</label
+      >
       <select
         v-model="selectedUploadPageId"
         class="w-full px-3 py-2 border border-border-medium rounded-md bg-bg-primary text-text-primary"
       >
         <option value="">Auto (create root page per file)</option>
-        <option
-          v-for="page in availableUploadPages"
-          :key="page.block_id"
-          :value="page.block_id"
-        >{{ " ".repeat(page.indent * 2) }}{{ page.title }}</option>
+        <option v-for="page in availableUploadPages" :key="page.block_id" :value="page.block_id">
+          {{ " ".repeat(page.indent * 2) }}{{ page.title }}
+        </option>
       </select>
     </div>
     <div class="flex gap-2 justify-end">
@@ -970,6 +1001,7 @@ import { getDisplayType } from "../utils/contentType"
 import Modal from "../components/Modal.vue"
 import FormGroup from "../components/FormGroup.vue"
 import MarkdownViewer from "../components/MarkdownViewer.vue"
+import MdxViewer from "../components/MdxViewer.vue"
 import CodeViewer from "../components/CodeViewer.vue"
 import BlockPropertiesPanel from "../components/BlockPropertiesPanel.vue"
 import BlockView from "../components/BlockView.vue"
@@ -997,10 +1029,10 @@ const commentsStore = useCommentsStore()
 
 // Workspaces the current user owns vs. workspaces shared with them (read/comment/write/admin grant)
 const ownedWorkspaces = computed(() =>
-  workspaceStore.workspaces.filter((w) => w.owner_id === authStore.user?.id)
+  workspaceStore.workspaces.filter((w) => w.owner_id === authStore.user?.id),
 )
 const sharedWorkspaces = computed(() =>
-  workspaceStore.workspaces.filter((w) => w.owner_id !== authStore.user?.id)
+  workspaceStore.workspaces.filter((w) => w.owner_id !== authStore.user?.id),
 )
 
 // Modal state
@@ -1164,7 +1196,11 @@ async function onFolderUploadInputChange(event: Event) {
   input.value = ""
 }
 
-async function uploadIndividualFiles(notebookId: number, files: File[], parentBlockId?: string | null) {
+async function uploadIndividualFiles(
+  notebookId: number,
+  files: File[],
+  parentBlockId?: string | null,
+) {
   const nb = workspaceStore.notebooks.find((n) => n.id === notebookId)
   const ws = workspaceStore.currentWorkspace
   if (!nb || !ws) {
@@ -1197,7 +1233,10 @@ async function uploadIndividualFiles(notebookId: number, files: File[], parentBl
   if (failed === 0) {
     showToast({ message: `Uploaded ${success} file${success === 1 ? "" : "s"}` })
   } else if (success === 0) {
-    showToast({ message: `Failed to upload ${failed} file${failed === 1 ? "" : "s"}`, type: "error" })
+    showToast({
+      message: `Failed to upload ${failed} file${failed === 1 ? "" : "s"}`,
+      type: "error",
+    })
   } else {
     showToast({ message: `Uploaded ${success}, failed ${failed}`, type: "error" })
   }
@@ -1305,7 +1344,6 @@ function openInNewTab() {
   }
 }
 
-
 // Watch for route changes to restore block selection from URL (path-based)
 watch(
   () => route.params,
@@ -1399,7 +1437,11 @@ onMounted(async () => {
 
     if (notebook) {
       try {
-        const block = await blockService.resolveLink(itemPath, notebook.slug, workspaceStore.currentWorkspace!.slug)
+        const block = await blockService.resolveLink(
+          itemPath,
+          notebook.slug,
+          workspaceStore.currentWorkspace!.slug,
+        )
         await workspaceStore.selectBlock(block)
       } catch {
         await workspaceStore.selectBlockByPath(itemPath, notebook.id)
@@ -1481,7 +1523,12 @@ function togglePage(notebookId: number, pagePath: string) {
   }
 }
 
-async function handlePageClick(event: MouseEvent, notebookId: number, pagePath: string, node?: BlockTreeNode) {
+async function handlePageClick(
+  event: MouseEvent,
+  notebookId: number,
+  pagePath: string,
+  node?: BlockTreeNode,
+) {
   const target = event.target as HTMLElement
   const isArrowClick =
     target.classList.contains("text-[10px]") || target.closest(".text-\\[10px\\]")
@@ -1587,7 +1634,10 @@ async function handleReorderBlocks(blockIds: string[]) {
   }
 }
 
-async function handleUpdateBlock(block: { block_id: string; content: string; block_type?: string }, retries = 2) {
+async function handleUpdateBlock(
+  block: { block_id: string; content: string; block_type?: string },
+  retries = 2,
+) {
   const notebookId = workspaceStore.currentBlock?.notebook_id
   if (!notebookId) return
 
@@ -1734,7 +1784,10 @@ async function handlePageDrop(event: DragEvent, notebookId: number, pagePath: st
   if (!event.dataTransfer) return
 
   // Handle external file drop (upload)
-  if (event.dataTransfer.types.includes("Files") && !event.dataTransfer.types.includes("application/x-codex-block")) {
+  if (
+    event.dataTransfer.types.includes("Files") &&
+    !event.dataTransfer.types.includes("application/x-codex-block")
+  ) {
     await handleBlockUpload(event.dataTransfer, notebookId, pagePath)
     return
   }
@@ -1775,7 +1828,10 @@ async function handleNotebookDrop(event: DragEvent, notebookId: number) {
   if (!event.dataTransfer) return
 
   // Handle external file drop (upload)
-  if (event.dataTransfer.types.includes("Files") && !event.dataTransfer.types.includes("application/x-codex-block")) {
+  if (
+    event.dataTransfer.types.includes("Files") &&
+    !event.dataTransfer.types.includes("application/x-codex-block")
+  ) {
     await handleBlockUpload(event.dataTransfer, notebookId, "")
     return
   }
@@ -1796,7 +1852,7 @@ async function handleNotebookDrop(event: DragEvent, notebookId: number) {
 
 // Recursively read all files from a dropped directory entry
 function readEntriesRecursively(
-  entry: FileSystemDirectoryEntry
+  entry: FileSystemDirectoryEntry,
 ): Promise<{ file: File; relativePath: string }[]> {
   return new Promise((resolve) => {
     const reader = entry.createReader()
@@ -1815,7 +1871,7 @@ function readEntriesRecursively(
                 ;(child as FileSystemFileEntry).file((f) => {
                   res([{ file: f, relativePath: child.fullPath.replace(/^\//, "") }])
                 })
-              })
+              }),
             )
           } else if (child.isDirectory) {
             results.push(readEntriesRecursively(child as FileSystemDirectoryEntry))
@@ -1831,7 +1887,7 @@ function readEntriesRecursively(
 
 // Collect files from DataTransfer, recursing into directories
 async function collectDroppedFiles(
-  dataTransfer: DataTransfer
+  dataTransfer: DataTransfer,
 ): Promise<{ file: File; relativePath: string }[]> {
   const items = dataTransfer.items
   const fileEntries: Promise<{ file: File; relativePath: string }[]>[] = []
@@ -1850,7 +1906,7 @@ async function collectDroppedFiles(
             ;(entry as FileSystemFileEntry).file((f) => {
               resolve([{ file: f, relativePath: f.name }])
             })
-          })
+          }),
         )
       }
     }
@@ -1894,10 +1950,13 @@ async function handleBlockUpload(dataTransfer: DataTransfer, notebookId: number,
         nb.slug,
         workspaceStore.currentWorkspace.slug,
         droppedFiles,
-        pagePath
+        pagePath,
       )
       showToast({ message: `Importing folder (${droppedFiles.length} files)...` })
-      const task = await blockService.waitForTask(workspaceStore.currentWorkspace.slug, importResult.task_id)
+      const task = await blockService.waitForTask(
+        workspaceStore.currentWorkspace.slug,
+        importResult.task_id,
+      )
       await workspaceStore.fetchBlockTree(notebookId)
       if (task.status === "completed") {
         showToast({ message: `Uploaded folder (${droppedFiles.length} files)` })
@@ -1965,10 +2024,7 @@ async function handleUpdateProperties(properties: Record<string, any>) {
         properties,
       )
     } else {
-      await workspaceStore.saveBlock(
-        (workspaceStore.currentBlock as any).content || "",
-        properties,
-      )
+      await workspaceStore.saveBlock((workspaceStore.currentBlock as any).content || "", properties)
     }
   } catch {
     // Error handled in store
@@ -1989,7 +2045,10 @@ async function handleRestoreVersion(content: string) {
 async function handleDeleteLeafBlock() {
   if (workspaceStore.currentBlock) {
     try {
-      await workspaceStore.deleteBlock(workspaceStore.currentBlock.notebook_id, workspaceStore.currentBlock.block_id)
+      await workspaceStore.deleteBlock(
+        workspaceStore.currentBlock.notebook_id,
+        workspaceStore.currentBlock.block_id,
+      )
       showPropertiesPanel.value = false
       showToast({ message: "Block deleted" })
     } catch {
@@ -2024,7 +2083,10 @@ async function handleRenameBlock(newName: string) {
 async function handleDeletePageBlock() {
   if (workspaceStore.currentBlock) {
     try {
-      await workspaceStore.deleteBlock(workspaceStore.currentBlock.notebook_id, workspaceStore.currentBlock.block_id)
+      await workspaceStore.deleteBlock(
+        workspaceStore.currentBlock.notebook_id,
+        workspaceStore.currentBlock.block_id,
+      )
       showPropertiesPanel.value = false
       showToast({ message: "Page deleted" })
     } catch {
@@ -2092,7 +2154,6 @@ async function handleCreatePage() {
     // Error handled in store
   }
 }
-
 
 function startCreatePage(notebook: Notebook) {
   createPageNotebook.value = notebook

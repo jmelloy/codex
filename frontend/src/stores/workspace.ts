@@ -193,7 +193,8 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   async function fetchBlockTree(notebookId: number) {
     if (!currentWorkspace.value) return
 
-    blockLoading.value = true
+    // No blockLoading here: this only feeds the sidebar, and toggling the
+    // content pane's loading state on every background refresh unmounts the editor.
     error.value = null
     try {
       const result = await blockService.getTree(notebookSlug(notebookId), workspaceSlug())
@@ -201,8 +202,6 @@ export const useWorkspaceStore = defineStore("workspace", () => {
       blockTrees.value.set(notebookId, tree)
     } catch (e: any) {
       error.value = e.response?.data?.detail || "Failed to fetch blocks"
-    } finally {
-      blockLoading.value = false
     }
   }
 
@@ -213,8 +212,10 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   async function selectBlock(block: Block) {
     if (!currentWorkspace.value) return
 
+    // Re-selecting the current block (e.g. a WebSocket-triggered refresh) reloads quietly
+    const switching = currentBlock.value?.block_id !== block.block_id
     currentBlock.value = block
-    blockLoading.value = true
+    if (switching) blockLoading.value = true
     error.value = null
 
     try {
@@ -264,7 +265,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     } catch (e: any) {
       error.value = e.response?.data?.detail || "Failed to load block"
     } finally {
-      blockLoading.value = false
+      if (switching) blockLoading.value = false
     }
   }
 
@@ -378,7 +379,6 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   ) {
     if (!currentWorkspace.value) return
 
-    blockLoading.value = true
     error.value = null
     try {
       const result = await blockService.deleteBlock(blockId, notebookSlug(notebookId), workspaceSlug())
@@ -401,8 +401,6 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     } catch (e: any) {
       error.value = e.response?.data?.detail || "Failed to delete block"
       throw e
-    } finally {
-      blockLoading.value = false
     }
   }
 
@@ -570,7 +568,6 @@ export const useWorkspaceStore = defineStore("workspace", () => {
    */
   async function fetchPageBlocks(blockId: string, notebookId: number) {
     if (!currentWorkspace.value) return
-    blockLoading.value = true
     try {
       const result = await blockService.getChildren(
         blockId,
@@ -580,8 +577,6 @@ export const useWorkspaceStore = defineStore("workspace", () => {
       currentPageBlocks.value = result.children
     } catch (e: any) {
       error.value = e.response?.data?.detail || "Failed to fetch page blocks"
-    } finally {
-      blockLoading.value = false
     }
   }
 

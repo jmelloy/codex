@@ -66,6 +66,13 @@ services:
       redis:
         condition: service_healthy
     command: arq codex.worker.settings.WorkerSettings
+    # The image's HEALTHCHECK probes the API on :8000, which the worker doesn't
+    # serve; use arq's Redis-backed health key instead.
+    healthcheck:
+      test: ["CMD", "arq", "--check", "codex.worker.settings.WorkerSettings"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
 
   frontend:
     build:

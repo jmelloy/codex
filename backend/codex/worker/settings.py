@@ -49,6 +49,7 @@ class WorkerSettings:
     redis_settings = get_redis_settings()
     max_jobs = 10
     job_timeout = 600  # 10 minutes
+    health_check_interval = 30  # seconds; read by `arq --check` (docker healthcheck)
 
     on_startup = _on_startup
     on_shutdown = _on_shutdown

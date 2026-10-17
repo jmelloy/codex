@@ -1597,7 +1597,21 @@ async function handleNavigatePageBlock(block: any) {
   }
 }
 
-async function handleDeleteBlock(blockId: string) {
+// Block mutations run one at a time. Pressing Enter fires a save and a create together,
+// and the create's response (the page's full block list) replaces what's on screen — if
+// it's built before the save lands, the just-typed text vanishes until reload.
+let blockMutationQueue: Promise<unknown> = Promise.resolve()
+function enqueueBlockMutation<T>(fn: () => Promise<T>): Promise<T> {
+  const run = blockMutationQueue.then(fn, fn)
+  blockMutationQueue = run.catch(() => {})
+  return run
+}
+
+function handleDeleteBlock(blockId: string) {
+  return enqueueBlockMutation(() => deleteBlock(blockId))
+}
+
+async function deleteBlock(blockId: string) {
   const pageBlockId = workspaceStore.currentPageBlockId
   const notebookId = workspaceStore.currentBlock?.notebook_id
   if (pageBlockId && notebookId) {
@@ -1610,7 +1624,11 @@ async function handleDeleteBlock(blockId: string) {
   }
 }
 
-async function handleAddBlock(blockType: string = "text", content: string = "", position?: number) {
+function handleAddBlock(blockType: string = "text", content: string = "", position?: number) {
+  return enqueueBlockMutation(() => addBlock(blockType, content, position))
+}
+
+async function addBlock(blockType: string, content: string, position?: number) {
   const pageBlockId = workspaceStore.currentPageBlockId
   const notebookId = workspaceStore.currentBlock?.notebook_id
   if (pageBlockId && notebookId) {
@@ -1622,7 +1640,11 @@ async function handleAddBlock(blockType: string = "text", content: string = "", 
   }
 }
 
-async function handleReorderBlocks(blockIds: string[]) {
+function handleReorderBlocks(blockIds: string[]) {
+  return enqueueBlockMutation(() => reorderBlocks(blockIds))
+}
+
+async function reorderBlocks(blockIds: string[]) {
   const pageBlockId = workspaceStore.currentPageBlockId
   const notebookId = workspaceStore.currentBlock?.notebook_id
   if (pageBlockId && notebookId) {
@@ -1634,7 +1656,11 @@ async function handleReorderBlocks(blockIds: string[]) {
   }
 }
 
-async function handleUpdateBlock(
+function handleUpdateBlock(block: { block_id: string; content: string; block_type?: string }) {
+  return enqueueBlockMutation(() => updateBlock(block))
+}
+
+async function updateBlock(
   block: { block_id: string; content: string; block_type?: string },
   retries = 2,
 ) {
@@ -1669,7 +1695,7 @@ async function handleUpdateBlock(
   } catch (e: any) {
     if (retries > 0) {
       await new Promise((r) => setTimeout(r, 500))
-      return handleUpdateBlock(block, retries - 1)
+      return updateBlock(block, retries - 1)
     }
     showToast({ message: "Failed to save block", type: "error" })
   }

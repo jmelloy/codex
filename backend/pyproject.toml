@@ -10,11 +10,11 @@ authors = [
 dependencies = [
     "fastapi>=0.115.0",
     "sqlmodel>=0.0.39",
-    "uvicorn[standard]>=0.51.0",
+    "uvicorn[standard]>=0.52.4",
     "python-multipart>=0.0.32",
     "pydantic>=2.13.5",
     "pydantic[email]>=2.13.5",
-    "alembic>=1.18.5",
+    "alembic>=1.19.2",
     "watchdog>=6.0.0",
     "gitpython>=3.1.43",
     "python-frontmatter>=1.3.0",
@@ -27,7 +27,7 @@ dependencies = [
     "cryptography>=42.0.0",
     "google-auth>=2.57.1",
     "google-auth-oauthlib>=1.4.1",
-    "google-api-python-client>=2.196.0",
+    "google-api-python-client>=2.200.0",
     "boto3>=1.34.0",
     "mistune>=3.3.4",
     "sqlite-vec>=0.1.9",
@@ -35,6 +35,7 @@ dependencies = [
     "arq>=0.28.0",
     "redis[hiredis]>=5.0.0",
     "typst>=0.13.0",
+    "sqlalchemy[asyncio]>=2.0.46",
 ]
 
 [project.optional-dependencies]
@@ -43,7 +44,7 @@ postgres = [
     "psycopg2-binary>=2.9.12",
 ]
 dev = [
-    "pytest>=8.3.0",
+    "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
     "pytest-cov>=7.1.0",
     "ruff>=0.16.1",

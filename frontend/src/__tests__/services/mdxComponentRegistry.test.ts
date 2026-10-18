@@ -3,7 +3,6 @@ import {
   ALLOWED_COMPONENT_NAMES,
   MDX_COMPONENT_REGISTRY,
   extractComponentNames,
-  findUnauthorizedComponents,
 } from "../../services/mdxComponentRegistry"
 
 describe("mdxComponentRegistry", () => {
@@ -41,15 +40,4 @@ describe("mdxComponentRegistry", () => {
     })
   })
 
-  describe("findUnauthorizedComponents", () => {
-    it("excludes allowlisted components", () => {
-      expect(findUnauthorizedComponents("<Calendar/>")).toEqual(new Set())
-    })
-
-    it("flags unknown components", () => {
-      expect(findUnauthorizedComponents("<Calendar/><EvilComponent/>")).toEqual(
-        new Set(["EvilComponent"]),
-      )
-    })
-  })
 })

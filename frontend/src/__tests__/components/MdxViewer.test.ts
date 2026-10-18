@@ -8,26 +8,15 @@ describe("MdxViewer", () => {
     setActivePinia(createPinia())
   })
 
-  it("emits copy event when copy button is clicked", async () => {
-    Object.defineProperty(navigator, "clipboard", {
-      value: {
-        writeText: async () => {},
-      },
-      writable: true,
-      configurable: true,
-    })
+  it("renders MDX content", () => {
+    const wrapper = mount(MdxViewer, { props: { content: "# Test content" } })
+    expect(wrapper.find("h1").text()).toBe("Test content")
+  })
 
+  it("renders legacy Markdown content with format md", () => {
     const wrapper = mount(MdxViewer, {
-      props: {
-        content: "# Test content",
-        showToolbar: true,
-      },
+      props: { content: "| a | b |\n|---|---|\n| 1 | 2 |", format: "md" },
     })
-
-    const copyButton = wrapper.find(".btn-copy")
-    await copyButton.trigger("click")
-    await Promise.resolve()
-
-    expect(wrapper.emitted("copy")).toBeTruthy()
+    expect(wrapper.findAll("td").map((td) => td.text())).toEqual(["1", "2"])
   })
 })

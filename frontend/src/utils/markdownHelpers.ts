@@ -1,6 +1,6 @@
 /**
  * Shared helpers for resolving file references in markdown content.
- * Used by both MarkdownViewer and BlockView.
+ * Used by the MDX/Markdown renderer (composables/useMdxContent.ts).
  */
 
 /** Check if a URL is a local file reference (not an external URL). */

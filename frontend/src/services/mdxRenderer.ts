@@ -14,9 +14,15 @@
  * known ones (see mdxComponentRegistry.ts) resolve to their real Vue
  * component, unknown ones resolve to a visible "unauthorized" placeholder -
  * mirroring the backend's allowlist in codex.core.mdx.
+ *
+ * Legacy (plain Markdown) content goes through the same pipeline with
+ * `format: "md"`, which parses CommonMark only: raw HTML, JSX and `{...}`
+ * expressions are dropped or kept as literal text, so it needs no allowlist.
  */
 import { Fragment as VueFragment, h, type Component, type VNode, type VNodeChild } from "vue"
 import { evaluateSync } from "@mdx-js/mdx"
+import remarkBreaks from "remark-breaks"
+import remarkGfm from "remark-gfm"
 import { ALLOWED_COMPONENT_NAMES, extractComponentNames } from "./mdxComponentRegistry"
 
 // hast-util-to-jsx-runtime (used internally by @mdx-js/mdx) emits React-style
@@ -72,13 +78,54 @@ export function buildComponentsMap(
   return map
 }
 
+export type MdxFormat = "mdx" | "md"
+
 // mdast/hast node types @mdx-js/mdx emits for ESM (`import`/`export`) and JS
 // expressions (`{...}`) - see mdast-util-mdxjs-esm and mdast-util-mdx-expression.
 // These let MDX source run arbitrary JS, which the allowed-component model
 // doesn't gate at all, so they're rejected outright before evaluation.
 const DISALLOWED_MDX_JS_NODE_TYPES = new Set(["mdxjsEsm", "mdxFlowExpression", "mdxTextExpression"])
 
-/** Throws if `tree` contains ESM, a bare JS expression, or a JSX attribute driven by one (mdast-util-mdx-jsx's `mdxJsxExpressionAttribute` / `mdxJsxAttributeValueExpression`). */
+// Literal lowercase JSX (`<a href=...>`) becomes a real DOM element, so it can't
+// carry script: no script-bearing tags, no `on*` handlers, no script URLs.
+const DISALLOWED_HOST_TAGS = new Set([
+  "script",
+  "style",
+  "iframe",
+  "object",
+  "embed",
+  "form",
+  "base",
+  "meta",
+  "link",
+])
+const SCRIPT_URL_RE = /^\s*(javascript:|vbscript:|data:(?!image\/))/i
+
+/** Whether `url` would run script if used as a link target. */
+export function isScriptUrl(url: string): boolean {
+  return SCRIPT_URL_RE.test(url)
+}
+
+function assertSafeHostElement(name: string, attributes: Record<string, unknown>[]): void {
+  if (DISALLOWED_HOST_TAGS.has(name.toLowerCase())) {
+    throw new Error(`MDX content may not contain <${name}> elements`)
+  }
+  for (const attr of attributes) {
+    const attrName = String(attr.name ?? "")
+    if (/^on/i.test(attrName)) {
+      throw new Error(
+        `MDX element <${name}> may not have an event handler attribute ("${attrName}")`,
+      )
+    }
+    if (typeof attr.value === "string" && SCRIPT_URL_RE.test(attr.value)) {
+      throw new Error(
+        `MDX element <${name}> attribute "${attrName}" may not be a script or data URL`,
+      )
+    }
+  }
+}
+
+/** Throws if `tree` contains ESM, a bare JS expression, a JSX attribute driven by one (mdast-util-mdx-jsx's `mdxJsxExpressionAttribute` / `mdxJsxAttributeValueExpression`), or an unsafe host element. */
 function assertNoMdxJsNodes(node: unknown): void {
   if (!node || typeof node !== "object") return
   const n = node as Record<string, unknown>
@@ -96,6 +143,9 @@ function assertNoMdxJsNodes(node: unknown): void {
           `MDX component attribute "${attr.name}" on <${n.name}> may not be a JS expression`,
         )
       }
+    }
+    if (typeof n.name === "string" && /^[a-z]/.test(n.name)) {
+      assertSafeHostElement(n.name, n.attributes as Record<string, unknown>[])
     }
   }
   if (Array.isArray(n.children)) {
@@ -120,13 +170,19 @@ function renderNode(type: unknown, rawProps: Record<string, unknown> | null | un
   return h(type as any, props, childVNodes as any)
 }
 
-/** Compile and evaluate MDX source into a single Vue VNode tree, ready to render. */
-export function renderMdxToVNode(mdxSource: string, components: Record<string, Component>): VNode {
+/** Compile and evaluate MDX (or plain Markdown, with `format: "md"`) into a single Vue VNode tree, ready to render. */
+export function renderMdxToVNode(
+  mdxSource: string,
+  components: Record<string, Component>,
+  format: MdxFormat = "mdx",
+): VNode {
   const { default: MDXContent } = evaluateSync(mdxSource, {
     Fragment: VueFragment,
     jsx: (type: unknown, props: Record<string, unknown> | null) => renderNode(type, props),
     jsxs: (type: unknown, props: Record<string, unknown> | null) => renderNode(type, props),
-    remarkPlugins: [remarkRejectMdxJs],
+    format,
+    // Legacy Markdown was rendered with single newlines as line breaks; keep that.
+    remarkPlugins: format === "md" ? [remarkGfm, remarkBreaks] : [remarkGfm, remarkRejectMdxJs],
   }) as { default: (props: Record<string, unknown>) => VNode }
 
   return MDXContent({ components })
@@ -134,14 +190,25 @@ export function renderMdxToVNode(mdxSource: string, components: Record<string, C
 
 export class MdxCompileError extends Error {}
 
-/** Compile MDX source to a Vue VNode, resolving component tags via `resolve`. Throws MdxCompileError on invalid MDX. */
+/**
+ * Compile MDX source to a Vue VNode, resolving component tags via `resolve`.
+ * `hostOverrides` replace markdown-generated elements (`a`, `img`, `pre`, ...).
+ * Throws MdxCompileError on invalid MDX.
+ */
 export function compileMdx(
   mdxSource: string,
   resolve: (name: string) => Component | undefined,
+  {
+    format = "mdx",
+    hostOverrides = {},
+  }: { format?: MdxFormat; hostOverrides?: Record<string, Component> } = {},
 ): VNode {
-  const components = buildComponentsMap(mdxSource, resolve)
+  const components = {
+    ...hostOverrides,
+    ...(format === "mdx" ? buildComponentsMap(mdxSource, resolve) : {}),
+  }
   try {
-    return renderMdxToVNode(mdxSource, components)
+    return renderMdxToVNode(mdxSource, components, format)
   } catch (e) {
     throw new MdxCompileError(e instanceof Error ? e.message : String(e))
   }

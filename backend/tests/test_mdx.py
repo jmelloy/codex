@@ -4,11 +4,7 @@ Block.render(), and the component registry security model."""
 from sqlalchemy import text
 
 from codex.core.blocks import create_block, create_page
-from codex.core.mdx import (
-    ALLOWED_COMPONENTS,
-    extract_component_names,
-    find_unauthorized_components,
-)
+from codex.core.mdx import MDX_COMPONENT_REGISTRY
 from codex.db.database import get_notebook_session, init_notebook_db
 from codex.db.models import Block
 
@@ -181,7 +177,6 @@ class TestBlockRender:
         rendered = block.render(raw)
         assert rendered["content_format"] == "legacy"
         assert rendered["properties"] == {"title": "Hi"}
-        assert "unauthorized_components" not in rendered
 
     def test_render_passes_through_json_unchanged(self):
         block = self._block("json", path="page/blk.json")
@@ -189,34 +184,11 @@ class TestBlockRender:
         rendered = block.render(raw)
         assert rendered["content"] == raw
         assert rendered["properties"] == {}
-        assert "unauthorized_components" not in rendered
-
-    def test_render_flags_unauthorized_components(self):
-        block = self._block("mdx")
-        raw = 'Hello <Calendar /> and <EvilScript src="x" />'
-        rendered = block.render(raw)
-        assert rendered["unauthorized_components"] == ["EvilScript"]
-
-    def test_render_reports_no_unauthorized_components_when_all_allowed(self):
-        block = self._block("mdx")
-        raw = 'Hello <Calendar /> and <Weather location="NYC" />'
-        rendered = block.render(raw)
-        assert rendered["unauthorized_components"] == []
 
 
 class TestComponentRegistry:
-    def test_extract_component_names_finds_capitalized_tags(self):
-        names = extract_component_names('Text <Calendar/> more <Weather x="1"></Weather> <p>html</p>')
-        assert names == {"Calendar", "Weather"}
-
-    def test_find_unauthorized_components_excludes_allowlisted(self):
-        assert find_unauthorized_components("<Calendar/>") == set()
-
-    def test_find_unauthorized_components_flags_unknown(self):
-        assert find_unauthorized_components("<Calendar/><EvilComponent/>") == {"EvilComponent"}
-
     def test_registry_matches_documented_components(self):
-        assert ALLOWED_COMPONENTS == {
+        assert set(MDX_COMPONENT_REGISTRY) == {
             "Calendar",
             "CodeBlock",
             "Weather",

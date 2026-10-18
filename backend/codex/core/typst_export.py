@@ -36,8 +36,7 @@ _TYPST_MARKUP_ESCAPE_RE = re.compile(r"[\\#$@_*`<>\[\]]")
 _FENCE_RE = re.compile(r"^```([^\n`]*)\n(.*?)^```[ \t]*$", re.DOTALL | re.MULTILINE)
 
 # Self-closing (`<Name .../>`) or paired (`<Name>...</Name>`) capitalized JSX
-# tags — the same convention codex.core.mdx.extract_component_names uses to
-# recognize MDX components as opposed to lowercase host HTML elements.
+# tags — MDX's convention for components as opposed to lowercase host HTML elements.
 _COMPONENT_RE = re.compile(
     r"<(?P<name>[A-Z][A-Za-z0-9]*)(?P<attrs>[^>]*?)(?:/>|>(?P<children>.*?)</(?P=name)>)",
     re.DOTALL,

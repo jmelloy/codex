@@ -187,7 +187,7 @@
 
             <!-- Database block -->
             <template
-              v-else-if="block.block_type === 'database' || detectDynamicType(block) === 'database'"
+              v-else-if="block.block_type === 'database'"
             >
               <DatabaseBlock
                 v-if="editingBlockId !== block.block_id"
@@ -213,7 +213,7 @@
             </template>
 
             <!-- API block -->
-            <template v-else-if="block.block_type === 'api' || detectDynamicType(block) === 'api'">
+            <template v-else-if="block.block_type === 'api'">
               <ApiBlock
                 v-if="editingBlockId !== block.block_id"
                 :config="parseDynamicConfig(block)"
@@ -259,13 +259,13 @@
                 @click.stop="handleRenderedBlockClick($event, block, index)"
               >
                 <MdxBlockRenderer
-                  v-if="block.content && block.content_format === 'mdx'"
+                  v-if="block.content"
                   :content="block.content"
+                  :format="block.content_format === 'mdx' ? 'mdx' : 'md'"
                   :workspace-id="props.workspaceId"
                   :notebook-id="props.notebookId"
                   :parent-block-id="block.parent_block_id || undefined"
                 />
-                <div v-else-if="block.content" v-html="renderBlock(block)"></div>
                 <span v-else class="block-placeholder-text">{{
                   getPlaceholder(block.block_type)
                 }}</span>
@@ -297,11 +297,10 @@
 
 <script setup lang="ts">
 import { ref, computed, nextTick, watch, onMounted } from "vue"
-import { Marked } from "marked"
 import type { Block } from "../services/codex"
 import { blockService } from "../services/codex"
 import { getAvailableBlockTypes } from "../services/pluginLoader"
-import { isLocalFileReference, resolveFileUrl } from "../utils/markdownHelpers"
+import { parseBlockConfig } from "../utils/blockConfig"
 import DatabaseBlock from "./blocks/DatabaseBlock.vue"
 import ApiBlock from "./blocks/ApiBlock.vue"
 import MdxBlockRenderer from "./blocks/MdxBlockRenderer.vue"
@@ -435,88 +434,9 @@ onMounted(() => {
   }
 })
 
-/** Parse YAML-like config from block content (handles JSON, code fences, and plain YAML) */
-function parseYamlLikeConfig(content: string): Record<string, any> {
-  // Try JSON first
-  const trimmed = content.trim()
-  if (trimmed.startsWith("{")) {
-    try {
-      return JSON.parse(trimmed)
-    } catch {
-      // fall through to YAML parsing
-    }
-  }
-  // Strip code fence markers: ```database\n...\n``` or ```api\n...\n```
-  const match = trimmed.match(/^```\w*\n([\s\S]*?)\n```$/)
-  const body = match ? match[1] : trimmed
-  const config: Record<string, any> = {}
-  let currentParent: string | null = null
-  body.split("\n").forEach((line) => {
-    const indented = line.match(/^[ \t]+([\w-]+):\s*(.+)$/)
-    if (indented && indented[1] && indented[2] && currentParent) {
-      if (typeof config[currentParent] !== "object" || config[currentParent] === null) {
-        config[currentParent] = {}
-      }
-      config[currentParent][indented[1]] = indented[2].trim()
-      return
-    }
-    const kv = line.match(/^([\w-]+):\s*(.+)$/)
-    if (kv && kv[1] && kv[2]) {
-      config[kv[1]] = kv[2].trim()
-      currentParent = null
-      return
-    }
-    const parent = line.match(/^([\w-]+):\s*$/)
-    if (parent && parent[1]) {
-      currentParent = parent[1]
-      config[currentParent] = {}
-    }
-  })
-  return config
-}
-
-/** Parse config for any dynamic block (database, api, or detected from content) */
+/** Parse config for a database/api block */
 function parseDynamicConfig(block: Block): Record<string, any> {
-  return parseYamlLikeConfig(block.content || "")
-}
-
-/** Detect if a text/code block contains dynamic view content */
-function detectDynamicType(block: Block): "database" | "api" | null {
-  if (block.block_type === "database" || block.block_type === "api") return null // already handled
-  const content = block.content || ""
-  const trimmed = content.trim()
-
-  // Check for code-fenced dynamic blocks: ```database or ```api
-  const fenceMatch = trimmed.match(/^```(database|api)\n/)
-  if (fenceMatch) return fenceMatch[1] as "database" | "api"
-
-  // Check for JSON content with type hints
-  if (trimmed.startsWith("{")) {
-    try {
-      const obj = JSON.parse(trimmed)
-      if (obj.url || obj.method) return "api"
-      if (obj.source || obj.query) return "database"
-    } catch {
-      // not JSON
-    }
-  }
-
-  // Check for plain YAML-like config patterns
-  const lines = trimmed.split("\n").filter((l) => l.trim())
-  const isYamlLike =
-    lines.length >= 2 &&
-    lines.every(
-      (l) =>
-        /^[\w-]+:\s*.+$/.test(l.trim()) ||
-        /^[\w-]+:\s*$/.test(l.trim()) ||
-        /^[ \t]+[\w-]+:\s*.+$/.test(l),
-    )
-  if (!isYamlLike) return null
-
-  if (/^url:/m.test(trimmed) || /^method:/m.test(trimmed)) return "api"
-  if (/^source:/m.test(trimmed) || /^query:/m.test(trimmed)) return "database"
-
-  return null
+  return parseBlockConfig(block.content || "")
 }
 
 function getBlockFileUrl(block: Block): string {
@@ -527,44 +447,6 @@ function getBlockFileUrl(block: Block): string {
 function getBlockFileName(block: Block): string {
   if (!block.path) return ""
   return block.path.split("/").pop() || block.path
-}
-
-// Create a local Marked instance with custom renderer for resolving links/images
-function createMarkedInstance(): Marked {
-  const instance = new Marked()
-  instance.use({
-    renderer: {
-      image({ href, title, text }: { href: string; title?: string | null; text: string }): string {
-        const resolvedHref = resolveFileUrl(href, props.workspaceId, props.notebookId)
-        const titleAttr = title ? ` title="${title}"` : ""
-        const alt = text || ""
-        return `<img src="${resolvedHref}" alt="${alt}"${titleAttr}>`
-      },
-      link({ href, title, text }: { href: string; title?: string | null; text: string }): string {
-        const titleAttr = title ? ` title="${title}"` : ""
-        const displayText = text || ""
-        if (href && !isLocalFileReference(href)) {
-          // External link: open in new tab
-          return `<a href="${href}"${titleAttr} target="_blank" rel="noopener">${displayText}</a>`
-        }
-        // Internal/local link: resolve URL, add data attribute for navigation
-        const resolvedHref = resolveFileUrl(href, props.workspaceId, props.notebookId)
-        return `<a href="${resolvedHref}"${titleAttr} data-internal-link="${href}">${displayText}</a>`
-      },
-    },
-  })
-  instance.setOptions({ breaks: true, gfm: true })
-  return instance
-}
-
-const markedInstance = createMarkedInstance()
-
-function renderBlock(block: Block): string {
-  try {
-    return markedInstance.parse(block.content || "", { async: false }) as string
-  } catch {
-    return block.content || ""
-  }
 }
 
 function getPlaceholder(_blockType: string): string {

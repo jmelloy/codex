@@ -674,30 +674,13 @@
             </div>
           </div>
 
-          <!-- MDX Viewer (content_format: mdx) -->
+          <!-- Prose viewer: MDX, or legacy Markdown rendered through the same pipeline -->
           <MdxViewer
-            v-else-if="workspaceStore.currentLeafBlock.content_format === 'mdx'"
-            :content="workspaceStore.currentLeafBlock.content"
-            :frontmatter="workspaceStore.currentLeafBlock.properties"
-            :workspace-id="workspaceStore.currentWorkspace?.slug"
-            :notebook-id="workspaceStore.currentNotebook?.slug"
-            :show-frontmatter="false"
-            :show-toolbar="false"
-            @copy="handleCopy"
-            class="flex-1"
-          />
-
-          <!-- Markdown Viewer (default, content_format: legacy/markdown) -->
-          <MarkdownViewer
             v-else
             :content="workspaceStore.currentLeafBlock.content"
-            :frontmatter="workspaceStore.currentLeafBlock.properties"
+            :format="workspaceStore.currentLeafBlock.content_format === 'mdx' ? 'mdx' : 'md'"
             :workspace-id="workspaceStore.currentWorkspace?.slug"
             :notebook-id="workspaceStore.currentNotebook?.slug"
-            :current-file-path="workspaceStore.currentLeafBlock.path"
-            :show-frontmatter="false"
-            :show-toolbar="false"
-            @copy="handleCopy"
             class="flex-1"
           />
         </div>
@@ -1000,7 +983,6 @@ import { blockService, searchService } from "../services/codex"
 import { getDisplayType } from "../utils/contentType"
 import Modal from "../components/Modal.vue"
 import FormGroup from "../components/FormGroup.vue"
-import MarkdownViewer from "../components/MarkdownViewer.vue"
 import MdxViewer from "../components/MdxViewer.vue"
 import CodeViewer from "../components/CodeViewer.vue"
 import BlockPropertiesPanel from "../components/BlockPropertiesPanel.vue"
@@ -2028,10 +2010,6 @@ function findBlockById(blockId: string): Block | undefined {
     if (block) return block
   }
   return undefined
-}
-
-function handleCopy() {
-  showToast({ message: "Content copied to clipboard!" })
 }
 
 function toggleProperties() {

@@ -127,10 +127,7 @@ class Block(SQLModel, table=True):
 
         The backend never renders HTML/markdown to keep that concern on the
         frontend (see api/schemas.py) - this only strips frontmatter for prose
-        formats and, for "mdx" content, reports which custom component tags are
-        referenced so callers can flag ones outside the allowed registry
-        (codex.core.mdx.ALLOWED_COMPONENTS) before the content reaches a client.
-        Non-prose formats ("json", "binary") pass through unchanged.
+        formats. Non-prose formats ("json", "binary") pass through unchanged.
         """
         properties: dict[str, Any] = {}
         body = content
@@ -140,18 +137,11 @@ class Block(SQLModel, table=True):
 
             properties, body = MetadataParser.parse_frontmatter(content)
 
-        result: dict[str, Any] = {
+        return {
             "content": body,
             "content_format": self.content_format,
             "properties": properties,
         }
-
-        if self.content_format == CONTENT_FORMAT_MDX:
-            from codex.core.mdx import find_unauthorized_components
-
-            result["unauthorized_components"] = sorted(find_unauthorized_components(body))
-
-        return result
 
 
 class SearchIndex(SQLModel, table=True):

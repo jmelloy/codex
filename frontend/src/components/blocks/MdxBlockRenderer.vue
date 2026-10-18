@@ -8,15 +8,18 @@
 
 <script setup lang="ts">
 import { useMdxRenderRoot } from "../../composables/useMdxContent"
+import type { MdxFormat } from "../../services/mdxRenderer"
 
 interface Props {
   content: string
+  format?: MdxFormat
   workspaceId?: string
   notebookId?: string
   parentBlockId?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  format: "mdx",
   workspaceId: undefined,
   notebookId: undefined,
   parentBlockId: undefined,
@@ -29,5 +32,6 @@ const renderRoot = useMdxRenderRoot(
     notebookId: props.notebookId,
     parentBlockId: props.parentBlockId,
   }),
+  () => props.format,
 )
 </script>

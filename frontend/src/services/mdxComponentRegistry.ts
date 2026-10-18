@@ -1,11 +1,8 @@
 /**
  * MDX component registry — frontend mirror of codex.core.mdx.MDX_COMPONENT_REGISTRY.
  *
- * The backend flags any component tag not in this list as unauthorized
- * before content is served; the frontend registry here is the enforcement
- * point mentioned in that module's docstring — mdxRenderer.ts refuses to
- * resolve a component that isn't listed here, even if the backend somehow
- * let it through.
+ * This is the enforcement point: mdxRenderer.ts refuses to resolve a component
+ * that isn't listed here and renders a placeholder instead.
  */
 export const MDX_COMPONENT_REGISTRY: Record<string, string> = {
   Calendar: "Displays a date or date range on a calendar",
@@ -32,13 +29,4 @@ export function extractComponentNames(mdxSource: string): Set<string> {
     names.add(match[1])
   }
   return names
-}
-
-/** Return component tags referenced in MDX source that are not in the allowlist. */
-export function findUnauthorizedComponents(mdxSource: string): Set<string> {
-  const found = extractComponentNames(mdxSource)
-  for (const name of ALLOWED_COMPONENT_NAMES) {
-    found.delete(name)
-  }
-  return found
 }

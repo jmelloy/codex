@@ -265,6 +265,28 @@ const LoadingComponent: Component = {
  * @returns A Vue component (async) that renders the block
  */
 export function loadPluginComponent(blockType: string): Component {
+  // One component per type: a fresh async component on every call would remount
+  // (and refetch) the block each time its parent re-renders.
+  let component = pluginComponentCache.get(blockType)
+  if (!component) {
+    component = createPluginComponent(blockType)
+    pluginComponentCache.set(blockType, component)
+  }
+  return component
+}
+
+const pluginComponentCache = new Map<string, Component>()
+
+/**
+ * Whether `blockType` is a renderable block type, synchronously: built-ins are
+ * always known; plugin types are known once the manifest has loaded (undefined before).
+ */
+export function isBlockTypeKnown(blockType: string): boolean | undefined {
+  if (builtinBlockTypes.has(blockType)) return true
+  return flatComponentsCache ? flatComponentsCache.has(blockType) : undefined
+}
+
+function createPluginComponent(blockType: string): Component {
   // Check built-in block types first (no network loading needed)
   const builtin = builtinBlockTypes.get(blockType)
   if (builtin) {

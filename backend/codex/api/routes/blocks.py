@@ -824,8 +824,7 @@ async def get_block_text_endpoint(
         if content is None:
             raise HTTPException(status_code=404, detail="Block content not found")
 
-        # Block.render() strips frontmatter from the raw file content and, for
-        # "mdx" content, reports component tags outside the allowed registry.
+        # Block.render() strips frontmatter from the raw file content.
         rendered = block.render(content)
 
         # Prefer the indexed properties (kept in sync by the file watcher) and
@@ -835,7 +834,6 @@ async def get_block_text_endpoint(
             "content": rendered["content"],
             "properties": props,
             "content_format": rendered["content_format"],
-            "unauthorized_components": rendered.get("unauthorized_components"),
         }
     finally:
         nb_session.close()

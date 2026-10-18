@@ -19,20 +19,30 @@ export interface MdxBlockContext {
   parentBlockId?: string
 }
 
-/** Wrap a legacy `blockType` (as known to pluginLoader.loadPluginComponent) for use as an MDX component. */
-export function wrapLegacyBlockForMdx(blockType: string, context: MdxBlockContext): Component {
-  const inner = loadPluginComponent(blockType)
+/** Render a legacy `blockType` (as known to pluginLoader.loadPluginComponent) with the given config. */
+export function renderLegacyBlock(
+  blockType: string,
+  config: Record<string, unknown>,
+  context: MdxBlockContext,
+) {
+  return h(loadPluginComponent(blockType), {
+    config,
+    workspaceId: context.workspaceId,
+    notebookId: context.notebookId,
+    parentBlockId: context.parentBlockId,
+  })
+}
+
+/** Wrap a legacy `blockType` for use as an MDX component; `context` is read at render time. */
+export function wrapLegacyBlockForMdx(
+  blockType: string,
+  context: () => MdxBlockContext,
+): Component {
   return defineComponent({
     name: `MdxLegacyAdapter_${blockType}`,
     inheritAttrs: false,
     setup(_props, { attrs }) {
-      return () =>
-        h(inner, {
-          config: { ...attrs },
-          workspaceId: context.workspaceId,
-          notebookId: context.notebookId,
-          parentBlockId: context.parentBlockId,
-        })
+      return () => renderLegacyBlock(blockType, { ...attrs }, context())
     },
   })
 }
@@ -52,7 +62,7 @@ const MDX_NAME_TO_LEGACY_BLOCK_TYPE: Record<string, string> = {
 /** Resolve an MDX component name backed by a legacy block component, or undefined if it has a dedicated MDX component instead (Calendar, CodeBlock). */
 export function resolveLegacyBackedMdxComponent(
   name: string,
-  context: MdxBlockContext,
+  context: () => MdxBlockContext,
 ): Component | undefined {
   const blockType = MDX_NAME_TO_LEGACY_BLOCK_TYPE[name]
   return blockType ? wrapLegacyBlockForMdx(blockType, context) : undefined

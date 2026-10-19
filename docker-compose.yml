@@ -65,7 +65,7 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-    command: arq codex.worker.settings.WorkerSettings
+    command: taskiq worker codex.worker.settings:broker codex.worker.tasks --workers 1 --max-async-tasks 10
 
   frontend:
     build:

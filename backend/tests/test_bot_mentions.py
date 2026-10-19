@@ -2,19 +2,20 @@
 
 Mentioning a bot with a *hosted* Agent config should, once the comment's
 `comment.mention` event is fanned out, enqueue a Task (with comment/thread
-context) via the ARQ queue. Mentioning a bot with an *external* Agent config
+context) via the taskiq queue. Mentioning a bot with an *external* Agent config
 instead triggers a signed webhook delivery job — no Task is created for it.
 Bots with no Agent at all are just a plain mention/notification.
 """
 
 import json
-from unittest.mock import AsyncMock
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, patch
 
 from sqlmodel import select
 
 from codex.db.database import async_session_maker
 from codex.db.models import Event, Task
-from codex.worker.tasks import fanout_event
+from codex.worker.tasks import deliver_webhook, fanout_event, run_job
 
 
 def _create_bot(test_client, headers, workspace_slug, display_name="Review Bot"):
@@ -89,13 +90,9 @@ async def test_hosted_bot_mention_enqueues_task(test_client, auth_headers, works
     event = await _latest_mention_event(comment["id"])
     assert event is not None
 
-    mock_redis = AsyncMock()
-    mock_job = AsyncMock()
-    mock_job.job_id = "job-123"
-    mock_redis.enqueue_job.return_value = mock_job
-
-    ctx = {"session_maker": async_session_maker, "redis": mock_redis}
-    result = await fanout_event(ctx, event.id)
+    state = SimpleNamespace(session_maker=async_session_maker)
+    with patch.object(run_job, "kiq", AsyncMock(return_value=SimpleNamespace(task_id="job-123"))) as mock_kiq:
+        result = await fanout_event(event.id, state)
     assert result["status"] == "completed"
     assert result["bot_tasks_enqueued"] == 1
 
@@ -115,7 +112,7 @@ async def test_hosted_bot_mention_enqueues_task(test_client, auth_headers, works
         assert metadata["mentioned_principal_id"] == bot["id"]
         assert metadata["parent_chain"] == []
 
-    mock_redis.enqueue_job.assert_called_once_with("run_job", task.id)
+    mock_kiq.assert_called_once_with(task.id)
 
 
 async def test_external_bot_mention_triggers_webhook_not_task(test_client, auth_headers, workspace_and_notebook):
@@ -134,16 +131,15 @@ async def test_external_bot_mention_triggers_webhook_not_task(test_client, auth_
     event = await _latest_mention_event(comment["id"])
     assert event is not None
 
-    mock_redis = AsyncMock()
-    ctx = {"session_maker": async_session_maker, "redis": mock_redis}
-    result = await fanout_event(ctx, event.id)
+    state = SimpleNamespace(session_maker=async_session_maker)
+    with patch.object(deliver_webhook, "kiq", AsyncMock()) as mock_kiq:
+        result = await fanout_event(event.id, state)
     assert result["bot_tasks_enqueued"] == 0
 
-    mock_redis.enqueue_job.assert_called_once()
-    call_args = mock_redis.enqueue_job.call_args.args
-    assert call_args[0] == "deliver_webhook"
-    assert call_args[1] == agent["id"]
-    assert call_args[2] == event.id
+    mock_kiq.assert_called_once()
+    call_args = mock_kiq.call_args.args
+    assert call_args[0] == agent["id"]
+    assert call_args[1] == event.id
 
     async with async_session_maker() as session:
         task_result = await session.execute(
@@ -167,11 +163,14 @@ async def test_bot_mention_without_agent_does_not_enqueue_task(test_client, auth
     event = await _latest_mention_event(comment["id"])
     assert event is not None
 
-    mock_redis = AsyncMock()
-    ctx = {"session_maker": async_session_maker, "redis": mock_redis}
-    result = await fanout_event(ctx, event.id)
+    state = SimpleNamespace(session_maker=async_session_maker)
+    with patch.object(run_job, "kiq", AsyncMock()) as mock_run_kiq, patch.object(
+        deliver_webhook, "kiq", AsyncMock()
+    ) as mock_hook_kiq:
+        result = await fanout_event(event.id, state)
     assert result["bot_tasks_enqueued"] == 0
-    mock_redis.enqueue_job.assert_not_called()
+    mock_run_kiq.assert_not_called()
+    mock_hook_kiq.assert_not_called()
 
 
 async def test_bot_mention_task_includes_parent_chain(test_client, auth_headers, workspace_and_notebook):
@@ -195,13 +194,9 @@ async def test_bot_mention_task_includes_parent_chain(test_client, auth_headers,
     event = await _latest_mention_event(reply_comment["id"])
     assert event is not None
 
-    mock_redis = AsyncMock()
-    mock_job = AsyncMock()
-    mock_job.job_id = "job-456"
-    mock_redis.enqueue_job.return_value = mock_job
-
-    ctx = {"session_maker": async_session_maker, "redis": mock_redis}
-    result = await fanout_event(ctx, event.id)
+    state = SimpleNamespace(session_maker=async_session_maker)
+    with patch.object(run_job, "kiq", AsyncMock(return_value=SimpleNamespace(task_id="job-456"))):
+        result = await fanout_event(event.id, state)
     assert result["bot_tasks_enqueued"] == 1
 
     async with async_session_maker() as session:

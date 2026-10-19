@@ -65,17 +65,21 @@ async def lifespan(app: FastAPI):
     # Start WebSocket broadcast loop
     await connection_manager.start_broadcast_loop()
 
-    # Initialize ARQ Redis connection pool for enqueueing background jobs
+    # Start the taskiq broker for enqueueing background jobs
     try:
-        from arq.connections import create_pool
+        from redis.asyncio import Redis
 
-        from codex.worker.settings import get_redis_settings
+        from codex.worker.settings import REDIS_URL, broker
 
-        app.state.arq_pool = await create_pool(get_redis_settings())
-        logger.info("ARQ Redis pool initialized")
+        # Broker connections are lazy, so ping to fail fast when Redis is down.
+        async with Redis.from_url(REDIS_URL) as redis_client:
+            await redis_client.ping()
+        await broker.startup()
+        app.state.task_queue = broker
+        logger.info("Taskiq broker initialized")
     except Exception as e:
         logger.warning(f"Could not connect to Redis for task queue: {e}")
-        app.state.arq_pool = None
+        app.state.task_queue = None
 
     # Plugins directory for serving theme/block assets
     default_plugins_dir = Path(__file__).parent.parent.parent / "backend" / "plugins"
@@ -105,9 +109,9 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    # Close ARQ Redis pool
-    if getattr(app.state, "arq_pool", None) is not None:
-        await app.state.arq_pool.close()
+    # Shut down the taskiq broker
+    if getattr(app.state, "task_queue", None) is not None:
+        await app.state.task_queue.shutdown()
 
     # Stop the S3 working-copy indexer
     await indexer_service.stop()

@@ -1,7 +1,8 @@
-"""ARQ task functions for background job execution."""
+"""Taskiq task functions for background job execution."""
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import hmac
 import json
@@ -11,10 +12,12 @@ from datetime import UTC, datetime
 from typing import Any
 
 import httpx
-from arq.worker import Retry
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
+from taskiq import TaskiqDepends, TaskiqState
+
+from codex.worker.settings import broker
 
 logger = logging.getLogger(__name__)
 
@@ -30,15 +33,15 @@ JOB_TYPE_HANDLERS: dict[str, str] = {
 }
 
 
-async def run_job(ctx: dict, task_id: int, **kwargs: Any) -> dict[str, Any]:
+@broker.task
+async def run_job(task_id: int, state: TaskiqState = TaskiqDepends(), **kwargs: Any) -> dict[str, Any]:
     """Generic job dispatcher — routes to the correct handler by job_type.
 
     This is the primary entry point for all background jobs.  The ``job_type``
     field on the :class:`~codex.db.models.Task` record determines which handler
     is invoked.
     """
-    session_maker = ctx["session_maker"]
-    async with session_maker() as session:
+    async with state.session_maker() as session:
         task = await _load_task(session, task_id)
         if task is None:
             return {"status": "error", "detail": f"Task {task_id} not found"}
@@ -49,12 +52,13 @@ async def run_job(ctx: dict, task_id: int, **kwargs: Any) -> dict[str, Any]:
             return {"status": "error", "detail": f"Unknown job_type: {task.job_type}"}
 
         handler = globals()[handler_name]
-        return await handler(ctx, session, task, **kwargs)
+        return await handler(state, session, task, **kwargs)
 
 
-async def execute_agent_task(ctx: dict, task_id: int) -> dict[str, Any]:
+@broker.task
+async def execute_agent_task(task_id: int, state: TaskiqState = TaskiqDepends()) -> dict[str, Any]:
     """Convenience wrapper — runs a task with job_type='agent'."""
-    return await run_job(ctx, task_id)
+    return await run_job(task_id, state)
 
 
 # ---------------------------------------------------------------------------
@@ -91,7 +95,7 @@ async def _fail_task(session: AsyncSession, task, error_msg: str) -> None:
 
 
 async def _handle_agent_job(
-    ctx: dict,
+    state: TaskiqState,
     session: AsyncSession,
     task,
     **kwargs: Any,
@@ -345,11 +349,11 @@ async def _build_comment_context(session: AsyncSession, comment: Any) -> dict[st
     }
 
 
-async def _enqueue_bot_mention_tasks(ctx: dict, session: AsyncSession, event: Any) -> int:
+async def _enqueue_bot_mention_tasks(session: AsyncSession, event: Any) -> int:
     """Wake bot principals mentioned in a comment.
 
     `Agent.kind == "hosted"` bots run inside Codex: this creates a `Task` row
-    and enqueues the existing ARQ agent-execution pipeline, same as a manually
+    and enqueues the existing taskiq agent-execution pipeline, same as a manually
     created agent task. `Agent.kind == "external"` bots (e.g. a Claude Code
     session woken from outside) instead get a signed webhook delivery — Codex
     never runs their brain, it just wakes them over HTTP.
@@ -390,7 +394,6 @@ async def _enqueue_bot_mention_tasks(ctx: dict, session: AsyncSession, event: An
 
     author = await session.get(User, comment.author_id)
     comment_context = await _build_comment_context(session, comment)
-    arq_pool = ctx.get("redis")
     hosted_enqueued = 0
 
     for bot, agent in bot_agents:
@@ -404,9 +407,6 @@ async def _enqueue_bot_mention_tasks(ctx: dict, session: AsyncSession, event: An
             if existing_delivery.first() is not None:
                 continue
 
-            if arq_pool is None:
-                logger.warning("Skipping webhook delivery for agent %s — task queue unavailable", agent.id)
-                continue
             payload = {
                 "event": event.kind,
                 "event_id": event.id,
@@ -419,7 +419,10 @@ async def _enqueue_bot_mention_tasks(ctx: dict, session: AsyncSession, event: An
                     "comment_author_username": author.username if author else None,
                 },
             }
-            await arq_pool.enqueue_job("deliver_webhook", agent.id, event.id, payload)
+            try:
+                await deliver_webhook.kiq(agent.id, event.id, payload)
+            except Exception:
+                logger.exception("Skipping webhook delivery for agent %s — task queue unavailable", agent.id)
         else:
             existing_result = await session.execute(
                 select(Task).where(
@@ -448,14 +451,14 @@ async def _enqueue_bot_mention_tasks(ctx: dict, session: AsyncSession, event: An
             await session.refresh(task)
             hosted_enqueued += 1
 
-            if arq_pool is not None:
-                job = await arq_pool.enqueue_job("run_job", task.id)
-                if job is not None:
-                    task.job_id = job.job_id
-                    session.add(task)
-                    await session.commit()
+            try:
+                job = await run_job.kiq(task.id)
+            except Exception:
+                logger.warning("Task %s created but not enqueued — task queue unavailable", task.id, exc_info=True)
             else:
-                logger.warning("Task %s created but not enqueued — task queue unavailable", task.id)
+                task.job_id = job.task_id
+                session.add(task)
+                await session.commit()
 
     return hosted_enqueued
 
@@ -464,23 +467,27 @@ def _sign_webhook_payload(secret: str, body: bytes) -> str:
     return hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
 
 
-async def deliver_webhook(ctx: dict, agent_id: int, event_id: int, payload: dict[str, Any]) -> dict[str, Any]:
+@broker.task
+async def deliver_webhook(
+    agent_id: int,
+    event_id: int,
+    payload: dict[str, Any],
+    attempt: int = 1,
+    state: TaskiqState = TaskiqDepends(),
+) -> dict[str, Any]:
     """Deliver a signed webhook to an external bot's `Agent.webhook_url` (issue #536).
 
     Every attempt is recorded in `AgentWebhookDelivery` for audit. On failure,
     retries with exponential backoff (capped at `WEBHOOK_BACKOFF_CAP_SECONDS`)
-    up to `Agent.webhook_max_retries` attempts by raising `arq.worker.Retry`,
-    which reschedules this same job — `ctx["job_try"]` tracks the attempt
-    number across those retries.
+    up to `Agent.webhook_max_retries` attempts by sleeping for the backoff and
+    re-enqueueing this task with `attempt + 1` (the Redis broker has no native
+    delayed delivery).
     """
     from codex.agents.crypto import decrypt_value
     from codex.db.models import Agent, AgentWebhookDelivery
 
-    attempt = ctx.get("job_try", 1)
-    session_maker = ctx["session_maker"]
-
     should_retry = False
-    async with session_maker() as session:
+    async with state.session_maker() as session:
         agent = await session.get(Agent, agent_id)
         if agent is None or not agent.is_active:
             logger.warning("Webhook delivery skipped — agent %s missing or inactive", agent_id)
@@ -537,13 +544,16 @@ async def deliver_webhook(ctx: dict, agent_id: int, event_id: int, payload: dict
 
     if should_retry:
         backoff = min(WEBHOOK_BACKOFF_BASE_SECONDS * (2 ** (attempt - 1)), WEBHOOK_BACKOFF_CAP_SECONDS)
-        raise Retry(defer=backoff)
+        await asyncio.sleep(backoff)
+        await deliver_webhook.kiq(agent_id, event_id, payload, attempt + 1)
+        return {"status": "retrying", "agent_id": agent_id, "attempt": attempt}
 
     logger.error("Webhook delivery to agent %s failed permanently after %s attempts", agent_id, max_retries)
     return {"status": "failed", "agent_id": agent_id, "attempt": attempt}
 
 
-async def fanout_event(ctx: dict, event_id: int) -> dict[str, Any]:
+@broker.task
+async def fanout_event(event_id: int, state: TaskiqState = TaskiqDepends()) -> dict[str, Any]:
     """Fan an `Event` out into `Notification` rows for its resolved recipients.
 
     Idempotent on retry: recipients already notified for this event are loaded
@@ -560,8 +570,7 @@ async def fanout_event(ctx: dict, event_id: int) -> dict[str, Any]:
     from codex.core.websocket import connection_manager, principal_channel
     from codex.db.models import Event, Notification
 
-    session_maker = ctx["session_maker"]
-    async with session_maker() as session:
+    async with state.session_maker() as session:
         event = await session.get(Event, event_id)
         if event is None:
             return {"status": "error", "detail": f"Event {event_id} not found"}
@@ -575,7 +584,7 @@ async def fanout_event(ctx: dict, event_id: int) -> dict[str, Any]:
 
         bot_tasks_enqueued = 0
         if event.kind == "comment.mention":
-            bot_tasks_enqueued = await _enqueue_bot_mention_tasks(ctx, session, event)
+            bot_tasks_enqueued = await _enqueue_bot_mention_tasks(session, event)
 
         if not recipients:
             return {

@@ -1,7 +1,7 @@
 """Event outbox helpers (issue #530).
 
 Routes append an `Event` row in the same DB transaction as the domain change
-it describes, then — once that transaction is committed — enqueue an ARQ job
+it describes, then — once that transaction is committed — enqueue a taskiq job
 to fan it out into `Notification` rows off the request path. If the task queue
 is unavailable the event is still durably recorded; only the (best-effort)
 live fanout is skipped.
@@ -45,11 +45,12 @@ async def enqueue_fanout(request: Request, event_id: int) -> None:
     Must be called after the event's transaction has committed, so the worker
     (a separate process) is guaranteed to see the row when it picks up the job.
     """
-    arq_pool = getattr(request.app.state, "arq_pool", None)
-    if arq_pool is None:
+    if getattr(request.app.state, "task_queue", None) is None:
         logger.warning("Skipping notification fanout for event %s — task queue unavailable", event_id)
         return
+    from codex.worker.tasks import fanout_event
+
     try:
-        await arq_pool.enqueue_job("fanout_event", event_id)
+        await fanout_event.kiq(event_id)
     except Exception:
         logger.exception("Failed to enqueue fanout job for event %s", event_id)

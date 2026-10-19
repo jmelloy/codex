@@ -1,5 +1,6 @@
 """Tests for task worker functions and new task endpoints."""
 
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 
@@ -132,14 +133,14 @@ def test_enqueue_task_no_redis(test_client, auth_headers, create_workspace):
     resp = test_client.post(f"{url}/", json={"title": "Background Task"}, headers=headers)
     task_id = resp.json()["id"]
 
-    # arq_pool is None in test environment (no Redis)
+    # task_queue is None in test environment (no Redis)
     resp = test_client.post(f"{url}/{task_id}/enqueue", headers=headers)
     assert resp.status_code == 503
     assert "not available" in resp.json()["detail"]
 
 
 def test_enqueue_task_with_mock_redis(test_client, auth_headers, create_workspace):
-    """Test enqueue succeeds when ARQ pool is available."""
+    """Test enqueue succeeds when the task queue is available."""
     headers = auth_headers[0]
     workspace = create_workspace()
     url = _tasks_url(workspace)
@@ -147,23 +148,22 @@ def test_enqueue_task_with_mock_redis(test_client, auth_headers, create_workspac
     resp = test_client.post(f"{url}/", json={"title": "Background Task"}, headers=headers)
     task_id = resp.json()["id"]
 
-    # Mock the ARQ pool on the app state
     mock_job = MagicMock()
-    mock_job.job_id = "test-job-123"
-    mock_pool = AsyncMock()
-    mock_pool.enqueue_job = AsyncMock(return_value=mock_job)
+    mock_job.task_id = "test-job-123"
 
     from codex.main import app
+    from codex.worker.tasks import run_job
 
-    app.state.arq_pool = mock_pool
+    app.state.task_queue = MagicMock()
     try:
-        resp = test_client.post(f"{url}/{task_id}/enqueue", headers=headers)
+        with patch.object(run_job, "kiq", AsyncMock(return_value=mock_job)) as mock_kiq:
+            resp = test_client.post(f"{url}/{task_id}/enqueue", headers=headers)
         assert resp.status_code == 200
         task = resp.json()
         assert task["job_id"] == "test-job-123"
-        mock_pool.enqueue_job.assert_called_once_with("run_job", task_id)
+        mock_kiq.assert_called_once_with(task_id)
     finally:
-        app.state.arq_pool = None
+        app.state.task_queue = None
 
 
 def test_enqueue_task_wrong_status(test_client, auth_headers, create_workspace):
@@ -176,16 +176,15 @@ def test_enqueue_task_wrong_status(test_client, auth_headers, create_workspace):
     task_id = resp.json()["id"]
     test_client.put(f"{url}/{task_id}", json={"status": "in_progress"}, headers=headers)
 
-    # Mock ARQ pool so we don't get 503
-    mock_pool = AsyncMock()
+    # Mock task queue so we don't get 503
     from codex.main import app
 
-    app.state.arq_pool = mock_pool
+    app.state.task_queue = MagicMock()
     try:
         resp = test_client.post(f"{url}/{task_id}/enqueue", headers=headers)
         assert resp.status_code == 409
     finally:
-        app.state.arq_pool = None
+        app.state.task_queue = None
 
 
 def test_task_status_endpoint(test_client, auth_headers, create_workspace):
@@ -243,9 +242,9 @@ async def test_run_job_task_not_found(mock_load):
     from codex.worker.tasks import run_job
 
     mock_load.return_value = None
-    ctx = {"session_maker": _make_session_maker()}
+    state = SimpleNamespace(session_maker=_make_session_maker())
 
-    result = await run_job(ctx, task_id=999)
+    result = await run_job(task_id=999, state=state)
     assert result["status"] == "error"
     assert "not found" in result["detail"]
 
@@ -261,8 +260,8 @@ async def test_run_job_unknown_job_type(mock_load):
     mock_load.return_value = mock_task
 
     mock_session = AsyncMock()
-    ctx = {"session_maker": _make_session_maker(mock_session)}
+    state = SimpleNamespace(session_maker=_make_session_maker(mock_session))
 
-    result = await run_job(ctx, task_id=1)
+    result = await run_job(task_id=1, state=state)
     assert result["status"] == "error"
     assert "Unknown job_type" in result["detail"]

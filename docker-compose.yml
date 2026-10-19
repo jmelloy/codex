@@ -66,6 +66,17 @@ services:
       redis:
         condition: service_healthy
     command: taskiq worker codex.worker.settings:broker codex.worker.tasks --workers 1 --max-async-tasks 10
+    # The image's HEALTHCHECK probes the API on :8000, which the worker doesn't
+    # serve; check that the worker can reach Redis instead.
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import os, redis; redis.Redis.from_url(os.environ['REDIS_URL']).ping()"
+      interval: 60s
+      timeout: 10s
+      retries: 3
 
   frontend:
     build:

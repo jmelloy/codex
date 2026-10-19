@@ -4,13 +4,16 @@ Provides CRUD operations for blocks and pages, supporting Notion-like
 infinite block recursion backed by filesystem folders and files.
 """
 
+import asyncio
 import logging
 import mimetypes
+import re
 import shutil
 from typing import Any
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
@@ -56,6 +59,7 @@ from codex.core.blocks import (
 from codex.core.import_worker import process_zip_import
 from codex.core.md_import import import_markdown_to_page
 from codex.core.permissions import PermissionLevel
+from codex.core.typst_export import TypstCompileError, export_block_to_pdf
 from codex.core.websocket import notify_file_change
 from codex.db.database import get_notebook_session, get_system_session
 from codex.db.models import Block, Task, User
@@ -71,7 +75,7 @@ class CreateBlockRequest(BaseModel):
     block_type: str = "text"
     content: str = ""
     position: int | None = None
-    content_format: str = "markdown"
+    content_format: str = "mdx"
 
 
 class CreatePageRequest(BaseModel):
@@ -88,6 +92,7 @@ class UpdateBlockRequest(BaseModel):
 
     content: str
     block_type: str | None = None
+    content_format: str | None = None
 
 
 class MoveBlockRequest(BaseModel):
@@ -488,6 +493,7 @@ async def update_block(
             block_id=block_id,
             content=request.content,
             block_type=request.block_type,
+            content_format=request.content_format,
             nb_session=nb_session,
         )
 
@@ -513,6 +519,8 @@ async def update_block(
         return result
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     finally:
         nb_session.close()
 
@@ -816,8 +824,73 @@ async def get_block_text_endpoint(
         if content is None:
             raise HTTPException(status_code=404, detail="Block content not found")
 
-        props = _parse_json(block.properties) if block.properties else None
-        return {"content": content, "properties": props}
+        # Block.render() strips frontmatter from the raw file content.
+        rendered = block.render(content)
+
+        # Prefer the indexed properties (kept in sync by the file watcher) and
+        # fall back to what render() just parsed, e.g. for blocks not yet indexed.
+        props = (_parse_json(block.properties) if block.properties else None) or rendered["properties"] or None
+        return {
+            "content": rendered["content"],
+            "properties": props,
+            "content_format": rendered["content_format"],
+        }
+    finally:
+        nb_session.close()
+
+
+# Characters that could break a quoted Content-Disposition filename param or
+# smuggle a path separator into a "Save As" default (block titles are free text).
+_UNSAFE_CONTENT_DISPOSITION_CHARS_RE = re.compile(r'[\\"\r\n/\x00-\x1f]')
+
+
+def _content_disposition_pdf_filename(title: str | None, block_id: str) -> str:
+    """Build a `Content-Disposition` header value safe for an arbitrary block title.
+
+    Provides both the legacy quoted `filename` (ASCII, sanitized) and the
+    RFC 5987 `filename*` form (UTF-8, percent-encoded) so non-ASCII titles
+    still round-trip correctly in browsers that support it.
+    """
+    base = _UNSAFE_CONTENT_DISPOSITION_CHARS_RE.sub("_", (title or block_id).strip()) or block_id
+    ascii_name = base.encode("ascii", "ignore").decode("ascii").strip() or "export"
+    return f'attachment; filename="{ascii_name}.pdf"; filename*=UTF-8\'\'{quote(f"{base}.pdf", safe="")}'
+
+
+@nested_router.get("/{block_id}/export/pdf")
+async def export_block_pdf_endpoint(
+    workspace_identifier: str,
+    notebook_identifier: str,
+    block_id: str,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Export a block to PDF via the Typst pipeline.
+
+    Page blocks export their full contents (every child block, in order) as a
+    single document; leaf blocks export just themselves. Content that has no
+    static PDF rendering (MDX components, images, database/api blocks) is
+    replaced with a labeled fallback box — see codex.core.typst_export.
+    """
+    notebook_path, notebook, workspace = await get_notebook_path_nested(
+        workspace_identifier, notebook_identifier, current_user, session
+    )
+    nb_session = get_notebook_session(str(notebook_path))
+    try:
+        block = get_block(notebook.id, block_id, nb_session)
+        if not block:
+            raise HTTPException(status_code=404, detail="Block not found")
+
+        try:
+            pdf_bytes = await asyncio.to_thread(export_block_to_pdf, notebook_path, notebook.id, block, nb_session)
+        except TypstCompileError as e:
+            logger.error("PDF export failed for block %s: %s", block_id, e)
+            raise HTTPException(status_code=500, detail=f"PDF export failed: {e}")
+
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": _content_disposition_pdf_filename(block.title, block.block_id)},
+        )
     finally:
         nb_session.close()
 

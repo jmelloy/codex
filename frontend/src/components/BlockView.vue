@@ -18,8 +18,16 @@
       <div class="page-header-row">
         <h1 class="page-title">{{ pageTitle }}</h1>
         <button class="new-page-btn" @click.stop="$emit('createSubpage')" title="New subpage">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5">
-            <line x1="7" y1="2" x2="7" y2="12" /><line x1="2" y1="7" x2="12" y2="7" />
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 14 14"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+          >
+            <line x1="7" y1="2" x2="7" y2="12" />
+            <line x1="2" y1="7" x2="12" y2="7" />
           </svg>
           New page
         </button>
@@ -44,7 +52,8 @@
         <div
           class="block-gutter"
           :class="{
-            visible: hoveredIndex === index || typeMenuIndex === index || commentCount(block.block_id) > 0,
+            visible:
+              hoveredIndex === index || typeMenuIndex === index || commentCount(block.block_id) > 0,
           }"
         >
           <button
@@ -52,8 +61,16 @@
             title="Add block"
             @click.stop="insertBlockAt(index)"
           >
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="6" y1="1" x2="6" y2="11" /><line x1="1" y1="6" x2="11" y2="6" />
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 12 12"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <line x1="6" y1="1" x2="6" y2="11" />
+              <line x1="1" y1="6" x2="11" y2="6" />
             </svg>
           </button>
           <button
@@ -65,9 +82,12 @@
             @dragend="onDragEnd"
           >
             <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor">
-              <circle cx="3" cy="2" r="1.2" /><circle cx="7" cy="2" r="1.2" />
-              <circle cx="3" cy="7" r="1.2" /><circle cx="7" cy="7" r="1.2" />
-              <circle cx="3" cy="12" r="1.2" /><circle cx="7" cy="12" r="1.2" />
+              <circle cx="3" cy="2" r="1.2" />
+              <circle cx="7" cy="2" r="1.2" />
+              <circle cx="3" cy="7" r="1.2" />
+              <circle cx="7" cy="7" r="1.2" />
+              <circle cx="3" cy="12" r="1.2" />
+              <circle cx="7" cy="12" r="1.2" />
             </svg>
           </button>
           <button
@@ -76,7 +96,14 @@
             title="Comments"
             @click.stop="$emit('openComments', block.block_id)"
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
             </svg>
             <span v-if="commentCount(block.block_id) > 0" class="gutter-comment-count">{{
@@ -86,11 +113,7 @@
         </div>
 
         <!-- Type menu popover -->
-        <div
-          v-if="typeMenuIndex === index"
-          class="type-menu"
-          @mouseleave="typeMenuIndex = null"
-        >
+        <div v-if="typeMenuIndex === index" class="type-menu" @mouseleave="typeMenuIndex = null">
           <button
             v-for="bt in blockTypes"
             :key="bt.type"
@@ -116,7 +139,10 @@
             </button>
           </template>
           <div class="type-menu-divider"></div>
-          <button class="type-menu-item type-menu-delete" @click.stop="$emit('deleteBlock', block.block_id)">
+          <button
+            class="type-menu-item type-menu-delete"
+            @click.stop="$emit('deleteBlock', block.block_id)"
+          >
             <span class="type-icon">&#x2715;</span>
             <span class="type-label">Delete</span>
           </button>
@@ -146,11 +172,7 @@
             <!-- Image block -->
             <template v-else-if="block.block_type === 'image' && block.block_id">
               <div class="block-image">
-                <img
-                  :src="getBlockFileUrl(block)"
-                  :alt="getBlockFileName(block)"
-                  loading="lazy"
-                />
+                <img :src="getBlockFileUrl(block)" :alt="getBlockFileName(block)" loading="lazy" />
                 <div class="block-image-caption">{{ getBlockFileName(block) }}</div>
               </div>
             </template>
@@ -164,7 +186,9 @@
             </template>
 
             <!-- Database block -->
-            <template v-else-if="block.block_type === 'database' || detectDynamicType(block) === 'database'">
+            <template
+              v-else-if="block.block_type === 'database'"
+            >
               <DatabaseBlock
                 v-if="editingBlockId !== block.block_id"
                 :config="parseDynamicConfig(block)"
@@ -189,7 +213,7 @@
             </template>
 
             <!-- API block -->
-            <template v-else-if="block.block_type === 'api' || detectDynamicType(block) === 'api'">
+            <template v-else-if="block.block_type === 'api'">
               <ApiBlock
                 v-if="editingBlockId !== block.block_id"
                 :config="parseDynamicConfig(block)"
@@ -234,8 +258,17 @@
                 :class="{ 'is-empty': !block.content }"
                 @click.stop="handleRenderedBlockClick($event, block, index)"
               >
-                <div v-if="block.content" v-html="renderBlock(block)"></div>
-                <span v-else class="block-placeholder-text">{{ getPlaceholder(block.block_type) }}</span>
+                <MdxBlockRenderer
+                  v-if="block.content"
+                  :content="block.content"
+                  :format="block.content_format === 'mdx' ? 'mdx' : 'md'"
+                  :workspace-id="props.workspaceId"
+                  :notebook-id="props.notebookId"
+                  :parent-block-id="block.parent_block_id || undefined"
+                />
+                <span v-else class="block-placeholder-text">{{
+                  getPlaceholder(block.block_type)
+                }}</span>
               </div>
             </template>
           </div>
@@ -249,12 +282,7 @@
     </div>
 
     <!-- Hidden file input for file uploads -->
-    <input
-      ref="fileInputRef"
-      type="file"
-      style="display: none"
-      @change="handleFileSelected"
-    />
+    <input ref="fileInputRef" type="file" style="display: none" @change="handleFileSelected" />
 
     <!-- Link editor popup -->
     <BlockLinkEditor
@@ -269,13 +297,13 @@
 
 <script setup lang="ts">
 import { ref, computed, nextTick, watch, onMounted } from "vue"
-import { Marked } from "marked"
 import type { Block } from "../services/codex"
 import { blockService } from "../services/codex"
 import { getAvailableBlockTypes } from "../services/pluginLoader"
-import { isLocalFileReference, resolveFileUrl } from "../utils/markdownHelpers"
+import { parseBlockConfig } from "../utils/blockConfig"
 import DatabaseBlock from "./blocks/DatabaseBlock.vue"
 import ApiBlock from "./blocks/ApiBlock.vue"
+import MdxBlockRenderer from "./blocks/MdxBlockRenderer.vue"
 import BlockLinkEditor from "./BlockLinkEditor.vue"
 import { useWorkspaceStore } from "../stores/workspace"
 import type { BlockTreeNode } from "../utils/blockTree"
@@ -341,7 +369,9 @@ const pendingFocusIndex = ref<number | null>(null)
 // Link editor state
 const workspaceStore = useWorkspaceStore()
 const showLinkEditor = ref(false)
-const linkEditorAnchorRect = ref<{ top: number; left: number; bottom: number } | undefined>(undefined)
+const linkEditorAnchorRect = ref<{ top: number; left: number; bottom: number } | undefined>(
+  undefined,
+)
 const linkEditorTriggerOffset = ref<number | null>(null) // cursor offset where [[ was typed
 
 const blockTypes = [
@@ -362,7 +392,9 @@ const dynamicBlockTemplates: Record<string, string> = {
 }
 
 // Dynamic block types loaded from plugins
-const dynamicBlockTypes = ref<Array<{ type: string; label: string; icon: string; defaultContent: string }>>([])
+const dynamicBlockTypes = ref<
+  Array<{ type: string; label: string; icon: string; defaultContent: string }>
+>([])
 
 onMounted(async () => {
   try {
@@ -402,81 +434,9 @@ onMounted(() => {
   }
 })
 
-/** Parse YAML-like config from block content (handles JSON, code fences, and plain YAML) */
-function parseYamlLikeConfig(content: string): Record<string, any> {
-  // Try JSON first
-  const trimmed = content.trim()
-  if (trimmed.startsWith("{")) {
-    try {
-      return JSON.parse(trimmed)
-    } catch {
-      // fall through to YAML parsing
-    }
-  }
-  // Strip code fence markers: ```database\n...\n``` or ```api\n...\n```
-  const match = trimmed.match(/^```\w*\n([\s\S]*?)\n```$/)
-  const body = match ? match[1] : trimmed
-  const config: Record<string, any> = {}
-  let currentParent: string | null = null
-  body.split("\n").forEach((line) => {
-    const indented = line.match(/^[ \t]+([\w-]+):\s*(.+)$/)
-    if (indented && indented[1] && indented[2] && currentParent) {
-      if (typeof config[currentParent] !== "object" || config[currentParent] === null) {
-        config[currentParent] = {}
-      }
-      config[currentParent][indented[1]] = indented[2].trim()
-      return
-    }
-    const kv = line.match(/^([\w-]+):\s*(.+)$/)
-    if (kv && kv[1] && kv[2]) {
-      config[kv[1]] = kv[2].trim()
-      currentParent = null
-      return
-    }
-    const parent = line.match(/^([\w-]+):\s*$/)
-    if (parent && parent[1]) {
-      currentParent = parent[1]
-      config[currentParent] = {}
-    }
-  })
-  return config
-}
-
-/** Parse config for any dynamic block (database, api, or detected from content) */
+/** Parse config for a database/api block */
 function parseDynamicConfig(block: Block): Record<string, any> {
-  return parseYamlLikeConfig(block.content || "")
-}
-
-/** Detect if a text/code block contains dynamic view content */
-function detectDynamicType(block: Block): "database" | "api" | null {
-  if (block.block_type === "database" || block.block_type === "api") return null // already handled
-  const content = block.content || ""
-  const trimmed = content.trim()
-
-  // Check for code-fenced dynamic blocks: ```database or ```api
-  const fenceMatch = trimmed.match(/^```(database|api)\n/)
-  if (fenceMatch) return fenceMatch[1] as "database" | "api"
-
-  // Check for JSON content with type hints
-  if (trimmed.startsWith("{")) {
-    try {
-      const obj = JSON.parse(trimmed)
-      if (obj.url || obj.method) return "api"
-      if (obj.source || obj.query) return "database"
-    } catch {
-      // not JSON
-    }
-  }
-
-  // Check for plain YAML-like config patterns
-  const lines = trimmed.split("\n").filter((l) => l.trim())
-  const isYamlLike = lines.length >= 2 && lines.every((l) => /^[\w-]+:\s*.+$/.test(l.trim()) || /^[\w-]+:\s*$/.test(l.trim()) || /^[ \t]+[\w-]+:\s*.+$/.test(l))
-  if (!isYamlLike) return null
-
-  if (/^url:/m.test(trimmed) || /^method:/m.test(trimmed)) return "api"
-  if (/^source:/m.test(trimmed) || /^query:/m.test(trimmed)) return "database"
-
-  return null
+  return parseBlockConfig(block.content || "")
 }
 
 function getBlockFileUrl(block: Block): string {
@@ -487,44 +447,6 @@ function getBlockFileUrl(block: Block): string {
 function getBlockFileName(block: Block): string {
   if (!block.path) return ""
   return block.path.split("/").pop() || block.path
-}
-
-// Create a local Marked instance with custom renderer for resolving links/images
-function createMarkedInstance(): Marked {
-  const instance = new Marked()
-  instance.use({
-    renderer: {
-      image({ href, title, text }: { href: string; title?: string | null; text: string }): string {
-        const resolvedHref = resolveFileUrl(href, props.workspaceId, props.notebookId)
-        const titleAttr = title ? ` title="${title}"` : ""
-        const alt = text || ""
-        return `<img src="${resolvedHref}" alt="${alt}"${titleAttr}>`
-      },
-      link({ href, title, text }: { href: string; title?: string | null; text: string }): string {
-        const titleAttr = title ? ` title="${title}"` : ""
-        const displayText = text || ""
-        if (href && !isLocalFileReference(href)) {
-          // External link: open in new tab
-          return `<a href="${href}"${titleAttr} target="_blank" rel="noopener">${displayText}</a>`
-        }
-        // Internal/local link: resolve URL, add data attribute for navigation
-        const resolvedHref = resolveFileUrl(href, props.workspaceId, props.notebookId)
-        return `<a href="${resolvedHref}"${titleAttr} data-internal-link="${href}">${displayText}</a>`
-      },
-    },
-  })
-  instance.setOptions({ breaks: true, gfm: true })
-  return instance
-}
-
-const markedInstance = createMarkedInstance()
-
-function renderBlock(block: Block): string {
-  try {
-    return markedInstance.parse(block.content || "", { async: false }) as string
-  } catch {
-    return block.content || ""
-  }
 }
 
 function getPlaceholder(_blockType: string): string {
@@ -694,7 +616,7 @@ function changeBlockType(block: Block, newType: string, defaultContent: string) 
   if (block.block_type === newType) return
 
   // For divider, just update with divider content
-  const content = newType === "divider" ? "---" : (block.content || defaultContent)
+  const content = newType === "divider" ? "---" : block.content || defaultContent
   emit("updateBlock", { block_id: block.block_id, content, block_type: newType })
 }
 
@@ -803,7 +725,10 @@ function onDrop(_event: DragEvent, targetIndex: number) {
   if (moved) {
     const insertAt = dragPosition.value === "top" ? targetIndex : targetIndex
     newOrder.splice(insertAt, 0, moved)
-    emit("reorder", newOrder.map((b) => b.block_id))
+    emit(
+      "reorder",
+      newOrder.map((b) => b.block_id),
+    )
   }
   dragIndex.value = null
   dragOverIndex.value = null
@@ -896,9 +821,10 @@ function handleLinkSelect(page: BlockTreeNode) {
     if (textareas && textareas.length > 0) {
       const ta = textareas[0]!
       ta.focus()
-      const cursorPos = (linkEditorTriggerOffset.value !== null
-        ? linkEditorTriggerOffset.value
-        : editContent.value.length - linkMarkdown.length) + linkMarkdown.length
+      const cursorPos =
+        (linkEditorTriggerOffset.value !== null
+          ? linkEditorTriggerOffset.value
+          : editContent.value.length - linkMarkdown.length) + linkMarkdown.length
       ta.selectionStart = ta.selectionEnd = Math.min(cursorPos, editContent.value.length)
     }
   })
@@ -988,7 +914,9 @@ function onFileDrop(event: DragEvent) {
   font-size: 0.8125rem;
   cursor: pointer;
   white-space: nowrap;
-  transition: background-color 0.15s, color 0.15s;
+  transition:
+    background-color 0.15s,
+    color 0.15s;
 }
 
 .new-page-btn:hover {
@@ -1246,9 +1174,15 @@ function onFileDrop(event: DragEvent) {
   line-height: 1.3;
 }
 
-.block-content :deep(h1) { font-size: 2rem; }
-.block-content :deep(h2) { font-size: 1.5rem; }
-.block-content :deep(h3) { font-size: 1.25rem; }
+.block-content :deep(h1) {
+  font-size: 2rem;
+}
+.block-content :deep(h2) {
+  font-size: 1.5rem;
+}
+.block-content :deep(h3) {
+  font-size: 1.25rem;
+}
 
 .block-content :deep(p) {
   margin: 0;

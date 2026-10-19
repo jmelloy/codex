@@ -64,8 +64,8 @@ importers:
         specifier: ^10.6.1
         version: 10.6.1(postcss@8.5.23)
       happy-dom:
-        specifier: ^20.11.12
-        version: 20.11.12
+        specifier: ^21.0.3
+        version: 21.0.3
       postcss:
         specifier: ^8.5.23
         version: 8.5.23
@@ -80,7 +80,7 @@ importers:
         version: 8.3.4(@types/node@26.4.1)(esbuild@0.27.2)(jiti@2.7.0)(yaml@2.9.0)
       vitest:
         specifier: ^4.0.16
-        version: 4.0.18(@types/node@26.4.1)(@vitest/ui@4.0.18)(happy-dom@20.11.12)(jiti@2.7.0)(lightningcss@1.33.0)(yaml@2.9.0)
+        version: 4.0.18(@types/node@26.4.1)(@vitest/ui@4.0.18)(happy-dom@21.0.3)(jiti@2.7.0)(lightningcss@1.33.0)(yaml@2.9.0)
       vue-tsc:
         specifier: ^3.3.13
         version: 3.3.13(typescript@5.9.3)
@@ -1217,8 +1217,8 @@ packages:
   graceful-fs@4.2.11:
     resolution: {integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==}
 
-  happy-dom@20.11.12:
-    resolution: {integrity: sha512-7+mrTTD+6fOG3dx0URrDLrCX8QDTE+YujSOQD4VPZcYze/yJ0vVhRKaIBTjqlk+R4NetxVz21odnevHYIjIJ+g==}
+  happy-dom@21.0.3:
+    resolution: {integrity: sha512-PesNgu5BnIEmAwzKGewB3K1ORFeznFZJ4JrRz89ea1wkHnxskdpzX9sN/+zb4KO6k8oSMhyJSj/cwXAFrYBBNA==}
     engines: {node: '>=20.0.0'}
 
   has-flag@4.0.0:
@@ -2696,7 +2696,7 @@ snapshots:
       obug: 2.1.1
       std-env: 3.10.0
       tinyrainbow: 3.0.3
-      vitest: 4.0.18(@types/node@26.4.1)(@vitest/ui@4.0.18)(happy-dom@20.11.12)(jiti@2.7.0)(lightningcss@1.33.0)(yaml@2.9.0)
+      vitest: 4.0.18(@types/node@26.4.1)(@vitest/ui@4.0.18)(happy-dom@21.0.3)(jiti@2.7.0)(lightningcss@1.33.0)(yaml@2.9.0)
 
   '@vitest/expect@4.0.18':
     dependencies:
@@ -2741,7 +2741,7 @@ snapshots:
       sirv: 3.0.2
       tinyglobby: 0.2.15
       tinyrainbow: 3.0.3
-      vitest: 4.0.18(@types/node@26.4.1)(@vitest/ui@4.0.18)(happy-dom@20.11.12)(jiti@2.7.0)(lightningcss@1.33.0)(yaml@2.9.0)
+      vitest: 4.0.18(@types/node@26.4.1)(@vitest/ui@4.0.18)(happy-dom@21.0.3)(jiti@2.7.0)(lightningcss@1.33.0)(yaml@2.9.0)
 
   '@vitest/utils@4.0.18':
     dependencies:
@@ -3271,7 +3271,7 @@ snapshots:
 
   graceful-fs@4.2.11: {}
 
-  happy-dom@20.11.12:
+  happy-dom@21.0.3:
     dependencies:
       '@types/node': 26.4.1
       '@types/whatwg-mimetype': 3.0.2
@@ -4432,7 +4432,7 @@ snapshots:
       jiti: 2.7.0
       yaml: 2.9.0
 
-  vitest@4.0.18(@types/node@26.4.1)(@vitest/ui@4.0.18)(happy-dom@20.11.12)(jiti@2.7.0)(lightningcss@1.33.0)(yaml@2.9.0):
+  vitest@4.0.18(@types/node@26.4.1)(@vitest/ui@4.0.18)(happy-dom@21.0.3)(jiti@2.7.0)(lightningcss@1.33.0)(yaml@2.9.0):
     dependencies:
       '@vitest/expect': 4.0.18
       '@vitest/mocker': 4.0.18(vite@7.3.6(@types/node@26.4.1)(jiti@2.7.0)(lightningcss@1.33.0)(yaml@2.9.0))
@@ -4457,7 +4457,7 @@ snapshots:
     optionalDependencies:
       '@types/node': 26.4.1
       '@vitest/ui': 4.0.18(vitest@4.0.18)
-      happy-dom: 20.11.12
+      happy-dom: 21.0.3
     transitivePeerDependencies:
       - jiti
       - less

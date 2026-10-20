@@ -158,7 +158,7 @@ async def enqueue_task(
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_system_session),
 ) -> Task:
-    """Enqueue a task for background execution via the ARQ worker."""
+    """Enqueue a task for background execution via the taskiq worker."""
     result = await session.execute(select(Task).where(Task.id == task_id))
     task = result.scalar_one_or_none()
     if not task:
@@ -171,12 +171,13 @@ async def enqueue_task(
             detail=f"Task cannot be enqueued — current status is '{task.status}'",
         )
 
-    arq_pool = getattr(request.app.state, "arq_pool", None)
-    if arq_pool is None:
+    if getattr(request.app.state, "task_queue", None) is None:
         raise HTTPException(status_code=503, detail="Task queue is not available (Redis not connected)")
 
-    job = await arq_pool.enqueue_job("run_job", task.id)
-    task.job_id = job.job_id
+    from codex.worker.tasks import run_job
+
+    job = await run_job.kiq(task.id)
+    task.job_id = job.task_id
     task.status = "pending"
     task.updated_at = datetime.now(UTC)
     session.add(task)
@@ -206,15 +207,17 @@ async def get_task_status(
         "job_id": task.job_id,
     }
 
-    # If we have a job_id and a Redis connection, query ARQ for live status
-    arq_pool = getattr(request.app.state, "arq_pool", None)
-    if arq_pool is not None and task.job_id:
+    # If we have a job_id and a Redis connection, query taskiq for live status
+    task_queue = getattr(request.app.state, "task_queue", None)
+    if task_queue is not None and task.job_id:
         try:
-            job = arq_pool.job(task.job_id)
-            info = await job.info()
-            if info:
-                response["job_status"] = info.status
-                response["job_result"] = info.result if info.status == "complete" else None
+            backend = task_queue.result_backend
+            if await backend.is_result_ready(task.job_id):
+                result = await backend.get_result(task.job_id)
+                response["job_status"] = "failed" if result.is_err else "complete"
+                response["job_result"] = None if result.is_err else result.return_value
+            else:
+                response["job_status"] = "queued"
         except Exception:
             pass  # Redis unavailable — fall back to DB status only
 

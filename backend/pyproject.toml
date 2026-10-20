@@ -32,8 +32,9 @@ dependencies = [
     "mistune>=3.3.4",
     "sqlite-vec>=0.1.9",
     "numpy>=2.4.6",
-    "arq>=0.28.0",
-    "redis[hiredis]>=5.0.0",
+    "taskiq>=0.11.0",
+    "taskiq-redis>=1.0.0",
+    "redis[hiredis]>=8.1.0",
     "typst>=0.13.0",
     "sqlalchemy[asyncio]>=2.0.46",
 ]

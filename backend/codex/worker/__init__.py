@@ -1,1 +1,1 @@
-"""ARQ-based background task worker for Codex."""
+"""Taskiq-based background task worker for Codex."""

@@ -1,7 +1,7 @@
 """Notification and workspace-watch routes (issue #530).
 
 Notifications are read-only from the API's perspective — they are populated
-entirely by the async `fanout_event` ARQ job (see `codex.worker.tasks`), never
+entirely by the async `fanout_event` taskiq job (see `codex.worker.tasks`), never
 created directly by a route. This module only exposes listing/marking-read for
 the current user's own notifications, and get/set/clear for a user's
 workspace-watch (opt-in/mute) preference.

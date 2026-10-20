@@ -1,55 +1,29 @@
-"""ARQ worker settings and Redis configuration."""
+"""Taskiq broker and Redis configuration.
+
+Start the worker with: taskiq worker codex.worker.settings:broker codex.worker.tasks
+"""
 
 import os
-from urllib.parse import urlparse
 
-from arq.connections import RedisSettings
-from arq.worker import func
+from taskiq import TaskiqEvents, TaskiqState
+from taskiq_redis import ListQueueBroker, RedisAsyncResultBackend
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
-
-def get_redis_settings() -> RedisSettings:
-    """Parse REDIS_URL environment variable into ARQ RedisSettings."""
-    parsed = urlparse(REDIS_URL)
-    return RedisSettings(
-        host=parsed.hostname or "localhost",
-        port=parsed.port or 6379,
-        database=int(parsed.path.lstrip("/") or 0),
-        password=parsed.password,
-    )
+broker = ListQueueBroker(REDIS_URL).with_result_backend(RedisAsyncResultBackend(REDIS_URL))
 
 
-async def _on_startup(ctx):
+@broker.on_event(TaskiqEvents.WORKER_STARTUP)
+async def _on_startup(state: TaskiqState) -> None:
     """Initialize database on worker start."""
     from codex.worker.context import startup
 
-    await startup(ctx)
+    await startup(state)
 
 
-async def _on_shutdown(ctx):
+@broker.on_event(TaskiqEvents.WORKER_SHUTDOWN)
+async def _on_shutdown(state: TaskiqState) -> None:
     """Cleanup on worker stop."""
     from codex.worker.context import shutdown
 
-    await shutdown(ctx)
-
-
-class WorkerSettings:
-    """ARQ worker configuration.
-
-    Start the worker with: arq codex.worker.settings.WorkerSettings
-    """
-
-    from codex.worker.tasks import deliver_webhook, execute_agent_task, fanout_event, run_job
-
-    # deliver_webhook's own per-agent Agent.webhook_max_retries (<= 20, see
-    # schemas_agent.py) governs when it stops retrying by returning instead of
-    # raising Retry; this ceiling just guards against a runaway retry loop.
-    functions = [execute_agent_task, run_job, fanout_event, func(deliver_webhook, max_tries=20)]
-    redis_settings = get_redis_settings()
-    max_jobs = 10
-    job_timeout = 600  # 10 minutes
-    health_check_interval = 30  # seconds; read by `arq --check` (docker healthcheck)
-
-    on_startup = _on_startup
-    on_shutdown = _on_shutdown
+    await shutdown(state)

@@ -207,7 +207,7 @@ class Task(SQLModel, table=True):
     status: str = Field(default="pending")  # pending, in_progress, completed, failed
     task_type: str | None = None  # e.g. "zip_import"
     assigned_to: str | None = None  # Agent identifier
-    job_id: str | None = None  # ARQ job identifier for background execution
+    job_id: str | None = None  # taskiq job identifier for background execution
     job_type: str = Field(default="agent")  # Job type for generic dispatch
     task_metadata: str | None = None  # JSON-encoded task-specific context
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
@@ -371,7 +371,7 @@ class Agent(SQLModel, table=True):
 
     # Webhook delivery config for external bots (issue #536, design doc §2.1 /
     # §8 phase 3). Only meaningful when kind == "external": a mention wakes the
-    # bot with a signed POST to webhook_url instead of the ARQ agent-execution
+    # bot with a signed POST to webhook_url instead of the taskiq agent-execution
     # pipeline used for hosted agents. webhook_secret_encrypted is Fernet-
     # encrypted at rest, the same as AgentCredential.encrypted_value.
     webhook_url: str | None = None
@@ -650,7 +650,7 @@ class Event(SQLModel, table=True):
     """Append-only event outbox (issue #530).
 
     Every notification-worthy action in a workspace writes one `Event` row here
-    (never updated or deleted). The ARQ `fanout_event` job reads new events and
+    (never updated or deleted). The taskiq `fanout_event` job reads new events and
     fans them out into `Notification` rows for the relevant recipients, decoupling
     "what happened" (recorded synchronously, in the request's DB transaction) from
     "who should be told" (resolved asynchronously, off the request path).
@@ -712,7 +712,7 @@ class SyncJournal(SQLModel, table=True):
 
     Every observed change to a synced file is recorded here, populated from a
     client's `POST .../sync/push-complete` call and/or an S3 event notification
-    (EventBridge -> SQS -> ARQ, where configured). `id` is a strictly monotonic,
+    (EventBridge -> SQS -> taskiq, where configured). `id` is a strictly monotonic,
     never-reused autoincrement (`sqlite_autoincrement`), so it doubles as the
     change feed's pull cursor for `GET .../sync/changes?since=cursor`. The
     unique constraint on (ws_id, nb_id, path, s3_version_id) deduplicates the same

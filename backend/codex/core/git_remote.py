@@ -17,7 +17,7 @@ from urllib.parse import urlsplit, urlunsplit
 
 from git import GitCommandError, Repo
 
-ALLOWED_SCHEMES = {"https", "http", "ssh", "git"}
+ALLOWED_SCHEMES = {"https", "ssh", "git"}
 _SCP_RE = re.compile(r"^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+:[^\s]+$")
 _REMOTE_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 _REF_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]*$")
@@ -28,19 +28,41 @@ class RemoteGitError(Exception):
 
 
 def validate_remote_url(url: str) -> str:
-    """Return the URL if it is a safe remote URL; raise RemoteGitError otherwise.
+    """Validate a remote URL and return the sanitized URL to use.
 
-    Rejects local paths, ``file:``/``ext::`` transports and option-like values.
+    Only https, ssh, git and scp-style (user@host:path) URLs are accepted.
+    Local paths, ``file:``/``ext::``/``http`` transports, option-like values and
+    hosts starting with ``-`` are rejected. Embedded credentials are stripped
+    from https/git URLs (pass a token via the auth options instead) so they are
+    never persisted to ``.git/config``; ssh URLs keep only a bare username and
+    reject embedded passwords.
     """
     url = (url or "").strip()
-    if not url or url.startswith("-") or any(c.isspace() for c in url):
+    if not url or url.startswith("-") or any(c.isspace() or ord(c) < 32 for c in url):
         raise RemoteGitError("Invalid remote URL")
     if _SCP_RE.match(url):
+        if url.split("@", 1)[1].startswith("-"):
+            raise RemoteGitError("Invalid remote host")
         return url
-    parts = urlsplit(url)
-    if parts.scheme not in ALLOWED_SCHEMES or not parts.hostname:
+    try:
+        parts = urlsplit(url)
+        host = parts.hostname
+        port = parts.port
+    except ValueError:
+        raise RemoteGitError("Invalid remote URL") from None
+    if parts.scheme not in ALLOWED_SCHEMES or not host:
         raise RemoteGitError("Remote URL must be https, ssh, git or user@host:path")
-    return url
+    if host.startswith("-") or (parts.username or "").startswith("-"):
+        raise RemoteGitError("Invalid remote host")
+    if parts.password is not None:
+        if parts.scheme == "ssh":
+            raise RemoteGitError("Embedded passwords are not allowed in remote URLs")
+    netloc = f"[{host}]" if ":" in host else host
+    if port:
+        netloc += f":{port}"
+    if parts.scheme == "ssh" and parts.username:
+        netloc = f"{parts.username}@{netloc}"
+    return urlunsplit((parts.scheme, netloc, parts.path, parts.query, parts.fragment))
 
 
 def validate_remote_name(name: str) -> str:
@@ -111,7 +133,7 @@ def git_auth_env(token: str | None = None, username: str | None = None, ssh_priv
 
 def clone_repository(url: str, dest: str, branch: str | None = None, **auth) -> Repo:
     """Clone ``url`` into the (empty or non-existent) ``dest`` directory."""
-    validate_remote_url(url)
+    url = validate_remote_url(url)
     if branch:
         validate_ref(branch)
     with git_auth_env(**auth) as (env, secrets):

@@ -15,18 +15,42 @@ from codex.core.git_remote import (
 
 @pytest.mark.parametrize(
     "url",
-    ["https://github.com/o/r.git", "ssh://git@gitlab.com/o/r.git", "git@github.com:o/r.git", "git://host/r"],
+    ["https://github.com/o/r.git", "ssh://git@gitlab.com/o/r.git", "git@github.com:o/r.git", "git://host/r", "https://host:8443/r"],
 )
 def test_valid_urls(url):
     assert validate_remote_url(url) == url
 
 
 @pytest.mark.parametrize(
-    "url", ["", "/tmp/repo", "file:///tmp/repo", "ext::sh -c id", "--upload-pack=x", "https://", "../x"]
+    "url", ["", "/tmp/repo", "file:///tmp/repo", "ext::sh -c id", "--upload-pack=x", "https://", "../x", "http://example.com/r.git", "ssh://-oProxyCommand=x/r", "ssh://u:pw@host/r", "git@-host:r"]
 )
 def test_invalid_urls(url):
     with pytest.raises(RemoteGitError):
         validate_remote_url(url)
+
+
+def test_validate_strips_credentials():
+    assert validate_remote_url("https://user:tok@github.com/o/r.git") == "https://github.com/o/r.git"
+    assert validate_remote_url("https://tok@host:8443/o/r") == "https://host:8443/o/r"
+    assert validate_remote_url("ssh://git@host/o/r") == "ssh://git@host/o/r"
+
+
+def test_clone_uses_sanitized_url(monkeypatch, tmp_path):
+    from codex.core import git_remote
+
+    seen = {}
+    monkeypatch.setattr(
+        git_remote.Repo, "clone_from", lambda url, dest, **kw: seen.setdefault("url", url)
+    )
+    git_remote.clone_repository("https://u:tok@example.com/o/r.git", str(tmp_path / "d"))
+    assert seen["url"] == "https://example.com/o/r.git"
+
+
+def test_set_remote_persists_sanitized_url(tmp_path):
+    gm = GitManager(str(tmp_path))
+    gm.set_remote("origin", "https://u:tok@example.com/o/r.git")
+    assert "tok" not in (tmp_path / ".git" / "config").read_text()
+    assert gm.repo.remote("origin").url == "https://example.com/o/r.git"
 
 
 def test_invalid_ref():

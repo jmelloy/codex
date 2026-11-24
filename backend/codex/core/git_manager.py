@@ -347,7 +347,7 @@ class GitManager:
         from codex.core.git_remote import validate_remote_name, validate_remote_url
 
         validate_remote_name(name)
-        validate_remote_url(url)
+        url = validate_remote_url(url)
         with git_lock_manager.lock(self.notebook_path):
             if name in [r.name for r in self.repo.remotes]:
                 self.repo.remote(name).set_url(url)

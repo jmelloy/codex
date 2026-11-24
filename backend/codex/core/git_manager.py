@@ -332,3 +332,40 @@ class GitManager:
                 self.add_file(sidecar)
             commit_hash = self.commit(f"Auto-commit: {filename}")
             return commit_hash
+
+    # ----- Remote support -----
+
+    def list_remotes(self) -> list[dict]:
+        """List configured remotes (URLs redacted)."""
+        from codex.core.git_remote import redact_url
+
+        with git_lock_manager.lock(self.notebook_path):
+            return [{"name": r.name, "url": redact_url(next(iter(r.urls), ""))} for r in self.repo.remotes]
+
+    def set_remote(self, name: str, url: str):
+        """Add a remote, or update its URL if it already exists."""
+        from codex.core.git_remote import validate_remote_name, validate_remote_url
+
+        validate_remote_name(name)
+        validate_remote_url(url)
+        with git_lock_manager.lock(self.notebook_path):
+            if name in [r.name for r in self.repo.remotes]:
+                self.repo.remote(name).set_url(url)
+            else:
+                self.repo.create_remote(name, url)
+
+    def remove_remote(self, name: str) -> bool:
+        with git_lock_manager.lock(self.notebook_path):
+            if name not in [r.name for r in self.repo.remotes]:
+                return False
+            self.repo.delete_remote(self.repo.remote(name))
+            return True
+
+    def remote_operation(self, op: str, remote: str = "origin", ref: str | None = None, **auth) -> str:
+        """Run ``fetch``, ``pull`` or ``push`` against a remote."""
+        from codex.core.git_remote import RemoteGitError, run_remote
+
+        with git_lock_manager.lock(self.notebook_path):
+            if remote not in [r.name for r in self.repo.remotes]:
+                raise RemoteGitError(f"Remote '{remote}' not configured")
+            return run_remote(self.repo, op, remote, ref, **auth)

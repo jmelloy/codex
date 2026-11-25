@@ -22,6 +22,7 @@ from codex.api.routes import (
     calendar,
     collaborators,
     comments,
+    git_remote,
     integrations,
     notebooks,
     notifications,
@@ -233,6 +234,16 @@ async def health():
 app.include_router(users.router, prefix="/api/v1/users", tags=["users"])
 app.include_router(workspaces.router, prefix="/api/v1/workspaces", tags=["workspaces"])
 app.include_router(notebooks.router, prefix="/api/v1/notebooks", tags=["notebooks"])
+app.include_router(
+    git_remote.clone_router,
+    prefix="/api/v1/workspaces/{workspace_identifier}/notebooks",
+    tags=["git-remote"],
+)
+app.include_router(
+    git_remote.router,
+    prefix="/api/v1/workspaces/{workspace_identifier}/notebooks/{notebook_identifier}/remotes",
+    tags=["git-remote"],
+)
 app.include_router(
     notebooks.nested_router,
     prefix="/api/v1/workspaces/{workspace_identifier}/notebooks",

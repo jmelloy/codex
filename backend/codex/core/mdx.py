@@ -17,4 +17,10 @@ MDX_COMPONENT_REGISTRY: dict[str, str] = {
     "GitHubRepo": "GitHub repository summary card",
     "ApiBlock": "Fetch and display data from a REST API endpoint",
     "DatabaseBlock": "Query the notebook database and display results",
+    "Todo": "Checklist of items with done/open state",
+    "Table": "Table with column headings and rows",
+    "ImageGallery": "Grid of images with optional captions",
+    "Chart": "Bar, line or pie chart of labelled values",
+    "LiveData": "Periodically refreshed value from a JSON endpoint",
+    "Embed": "Embedded video/media from an allowlisted provider (YouTube, Vimeo, Loom, CodePen)",
 }

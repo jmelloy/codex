@@ -127,3 +127,18 @@ describe("flattenChildrenToText", () => {
     )
   })
 })
+
+describe("Phase 2 components", () => {
+  it("renders Table and rejects invalid Chart props", async () => {
+    const { mount } = await import("@vue/test-utils")
+    const { useMdxRenderRoot } = await import("../../composables/useMdxContent")
+    const render = (src: string) => {
+      const root = useMdxRenderRoot(() => src, () => ({}))
+      return mount({ render: root })
+    }
+    const table = render('<Table columns=\'["A"]\' rows=\'[[1],[2]]\' />')
+    expect(table.findAll("td")).toHaveLength(2)
+    const bad = render('<Chart type="radar" data="[]" />')
+    expect(bad.text()).toContain("invalid props")
+  })
+})

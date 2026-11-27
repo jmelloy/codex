@@ -22,6 +22,13 @@ import { isLocalFileReference, resolveFileUrl } from "../utils/markdownHelpers"
 import { parseBlockConfig } from "../utils/blockConfig"
 import Calendar from "../components/blocks/Calendar.vue"
 import CodeBlock from "../components/blocks/CodeBlock.vue"
+import Todo from "../components/blocks/Todo.vue"
+import Table from "../components/blocks/Table.vue"
+import ImageGallery from "../components/blocks/ImageGallery.vue"
+import Chart from "../components/blocks/Chart.vue"
+import LiveData from "../components/blocks/LiveData.vue"
+import Embed from "../components/blocks/Embed.vue"
+import { withPropValidation } from "../services/mdxSafeComponent"
 
 export type MdxContentContext = MdxBlockContext
 
@@ -30,6 +37,12 @@ export type MdxContentContext = MdxBlockContext
 const DEDICATED_COMPONENTS: Record<string, Component> = {
   Calendar,
   CodeBlock,
+  Todo,
+  Table,
+  ImageGallery,
+  Chart,
+  LiveData,
+  Embed,
 }
 
 // Flips once the plugin manifest has loaded, so fences for plugin block types
@@ -116,7 +129,13 @@ export function useMdxRenderRoot(
     if (!resolvedComponents.has(name)) {
       resolvedComponents.set(
         name,
-        DEDICATED_COMPONENTS[name] ?? resolveLegacyBackedMdxComponent(name, context),
+        DEDICATED_COMPONENTS[name]
+          ? withPropValidation(name, DEDICATED_COMPONENTS[name], () =>
+              name === "ImageGallery"
+                ? { workspaceId: context().workspaceId, notebookId: context().notebookId }
+                : {},
+            )
+          : resolveLegacyBackedMdxComponent(name, context),
       )
     }
     return resolvedComponents.get(name)

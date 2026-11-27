@@ -198,6 +198,12 @@ class TestComponentRegistry:
             "GitHubRepo",
             "ApiBlock",
             "DatabaseBlock",
+            "Todo",
+            "Table",
+            "ImageGallery",
+            "Chart",
+            "LiveData",
+            "Embed",
         }
 
 

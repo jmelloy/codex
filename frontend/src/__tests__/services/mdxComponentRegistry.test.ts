@@ -22,6 +22,12 @@ describe("mdxComponentRegistry", () => {
         "GitHubRepo",
         "ApiBlock",
         "DatabaseBlock",
+        "Todo",
+        "Table",
+        "ImageGallery",
+        "Chart",
+        "LiveData",
+        "Embed",
       ]),
     )
   })

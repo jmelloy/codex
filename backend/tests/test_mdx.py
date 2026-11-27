@@ -240,7 +240,8 @@ class TestValidateMdx:
         assert any("event handler" in i.message for i in validate_mdx('<a onclick="x()">hi</a>'))
 
     def test_malformed_tag(self):
-        assert any("Malformed" in i.message for i in validate_mdx('<Calendar date="x"'))
+        issues = validate_mdx('<Calendar date="x"')
+        assert any("Malformed tag <Calendar>:" in i.message for i in issues)
 
 
 class TestValidateMdxEndpoint:
@@ -273,3 +274,12 @@ class TestValidateMdxEndpoint:
             f"/api/v1/workspaces/{ws['slug']}/notebooks/{nb['slug']}/blocks/validate-mdx", json={"content": "x"}
         )
         assert r.status_code in (401, 403)
+
+    def test_unknown_notebook_rejected(self, test_client, auth_headers, workspace_and_notebook):
+        ws, _ = workspace_and_notebook
+        r = test_client.post(
+            f"/api/v1/workspaces/{ws['slug']}/notebooks/does-not-exist/blocks/validate-mdx",
+            json={"content": "x"},
+            headers=auth_headers[0],
+        )
+        assert r.status_code == 404

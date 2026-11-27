@@ -158,3 +158,14 @@ describe("MDX error handling", () => {
     expect(wrapper.find(".real").exists()).toBe(true)
   })
 })
+
+describe("invalid props placeholder stability", () => {
+  it("does not remount the placeholder when re-rendered", async () => {
+    const Weather = defineComponent({ render: () => h("div", "real") })
+    const resolve = (n: string) => (n === "Weather" ? Weather : undefined)
+    const wrapper = renderMdx("<Weather />", resolve)
+    const el = wrapper.find(".mdx-invalid-props").element
+    await wrapper.vm.$forceUpdate()
+    expect(wrapper.find(".mdx-invalid-props").element).toBe(el)
+  })
+})

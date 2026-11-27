@@ -366,8 +366,13 @@ async def validate_mdx_content(
     notebook_identifier: str,
     request: ValidateMdxRequest,
     current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
 ):
     """Validate MDX source without saving it; returns positioned, human-readable errors."""
+    # Verify the workspace/notebook exist and the user can access them.
+    await get_notebook_path_nested(
+        workspace_identifier, notebook_identifier, current_user, session, required_level=PermissionLevel.READ
+    )
     issues = validate_mdx(request.content)
     errors = [i.to_dict() for i in issues if i.severity == "error"]
     return {"valid": not errors, "errors": errors}

@@ -115,7 +115,7 @@ def validate_mdx(content: str) -> list[MdxIssue]:
         # A capitalized tag opener that the full-tag regex couldn't match (e.g. missing ">").
         for m in _BAD_TAG_OPEN_RE.finditer(line):
             if m.start() not in tag_spans:
-                issues.append(MdxIssue(f"Malformed tag <{m.group(1)}{m.group(2)}: missing closing '>'", lineno, m.start() + 1))
+                issues.append(MdxIssue(f"Malformed tag <{m.group(1)}{m.group(2)}>: missing closing '>'", lineno, m.start() + 1))
 
     for name, lineno, col in stack:
         issues.append(MdxIssue(f"Expected a closing tag for <{name}>", lineno, col))

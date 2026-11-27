@@ -69,8 +69,14 @@ function createUnauthorizedComponent(name: string): Component {
   }
 }
 
+const invalidPropsCache = new Map<string, Component>()
+
+/** Placeholder for invalid props, cached per component name + error set so the VNode type stays stable across renders. */
 function createInvalidPropsComponent(name: string, errors: string[]): Component {
-  return {
+  const key = `${name}\u0000${errors.join("\u0000")}`
+  const cached = invalidPropsCache.get(key)
+  if (cached) return cached
+  const component: Component = {
     name: `MdxInvalidProps_${name}`,
     setup() {
       return () =>
@@ -80,6 +86,8 @@ function createInvalidPropsComponent(name: string, errors: string[]): Component 
         ])
     },
   }
+  invalidPropsCache.set(key, component)
+  return component
 }
 
 /** Wrap a real component so its props are validated before every render; invalid props render an error placeholder instead. */

@@ -7,7 +7,7 @@ COPY frontend/ ./
 RUN npm run build
 
 # ---- Backend stage ----
-FROM python:3.13-slim
+FROM python:3.15-slim
 
 ARG BUILD_VERSION=dev
 LABEL org.opencontainers.image.version=${BUILD_VERSION}

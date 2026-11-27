@@ -152,16 +152,23 @@ export function useMdxRenderRoot(
         error: null,
       }
     } catch (e) {
-      const message = e instanceof MdxCompileError ? e.message : String(e)
+      const err = e instanceof MdxCompileError ? e : new MdxCompileError(String(e))
       console.error("MDX compile error:", e)
-      return { vnode: null, error: message }
+      return { vnode: null, error: err }
     }
   })
 
   return () => {
     const { vnode, error } = renderedVNode.value
     if (error) {
-      return h("p", { class: "error-content" }, `Error rendering MDX: ${error}`)
+      const where = error.line
+        ? ` (line ${error.line}${error.column ? `, column ${error.column}` : ""})`
+        : ""
+      return h("div", { class: "mdx-error error-content", role: "alert" }, [
+        h("strong", { class: "mdx-error-title" }, "This block couldn't be rendered"),
+        h("p", { class: "mdx-error-message" }, `${error.message}${where}`),
+        h("p", { class: "mdx-error-hint" }, "Edit the block to fix the MDX syntax."),
+      ])
     }
     if (!vnode) {
       return h("p", { class: "empty-content" }, "No content to display")

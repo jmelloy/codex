@@ -23,7 +23,11 @@ import { Fragment as VueFragment, h, type Component, type VNode, type VNodeChild
 import { evaluateSync } from "@mdx-js/mdx"
 import remarkBreaks from "remark-breaks"
 import remarkGfm from "remark-gfm"
-import { ALLOWED_COMPONENT_NAMES, extractComponentNames } from "./mdxComponentRegistry"
+import {
+  ALLOWED_COMPONENT_NAMES,
+  extractComponentNames,
+  validateComponentProps,
+} from "./mdxComponentRegistry"
 
 // hast-util-to-jsx-runtime (used internally by @mdx-js/mdx) emits React-style
 // attribute names for host HTML elements regardless of which jsx runtime is
@@ -65,6 +69,49 @@ function createUnauthorizedComponent(name: string): Component {
   }
 }
 
+const invalidPropsCache = new Map<string, Component>()
+
+/** Placeholder for invalid props, cached per component name + error set so the VNode type stays stable across renders. */
+function createInvalidPropsComponent(name: string, errors: string[]): Component {
+  const key = `${name}\u0000${errors.join("\u0000")}`
+  const cached = invalidPropsCache.get(key)
+  if (cached) return cached
+  const component: Component = {
+    name: `MdxInvalidProps_${name}`,
+    setup() {
+      return () =>
+        h("div", { class: "mdx-unauthorized-component mdx-invalid-props" }, [
+          h("span", { class: "mdx-unauthorized-icon" }, "⚠️"),
+          h("span", {}, `<${name}> has invalid props: ${errors.join("; ")}.`),
+        ])
+    },
+  }
+  invalidPropsCache.set(key, component)
+  return component
+}
+
+/** Wrap a real component so its props are validated before every render; invalid props render an error placeholder instead. */
+const validatedCache = new WeakMap<object, Component>()
+
+function withPropValidation(name: string, inner: Component): Component {
+  // Cached per component so recompiles don't hand Vue a new type (which would remount it).
+  const cached = validatedCache.get(inner)
+  if (cached) return cached
+  const wrapped = {
+    name: `MdxValidated_${name}`,
+    inheritAttrs: false,
+    setup(_props, { attrs, slots }) {
+      return () => {
+        const errors = validateComponentProps(name, attrs)
+        if (errors.length) return h(createInvalidPropsComponent(name, errors))
+        return h(inner as any, attrs, slots)
+      }
+    },
+  } as Component
+  validatedCache.set(inner, wrapped)
+  return wrapped
+}
+
 /** Build the `components` map MDXContent() needs: real components for allowlisted names, a visible placeholder for anything else. */
 export function buildComponentsMap(
   mdxSource: string,
@@ -73,7 +120,7 @@ export function buildComponentsMap(
   const map: Record<string, Component> = {}
   for (const name of extractComponentNames(mdxSource)) {
     const resolved = ALLOWED_COMPONENT_NAMES.has(name) ? resolve(name) : undefined
-    map[name] = resolved ?? createUnauthorizedComponent(name)
+    map[name] = resolved ? withPropValidation(name, resolved) : createUnauthorizedComponent(name)
   }
   return map
 }
@@ -130,14 +177,21 @@ function assertNoMdxJsNodes(node: unknown): void {
   if (!node || typeof node !== "object") return
   const n = node as Record<string, unknown>
   if (typeof n.type === "string" && DISALLOWED_MDX_JS_NODE_TYPES.has(n.type)) {
-    throw new Error(`MDX content may not contain JS expressions or import/export statements (found "${n.type}")`)
+    throw new Error(
+      `MDX content may not contain JS expressions or import/export statements (found "${n.type}")`,
+    )
   }
-  if ((n.type === "mdxJsxFlowElement" || n.type === "mdxJsxTextElement") && Array.isArray(n.attributes)) {
+  if (
+    (n.type === "mdxJsxFlowElement" || n.type === "mdxJsxTextElement") &&
+    Array.isArray(n.attributes)
+  ) {
     for (const attr of n.attributes as Record<string, unknown>[]) {
       const value = attr.value as Record<string, unknown> | string | undefined
       if (
         attr.type === "mdxJsxExpressionAttribute" ||
-        (value !== null && typeof value === "object" && value.type === "mdxJsxAttributeValueExpression")
+        (value !== null &&
+          typeof value === "object" &&
+          value.type === "mdxJsxAttributeValueExpression")
       ) {
         throw new Error(
           `MDX component attribute "${attr.name}" on <${n.name}> may not be a JS expression`,
@@ -188,7 +242,49 @@ export function renderMdxToVNode(
   return MDXContent({ components })
 }
 
-export class MdxCompileError extends Error {}
+export class MdxCompileError extends Error {
+  line?: number
+  column?: number
+
+  constructor(message: string, position?: { line?: number; column?: number }) {
+    super(message)
+    this.name = "MdxCompileError"
+    this.line = position?.line
+    this.column = position?.column
+  }
+}
+
+/** Turn a raw @mdx-js/mdx (VFileMessage) failure into a short, user-friendly MdxCompileError. */
+export function toMdxCompileError(e: unknown): MdxCompileError {
+  if (e instanceof MdxCompileError) return e
+  type Pos = { line?: number | null; column?: number | null }
+  const err = (e ?? {}) as {
+    reason?: string
+    message?: string
+    place?: (Pos & { start?: Pos }) | null
+  } & Pos
+  // VFileMessage exposes the position as `line`/`column` and as `place` (a point or a {start,end} range).
+  const raw = String(err.reason ?? err.message ?? e)
+  let pos: Pos = err.place?.start ?? err.place ?? err
+  if (!pos.line) {
+    // Some errors only carry the position inside the reason, e.g. "... (3:1-3:11)".
+    const m = /\((\d+):(\d+)(?:-\d+:\d+)?\)\s*$/.exec(raw)
+    if (m) pos = { line: Number(m[1]), column: Number(m[2]) }
+  }
+  let message = raw
+  if (/Unexpected closing slash/.test(raw))
+    message = `${raw} (a closing tag has no matching opening tag)`
+  else if (/Expected a closing tag/.test(raw))
+    message = `${raw} (every JSX tag must be closed, e.g. <Calendar />)`
+  else if (/Could not parse expression/.test(raw))
+    message = `${raw} (curly braces start a JS expression - escape literal braces as \\{ )`
+  else if (/Unexpected character `<`/.test(raw))
+    message = `${raw} (escape a literal "<" as \\< or &lt;)`
+  return new MdxCompileError(message, {
+    line: pos.line ?? undefined,
+    column: pos.column ?? undefined,
+  })
+}
 
 /**
  * Compile MDX source to a Vue VNode, resolving component tags via `resolve`.
@@ -210,6 +306,6 @@ export function compileMdx(
   try {
     return renderMdxToVNode(mdxSource, components, format)
   } catch (e) {
-    throw new MdxCompileError(e instanceof Error ? e.message : String(e))
+    throw toMdxCompileError(e)
   }
 }

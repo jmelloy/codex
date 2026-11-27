@@ -47,3 +47,23 @@ describe("mdxComponentRegistry", () => {
   })
 
 })
+
+import { validateComponentProps } from "../../services/mdxComponentRegistry"
+
+describe("validateComponentProps", () => {
+  it("accepts valid props", () => {
+    expect(validateComponentProps("Calendar", { date: "2026-01-01" })).toEqual([])
+    expect(validateComponentProps("GitHubIssues", { repo: "a/b", limit: "5" })).toEqual([])
+  })
+  it("flags missing required props", () => {
+    expect(validateComponentProps("LinkPreview", {})).toEqual(['missing required prop "url"'])
+  })
+  it("flags unknown props and bad types", () => {
+    expect(validateComponentProps("Calendar", { bogus: "x" })).toEqual(['unknown prop "bogus"'])
+    expect(validateComponentProps("GitHubIssues", { limit: "abc" })).toEqual(['prop "limit" must be a number'])
+  })
+  it("ignores children and unregistered components", () => {
+    expect(validateComponentProps("CodeBlock", { children: "x" })).toEqual([])
+    expect(validateComponentProps("Nope", { a: 1 })).toEqual([])
+  })
+})

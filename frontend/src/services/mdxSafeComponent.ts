@@ -22,7 +22,7 @@ export function withPropValidation(
             h("ul", result.errors.map((e) => h("li", e))),
           ])
         }
-        return h(component, { ...result.props, ...extraProps() }, slots)
+        return h(component, { ...result.props, ...extraProps(), class: attrs.class }, slots)
       }
     },
   })

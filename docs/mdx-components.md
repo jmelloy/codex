@@ -4,12 +4,14 @@ All attributes are strings (JS expressions like `{...}` are rejected). Structure
 
 | Component | Props |
 |---|---|
-| `Todo` | `items` JSON `[{"text","done"}]`, or children lines `[x] done` / `[ ] open` |
+| `Todo` | `items` JSON `[{"text": string, "done": boolean}]`, or children lines `[x] done` / `[ ] open` |
 | `Table` | `rows` (required) JSON array of arrays; `columns` JSON array; `caption` |
-| `ImageGallery` | `images` (required) JSON `[{"src","alt","caption"}]`; `columns` 1-6 (default 3) |
-| `Chart` | `data` (required) JSON `[{"label","value"}]`; `type` bar\|line\|pie; `title`; `height` 80-800 |
+| `ImageGallery` | `images` (required) JSON `[{"src": string, "alt": string, "caption": string}]`; `columns` 1-6 (default 3) |
+| `Chart` | `data` (required) JSON `[{"label": string, "value": number}]`; `type` bar\|line\|pie; `title`; `height` 80-800 |
 | `LiveData` | `src` (required, http(s) or `/path`); `path` dot path into JSON; `label`; `interval` seconds 5-3600; `format` text\|number\|json |
 | `Embed` | `provider` youtube\|vimeo\|loom\|codepen; `id` (strict per-provider pattern); `title`; `height` |
+
+Shapes like `{"text": string}` show the expected key and value type, not literal JSON.
 
 Examples:
 

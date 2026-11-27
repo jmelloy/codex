@@ -91,7 +91,7 @@ export function validateProps(schema: PropSchema, raw: Record<string, unknown>):
 
   for (const key of Object.keys(raw)) {
     if (key === "children" || key === "class" || key === "key") continue
-    if (!(key in schema)) errors.push(`Unknown prop "${key}"`)
+    if (!Object.hasOwn(schema, key)) errors.push(`Unknown prop "${key}"`)
   }
 
   for (const [name, spec] of Object.entries(schema)) {

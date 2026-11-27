@@ -146,6 +146,28 @@ withDefaults(
   font-size: var(--text-sm);
 }
 
+.mdx-content :deep(.mdx-error) {
+  border: 1px solid var(--color-error);
+  border-left-width: 4px;
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-sm) var(--spacing-lg);
+  color: var(--color-error);
+  background: var(--color-bg-secondary);
+}
+
+.mdx-content :deep(.mdx-error-message) {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  margin: var(--spacing-xs) 0;
+  white-space: pre-wrap;
+}
+
+.mdx-content :deep(.mdx-error-hint) {
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  margin: 0;
+}
+
 .empty-content,
 .error-content {
   color: var(--color-text-placeholder);

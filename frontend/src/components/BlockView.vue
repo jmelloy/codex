@@ -237,19 +237,30 @@
             <!-- Editable blocks -->
             <template v-else>
               <!-- Editing mode -->
-              <textarea
-                v-if="editingBlockId === block.block_id"
-                ref="textareaRefs"
-                v-model="editContent"
-                class="block-textarea"
-                :class="[`textarea-${block.block_type}`, { 'is-empty': !editContent }]"
-                :placeholder="getPlaceholder(block.block_type)"
-                :data-block-index="index"
-                @blur="finishEditing(block)"
-                @keydown="handleKeydown($event, block, index)"
-                @input="autoResize($event)"
-                @paste="handleBlockPaste($event, block, index)"
-              ></textarea>
+              <div v-if="editingBlockId === block.block_id" class="block-edit-wrap">
+                <pre
+                  v-if="block.content_format === 'mdx'"
+                  class="block-textarea mdx-highlight-mirror"
+                  :class="`textarea-${block.block_type}`"
+                  aria-hidden="true"
+                  v-html="highlightMdx(editContent)"
+                ></pre>
+                <textarea
+                  ref="textareaRefs"
+                  v-model="editContent"
+                  class="block-textarea"
+                  :class="[
+                    `textarea-${block.block_type}`,
+                    { 'is-empty': !editContent, 'mdx-highlighted': block.content_format === 'mdx' },
+                  ]"
+                  :placeholder="getPlaceholder(block.block_type)"
+                  :data-block-index="index"
+                  @blur="finishEditing(block)"
+                  @keydown="handleKeydown($event, block, index)"
+                  @input="autoResize($event)"
+                  @paste="handleBlockPaste($event, block, index)"
+                ></textarea>
+              </div>
 
               <!-- View mode -->
               <div
@@ -303,6 +314,7 @@ import { getAvailableBlockTypes } from "../services/pluginLoader"
 import { parseBlockConfig } from "../utils/blockConfig"
 import DatabaseBlock from "./blocks/DatabaseBlock.vue"
 import ApiBlock from "./blocks/ApiBlock.vue"
+import { highlightMdx } from "../utils/mdxHighlight"
 import MdxBlockRenderer from "./blocks/MdxBlockRenderer.vue"
 import BlockLinkEditor from "./BlockLinkEditor.vue"
 import { useWorkspaceStore } from "../stores/workspace"
@@ -1099,6 +1111,43 @@ function onFileDrop(event: DragEvent) {
 }
 
 /* Textarea - seamless editing */
+.block-edit-wrap {
+  position: relative;
+}
+
+.mdx-highlight-mirror {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  pointer-events: none;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.block-textarea.mdx-highlighted {
+  position: relative;
+  color: transparent;
+  caret-color: var(--color-text-primary, #333);
+}
+
+.block-textarea.mdx-highlighted.is-empty::placeholder {
+  color: var(--color-text-tertiary, #bbb);
+}
+
+.mdx-highlight-mirror :deep(.mdx-tok-heading) { font-weight: 600; }
+.mdx-highlight-mirror :deep(.mdx-tok-bold) { font-weight: 700; }
+.mdx-highlight-mirror :deep(.mdx-tok-tag) { color: #2f6fdb; font-weight: 600; }
+.mdx-highlight-mirror :deep(.mdx-tok-punct) { color: #8a8a8a; }
+.mdx-highlight-mirror :deep(.mdx-tok-attr) { color: #b5541c; }
+.mdx-highlight-mirror :deep(.mdx-tok-string) { color: #2a8a4a; }
+.mdx-highlight-mirror :deep(.mdx-tok-code),
+.mdx-highlight-mirror :deep(.mdx-tok-fence) { color: #7a4fb0; }
+.mdx-highlight-mirror :deep(.mdx-tok-link) { color: #1a7a8a; }
+.mdx-highlight-mirror :deep(.mdx-tok-expr) { color: #c0392b; }
+.mdx-highlight-mirror :deep(.mdx-tok-quote) { color: #777; font-style: italic; }
+
 .block-textarea {
   width: 100%;
   min-height: 1.5em;

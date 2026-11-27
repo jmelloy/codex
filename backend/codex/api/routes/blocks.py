@@ -58,6 +58,7 @@ from codex.core.blocks import (
 )
 from codex.core.import_worker import process_zip_import
 from codex.core.md_import import import_markdown_to_page
+from codex.core.mdx import validate_mdx
 from codex.core.permissions import PermissionLevel
 from codex.core.typst_export import TypstCompileError, export_block_to_pdf
 from codex.core.websocket import notify_file_change
@@ -93,6 +94,24 @@ class UpdateBlockRequest(BaseModel):
     content: str
     block_type: str | None = None
     content_format: str | None = None
+
+
+class ValidateMdxRequest(BaseModel):
+    """Request to validate MDX source."""
+
+    content: str
+
+
+class MdxIssueResponse(BaseModel):
+    message: str
+    line: int
+    column: int
+    severity: str
+
+
+class ValidateMdxResponse(BaseModel):
+    valid: bool
+    errors: list[MdxIssueResponse]
 
 
 class MoveBlockRequest(BaseModel):
@@ -339,6 +358,24 @@ async def get_children(
         }
     finally:
         nb_session.close()
+
+
+@nested_router.post("/validate-mdx", response_model=ValidateMdxResponse)
+async def validate_mdx_content(
+    workspace_identifier: str,
+    notebook_identifier: str,
+    request: ValidateMdxRequest,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_system_session),
+):
+    """Validate MDX source without saving it; returns positioned, human-readable errors."""
+    # Verify the workspace/notebook exist and the user can access them.
+    await get_notebook_path_nested(
+        workspace_identifier, notebook_identifier, current_user, session, required_level=PermissionLevel.READ
+    )
+    issues = validate_mdx(request.content)
+    errors = [i.to_dict() for i in issues if i.severity == "error"]
+    return {"valid": not errors, "errors": errors}
 
 
 @nested_router.post("/", response_model=BlockResponse)

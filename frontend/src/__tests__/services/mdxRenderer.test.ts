@@ -127,3 +127,45 @@ describe("flattenChildrenToText", () => {
     )
   })
 })
+
+describe("MDX error handling", () => {
+  it("throws MdxCompileError with line/column for invalid syntax", () => {
+    try {
+      compileMdx("ok\n\n<Calendar>\nno close", () => undefined)
+      throw new Error("expected failure")
+    } catch (e) {
+      expect(e).toBeInstanceOf(MdxCompileError)
+      const err = e as MdxCompileError
+      expect(err.line).toBeGreaterThan(0)
+      expect(err.message).toMatch(/closing tag/)
+    }
+  })
+
+  it("rejects JS expressions with a clear message", () => {
+    expect(() => compileMdx("Total {1 + 1}", () => undefined)).toThrow(MdxCompileError)
+  })
+
+  it("renders an invalid-props placeholder instead of the component", () => {
+    const Weather = defineComponent({ render: () => h("div", { class: "real" }, "real") })
+    const wrapper = renderMdx("<Weather />", (n) => (n === "Weather" ? Weather : undefined))
+    expect(wrapper.find(".real").exists()).toBe(false)
+    expect(wrapper.text()).toContain('missing required prop "location"')
+  })
+
+  it("renders the component when props are valid", () => {
+    const Weather = defineComponent({ render: () => h("div", { class: "real" }, "real") })
+    const wrapper = renderMdx('<Weather location="NYC" />', (n) => (n === "Weather" ? Weather : undefined))
+    expect(wrapper.find(".real").exists()).toBe(true)
+  })
+})
+
+describe("invalid props placeholder stability", () => {
+  it("does not remount the placeholder when re-rendered", async () => {
+    const Weather = defineComponent({ render: () => h("div", "real") })
+    const resolve = (n: string) => (n === "Weather" ? Weather : undefined)
+    const wrapper = renderMdx("<Weather />", resolve)
+    const el = wrapper.find(".mdx-invalid-props").element
+    await wrapper.vm.$forceUpdate()
+    expect(wrapper.find(".mdx-invalid-props").element).toBe(el)
+  })
+})

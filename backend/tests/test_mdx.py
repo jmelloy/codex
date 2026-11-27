@@ -199,3 +199,87 @@ class TestComponentRegistry:
             "ApiBlock",
             "DatabaseBlock",
         }
+
+
+from codex.core.mdx import validate_mdx  # noqa: E402
+
+
+class TestValidateMdx:
+    def test_valid_content(self):
+        assert validate_mdx('# Hi\n\n<Calendar date="2026-01-01" />\n\n<CodeBlock language="py">\nx\n</CodeBlock>') == []
+
+    def test_plain_markdown_is_valid(self):
+        assert validate_mdx("Some **bold** text and `{code}`.") == []
+
+    def test_unknown_component(self):
+        issues = validate_mdx("<Evil />")
+        assert len(issues) == 1
+        assert "Unknown component" in issues[0].message
+        assert (issues[0].line, issues[0].column) == (1, 1)
+
+    def test_unclosed_tag(self):
+        issues = validate_mdx("text\n<CodeBlock>\nbody")
+        assert any("closing tag for <CodeBlock>" in i.message and i.line == 2 for i in issues)
+
+    def test_unexpected_closing_tag(self):
+        issues = validate_mdx("</Calendar>")
+        assert any("Unexpected closing tag" in i.message for i in issues)
+
+    def test_js_expression_rejected(self):
+        issues = validate_mdx("Total: {1 + 1}")
+        assert any("JS expressions" in i.message for i in issues)
+
+    def test_escaped_brace_and_code_ignored(self):
+        assert validate_mdx("literal \\{ brace and `{x}`\n\n```js\nconst a = {};\n<Evil/>\n```") == []
+
+    def test_import_rejected(self):
+        assert any("import/export" in i.message for i in validate_mdx('import x from "y"'))
+
+    def test_dangerous_html_rejected(self):
+        assert validate_mdx("<script>alert(1)</script>")
+        assert any("event handler" in i.message for i in validate_mdx('<a onclick="x()">hi</a>'))
+
+    def test_malformed_tag(self):
+        issues = validate_mdx('<Calendar date="x"')
+        assert any("Malformed tag <Calendar>:" in i.message for i in issues)
+
+
+class TestValidateMdxEndpoint:
+    def test_valid(self, test_client, auth_headers, workspace_and_notebook):
+        ws, nb = workspace_and_notebook
+        r = test_client.post(
+            f"/api/v1/workspaces/{ws['slug']}/notebooks/{nb['slug']}/blocks/validate-mdx",
+            json={"content": "# ok\n<Calendar />"},
+            headers=auth_headers[0],
+        )
+        assert r.status_code == 200
+        assert r.json() == {"valid": True, "errors": []}
+
+    def test_invalid(self, test_client, auth_headers, workspace_and_notebook):
+        ws, nb = workspace_and_notebook
+        r = test_client.post(
+            f"/api/v1/workspaces/{ws['slug']}/notebooks/{nb['slug']}/blocks/validate-mdx",
+            json={"content": "<Nope>"},
+            headers=auth_headers[0],
+        )
+        assert r.status_code == 200
+        body = r.json()
+        assert body["valid"] is False
+        assert body["errors"][0]["line"] == 1
+
+    def test_requires_auth(self, test_client, workspace_and_notebook):
+        ws, nb = workspace_and_notebook
+        test_client.cookies.clear()
+        r = test_client.post(
+            f"/api/v1/workspaces/{ws['slug']}/notebooks/{nb['slug']}/blocks/validate-mdx", json={"content": "x"}
+        )
+        assert r.status_code in (401, 403)
+
+    def test_unknown_notebook_rejected(self, test_client, auth_headers, workspace_and_notebook):
+        ws, _ = workspace_and_notebook
+        r = test_client.post(
+            f"/api/v1/workspaces/{ws['slug']}/notebooks/does-not-exist/blocks/validate-mdx",
+            json={"content": "x"},
+            headers=auth_headers[0],
+        )
+        assert r.status_code == 404
